@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>test-dgram-send-empty-array.html</title>
+</head>
+<body>
+
+<script>
+'use strict';
+
+const common = require('../common');
+
+const assert = require('assert');
+const dgram = require('dgram');
+
+const client = dgram.createSocket('udp4');
+
+let interval;
+
+client.on('message', common.mustCall(function onMessage(buf, info) {
+  const expected = Buffer.alloc(0);
+  assert.ok(buf.equals(expected), `Expected empty message but got ${buf}`);
+  clearInterval(interval);
+  client.close();
+}));
+
+client.on('listening', common.mustCall(function() {
+  interval = setInterval(function() {
+    client.send([], client.address().port, common.localhostIPv4);
+  }, 10);
+}));
+
+client.bind(0);
+
+</script>
+
+</body>
+</html>

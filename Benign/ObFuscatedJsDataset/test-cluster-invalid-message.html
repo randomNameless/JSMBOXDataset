@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>test-cluster-invalid-message.html</title>
+</head>
+<body>
+
+<script>
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
+
+if (cluster.isMaster) {
+  const worker = cluster.fork();
+
+  worker.on('exit', common.mustCall((code, signal) => {
+    assert.strictEqual(code, 0);
+    assert.strictEqual(signal, null);
+  }));
+
+  worker.on('online', () => {
+    worker.send({
+      cmd: 'NODE_CLUSTER',
+      ack: -1
+    }, () => {
+      worker.disconnect();
+    });
+  });
+}
+
+</script>
+
+</body>
+</html>
