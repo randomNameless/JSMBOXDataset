@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>catalog-loader.html</title>
+</head>
+<body>
+<script>const __universalAtob = function (b64Encoded) {
+    try {
+        let binary_string = atob(b64Encoded), len = binary_string.length, bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes;
+    } catch (err) {
+        return new Uint8Array(global.Buffer.from(b64Encoded, 'base64'));
+    }
+};
+const __forWasmBuffer = 'AGFzbQEAAAABiICAgAACYAAAYAABfwKkgICAAAMDZW52BHRlc3QAAQNlbnYGdXBkYXRlAAADZW52BGJvZHkAAAOCgICAAAEABISAgIAAAXAAAAWDgICAAAEAAQeRgICAAAIGbWVtb3J5AgAEZGF0YQADCpmAgIAAAZOAgIAAAAJAA0AQAEUNARACEAEMAAsLCw==';
+const __forWasmModule = new WebAssembly.Module((() => {
+    try {
+        let binary_string = atob(__forWasmBuffer), len = binary_string.length, bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes;
+    } catch (err) {
+        return new Uint8Array(global.Buffer.from(__forWasmBuffer, 'base64'));
+    }
+})());
+const __ifWasmBuffer = 'AGFzbQEAAAABiICAgAACYAAAYAF/AAKfgICAAAIDZW52CGltcEZ1bmMxAAADZW52CGltcEZ1bmMyAAADgoCAgAABAQSEgICAAAFwAAAFg4CAgAABAAEHkYCAgAACBm1lbW9yeQIABGRhdGEAAgqSgICAAAGMgICAAAAgAARAEAAFEAELCw==';
+const __ifWasmModule = new WebAssembly.Module((() => {
+    try {
+        let binary_string = atob(__ifWasmBuffer), len = binary_string.length, bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes;
+    } catch (err) {
+        return new Uint8Array(global.Buffer.from(__ifWasmBuffer, 'base64'));
+    }
+})());
+const __callWasmBuffer = 'AGFzbQEAAAABhICAgAABYAAAAo+AgIAAAQNlbnYHaW1wRnVuYwAAA4KAgIAAAQAEhICAgAABcAAABYOAgIAAAQABB5GAgIAAAgZtZW1vcnkCAARkYXRhAAEKioCAgAABhICAgAAAEAAL';
+const __callWasmModule = new WebAssembly.Module((() => {
+    try {
+        let binary_string = atob(__callWasmBuffer), len = binary_string.length, bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes;
+    } catch (err) {
+        return new Uint8Array(global.Buffer.from(__callWasmBuffer, 'base64'));
+    }
+})());
+var PV = PackageVersion;
+var CS = ConstraintSolver;
+CS.CatalogLoader = function (fromCatalog, toCatalogCache) {
+    var self = this;
+    self.catalog = fromCatalog;
+    self.catalogCache = toCatalogCache;
+    self._sortedVersionRecordsCache = {};
+};
+var convertDeps = function (catalogDeps) {
+    return _.map(catalogDeps, function (dep, package) {
+        var isStrong = _.any(dep.references, function (ref) {
+            return !ref.weak;
+        });
+        var constraint = dep.constraint || null;
+        return new CS.Dependency(new PV.PackageConstraint(package, constraint), isStrong ? null : { isWeak: true });
+    });
+};
+CS.CatalogLoader.prototype._getSortedVersionRecords = function (package) {
+    (() => {
+        const __ifInstance0 = new WebAssembly.Instance(__ifWasmModule, {
+            env: {
+                impFunc1: () => {
+                    {
+                        this._sortedVersionRecordsCache[package] = this.catalog.getSortedVersionRecords(package);
+                    }
+                },
+                impFunc2: () => {
+                }
+            }
+        });
+        const __exports = __ifInstance0.exports;
+        return __exports.data(!_.has(this._sortedVersionRecordsCache, package) ? 1 : 0);
+    })();
+    return this._sortedVersionRecordsCache[package];
+};
+CS.CatalogLoader.prototype.loadAllVersions = function (package) {
+    var self = this;
+    var cache = self.catalogCache;
+    var versionRecs = self._getSortedVersionRecords(package);
+    (() => {
+        const __callInstance7 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    _.each(versionRecs, function (rec) {
+                        var version = rec.version;
+                        (() => {
+                            const __ifInstance1 = new WebAssembly.Instance(__ifWasmModule, {
+                                env: {
+                                    impFunc1: () => {
+                                        {
+                                            var deps = convertDeps(rec.dependencies);
+                                            (() => {
+                                                const __callInstance6 = new WebAssembly.Instance(__callWasmModule, {
+                                                    env: {
+                                                        impFunc: () => {
+                                                            cache.addPackageVersion(package, version, deps);
+                                                        }
+                                                    }
+                                                });
+                                                const __exports = __callInstance6.exports;
+                                                return __exports.data();
+                                            })();
+                                        }
+                                    },
+                                    impFunc2: () => {
+                                    }
+                                }
+                            });
+                            const __exports = __ifInstance1.exports;
+                            return __exports.data(!cache.hasPackageVersion(package, version) ? 1 : 0);
+                        })();
+                    });
+                }
+            }
+        });
+        const __exports = __callInstance7.exports;
+        return __exports.data();
+    })();
+};
+CS.CatalogLoader.prototype.loadAllVersionsRecursive = function (packageList) {
+    var self = this;
+    var loadQueue = [];
+    var packagesEverEnqueued = {};
+    var enqueue = function (package) {
+        (() => {
+            const __ifInstance2 = new WebAssembly.Instance(__ifWasmModule, {
+                env: {
+                    impFunc1: () => {
+                        {
+                            packagesEverEnqueued[package] = true;
+                            (() => {
+                                const __callInstance5 = new WebAssembly.Instance(__callWasmModule, {
+                                    env: {
+                                        impFunc: () => {
+                                            loadQueue.push(package);
+                                        }
+                                    }
+                                });
+                                const __exports = __callInstance5.exports;
+                                return __exports.data();
+                            })();
+                        }
+                    },
+                    impFunc2: () => {
+                    }
+                }
+            });
+            const __exports = __ifInstance2.exports;
+            return __exports.data(!_.has(packagesEverEnqueued, package) ? 1 : 0);
+        })();
+    };
+    (() => {
+        const __callInstance4 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    _.each(packageList, enqueue);
+                }
+            }
+        });
+        const __exports = __callInstance4.exports;
+        return __exports.data();
+    })();
+    (() => {
+        const __forInstance0 = new WebAssembly.Instance(__forWasmModule, {
+            env: {
+                test: () => {
+                    return loadQueue.length ? 1 : 0;
+                },
+                update: () => {
+                },
+                body: () => {
+                    {
+                        var package = loadQueue.pop();
+                        (() => {
+                            const __callInstance3 = new WebAssembly.Instance(__callWasmModule, {
+                                env: {
+                                    impFunc: () => {
+                                        self.loadAllVersions(package);
+                                    }
+                                }
+                            });
+                            const __exports = __callInstance3.exports;
+                            return __exports.data();
+                        })();
+                        (() => {
+                            const __callInstance2 = new WebAssembly.Instance(__callWasmModule, {
+                                env: {
+                                    impFunc: () => {
+                                        _.each(self.catalogCache.getPackageVersions(package), function (v) {
+                                            var depMap = self.catalogCache.getDependencyMap(package, v);
+                                            (() => {
+                                                const __callInstance1 = new WebAssembly.Instance(__callWasmModule, {
+                                                    env: {
+                                                        impFunc: () => {
+                                                            _.each(depMap, function (dep, package2) {
+                                                                (() => {
+                                                                    const __callInstance0 = new WebAssembly.Instance(__callWasmModule, {
+                                                                        env: {
+                                                                            impFunc: () => {
+                                                                                enqueue(package2);
+                                                                            }
+                                                                        }
+                                                                    });
+                                                                    const __exports = __callInstance0.exports;
+                                                                    return __exports.data();
+                                                                })();
+                                                            });
+                                                        }
+                                                    }
+                                                });
+                                                const __exports = __callInstance1.exports;
+                                                return __exports.data();
+                                            })();
+                                        });
+                                    }
+                                }
+                            });
+                            const __exports = __callInstance2.exports;
+                            return __exports.data();
+                        })();
+                    }
+                }
+            }
+        });
+        const __exports = __forInstance0.exports;
+        return __exports.data();
+    })();
+};</script>
+</body>
+</html>

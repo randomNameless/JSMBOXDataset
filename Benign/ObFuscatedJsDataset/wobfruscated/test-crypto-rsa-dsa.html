@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>test-crypto-rsa-dsa.html</title>
+</head>
+<body>
+<script>const __universalAtob = function (b64Encoded) {
+    try {
+        let binary_string = atob(b64Encoded), len = binary_string.length, bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes;
+    } catch (err) {
+        return new Uint8Array(global.Buffer.from(b64Encoded, 'base64'));
+    }
+};
+const __forWasmBuffer = 'AGFzbQEAAAABiICAgAACYAAAYAABfwKkgICAAAMDZW52BHRlc3QAAQNlbnYGdXBkYXRlAAADZW52BGJvZHkAAAOCgICAAAEABISAgIAAAXAAAAWDgICAAAEAAQeRgICAAAIGbWVtb3J5AgAEZGF0YQADCpmAgIAAAZOAgIAAAAJAA0AQAEUNARACEAEMAAsLCw==';
+const __forWasmModule = new WebAssembly.Module((() => {
+    try {
+        let binary_string = atob(__forWasmBuffer), len = binary_string.length, bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes;
+    } catch (err) {
+        return new Uint8Array(global.Buffer.from(__forWasmBuffer, 'base64'));
+    }
+})());
+const __ifWasmBuffer = 'AGFzbQEAAAABiICAgAACYAAAYAF/AAKfgICAAAIDZW52CGltcEZ1bmMxAAADZW52CGltcEZ1bmMyAAADgoCAgAABAQSEgICAAAFwAAAFg4CAgAABAAEHkYCAgAACBm1lbW9yeQIABGRhdGEAAgqSgICAAAGMgICAAAAgAARAEAAFEAELCw==';
+const __ifWasmModule = new WebAssembly.Module((() => {
+    try {
+        let binary_string = atob(__ifWasmBuffer), len = binary_string.length, bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes;
+    } catch (err) {
+        return new Uint8Array(global.Buffer.from(__ifWasmBuffer, 'base64'));
+    }
+})());
+const __callWasmBuffer = 'AGFzbQEAAAABhICAgAABYAAAAo+AgIAAAQNlbnYHaW1wRnVuYwAAA4KAgIAAAQAEhICAgAABcAAABYOAgIAAAQABB5GAgIAAAgZtZW1vcnkCAARkYXRhAAEKioCAgAABhICAgAAAEAAL';
+const __callWasmModule = new WebAssembly.Module((() => {
+    try {
+        let binary_string = atob(__callWasmBuffer), len = binary_string.length, bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes;
+    } catch (err) {
+        return new Uint8Array(global.Buffer.from(__callWasmBuffer, 'base64'));
+    }
+})());
+const __wasmStringModules = ['AGFzbQEAAAAFg4CAgAABAAEGuIOAgABKfwBBAQt/AEEQC38AQSILfwBBMgt/AEE6C38AQcgAC38AQdAAC38AQeYAC38AQe4AC38AQYQBC38AQYwBC38AQawBC38AQbQBC38AQcoBC38AQdIBC38AQegBC38AQfABC38AQZACC38AQZgCC38AQbACC38AQboCC38AQcQCC38AQc4CC38AQdYCC38AQeYCC38AQfYCC38AQYoDC38AQaIDC38AQagDC38AQa4DC38AQeYDC38AQZ4EC38AQdYEC38AQY4FC38AQbwFC38AQcIFC38AQcgFC38AQc4FC38AQdQFC38AQdoFC38AQeAFC38AQeYFC38AQewFC38AQYQGC38AQZwGC38AQbQGC38AQfIGC38AQbAHC38AQe4HC38AQawIC38AQb4IC38AQcYIC38AQcwIC38AQdQIC38AQdoIC38AQeYIC38AQewIC38AQfQIC38AQfoIC38AQZIJC38AQZgJC38AQZ4JC38AQaQJC38AQaoJC38AQbAJC38AQbYJC38AQbwJC38AQcIJC38AQdoJC38AQeAJC38AQeYJC38AQewJC38AQfIJC38AQfgJCweahYCAAEsGbWVtb3J5AgAFZGF0YTADAAVkYXRhMQMBBWRhdGEyAwIFZGF0YTMDAwVkYXRhNAMEBWRhdGE1AwUFZGF0YTYDBgVkYXRhNwMHBWRhdGE4AwgFZGF0YTkDCQZkYXRhMTADCgZkYXRhMTEDCwZkYXRhMTIDDAZkYXRhMTMDDQZkYXRhMTQDDgZkYXRhMTUDDwZkYXRhMTYDEAZkYXRhMTcDEQZkYXRhMTgDEgZkYXRhMTkDEwZkYXRhMjADFAZkYXRhMjEDFQZkYXRhMjIDFgZkYXRhMjMDFwZkYXRhMjQDGAZkYXRhMjUDGQZkYXRhMjYDGgZkYXRhMjcDGwZkYXRhMjgDHAZkYXRhMjkDHQZkYXRhMzADHgZkYXRhMzEDHwZkYXRhMzIDIAZkYXRhMzMDIQZkYXRhMzQDIgZkYXRhMzUDIwZkYXRhMzYDJAZkYXRhMzcDJQZkYXRhMzgDJgZkYXRhMzkDJwZkYXRhNDADKAZkYXRhNDEDKQZkYXRhNDIDKgZkYXRhNDMDKwZkYXRhNDQDLAZkYXRhNDUDLQZkYXRhNDYDLgZkYXRhNDcDLwZkYXRhNDgDMAZkYXRhNDkDMQZkYXRhNTADMgZkYXRhNTEDMwZkYXRhNTIDNAZkYXRhNTMDNQZkYXRhNTQDNgZkYXRhNTUDNwZkYXRhNTYDOAZkYXRhNTcDOQZkYXRhNTgDOgZkYXRhNTkDOwZkYXRhNjADPAZkYXRhNjEDPQZkYXRhNjIDPgZkYXRhNjMDPwZkYXRhNjQDQAZkYXRhNjUDQQZkYXRhNjYDQgZkYXRhNjcDQwZkYXRhNjgDRAZkYXRhNjkDRQZkYXRhNzADRgZkYXRhNzEDRwZkYXRhNzIDSAZkYXRhNzMDSQvEjICAAEoAQQELDXVzZSUyMHN0cmljdAAAQRALEW1pc3NpbmclMjBjcnlwdG8AAEEiCw50ZXN0X2NlcnQucGVtAABBMgsGYXNjaWkAAEE6Cw10ZXN0X2tleS5wZW0AAEHIAAsGYXNjaWkAAEHQAAsUdGVzdF9yc2FfcHVia2V5LnBlbQAAQeYACwZhc2NpaQAAQe4ACxV0ZXN0X3JzYV9wcml2a2V5LnBlbQAAQYQBCwZhc2NpaQAAQYwBCx90ZXN0X3JzYV9wcml2a2V5X2VuY3J5cHRlZC5wZW0AAEGsAQsGYXNjaWkAAEG0AQsUdGVzdF9kc2FfcHVia2V5LnBlbQAAQcoBCwZhc2NpaQAAQdIBCxV0ZXN0X2RzYV9wcml2a2V5LnBlbQAAQegBCwZhc2NpaQAAQfABCx90ZXN0X2RzYV9wcml2a2V5X2VuY3J5cHRlZC5wZW0AAEGQAgsGYXNjaWkAAEGYAgsWSSUyMEFNJTIwVEhFJTIwV0FMUlVTAABBsAILCXBhc3N3b3JkAABBugILCXBhc3N3b3JkAABBxAILCXBhc3N3b3JkAABBzgILBndyb25nAABB1gILD1JTQV9OT19QQURESU5HAABB5gILD1JTQV9OT19QQURESU5HAABB9gILElJTQV9QS0NTMV9QQURESU5HAABBigMLF1JTQV9QS0NTMV9PQUVQX1BBRERJTkcAAEGiAwsFU0hBMQAAQagDCwVTSEExAABBrgMLNjVjNTBlMzE0NWM0ZTI0OTdhYWRiMGVhYmM4M2IzNDJkMGIwMDIxZWNlMGQ0YzRhMDY0YjdjAABB5gMLNjhmMDIwZDdlMjY4OGIxMjJiZmI1NGM3MjRhYzllZTE2OWY4M2Y2NmQyZmU5MGFiZWI5NWU4AABBngQLNmUxMjkwZTdlMTc3MTUyYTRkZTNkOTQ0Y2Y3ZDQ4ODMxMTRhMjBlZDBmNzhlNzBlMjVlZjBmAABB1gQLNjYwZjA2Yjg1OGU2YWY0MmEyZjI3NmVkZTk1YmJjNmJjOWE5YmJkZGExNWJkNjYzMTg2YTZmAABBjgULLTQwODE5YTdhZjE5ZTU3N2JiMmVmYTVlNTc5YTFmNWNlOGEwZDRjYThiOGY2AABBvAULBGhleAAAQcIFCwRoZXgAAEHIBQsFU0hBMQAAQc4FCwRoZXgAAEHUBQsFU0hBMQAAQdoFCwRoZXgAAEHgBQsFU0hBMQAAQeYFCwRoZXgAAEHsBQsXdGVzdF9yc2FfcHJpdmtleV8yLnBlbQAAQYQGCxZ0ZXN0X3JzYV9wdWJrZXlfMi5wZW0AAEGcBgsWSSUyMEFNJTIwVEhFJTIwV0FMUlVTAABBtAYLPTc5ZDU5ZDM0ZjU2ZDBlOTRhYTZhM2UzMDY4ODJiNTJlZDQxOTFmMDc1MjFmMjVmNTA1YTA3OGRjMmY4OQAAQfIGCz0zOTZlMGM4YWM4OWU5OTZmZGU1NzE3ZjRjYjg5MTk5ZDhmZWMyNDk5NjFmY2IwN2I3NGNkM2QyYTRmZmEAAEGwBws9MjM1NDE3YjY5NjE4ZTRiY2Q3NmI5N2UyOTk3NWI3Y2U4NjIyOTk0MTBlMWI1MjJhMzI4ZTQ0YWM5YmIyAABB7gcLPTgxOTVlMDI2OGRhN2VkYTIzZDk4MjVhYzQzYzcyNGU4NmNlZWVlMGQwZDQ0NjU2Nzg2NTJjY2FmNjUwMQAAQawICxEwZGRmYjI5OWJlZGViMWFkAABBvggLB1NIQTI1NgAAQcYICwRoZXgAAEHMCAsHU0hBMjU2AABB1AgLBGhleAAAQdoICwtSU0EtU0hBMjU2AABB5ggLBGhleAAAQewICwdTSEEyNTYAAEH0CAsEaGV4AABB+ggLFkklMjBBTSUyMFRIRSUyMFdBTFJVUwAAQZIJCwVTSEExAABBmAkLBGhleAAAQZ4JCwVTSEExAABBpAkLBGhleAAAQaoJCwVEU1MxAABBsAkLBGhleAAAQbYJCwVEU1MxAABBvAkLBGhleAAAQcIJCxZJJTIwQU0lMjBUSEUlMjBXQUxSVVMAAEHaCQsFU0hBMQAAQeAJCwRoZXgAAEHmCQsFU0hBMQAAQewJCwRoZXgAAEHyCQsFU0hBMQAAQfgJCwRoZXgA'].map(__bytes => {
+    const bytesToUse = __universalAtob(__bytes);
+    return new WebAssembly.Instance(new WebAssembly.Module(bytesToUse));
+});
+const lS = (wI, pos, iWC) => {
+    let __str = '';
+    if (!Array.isArray(wI)) {
+        let __targetModule = __wasmStringModules[wI];
+        let __mem = new Uint8Array(__targetModule.exports.memory.buffer);
+        const __stringKey = `data${ pos }`;
+        let __start = __targetModule.exports[__stringKey] - 1;
+        let __str = '';
+        let i = __start;
+        let __c = __mem[i++];
+        while (!(parseInt(__c) & 128) && __mem[i]) {
+            __str += __c;
+            __c = String.fromCharCode(__mem[i++]);
+        }
+        __str += __c;
+        __str = decodeURIComponent(__str.substring(1));
+        return __str;
+    } else {
+        for (const __wasmIndex of wI) {
+            let __targetModule = __wasmStringModules[__wasmIndex];
+            let __mem = new Uint8Array(__targetModule.exports.memory.buffer);
+            const __stringKey = `data${ pos }`;
+            let __start = __targetModule.exports[__stringKey] - 1;
+            let i = __start;
+            let __c = __mem[i++];
+            while (!(parseInt(__c) & 128) && __mem[i]) {
+                __str += __c;
+                __c = String.fromCharCode(__mem[i++]);
+            }
+            __str += __c;
+        }
+        __str = decodeURIComponent(__str.substring(1));
+        return __str;
+    }
+};
+lS(0, 0);
+const common = require('../common');
+(() => {
+    const __ifInstance0 = new WebAssembly.Instance(__ifWasmModule, {
+        env: {
+            impFunc1: () => {
+                (() => {
+                    const __callInstance50 = new WebAssembly.Instance(__callWasmModule, {
+                        env: {
+                            impFunc: () => {
+                                common.skip(lS(0, 1));
+                            }
+                        }
+                    });
+                    const __exports = __callInstance50.exports;
+                    return __exports.data();
+                })();
+            },
+            impFunc2: () => {
+            }
+        }
+    });
+    const __exports = __ifInstance0.exports;
+    return __exports.data(!common.hasCrypto ? 1 : 0);
+})();
+const assert = require('assert');
+const crypto = require('crypto');
+const constants = crypto.constants;
+const fixtures = require('../common/fixtures');
+const certPem = fixtures.readSync(lS(0, 2), lS(0, 3));
+const keyPem = fixtures.readSync(lS(0, 4), lS(0, 5));
+const rsaPubPem = fixtures.readSync(lS(0, 6), lS(0, 7));
+const rsaKeyPem = fixtures.readSync(lS(0, 8), lS(0, 9));
+const rsaKeyPemEncrypted = fixtures.readSync(lS(0, 10), lS(0, 11));
+const dsaPubPem = fixtures.readSync(lS(0, 12), lS(0, 13));
+const dsaKeyPem = fixtures.readSync(lS(0, 14), lS(0, 15));
+const dsaKeyPemEncrypted = fixtures.readSync(lS(0, 16), lS(0, 17));
+const decryptError = /^Error: error:06065064:digital envelope routines:EVP_DecryptFinal_ex:bad decrypt$/;
+{
+    const input = lS(0, 18);
+    const bufferToEncrypt = Buffer.from(input);
+    let encryptedBuffer = crypto.publicEncrypt(rsaPubPem, bufferToEncrypt);
+    let decryptedBuffer = crypto.privateDecrypt(rsaKeyPem, encryptedBuffer);
+    (() => {
+        const __callInstance49 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    assert.strictEqual(decryptedBuffer.toString(), input);
+                }
+            }
+        });
+        const __exports = __callInstance49.exports;
+        return __exports.data();
+    })();
+    let decryptedBufferWithPassword = crypto.privateDecrypt({
+        key: rsaKeyPemEncrypted,
+        passphrase: 'password'
+    }, encryptedBuffer);
+    (() => {
+        const __callInstance48 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    assert.strictEqual(decryptedBufferWithPassword.toString(), input);
+                }
+            }
+        });
+        const __exports = __callInstance48.exports;
+        return __exports.data();
+    })();
+    encryptedBuffer = crypto.publicEncrypt({
+        key: rsaKeyPemEncrypted,
+        passphrase: 'password'
+    }, bufferToEncrypt);
+    decryptedBufferWithPassword = crypto.privateDecrypt({
+        key: rsaKeyPemEncrypted,
+        passphrase: 'password'
+    }, encryptedBuffer);
+    (() => {
+        const __callInstance47 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    assert.strictEqual(decryptedBufferWithPassword.toString(), input);
+                }
+            }
+        });
+        const __exports = __callInstance47.exports;
+        return __exports.data();
+    })();
+    encryptedBuffer = crypto.privateEncrypt({
+        key: rsaKeyPemEncrypted,
+        passphrase: Buffer.from(lS(0, 19))
+    }, bufferToEncrypt);
+    decryptedBufferWithPassword = crypto.publicDecrypt({
+        key: rsaKeyPemEncrypted,
+        passphrase: Buffer.from(lS(0, 20))
+    }, encryptedBuffer);
+    (() => {
+        const __callInstance46 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    assert.strictEqual(decryptedBufferWithPassword.toString(), input);
+                }
+            }
+        });
+        const __exports = __callInstance46.exports;
+        return __exports.data();
+    })();
+    encryptedBuffer = crypto.publicEncrypt(certPem, bufferToEncrypt);
+    decryptedBuffer = crypto.privateDecrypt(keyPem, encryptedBuffer);
+    (() => {
+        const __callInstance45 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    assert.strictEqual(decryptedBuffer.toString(), input);
+                }
+            }
+        });
+        const __exports = __callInstance45.exports;
+        return __exports.data();
+    })();
+    encryptedBuffer = crypto.publicEncrypt(keyPem, bufferToEncrypt);
+    decryptedBuffer = crypto.privateDecrypt(keyPem, encryptedBuffer);
+    (() => {
+        const __callInstance44 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    assert.strictEqual(decryptedBuffer.toString(), input);
+                }
+            }
+        });
+        const __exports = __callInstance44.exports;
+        return __exports.data();
+    })();
+    encryptedBuffer = crypto.privateEncrypt(keyPem, bufferToEncrypt);
+    decryptedBuffer = crypto.publicDecrypt(keyPem, encryptedBuffer);
+    (() => {
+        const __callInstance43 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    assert.strictEqual(decryptedBuffer.toString(), input);
+                }
+            }
+        });
+        const __exports = __callInstance43.exports;
+        return __exports.data();
+    })();
+    (() => {
+        const __callInstance42 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    assert.throws(() => {
+                        (() => {
+                            const __callInstance41 = new WebAssembly.Instance(__callWasmModule, {
+                                env: {
+                                    impFunc: () => {
+                                        crypto.privateDecrypt({
+                                            key: rsaKeyPemEncrypted,
+                                            passphrase: 'wrong'
+                                        }, bufferToEncrypt);
+                                    }
+                                }
+                            });
+                            const __exports = __callInstance41.exports;
+                            return __exports.data();
+                        })();
+                    }, decryptError);
+                }
+            }
+        });
+        const __exports = __callInstance42.exports;
+        return __exports.data();
+    })();
+    (() => {
+        const __callInstance40 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    assert.throws(() => {
+                        (() => {
+                            const __callInstance39 = new WebAssembly.Instance(__callWasmModule, {
+                                env: {
+                                    impFunc: () => {
+                                        crypto.publicEncrypt({
+                                            key: rsaKeyPemEncrypted,
+                                            passphrase: 'wrong'
+                                        }, encryptedBuffer);
+                                    }
+                                }
+                            });
+                            const __exports = __callInstance39.exports;
+                            return __exports.data();
+                        })();
+                    }, decryptError);
+                }
+            }
+        });
+        const __exports = __callInstance40.exports;
+        return __exports.data();
+    })();
+    encryptedBuffer = crypto.privateEncrypt({
+        key: rsaKeyPemEncrypted,
+        passphrase: Buffer.from(lS(0, 21))
+    }, bufferToEncrypt);
+    (() => {
+        const __callInstance38 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    assert.throws(() => {
+                        (() => {
+                            const __callInstance37 = new WebAssembly.Instance(__callWasmModule, {
+                                env: {
+                                    impFunc: () => {
+                                        crypto.publicDecrypt({
+                                            key: rsaKeyPemEncrypted,
+                                            passphrase: Buffer.from(lS(0, 22))
+                                        }, encryptedBuffer);
+                                    }
+                                }
+                            });
+                            const __exports = __callInstance37.exports;
+                            return __exports.data();
+                        })();
+                    }, decryptError);
+                }
+            }
+        });
+        const __exports = __callInstance38.exports;
+        return __exports.data();
+    })();
+}
+function test_rsa(padding) {
+    const size = padding === lS(0, 23) ? 1024 / 8 : 32;
+    const input = Buffer.allocUnsafe(size);
+    (() => {
+        let i = 0;
+        const __forInstance0 = new WebAssembly.Instance(__forWasmModule, {
+            env: {
+                test: () => {
+                    return i < input.length ? 1 : 0;
+                },
+                update: () => {
+                    i++;
+                },
+                body: () => {
+                    input[i] = i * 7 + 11 & 255;
+                }
+            }
+        });
+        const __exports = __forInstance0.exports;
+        return __exports.data();
+    })();
+    const bufferToEncrypt = Buffer.from(input);
+    padding = constants[padding];
+    const encryptedBuffer = crypto.publicEncrypt({
+        key: rsaPubPem,
+        padding: padding
+    }, bufferToEncrypt);
+    const decryptedBuffer = crypto.privateDecrypt({
+        key: rsaKeyPem,
+        padding: padding
+    }, encryptedBuffer);
+    (() => {
+        const __callInstance36 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    assert.deepStrictEqual(decryptedBuffer, input);
+                }
+            }
+        });
+        const __exports = __callInstance36.exports;
+        return __exports.data();
+    })();
+}
+(() => {
+    const __callInstance35 = new WebAssembly.Instance(__callWasmModule, {
+        env: {
+            impFunc: () => {
+                test_rsa(lS(0, 24));
+            }
+        }
+    });
+    const __exports = __callInstance35.exports;
+    return __exports.data();
+})();
+(() => {
+    const __callInstance34 = new WebAssembly.Instance(__callWasmModule, {
+        env: {
+            impFunc: () => {
+                test_rsa(lS(0, 25));
+            }
+        }
+    });
+    const __exports = __callInstance34.exports;
+    return __exports.data();
+})();
+(() => {
+    const __callInstance33 = new WebAssembly.Instance(__callWasmModule, {
+        env: {
+            impFunc: () => {
+                test_rsa(lS(0, 26));
+            }
+        }
+    });
+    const __exports = __callInstance33.exports;
+    return __exports.data();
+})();
+let rsaSign = crypto.createSign(lS(0, 27));
+let rsaVerify = crypto.createVerify(lS(0, 28));
+(() => {
+    const __callInstance32 = new WebAssembly.Instance(__callWasmModule, {
+        env: {
+            impFunc: () => {
+                assert.ok(rsaSign);
+            }
+        }
+    });
+    const __exports = __callInstance32.exports;
+    return __exports.data();
+})();
+(() => {
+    const __callInstance31 = new WebAssembly.Instance(__callWasmModule, {
+        env: {
+            impFunc: () => {
+                assert.ok(rsaVerify);
+            }
+        }
+    });
+    const __exports = __callInstance31.exports;
+    return __exports.data();
+})();
+const expectedSignature = lS(0, 29) + lS(0, 30) + lS(0, 31) + lS(0, 32) + lS(0, 33);
+(() => {
+    const __callInstance30 = new WebAssembly.Instance(__callWasmModule, {
+        env: {
+            impFunc: () => {
+                rsaSign.update(rsaPubPem);
+            }
+        }
+    });
+    const __exports = __callInstance30.exports;
+    return __exports.data();
+})();
+let rsaSignature = rsaSign.sign(rsaKeyPem, lS(0, 34));
+(() => {
+    const __callInstance29 = new WebAssembly.Instance(__callWasmModule, {
+        env: {
+            impFunc: () => {
+                assert.strictEqual(rsaSignature, expectedSignature);
+            }
+        }
+    });
+    const __exports = __callInstance29.exports;
+    return __exports.data();
+})();
+(() => {
+    const __callInstance28 = new WebAssembly.Instance(__callWasmModule, {
+        env: {
+            impFunc: () => {
+                rsaVerify.update(rsaPubPem);
+            }
+        }
+    });
+    const __exports = __callInstance28.exports;
+    return __exports.data();
+})();
+(() => {
+    const __callInstance27 = new WebAssembly.Instance(__callWasmModule, {
+        env: {
+            impFunc: () => {
+                assert.strictEqual(rsaVerify.verify(rsaPubPem, rsaSignature, lS(0, 35)), true);
+            }
+        }
+    });
+    const __exports = __callInstance27.exports;
+    return __exports.data();
+})();
+rsaSign = crypto.createSign(lS(0, 36));
+(() => {
+    const __callInstance26 = new WebAssembly.Instance(__callWasmModule, {
+        env: {
+            impFunc: () => {
+                rsaSign.update(rsaPubPem);
+            }
+        }
+    });
+    const __exports = __callInstance26.exports;
+    return __exports.data();
+})();
+const signOptions = {
+    key: rsaKeyPemEncrypted,
+    passphrase: 'password'
+};
+rsaSignature = rsaSign.sign(signOptions, lS(0, 37));
+(() => {
+    const __callInstance25 = new WebAssembly.Instance(__callWasmModule, {
+        env: {
+            impFunc: () => {
+                assert.strictEqual(rsaSignature, expectedSignature);
+            }
+        }
+    });
+    const __exports = __callInstance25.exports;
+    return __exports.data();
+})();
+rsaVerify = crypto.createVerify(lS(0, 38));
+(() => {
+    const __callInstance24 = new WebAssembly.Instance(__callWasmModule, {
+        env: {
+            impFunc: () => {
+                rsaVerify.update(rsaPubPem);
+            }
+        }
+    });
+    const __exports = __callInstance24.exports;
+    return __exports.data();
+})();
+(() => {
+    const __callInstance23 = new WebAssembly.Instance(__callWasmModule, {
+        env: {
+            impFunc: () => {
+                assert.strictEqual(rsaVerify.verify(rsaPubPem, rsaSignature, lS(0, 39)), true);
+            }
+        }
+    });
+    const __exports = __callInstance23.exports;
+    return __exports.data();
+})();
+rsaSign = crypto.createSign(lS(0, 40));
+(() => {
+    const __callInstance22 = new WebAssembly.Instance(__callWasmModule, {
+        env: {
+            impFunc: () => {
+                rsaSign.update(rsaPubPem);
+            }
+        }
+    });
+    const __exports = __callInstance22.exports;
+    return __exports.data();
+})();
+(() => {
+    const __callInstance21 = new WebAssembly.Instance(__callWasmModule, {
+        env: {
+            impFunc: () => {
+                assert.throws(() => {
+                    const signOptions = {
+                        key: rsaKeyPemEncrypted,
+                        passphrase: 'wrong'
+                    };
+                    (() => {
+                        const __callInstance20 = new WebAssembly.Instance(__callWasmModule, {
+                            env: {
+                                impFunc: () => {
+                                    rsaSign.sign(signOptions, lS(0, 41));
+                                }
+                            }
+                        });
+                        const __exports = __callInstance20.exports;
+                        return __exports.data();
+                    })();
+                }, decryptError);
+            }
+        }
+    });
+    const __exports = __callInstance21.exports;
+    return __exports.data();
+})();
+{
+    const privateKey = fixtures.readSync(lS(0, 42));
+    const publicKey = fixtures.readSync(lS(0, 43));
+    const input = lS(0, 44);
+    const signature = lS(0, 45) + lS(0, 46) + lS(0, 47) + lS(0, 48) + lS(0, 49);
+    const sign = crypto.createSign(lS(0, 50));
+    (() => {
+        const __callInstance19 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    sign.update(input);
+                }
+            }
+        });
+        const __exports = __callInstance19.exports;
+        return __exports.data();
+    })();
+    const output = sign.sign(privateKey, lS(0, 51));
+    (() => {
+        const __callInstance18 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    assert.strictEqual(signature, output);
+                }
+            }
+        });
+        const __exports = __callInstance18.exports;
+        return __exports.data();
+    })();
+    const verify = crypto.createVerify(lS(0, 52));
+    (() => {
+        const __callInstance17 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    verify.update(input);
+                }
+            }
+        });
+        const __exports = __callInstance17.exports;
+        return __exports.data();
+    })();
+    (() => {
+        const __callInstance16 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    assert.strictEqual(verify.verify(publicKey, signature, lS(0, 53)), true);
+                }
+            }
+        });
+        const __exports = __callInstance16.exports;
+        return __exports.data();
+    })();
+    const sign2 = crypto.createSign(lS(0, 54));
+    (() => {
+        const __callInstance15 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    sign2.update(input);
+                }
+            }
+        });
+        const __exports = __callInstance15.exports;
+        return __exports.data();
+    })();
+    const output2 = sign2.sign(privateKey, lS(0, 55));
+    (() => {
+        const __callInstance14 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    assert.strictEqual(signature, output2);
+                }
+            }
+        });
+        const __exports = __callInstance14.exports;
+        return __exports.data();
+    })();
+    const verify2 = crypto.createVerify(lS(0, 56));
+    (() => {
+        const __callInstance13 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    verify2.update(input);
+                }
+            }
+        });
+        const __exports = __callInstance13.exports;
+        return __exports.data();
+    })();
+    (() => {
+        const __callInstance12 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    assert.strictEqual(verify2.verify(publicKey, signature, lS(0, 57)), true);
+                }
+            }
+        });
+        const __exports = __callInstance12.exports;
+        return __exports.data();
+    })();
+}
+{
+    const input = lS(0, 58);
+    const sign = crypto.createSign(lS(0, 59));
+    (() => {
+        const __callInstance11 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    sign.update(input);
+                }
+            }
+        });
+        const __exports = __callInstance11.exports;
+        return __exports.data();
+    })();
+    const signature = sign.sign(dsaKeyPem, lS(0, 60));
+    const verify = crypto.createVerify(lS(0, 61));
+    (() => {
+        const __callInstance10 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    verify.update(input);
+                }
+            }
+        });
+        const __exports = __callInstance10.exports;
+        return __exports.data();
+    })();
+    (() => {
+        const __callInstance9 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    assert.strictEqual(verify.verify(dsaPubPem, signature, lS(0, 62)), true);
+                }
+            }
+        });
+        const __exports = __callInstance9.exports;
+        return __exports.data();
+    })();
+    const sign2 = crypto.createSign(lS(0, 63));
+    (() => {
+        const __callInstance8 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    sign2.update(input);
+                }
+            }
+        });
+        const __exports = __callInstance8.exports;
+        return __exports.data();
+    })();
+    const signature2 = sign2.sign(dsaKeyPem, lS(0, 64));
+    const verify2 = crypto.createVerify(lS(0, 65));
+    (() => {
+        const __callInstance7 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    verify2.update(input);
+                }
+            }
+        });
+        const __exports = __callInstance7.exports;
+        return __exports.data();
+    })();
+    (() => {
+        const __callInstance6 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    assert.strictEqual(verify2.verify(dsaPubPem, signature2, lS(0, 66)), true);
+                }
+            }
+        });
+        const __exports = __callInstance6.exports;
+        return __exports.data();
+    })();
+}
+const input = lS(0, 67);
+{
+    const sign = crypto.createSign(lS(0, 68));
+    (() => {
+        const __callInstance5 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    sign.update(input);
+                }
+            }
+        });
+        const __exports = __callInstance5.exports;
+        return __exports.data();
+    })();
+    (() => {
+        const __callInstance4 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    assert.throws(() => {
+                        (() => {
+                            const __callInstance3 = new WebAssembly.Instance(__callWasmModule, {
+                                env: {
+                                    impFunc: () => {
+                                        sign.sign({
+                                            key: dsaKeyPemEncrypted,
+                                            passphrase: 'wrong'
+                                        }, lS(0, 69));
+                                    }
+                                }
+                            });
+                            const __exports = __callInstance3.exports;
+                            return __exports.data();
+                        })();
+                    }, decryptError);
+                }
+            }
+        });
+        const __exports = __callInstance4.exports;
+        return __exports.data();
+    })();
+}
+{
+    const sign = crypto.createSign(lS(0, 70));
+    (() => {
+        const __callInstance2 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    sign.update(input);
+                }
+            }
+        });
+        const __exports = __callInstance2.exports;
+        return __exports.data();
+    })();
+    const signOptions = {
+        key: dsaKeyPemEncrypted,
+        passphrase: 'password'
+    };
+    const signature = sign.sign(signOptions, lS(0, 71));
+    const verify = crypto.createVerify(lS(0, 72));
+    (() => {
+        const __callInstance1 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    verify.update(input);
+                }
+            }
+        });
+        const __exports = __callInstance1.exports;
+        return __exports.data();
+    })();
+    (() => {
+        const __callInstance0 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    assert.strictEqual(verify.verify(dsaPubPem, signature, lS(0, 73)), true);
+                }
+            }
+        });
+        const __exports = __callInstance0.exports;
+        return __exports.data();
+    })();
+}</script>
+</body>
+</html>

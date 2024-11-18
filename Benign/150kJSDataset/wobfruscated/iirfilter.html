@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>iirfilter.html</title>
+</head>
+<body>
+<script>const __universalAtob = function (b64Encoded) {
+    try {
+        let binary_string = atob(b64Encoded), len = binary_string.length, bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes;
+    } catch (err) {
+        return new Uint8Array(global.Buffer.from(b64Encoded, 'base64'));
+    }
+};
+const __aB = 'AGFzbQEAAAABiYCAgAACYAAAYAJ/fwADg4CAgAACAQAFg4CAgAABAAEGhoCAgAABfwFBAAsHkYCAgAACBm1lbW9yeQIABGFycjAAAQq6gICAAAKPgICAAAAjACAAQQRsaiABNgIAC6CAgIAAAQF/QRAkAEEAQQAQAEEBQQAQAEECQQAQAEEDQQAQAAs=', __wAM = new WebAssembly.Instance(new WebAssembly.Module((() => {
+        try {
+            let binary_string = atob(__aB), len = binary_string.length, bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binary_string.charCodeAt(i);
+            }
+            return bytes;
+        } catch (err) {
+            return new Uint8Array(global.Buffer.from(__aB, 'base64'));
+        }
+    })()));
+const ac = new Map();
+const __lA = (pos, stIdx, eIdx) => {
+    if (ac.has(pos)) {
+        return ac.get(pos);
+    } else {
+        const sK = `arr${ pos }`;
+        __wAM.exports[sK]();
+        let mem = new Uint32Array(__wAM.exports.memory.buffer, stIdx, (eIdx - stIdx) / 4 + 1);
+        const rA = Array.from(mem);
+        ac.set(pos, rA);
+        return rA;
+    }
+};
+const __ifWasmBuffer = 'AGFzbQEAAAABiICAgAACYAAAYAF/AAKfgICAAAIDZW52CGltcEZ1bmMxAAADZW52CGltcEZ1bmMyAAADgoCAgAABAQSEgICAAAFwAAAFg4CAgAABAAEHkYCAgAACBm1lbW9yeQIABGRhdGEAAgqSgICAAAGMgICAAAAgAARAEAAFEAELCw==';
+const __ifWasmModule = new WebAssembly.Module((() => {
+    try {
+        let binary_string = atob(__ifWasmBuffer), len = binary_string.length, bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes;
+    } catch (err) {
+        return new Uint8Array(global.Buffer.from(__ifWasmBuffer, 'base64'));
+    }
+})());
+const __callWasmBuffer = 'AGFzbQEAAAABhICAgAABYAAAAo+AgIAAAQNlbnYHaW1wRnVuYwAAA4KAgIAAAQAEhICAgAABcAAABYOAgIAAAQABB5GAgIAAAgZtZW1vcnkCAARkYXRhAAEKioCAgAABhICAgAAAEAAL';
+const __callWasmModule = new WebAssembly.Module((() => {
+    try {
+        let binary_string = atob(__callWasmBuffer), len = binary_string.length, bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes;
+    } catch (err) {
+        return new Uint8Array(global.Buffer.from(__callWasmBuffer, 'base64'));
+    }
+})());
+function IIRFilter(sampleRate, cutoff, resonance, type) {
+    var self = this, f = __lA(0, 16, 32), freq, damp, prevCut, prevReso, sin = Math.sin, min = Math.min, pow = Math.pow;
+    self.cutoff = isNaN(cutoff) ? 20000 : cutoff;
+    self.resonance = !resonance ? 0.1 : resonance;
+    self.samplerate = isNaN(sampleRate) ? 44100 : sampleRate;
+    self.type = type || 0;
+    function calcCoeff() {
+        freq = 2 * sin(Math.PI * min(0.25, self.cutoff / (self.samplerate * 2)));
+        damp = min(2 * (1 - pow(self.resonance, 0.25)), min(2, 2 / freq - freq * 0.5));
+    }
+    self.pushSample = function (sample) {
+        (() => {
+            const __ifInstance0 = new WebAssembly.Instance(__ifWasmModule, {
+                env: {
+                    impFunc1: () => {
+                        {
+                            (() => {
+                                const __callInstance0 = new WebAssembly.Instance(__callWasmModule, {
+                                    env: {
+                                        impFunc: () => {
+                                            calcCoeff();
+                                        }
+                                    }
+                                });
+                                const __exports = __callInstance0.exports;
+                                return __exports.data();
+                            })();
+                            prevCut = self.cutoff;
+                            prevReso = self.resonance;
+                        }
+                    },
+                    impFunc2: () => {
+                    }
+                }
+            });
+            const __exports = __ifInstance0.exports;
+            return __exports.data(prevCut !== self.cutoff || prevReso !== self.resonance ? 1 : 0);
+        })();
+        f[3] = sample - damp * f[2];
+        f[0] = f[0] + freq * f[2];
+        f[1] = f[3] - f[0];
+        f[2] = freq * f[1] + f[2];
+        f[3] = sample - damp * f[2];
+        f[0] = f[0] + freq * f[2];
+        f[1] = f[3] - f[0];
+        f[2] = freq * f[1] + f[2];
+        return f[self.type];
+    };
+    self.getMix = function (type) {
+        return f[type || self.type];
+    };
+}</script>
+</body>
+</html>

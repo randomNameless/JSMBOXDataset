@@ -1,0 +1,1467 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>pitchfinder.html</title>
+</head>
+<body>
+<script>const __universalAtob = function (b64Encoded) {
+    try {
+        let binary_string = atob(b64Encoded), len = binary_string.length, bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes;
+    } catch (err) {
+        return new Uint8Array(global.Buffer.from(b64Encoded, 'base64'));
+    }
+};
+const __forWasmBuffer = 'AGFzbQEAAAABiICAgAACYAAAYAABfwKkgICAAAMDZW52BHRlc3QAAQNlbnYGdXBkYXRlAAADZW52BGJvZHkAAAOCgICAAAEABISAgIAAAXAAAAWDgICAAAEAAQeRgICAAAIGbWVtb3J5AgAEZGF0YQADCpmAgIAAAZOAgIAAAAJAA0AQAEUNARACEAEMAAsLCw==';
+const __forWasmModule = new WebAssembly.Module((() => {
+    try {
+        let binary_string = atob(__forWasmBuffer), len = binary_string.length, bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes;
+    } catch (err) {
+        return new Uint8Array(global.Buffer.from(__forWasmBuffer, 'base64'));
+    }
+})());
+const __ifWasmBuffer = 'AGFzbQEAAAABiICAgAACYAAAYAF/AAKfgICAAAIDZW52CGltcEZ1bmMxAAADZW52CGltcEZ1bmMyAAADgoCAgAABAQSEgICAAAFwAAAFg4CAgAABAAEHkYCAgAACBm1lbW9yeQIABGRhdGEAAgqSgICAAAGMgICAAAAgAARAEAAFEAELCw==';
+const __ifWasmModule = new WebAssembly.Module((() => {
+    try {
+        let binary_string = atob(__ifWasmBuffer), len = binary_string.length, bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes;
+    } catch (err) {
+        return new Uint8Array(global.Buffer.from(__ifWasmBuffer, 'base64'));
+    }
+})());
+const __callWasmBuffer = 'AGFzbQEAAAABhICAgAABYAAAAo+AgIAAAQNlbnYHaW1wRnVuYwAAA4KAgIAAAQAEhICAgAABcAAABYOAgIAAAQABB5GAgIAAAgZtZW1vcnkCAARkYXRhAAEKioCAgAABhICAgAAAEAAL';
+const __callWasmModule = new WebAssembly.Module((() => {
+    try {
+        let binary_string = atob(__callWasmBuffer), len = binary_string.length, bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes;
+    } catch (err) {
+        return new Uint8Array(global.Buffer.from(__callWasmBuffer, 'base64'));
+    }
+})());
+const __wasmStringModules = ['AGFzbQEAAAAFg4CAgAABAAEGhoCAgAABfwBBAQsHkoCAgAACBm1lbW9yeQIABWRhdGEwAwALk4CAgAABAEEBCw11c2UlMjBzdHJpY3QA'].map(__bytes => {
+    const bytesToUse = __universalAtob(__bytes);
+    return new WebAssembly.Instance(new WebAssembly.Module(bytesToUse));
+});
+const lS = (wI, pos, iWC) => {
+    let __str = '';
+    if (!Array.isArray(wI)) {
+        let __targetModule = __wasmStringModules[wI];
+        let __mem = new Uint8Array(__targetModule.exports.memory.buffer);
+        const __stringKey = `data${ pos }`;
+        let __start = __targetModule.exports[__stringKey] - 1;
+        let __str = '';
+        let i = __start;
+        let __c = __mem[i++];
+        while (!(parseInt(__c) & 128) && __mem[i]) {
+            __str += __c;
+            __c = String.fromCharCode(__mem[i++]);
+        }
+        __str += __c;
+        __str = decodeURIComponent(__str.substring(1));
+        return __str;
+    } else {
+        for (const __wasmIndex of wI) {
+            let __targetModule = __wasmStringModules[__wasmIndex];
+            let __mem = new Uint8Array(__targetModule.exports.memory.buffer);
+            const __stringKey = `data${ pos }`;
+            let __start = __targetModule.exports[__stringKey] - 1;
+            let i = __start;
+            let __c = __mem[i++];
+            while (!(parseInt(__c) & 128) && __mem[i]) {
+                __str += __c;
+                __c = String.fromCharCode(__mem[i++]);
+            }
+            __str += __c;
+        }
+        __str = decodeURIComponent(__str.substring(1));
+        return __str;
+    }
+};
+lS(0, 0);
+var AMDF = function (config) {
+    config = config || {};
+    var AMDF = {};
+    var DEFAULT_MIN_FREQUENCY = 82, DEFAULT_MAX_FREQUENCY = 1000, DEFAULT_RATIO = 5, DEFAULT_SENSITIVITY = 0.1, DEFAULT_SAMPLE_RATE = 44100, sampleRate = config.sampleRate || DEFAULT_SAMPLE_RATE, minFrequency = config.minFrequency || DEFAULT_MIN_FREQUENCY, maxFrequency = config.maxFrequency || DEFAULT_MAX_FREQUENCY, sensitivity = config.sensitivity || DEFAULT_SENSITIVITY, ratio = config.ratio || DEFAULT_RATIO, amd = [], maxPeriod = Math.round(sampleRate / minFrequency + 0.5), minPeriod = Math.round(sampleRate / maxFrequency + 0.5), result = {};
+    return function (float32AudioBuffer) {
+        var t, minval = Infinity, maxval = -Infinity, frames1, frames2, calcSub, maxShift = float32AudioBuffer.length;
+        (() => {
+            var i = 0;
+            const __forInstance0 = new WebAssembly.Instance(__forWasmModule, {
+                env: {
+                    test: () => {
+                        return i < maxShift ? 1 : 0;
+                    },
+                    update: () => {
+                        i++;
+                    },
+                    body: () => {
+                        {
+                            (() => {
+                                const __ifInstance0 = new WebAssembly.Instance(__ifWasmModule, {
+                                    env: {
+                                        impFunc1: () => {
+                                            {
+                                                t = 0;
+                                                frames1 = [];
+                                                frames2 = [];
+                                                (() => {
+                                                    var aux1 = 0, aux2 = i, t = 0;
+                                                    const __forInstance1 = new WebAssembly.Instance(__forWasmModule, {
+                                                        env: {
+                                                            test: () => {
+                                                                return aux1 < maxShift - i ? 1 : 0;
+                                                            },
+                                                            update: () => {
+                                                                t++, aux2++, aux1++;
+                                                            },
+                                                            body: () => {
+                                                                {
+                                                                    frames1[t] = float32AudioBuffer[aux1];
+                                                                    frames2[t] = float32AudioBuffer[aux2];
+                                                                }
+                                                            }
+                                                        }
+                                                    });
+                                                    const __exports = __forInstance1.exports;
+                                                    return __exports.data();
+                                                })();
+                                                var frameLength = frames1.length;
+                                                calcSub = [];
+                                                (() => {
+                                                    var u = 0;
+                                                    const __forInstance2 = new WebAssembly.Instance(__forWasmModule, {
+                                                        env: {
+                                                            test: () => {
+                                                                return u < frameLength ? 1 : 0;
+                                                            },
+                                                            update: () => {
+                                                                u++;
+                                                            },
+                                                            body: () => {
+                                                                {
+                                                                    calcSub[u] = frames1[u] - frames2[u];
+                                                                }
+                                                            }
+                                                        }
+                                                    });
+                                                    const __exports = __forInstance2.exports;
+                                                    return __exports.data();
+                                                })();
+                                                var summation = 0;
+                                                (() => {
+                                                    var l = 0;
+                                                    const __forInstance3 = new WebAssembly.Instance(__forWasmModule, {
+                                                        env: {
+                                                            test: () => {
+                                                                return l < frameLength ? 1 : 0;
+                                                            },
+                                                            update: () => {
+                                                                l++;
+                                                            },
+                                                            body: () => {
+                                                                {
+                                                                    summation += Math.abs(calcSub[l]);
+                                                                }
+                                                            }
+                                                        }
+                                                    });
+                                                    const __exports = __forInstance3.exports;
+                                                    return __exports.data();
+                                                })();
+                                                amd[i] = summation;
+                                            }
+                                        },
+                                        impFunc2: () => {
+                                        }
+                                    }
+                                });
+                                const __exports = __ifInstance0.exports;
+                                return __exports.data(minPeriod <= i && i <= maxPeriod ? 1 : 0);
+                            })();
+                        }
+                    }
+                }
+            });
+            const __exports = __forInstance0.exports;
+            return __exports.data();
+        })();
+        (() => {
+            var j = minPeriod;
+            const __forInstance4 = new WebAssembly.Instance(__forWasmModule, {
+                env: {
+                    test: () => {
+                        return j < maxPeriod ? 1 : 0;
+                    },
+                    update: () => {
+                        j++;
+                    },
+                    body: () => {
+                        {
+                            (() => {
+                                const __ifInstance1 = new WebAssembly.Instance(__ifWasmModule, {
+                                    env: {
+                                        impFunc1: () => {
+                                            minval = amd[j];
+                                        },
+                                        impFunc2: () => {
+                                        }
+                                    }
+                                });
+                                const __exports = __ifInstance1.exports;
+                                return __exports.data(amd[j] < minval ? 1 : 0);
+                            })();
+                            (() => {
+                                const __ifInstance2 = new WebAssembly.Instance(__ifWasmModule, {
+                                    env: {
+                                        impFunc1: () => {
+                                            maxval = amd[j];
+                                        },
+                                        impFunc2: () => {
+                                        }
+                                    }
+                                });
+                                const __exports = __ifInstance2.exports;
+                                return __exports.data(amd[j] > maxval ? 1 : 0);
+                            })();
+                        }
+                    }
+                }
+            });
+            const __exports = __forInstance4.exports;
+            return __exports.data();
+        })();
+        var cutoff = Math.round(sensitivity * (maxval - minval) + minval);
+        (() => {
+            j = minPeriod;
+            const __forInstance5 = new WebAssembly.Instance(__forWasmModule, {
+                env: {
+                    test: () => {
+                        return j <= maxPeriod && amd[j] > cutoff ? 1 : 0;
+                    },
+                    update: () => {
+                        j++;
+                    },
+                    body: () => {
+                        ;
+                    }
+                }
+            });
+            const __exports = __forInstance5.exports;
+            return __exports.data();
+        })();
+        var search_length = minPeriod / 2;
+        minval = amd[j];
+        var minpos = j;
+        (() => {
+            i = j - 1;
+            const __forInstance6 = new WebAssembly.Instance(__forWasmModule, {
+                env: {
+                    test: () => {
+                        return i < j + search_length && i <= maxPeriod ? 1 : 0;
+                    },
+                    update: () => {
+                        i++;
+                    },
+                    body: () => {
+                        {
+                            (() => {
+                                const __ifInstance3 = new WebAssembly.Instance(__ifWasmModule, {
+                                    env: {
+                                        impFunc1: () => {
+                                            {
+                                                minval = amd[i];
+                                                minpos = i;
+                                            }
+                                        },
+                                        impFunc2: () => {
+                                        }
+                                    }
+                                });
+                                const __exports = __ifInstance3.exports;
+                                return __exports.data(amd[i] < minval ? 1 : 0);
+                            })();
+                        }
+                    }
+                }
+            });
+            const __exports = __forInstance6.exports;
+            return __exports.data();
+        })();
+        if (Math.round(amd[minpos] * ratio) < maxval) {
+            return { freq: sampleRate / minpos };
+        } else {
+            return { freq: -1 };
+        }
+    };
+};
+var YIN = function (config) {
+    config = config || {};
+    var YIN = {};
+    var DEFAULT_THRESHOLD = 0.1, DEFAULT_BUFFER_SIZE = 2048, DEFAULT_SAMPLE_RATE = 44100, threshold = config.threshold || DEFAULT_THRESHOLD, sampleRate = config.sampleRate || DEFAULT_SAMPLE_RATE, bufferSize = config.bufferSize || DEFAULT_BUFFER_SIZE, yinBuffer = new Float32Array(bufferSize / 2), yinBufferLength = bufferSize / 2, result = {};
+    var difference = function (float32AudioBuffer) {
+        var index, delta;
+        (() => {
+            var tau = 0;
+            const __forInstance7 = new WebAssembly.Instance(__forWasmModule, {
+                env: {
+                    test: () => {
+                        return tau < yinBufferLength ? 1 : 0;
+                    },
+                    update: () => {
+                        tau++;
+                    },
+                    body: () => {
+                        {
+                            yinBuffer[tau] = 0;
+                        }
+                    }
+                }
+            });
+            const __exports = __forInstance7.exports;
+            return __exports.data();
+        })();
+        (() => {
+            tau = 1;
+            const __forInstance8 = new WebAssembly.Instance(__forWasmModule, {
+                env: {
+                    test: () => {
+                        return tau < yinBufferLength ? 1 : 0;
+                    },
+                    update: () => {
+                        tau++;
+                    },
+                    body: () => {
+                        {
+                            (() => {
+                                index = 0;
+                                const __forInstance9 = new WebAssembly.Instance(__forWasmModule, {
+                                    env: {
+                                        test: () => {
+                                            return index < yinBufferLength ? 1 : 0;
+                                        },
+                                        update: () => {
+                                            index++;
+                                        },
+                                        body: () => {
+                                            {
+                                                delta = float32AudioBuffer[index] - float32AudioBuffer[index + tau];
+                                                yinBuffer[tau] += delta * delta;
+                                            }
+                                        }
+                                    }
+                                });
+                                const __exports = __forInstance9.exports;
+                                return __exports.data();
+                            })();
+                        }
+                    }
+                }
+            });
+            const __exports = __forInstance8.exports;
+            return __exports.data();
+        })();
+    };
+    var cumulativeMeanNormalizedDifference = function () {
+        yinBuffer[0] = 1;
+        yinBuffer[1] = 1;
+        var runningSum = 0;
+        (() => {
+            var tau = 1;
+            const __forInstance10 = new WebAssembly.Instance(__forWasmModule, {
+                env: {
+                    test: () => {
+                        return tau < yinBufferLength ? 1 : 0;
+                    },
+                    update: () => {
+                        tau++;
+                    },
+                    body: () => {
+                        {
+                            runningSum += yinBuffer[tau];
+                            yinBuffer[tau] *= tau / runningSum;
+                        }
+                    }
+                }
+            });
+            const __exports = __forInstance10.exports;
+            return __exports.data();
+        })();
+    };
+    var absoluteThreshold = function () {
+        for (var tau = 2; tau < yinBufferLength; tau++) {
+            if (yinBuffer[tau] < threshold) {
+                (() => {
+                    const __forInstance22 = new WebAssembly.Instance(__forWasmModule, {
+                        env: {
+                            test: () => {
+                                return tau + 1 < yinBufferLength && yinBuffer[tau + 1] < yinBuffer[tau] ? 1 : 0;
+                            },
+                            update: () => {
+                            },
+                            body: () => {
+                                {
+                                    tau++;
+                                }
+                            }
+                        }
+                    });
+                    const __exports = __forInstance22.exports;
+                    return __exports.data();
+                })();
+                result.probability = 1 - yinBuffer[tau];
+                break;
+            }
+        }
+        (() => {
+            const __ifInstance4 = new WebAssembly.Instance(__ifWasmModule, {
+                env: {
+                    impFunc1: () => {
+                        {
+                            tau = -1;
+                            result.probability = 0;
+                            result.foundPitch = false;
+                        }
+                    },
+                    impFunc2: () => {
+                        {
+                            result.foundPitch = true;
+                        }
+                    }
+                }
+            });
+            const __exports = __ifInstance4.exports;
+            return __exports.data(tau == yinBufferLength || yinBuffer[tau] >= threshold ? 1 : 0);
+        })();
+        return tau;
+    };
+    var parabolicInterpolation = function (tauEstimate) {
+        var betterTau, x0, x2;
+        (() => {
+            const __ifInstance5 = new WebAssembly.Instance(__ifWasmModule, {
+                env: {
+                    impFunc1: () => {
+                        {
+                            x0 = tauEstimate;
+                        }
+                    },
+                    impFunc2: () => {
+                        {
+                            x0 = tauEstimate - 1;
+                        }
+                    }
+                }
+            });
+            const __exports = __ifInstance5.exports;
+            return __exports.data(tauEstimate < 1 ? 1 : 0);
+        })();
+        (() => {
+            const __ifInstance6 = new WebAssembly.Instance(__ifWasmModule, {
+                env: {
+                    impFunc1: () => {
+                        {
+                            x2 = tauEstimate + 1;
+                        }
+                    },
+                    impFunc2: () => {
+                        {
+                            x2 = tauEstimate;
+                        }
+                    }
+                }
+            });
+            const __exports = __ifInstance6.exports;
+            return __exports.data(tauEstimate + 1 < yinBufferLength ? 1 : 0);
+        })();
+        (() => {
+            const __ifInstance7 = new WebAssembly.Instance(__ifWasmModule, {
+                env: {
+                    impFunc1: () => {
+                        {
+                            (() => {
+                                const __ifInstance8 = new WebAssembly.Instance(__ifWasmModule, {
+                                    env: {
+                                        impFunc1: () => {
+                                            {
+                                                betterTau = tauEstimate;
+                                            }
+                                        },
+                                        impFunc2: () => {
+                                            {
+                                                betterTau = x2;
+                                            }
+                                        }
+                                    }
+                                });
+                                const __exports = __ifInstance8.exports;
+                                return __exports.data(yinBuffer[tauEstimate] <= yinBuffer[x2] ? 1 : 0);
+                            })();
+                        }
+                    },
+                    impFunc2: () => {
+                        (() => {
+                            const __ifInstance9 = new WebAssembly.Instance(__ifWasmModule, {
+                                env: {
+                                    impFunc1: () => {
+                                        {
+                                            (() => {
+                                                const __ifInstance10 = new WebAssembly.Instance(__ifWasmModule, {
+                                                    env: {
+                                                        impFunc1: () => {
+                                                            {
+                                                                betterTau = tauEstimate;
+                                                            }
+                                                        },
+                                                        impFunc2: () => {
+                                                            {
+                                                                betterTau = x0;
+                                                            }
+                                                        }
+                                                    }
+                                                });
+                                                const __exports = __ifInstance10.exports;
+                                                return __exports.data(yinBuffer[tauEstimate] <= yinBuffer[x0] ? 1 : 0);
+                                            })();
+                                        }
+                                    },
+                                    impFunc2: () => {
+                                        {
+                                            var s0, s1, s2;
+                                            s0 = yinBuffer[x0];
+                                            s1 = yinBuffer[tauEstimate];
+                                            s2 = yinBuffer[x2];
+                                            betterTau = tauEstimate + (s2 - s0) / (2 * (2 * s1 - s2 - s0));
+                                        }
+                                    }
+                                }
+                            });
+                            const __exports = __ifInstance9.exports;
+                            return __exports.data(x2 === tauEstimate ? 1 : 0);
+                        })();
+                    }
+                }
+            });
+            const __exports = __ifInstance7.exports;
+            return __exports.data(x0 === tauEstimate ? 1 : 0);
+        })();
+        return betterTau;
+    };
+    return function (float32AudioBuffer) {
+        (() => {
+            const __callInstance8 = new WebAssembly.Instance(__callWasmModule, {
+                env: {
+                    impFunc: () => {
+                        difference(float32AudioBuffer);
+                    }
+                }
+            });
+            const __exports = __callInstance8.exports;
+            return __exports.data();
+        })();
+        (() => {
+            const __callInstance7 = new WebAssembly.Instance(__callWasmModule, {
+                env: {
+                    impFunc: () => {
+                        cumulativeMeanNormalizedDifference();
+                    }
+                }
+            });
+            const __exports = __callInstance7.exports;
+            return __exports.data();
+        })();
+        var tauEstimate = absoluteThreshold();
+        (() => {
+            const __ifInstance11 = new WebAssembly.Instance(__ifWasmModule, {
+                env: {
+                    impFunc1: () => {
+                        {
+                            var betterTau = parabolicInterpolation(tauEstimate);
+                            result.freq = sampleRate / betterTau;
+                        }
+                    },
+                    impFunc2: () => {
+                        {
+                            result.freq = -1;
+                        }
+                    }
+                }
+            });
+            const __exports = __ifInstance11.exports;
+            return __exports.data(tauEstimate !== -1 ? 1 : 0);
+        })();
+        return result;
+    };
+};
+var DW = function (config) {
+    config = config || {};
+    var maxFLWTlevels = 6, maxF = 3000, differenceLevelsN = 3, maximaThresholdRatio = 0.75, sampleRate = config.sampleRate || 44100, bufferLength = config.bufferSize || 1024, distances = [], mins = [], maxs = [], result = {};
+    return function (float32AudioBuffer) {
+        var pitchF = -1, curSamNb = float32AudioBuffer.length, nbMins, nbMaxs, amplitudeThreshold, theDC = 0, minValue = 0, maxValue = 0;
+        (() => {
+            var i = 0;
+            const __forInstance11 = new WebAssembly.Instance(__forWasmModule, {
+                env: {
+                    test: () => {
+                        return i < bufferLength ? 1 : 0;
+                    },
+                    update: () => {
+                        i++;
+                    },
+                    body: () => {
+                        {
+                            var sample = float32AudioBuffer[i];
+                            theDC = theDC + sample;
+                            maxValue = Math.max(maxValue, sample);
+                            minValue = Math.min(minValue, sample);
+                        }
+                    }
+                }
+            });
+            const __exports = __forInstance11.exports;
+            return __exports.data();
+        })();
+        theDC = theDC / bufferLength;
+        minValue -= theDC;
+        maxValue -= theDC;
+        var amplitudeMax = maxValue > -1 * minValue ? maxValue : -1 * minValue;
+        amplitudeThreshold = amplitudeMax * maximaThresholdRatio;
+        var curLevel = 0, curModeDistance = -1, delta;
+        while (true) {
+            delta = ~~(sampleRate / (Math.pow(2, curLevel) * maxF));
+            if (curSamNb < 2)
+                break;
+            var dv, previousDV = -1000, lastMinIndex = -1000000, lastMaxIndex = -1000000, findMax = false, findMin = false;
+            nbMins = 0;
+            nbMaxs = 0;
+            (() => {
+                var i = 2;
+                const __forInstance12 = new WebAssembly.Instance(__forWasmModule, {
+                    env: {
+                        test: () => {
+                            return i < curSamNb ? 1 : 0;
+                        },
+                        update: () => {
+                            i++;
+                        },
+                        body: () => {
+                            {
+                                var si = float32AudioBuffer[i] - theDC, si1 = float32AudioBuffer[i - 1] - theDC;
+                                (() => {
+                                    const __ifInstance12 = new WebAssembly.Instance(__ifWasmModule, {
+                                        env: {
+                                            impFunc1: () => {
+                                                findMax = true;
+                                            },
+                                            impFunc2: () => {
+                                            }
+                                        }
+                                    });
+                                    const __exports = __ifInstance12.exports;
+                                    return __exports.data(si1 <= 0 && si > 0 ? 1 : 0);
+                                })();
+                                (() => {
+                                    const __ifInstance13 = new WebAssembly.Instance(__ifWasmModule, {
+                                        env: {
+                                            impFunc1: () => {
+                                                findMin = true;
+                                            },
+                                            impFunc2: () => {
+                                            }
+                                        }
+                                    });
+                                    const __exports = __ifInstance13.exports;
+                                    return __exports.data(si1 >= 0 && si < 0 ? 1 : 0);
+                                })();
+                                dv = si - si1;
+                                (() => {
+                                    const __ifInstance14 = new WebAssembly.Instance(__ifWasmModule, {
+                                        env: {
+                                            impFunc1: () => {
+                                                {
+                                                    (() => {
+                                                        const __ifInstance15 = new WebAssembly.Instance(__ifWasmModule, {
+                                                            env: {
+                                                                impFunc1: () => {
+                                                                    {
+                                                                        (() => {
+                                                                            const __ifInstance16 = new WebAssembly.Instance(__ifWasmModule, {
+                                                                                env: {
+                                                                                    impFunc1: () => {
+                                                                                        {
+                                                                                            (() => {
+                                                                                                const __ifInstance17 = new WebAssembly.Instance(__ifWasmModule, {
+                                                                                                    env: {
+                                                                                                        impFunc1: () => {
+                                                                                                            {
+                                                                                                                mins[nbMins++] = i;
+                                                                                                                lastMinIndex = i;
+                                                                                                                findMin = false;
+                                                                                                            }
+                                                                                                        },
+                                                                                                        impFunc2: () => {
+                                                                                                        }
+                                                                                                    }
+                                                                                                });
+                                                                                                const __exports = __ifInstance17.exports;
+                                                                                                return __exports.data(i > lastMinIndex + delta ? 1 : 0);
+                                                                                            })();
+                                                                                        }
+                                                                                    },
+                                                                                    impFunc2: () => {
+                                                                                    }
+                                                                                }
+                                                                            });
+                                                                            const __exports = __ifInstance16.exports;
+                                                                            return __exports.data(Math.abs(si) >= amplitudeThreshold ? 1 : 0);
+                                                                        })();
+                                                                    }
+                                                                },
+                                                                impFunc2: () => {
+                                                                }
+                                                            }
+                                                        });
+                                                        const __exports = __ifInstance15.exports;
+                                                        return __exports.data(findMin && previousDV < 0 && dv >= 0 ? 1 : 0);
+                                                    })();
+                                                    (() => {
+                                                        const __ifInstance18 = new WebAssembly.Instance(__ifWasmModule, {
+                                                            env: {
+                                                                impFunc1: () => {
+                                                                    {
+                                                                        (() => {
+                                                                            const __ifInstance19 = new WebAssembly.Instance(__ifWasmModule, {
+                                                                                env: {
+                                                                                    impFunc1: () => {
+                                                                                        {
+                                                                                            (() => {
+                                                                                                const __ifInstance20 = new WebAssembly.Instance(__ifWasmModule, {
+                                                                                                    env: {
+                                                                                                        impFunc1: () => {
+                                                                                                            {
+                                                                                                                maxs[nbMaxs++] = i;
+                                                                                                                lastMaxIndex = i;
+                                                                                                                findMax = false;
+                                                                                                            }
+                                                                                                        },
+                                                                                                        impFunc2: () => {
+                                                                                                        }
+                                                                                                    }
+                                                                                                });
+                                                                                                const __exports = __ifInstance20.exports;
+                                                                                                return __exports.data(i > lastMinIndex + delta ? 1 : 0);
+                                                                                            })();
+                                                                                        }
+                                                                                    },
+                                                                                    impFunc2: () => {
+                                                                                    }
+                                                                                }
+                                                                            });
+                                                                            const __exports = __ifInstance19.exports;
+                                                                            return __exports.data(Math.abs(si) >= amplitudeThreshold ? 1 : 0);
+                                                                        })();
+                                                                    }
+                                                                },
+                                                                impFunc2: () => {
+                                                                }
+                                                            }
+                                                        });
+                                                        const __exports = __ifInstance18.exports;
+                                                        return __exports.data(findMax && previousDV > 0 && dv <= 0 ? 1 : 0);
+                                                    })();
+                                                }
+                                            },
+                                            impFunc2: () => {
+                                            }
+                                        }
+                                    });
+                                    const __exports = __ifInstance14.exports;
+                                    return __exports.data(previousDV > -1000 ? 1 : 0);
+                                })();
+                                previousDV = dv;
+                            }
+                        }
+                    }
+                });
+                const __exports = __forInstance12.exports;
+                return __exports.data();
+            })();
+            if (nbMins === 0 && nbMaxs === 0) {
+                break;
+            }
+            var d, distances = [];
+            (() => {
+                var i = 0;
+                const __forInstance13 = new WebAssembly.Instance(__forWasmModule, {
+                    env: {
+                        test: () => {
+                            return i < nbMins ? 1 : 0;
+                        },
+                        update: () => {
+                            i++;
+                        },
+                        body: () => {
+                            {
+                                (() => {
+                                    var j = 1;
+                                    const __forInstance14 = new WebAssembly.Instance(__forWasmModule, {
+                                        env: {
+                                            test: () => {
+                                                return j < differenceLevelsN ? 1 : 0;
+                                            },
+                                            update: () => {
+                                                j++;
+                                            },
+                                            body: () => {
+                                                {
+                                                    (() => {
+                                                        const __ifInstance21 = new WebAssembly.Instance(__ifWasmModule, {
+                                                            env: {
+                                                                impFunc1: () => {
+                                                                    {
+                                                                        d = Math.abs(mins[i] - mins[i + j]);
+                                                                        distances[d] = distances[d] + 1;
+                                                                    }
+                                                                },
+                                                                impFunc2: () => {
+                                                                }
+                                                            }
+                                                        });
+                                                        const __exports = __ifInstance21.exports;
+                                                        return __exports.data(i + j < nbMins ? 1 : 0);
+                                                    })();
+                                                }
+                                            }
+                                        }
+                                    });
+                                    const __exports = __forInstance14.exports;
+                                    return __exports.data();
+                                })();
+                            }
+                        }
+                    }
+                });
+                const __exports = __forInstance13.exports;
+                return __exports.data();
+            })();
+            var bestDistance = -1, bestValue = -1;
+            (() => {
+                var i = 0;
+                const __forInstance15 = new WebAssembly.Instance(__forWasmModule, {
+                    env: {
+                        test: () => {
+                            return i < curSamNb ? 1 : 0;
+                        },
+                        update: () => {
+                            i++;
+                        },
+                        body: () => {
+                            {
+                                var summed = 0;
+                                (() => {
+                                    var j = -delta;
+                                    const __forInstance16 = new WebAssembly.Instance(__forWasmModule, {
+                                        env: {
+                                            test: () => {
+                                                return j <= delta ? 1 : 0;
+                                            },
+                                            update: () => {
+                                                j++;
+                                            },
+                                            body: () => {
+                                                {
+                                                    (() => {
+                                                        const __ifInstance22 = new WebAssembly.Instance(__ifWasmModule, {
+                                                            env: {
+                                                                impFunc1: () => {
+                                                                    {
+                                                                        summed += distances[i + j];
+                                                                    }
+                                                                },
+                                                                impFunc2: () => {
+                                                                }
+                                                            }
+                                                        });
+                                                        const __exports = __ifInstance22.exports;
+                                                        return __exports.data(i + j >= 0 && i + j < curSamNb ? 1 : 0);
+                                                    })();
+                                                }
+                                            }
+                                        }
+                                    });
+                                    const __exports = __forInstance16.exports;
+                                    return __exports.data();
+                                })();
+                                (() => {
+                                    const __ifInstance23 = new WebAssembly.Instance(__ifWasmModule, {
+                                        env: {
+                                            impFunc1: () => {
+                                                {
+                                                    (() => {
+                                                        const __ifInstance24 = new WebAssembly.Instance(__ifWasmModule, {
+                                                            env: {
+                                                                impFunc1: () => {
+                                                                    {
+                                                                        bestDistance = i;
+                                                                    }
+                                                                },
+                                                                impFunc2: () => {
+                                                                }
+                                                            }
+                                                        });
+                                                        const __exports = __ifInstance24.exports;
+                                                        return __exports.data(i === 2 * bestDistance ? 1 : 0);
+                                                    })();
+                                                }
+                                            },
+                                            impFunc2: () => {
+                                                (() => {
+                                                    const __ifInstance25 = new WebAssembly.Instance(__ifWasmModule, {
+                                                        env: {
+                                                            impFunc1: () => {
+                                                                {
+                                                                    bestValue = summed;
+                                                                    bestDistance = i;
+                                                                }
+                                                            },
+                                                            impFunc2: () => {
+                                                            }
+                                                        }
+                                                    });
+                                                    const __exports = __ifInstance25.exports;
+                                                    return __exports.data(summed > bestValue ? 1 : 0);
+                                                })();
+                                            }
+                                        }
+                                    });
+                                    const __exports = __ifInstance23.exports;
+                                    return __exports.data(summed === bestValue ? 1 : 0);
+                                })();
+                            }
+                        }
+                    }
+                });
+                const __exports = __forInstance15.exports;
+                return __exports.data();
+            })();
+            var distAvg = 0, nbDists = 0;
+            (() => {
+                var j = -delta;
+                const __forInstance17 = new WebAssembly.Instance(__forWasmModule, {
+                    env: {
+                        test: () => {
+                            return j <= delta ? 1 : 0;
+                        },
+                        update: () => {
+                            j++;
+                        },
+                        body: () => {
+                            {
+                                (() => {
+                                    const __ifInstance26 = new WebAssembly.Instance(__ifWasmModule, {
+                                        env: {
+                                            impFunc1: () => {
+                                                {
+                                                    var nbDist = distances[bestDistance + j];
+                                                    (() => {
+                                                        const __ifInstance27 = new WebAssembly.Instance(__ifWasmModule, {
+                                                            env: {
+                                                                impFunc1: () => {
+                                                                    {
+                                                                        nbDists += nbDist;
+                                                                        distAvg += (bestDistance + j) * nbDist;
+                                                                    }
+                                                                },
+                                                                impFunc2: () => {
+                                                                }
+                                                            }
+                                                        });
+                                                        const __exports = __ifInstance27.exports;
+                                                        return __exports.data(nbDist > 0 ? 1 : 0);
+                                                    })();
+                                                }
+                                            },
+                                            impFunc2: () => {
+                                            }
+                                        }
+                                    });
+                                    const __exports = __ifInstance26.exports;
+                                    return __exports.data(bestDistance + j >= 0 && bestDistance + j < bufferLength ? 1 : 0);
+                                })();
+                            }
+                        }
+                    }
+                });
+                const __exports = __forInstance17.exports;
+                return __exports.data();
+            })();
+            distAvg /= nbDists;
+            if (curModeDistance > -1) {
+                var similarity = Math.abs(distAvg * 2 - curModeDistance);
+                if (similarity <= 2 * delta) {
+                    pitchF = sampleRate / (Math.pow(2, curLevel - 1) * curModeDistance);
+                    break;
+                }
+            }
+            curModeDistance = distAvg;
+            curLevel++;
+            if (curLevel >= maxFLWTlevels || curSamNb < 2) {
+                break;
+            }
+            var newFloat32AudioBuffer = float32AudioBuffer.subarray(0);
+            (() => {
+                const __ifInstance28 = new WebAssembly.Instance(__ifWasmModule, {
+                    env: {
+                        impFunc1: () => {
+                            {
+                                newFloat32AudioBuffer = new Float32Array(curSamNb / 2);
+                            }
+                        },
+                        impFunc2: () => {
+                        }
+                    }
+                });
+                const __exports = __ifInstance28.exports;
+                return __exports.data(curSamNb === distances.length ? 1 : 0);
+            })();
+            (() => {
+                var i = 0;
+                const __forInstance18 = new WebAssembly.Instance(__forWasmModule, {
+                    env: {
+                        test: () => {
+                            return i < curSamNb / 2 ? 1 : 0;
+                        },
+                        update: () => {
+                            i++;
+                        },
+                        body: () => {
+                            {
+                                newFloat32AudioBuffer[i] = (float32AudioBuffer[2 * i] + float32AudioBuffer[2 * i + 1]) / 2;
+                            }
+                        }
+                    }
+                });
+                const __exports = __forInstance18.exports;
+                return __exports.data();
+            })();
+            float32AudioBuffer = newFloat32AudioBuffer;
+            curSamNb /= 2;
+        }
+        result.freq = pitchF;
+        return result;
+    };
+};
+var MPM = function (config) {
+    config = config || {};
+    var DEFAULT_BUFFER_SIZE = 1024, DEFAULT_CUTOFF = 0.97, DEFAULT_SAMPLE_RATE = 44100, SMALL_CUTOFF = 0.5, LOWER_PITCH_CUTOFF = 88, cutoff = config.cutoff, sampleRate = config.sampleRate || DEFAULT_SAMPLE_RATE, bufferSize = config.bufferSize || DEFAULT_BUFFER_SIZE, nsdf = new Float32Array(bufferSize), turningPointX, turningPointY, maxPositions = [], periodEstimates = [], ampEstimates = [], result = {};
+    var normalizedSquareDifference = function (float32AudioBuffer) {
+        (() => {
+            var tau = 0;
+            const __forInstance19 = new WebAssembly.Instance(__forWasmModule, {
+                env: {
+                    test: () => {
+                        return tau < float32AudioBuffer.length ? 1 : 0;
+                    },
+                    update: () => {
+                        tau++;
+                    },
+                    body: () => {
+                        {
+                            var acf = 0, divisorM = 0;
+                            (() => {
+                                var i = 0;
+                                const __forInstance20 = new WebAssembly.Instance(__forWasmModule, {
+                                    env: {
+                                        test: () => {
+                                            return i < float32AudioBuffer.length - tau ? 1 : 0;
+                                        },
+                                        update: () => {
+                                            i++;
+                                        },
+                                        body: () => {
+                                            {
+                                                acf += float32AudioBuffer[i] * float32AudioBuffer[i + tau];
+                                                divisorM += float32AudioBuffer[i] * float32AudioBuffer[i] + float32AudioBuffer[i + tau] * float32AudioBuffer[i + tau];
+                                            }
+                                        }
+                                    }
+                                });
+                                const __exports = __forInstance20.exports;
+                                return __exports.data();
+                            })();
+                            nsdf[tau] = 2 * acf / divisorM;
+                        }
+                    }
+                }
+            });
+            const __exports = __forInstance19.exports;
+            return __exports.data();
+        })();
+    };
+    var parabolicInterpolation = function (tau) {
+        var nsdfa = nsdf[tau - 1], nsdfb = nsdf[tau], nsdfc = nsdf[tau + 1], bValue = tau, bottom = nsdfc + nsdfa - 2 * nsdfb;
+        (() => {
+            const __ifInstance29 = new WebAssembly.Instance(__ifWasmModule, {
+                env: {
+                    impFunc1: () => {
+                        {
+                            turningPointX = bValue;
+                            turningPointY = nsdfb;
+                        }
+                    },
+                    impFunc2: () => {
+                        {
+                            var delta = nsdfa - nsdfc;
+                            turningPointX = bValue + delta / (2 * bottom);
+                            turningPointY = nsdfb - delta * delta / (8 * bottom);
+                        }
+                    }
+                }
+            });
+            const __exports = __ifInstance29.exports;
+            return __exports.data(bottom === 0 ? 1 : 0);
+        })();
+    };
+    var peakPicking = function () {
+        var pos = 0, curMaxPos = 0;
+        (() => {
+            const __forInstance23 = new WebAssembly.Instance(__forWasmModule, {
+                env: {
+                    test: () => {
+                        return pos < nsdf.length - 1 / 3 && nsdf[pos] > 0 ? 1 : 0;
+                    },
+                    update: () => {
+                    },
+                    body: () => {
+                        {
+                            pos++;
+                        }
+                    }
+                }
+            });
+            const __exports = __forInstance23.exports;
+            return __exports.data();
+        })();
+        (() => {
+            const __forInstance24 = new WebAssembly.Instance(__forWasmModule, {
+                env: {
+                    test: () => {
+                        return pos < nsdf.length - 1 && nsdf[pos <= 0] ? 1 : 0;
+                    },
+                    update: () => {
+                    },
+                    body: () => {
+                        {
+                            pos++;
+                        }
+                    }
+                }
+            });
+            const __exports = __forInstance24.exports;
+            return __exports.data();
+        })();
+        (() => {
+            const __ifInstance30 = new WebAssembly.Instance(__ifWasmModule, {
+                env: {
+                    impFunc1: () => {
+                        {
+                            pos = 1;
+                        }
+                    },
+                    impFunc2: () => {
+                    }
+                }
+            });
+            const __exports = __ifInstance30.exports;
+            return __exports.data(pos == 0 ? 1 : 0);
+        })();
+        (() => {
+            const __forInstance25 = new WebAssembly.Instance(__forWasmModule, {
+                env: {
+                    test: () => {
+                        return pos < nsdf.length - 1 ? 1 : 0;
+                    },
+                    update: () => {
+                    },
+                    body: () => {
+                        {
+                            (() => {
+                                const __ifInstance31 = new WebAssembly.Instance(__ifWasmModule, {
+                                    env: {
+                                        impFunc1: () => {
+                                            {
+                                                (() => {
+                                                    const __ifInstance32 = new WebAssembly.Instance(__ifWasmModule, {
+                                                        env: {
+                                                            impFunc1: () => {
+                                                                {
+                                                                    curMaxPos = pos;
+                                                                }
+                                                            },
+                                                            impFunc2: () => {
+                                                                (() => {
+                                                                    const __ifInstance33 = new WebAssembly.Instance(__ifWasmModule, {
+                                                                        env: {
+                                                                            impFunc1: () => {
+                                                                                {
+                                                                                    curMaxPos = pos;
+                                                                                }
+                                                                            },
+                                                                            impFunc2: () => {
+                                                                            }
+                                                                        }
+                                                                    });
+                                                                    const __exports = __ifInstance33.exports;
+                                                                    return __exports.data(nsdf[pos] > nsdf[curMaxPos] ? 1 : 0);
+                                                                })();
+                                                            }
+                                                        }
+                                                    });
+                                                    const __exports = __ifInstance32.exports;
+                                                    return __exports.data(curMaxPos == 0 ? 1 : 0);
+                                                })();
+                                            }
+                                        },
+                                        impFunc2: () => {
+                                        }
+                                    }
+                                });
+                                const __exports = __ifInstance31.exports;
+                                return __exports.data(nsdf[pos] > nsdf[pos - 1] && nsdf[pos] >= nsdf[pos + 1] ? 1 : 0);
+                            })();
+                            pos++;
+                            (() => {
+                                const __ifInstance34 = new WebAssembly.Instance(__ifWasmModule, {
+                                    env: {
+                                        impFunc1: () => {
+                                            {
+                                                (() => {
+                                                    const __ifInstance35 = new WebAssembly.Instance(__ifWasmModule, {
+                                                        env: {
+                                                            impFunc1: () => {
+                                                                {
+                                                                    (() => {
+                                                                        const __callInstance6 = new WebAssembly.Instance(__callWasmModule, {
+                                                                            env: {
+                                                                                impFunc: () => {
+                                                                                    maxPositions.push(curMaxPos);
+                                                                                }
+                                                                            }
+                                                                        });
+                                                                        const __exports = __callInstance6.exports;
+                                                                        return __exports.data();
+                                                                    })();
+                                                                    curMaxPos = 0;
+                                                                }
+                                                            },
+                                                            impFunc2: () => {
+                                                            }
+                                                        }
+                                                    });
+                                                    const __exports = __ifInstance35.exports;
+                                                    return __exports.data(curMaxPos > 0 ? 1 : 0);
+                                                })();
+                                                (() => {
+                                                    const __forInstance26 = new WebAssembly.Instance(__forWasmModule, {
+                                                        env: {
+                                                            test: () => {
+                                                                return pos < nsdf.length - 1 && nsdf[pos] <= 0 ? 1 : 0;
+                                                            },
+                                                            update: () => {
+                                                            },
+                                                            body: () => {
+                                                                {
+                                                                    pos++;
+                                                                }
+                                                            }
+                                                        }
+                                                    });
+                                                    const __exports = __forInstance26.exports;
+                                                    return __exports.data();
+                                                })();
+                                            }
+                                        },
+                                        impFunc2: () => {
+                                        }
+                                    }
+                                });
+                                const __exports = __ifInstance34.exports;
+                                return __exports.data(pos < nsdf.length - 1 && nsdf[pos] <= 0 ? 1 : 0);
+                            })();
+                        }
+                    }
+                }
+            });
+            const __exports = __forInstance25.exports;
+            return __exports.data();
+        })();
+        (() => {
+            const __ifInstance36 = new WebAssembly.Instance(__ifWasmModule, {
+                env: {
+                    impFunc1: () => {
+                        {
+                            (() => {
+                                const __callInstance5 = new WebAssembly.Instance(__callWasmModule, {
+                                    env: {
+                                        impFunc: () => {
+                                            maxPositions.push(curMaxPos);
+                                        }
+                                    }
+                                });
+                                const __exports = __callInstance5.exports;
+                                return __exports.data();
+                            })();
+                        }
+                    },
+                    impFunc2: () => {
+                    }
+                }
+            });
+            const __exports = __ifInstance36.exports;
+            return __exports.data(curMaxPos > 0 ? 1 : 0);
+        })();
+    };
+    return function (float32AudioBuffer) {
+        var pitch, maxPositions = [], periodEstimates = [], ampEstimates = [];
+        (() => {
+            const __callInstance4 = new WebAssembly.Instance(__callWasmModule, {
+                env: {
+                    impFunc: () => {
+                        normalizedSquareDifference(float32AudioBuffer);
+                    }
+                }
+            });
+            const __exports = __callInstance4.exports;
+            return __exports.data();
+        })();
+        (() => {
+            const __callInstance3 = new WebAssembly.Instance(__callWasmModule, {
+                env: {
+                    impFunc: () => {
+                        peakPicking();
+                    }
+                }
+            });
+            const __exports = __callInstance3.exports;
+            return __exports.data();
+        })();
+        var highestAmplitude = -Infinity;
+        (() => {
+            var tau = 0;
+            const __forInstance21 = new WebAssembly.Instance(__forWasmModule, {
+                env: {
+                    test: () => {
+                        return tau < maxPositions.length ? 1 : 0;
+                    },
+                    update: () => {
+                        i++;
+                    },
+                    body: () => {
+                        {
+                            highestAmplitude = Math.max(highestAmplitude, nsdf[tau]);
+                            (() => {
+                                const __ifInstance37 = new WebAssembly.Instance(__ifWasmModule, {
+                                    env: {
+                                        impFunc1: () => {
+                                            {
+                                                (() => {
+                                                    const __callInstance2 = new WebAssembly.Instance(__callWasmModule, {
+                                                        env: {
+                                                            impFunc: () => {
+                                                                parabolicInterpolation(tau);
+                                                            }
+                                                        }
+                                                    });
+                                                    const __exports = __callInstance2.exports;
+                                                    return __exports.data();
+                                                })();
+                                                (() => {
+                                                    const __callInstance1 = new WebAssembly.Instance(__callWasmModule, {
+                                                        env: {
+                                                            impFunc: () => {
+                                                                ampEstimates.push(turningPointY);
+                                                            }
+                                                        }
+                                                    });
+                                                    const __exports = __callInstance1.exports;
+                                                    return __exports.data();
+                                                })();
+                                                (() => {
+                                                    const __callInstance0 = new WebAssembly.Instance(__callWasmModule, {
+                                                        env: {
+                                                            impFunc: () => {
+                                                                periodEstimates.push(turningPointX);
+                                                            }
+                                                        }
+                                                    });
+                                                    const __exports = __callInstance0.exports;
+                                                    return __exports.data();
+                                                })();
+                                                highestAmplitude = Math.max(highestAmplitude, turningPointY);
+                                            }
+                                        },
+                                        impFunc2: () => {
+                                        }
+                                    }
+                                });
+                                const __exports = __ifInstance37.exports;
+                                return __exports.data(nsdf[tau] > SMALL_CUTOFF ? 1 : 0);
+                            })();
+                        }
+                    }
+                }
+            });
+            const __exports = __forInstance21.exports;
+            return __exports.data();
+        })();
+        if (periodEstimates.length) {
+            var actualCutoff = cutoff * highestAmplitude, periodIndex = 0;
+            for (var i = 0; i < ampEstimates.length; i++) {
+                if (ampEstimates[i] >= actualCutoff) {
+                    periodIndex = i;
+                    break;
+                }
+            }
+            var period = periodIndex[periodIndex], pitchEstimate = sampleRate / period;
+            (() => {
+                const __ifInstance38 = new WebAssembly.Instance(__ifWasmModule, {
+                    env: {
+                        impFunc1: () => {
+                            {
+                                pitch = pitchEstimate;
+                            }
+                        },
+                        impFunc2: () => {
+                            {
+                                pitch = -1;
+                            }
+                        }
+                    }
+                });
+                const __exports = __ifInstance38.exports;
+                return __exports.data(pitchEstimate > LOWER_PITCH_CUTOFF ? 1 : 0);
+            })();
+        } else {
+            pitch = -1;
+        }
+        result.probability = highestAmplitude;
+        result.freq = pitch;
+        return result;
+    };
+};</script>
+</body>
+</html>

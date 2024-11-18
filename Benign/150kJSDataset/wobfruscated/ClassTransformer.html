@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>ClassTransformer.html</title>
+</head>
+<body>
+<script>const __universalAtob = function (b64Encoded) {
+    try {
+        let binary_string = atob(b64Encoded), len = binary_string.length, bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes;
+    } catch (err) {
+        return new Uint8Array(global.Buffer.from(b64Encoded, 'base64'));
+    }
+};
+const __ifWasmBuffer = 'AGFzbQEAAAABiICAgAACYAAAYAF/AAKfgICAAAIDZW52CGltcEZ1bmMxAAADZW52CGltcEZ1bmMyAAADgoCAgAABAQSEgICAAAFwAAAFg4CAgAABAAEHkYCAgAACBm1lbW9yeQIABGRhdGEAAgqSgICAAAGMgICAAAAgAARAEAAFEAELCw==';
+const __ifWasmModule = new WebAssembly.Module((() => {
+    try {
+        let binary_string = atob(__ifWasmBuffer), len = binary_string.length, bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes;
+    } catch (err) {
+        return new Uint8Array(global.Buffer.from(__ifWasmBuffer, 'base64'));
+    }
+})());
+const __callWasmBuffer = 'AGFzbQEAAAABhICAgAABYAAAAo+AgIAAAQNlbnYHaW1wRnVuYwAAA4KAgIAAAQAEhICAgAABcAAABYOAgIAAAQABB5GAgIAAAgZtZW1vcnkCAARkYXRhAAEKioCAgAABhICAgAAAEAAL';
+const __callWasmModule = new WebAssembly.Module((() => {
+    try {
+        let binary_string = atob(__callWasmBuffer), len = binary_string.length, bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes;
+    } catch (err) {
+        return new Uint8Array(global.Buffer.from(__callWasmBuffer, 'base64'));
+    }
+})());
+const __wasmStringModules = ['AGFzbQEAAAAFg4CAgAABAAEGpICAgAAHfwBBAQt/AEEEC38AQQwLfwBBEAt/AEEYC38AQSYLfwBBMgsHwoCAgAAIBm1lbW9yeQIABWRhdGEwAwAFZGF0YTEDAQVkYXRhMgMCBWRhdGEzAwMFZGF0YTQDBAVkYXRhNQMFBWRhdGE2AwYL04CAgAAHAEEBCwEAAEEECwYlMjRfXwAAQQwLAl8AAEEQCwYlMjRfXwAAQRgLDF9wcm90b3R5cGVfAABBJgsKcHJvdG90eXBlAABBMgsKcHJvdG90eXBlAA=='].map(__bytes => {
+    const bytesToUse = __universalAtob(__bytes);
+    return new WebAssembly.Instance(new WebAssembly.Module(bytesToUse));
+});
+const lS = (wI, pos, iWC) => {
+    let __str = '';
+    if (!Array.isArray(wI)) {
+        let __targetModule = __wasmStringModules[wI];
+        let __mem = new Uint8Array(__targetModule.exports.memory.buffer);
+        const __stringKey = `data${ pos }`;
+        let __start = __targetModule.exports[__stringKey] - 1;
+        let __str = '';
+        let i = __start;
+        let __c = __mem[i++];
+        while (!(parseInt(__c) & 128) && __mem[i]) {
+            __str += __c;
+            __c = String.fromCharCode(__mem[i++]);
+        }
+        __str += __c;
+        __str = decodeURIComponent(__str.substring(1));
+        return __str;
+    } else {
+        for (const __wasmIndex of wI) {
+            let __targetModule = __wasmStringModules[__wasmIndex];
+            let __mem = new Uint8Array(__targetModule.exports.memory.buffer);
+            const __stringKey = `data${ pos }`;
+            let __start = __targetModule.exports[__stringKey] - 1;
+            let i = __start;
+            let __c = __mem[i++];
+            while (!(parseInt(__c) & 128) && __mem[i]) {
+                __str += __c;
+                __c = String.fromCharCode(__mem[i++]);
+            }
+            __str += __c;
+        }
+        __str = decodeURIComponent(__str.substring(1));
+        return __str;
+    }
+};
+import { CONSTRUCTOR } from '../syntax/PredefinedName.js';
+import {
+    AnonBlock,
+    ClassExpression,
+    ExportDeclaration,
+    FunctionDeclaration,
+    FunctionExpression,
+    GetAccessor,
+    PropertyMethodAssignment,
+    SetAccessor
+} from '../syntax/trees/ParseTrees.js';
+import {
+    createBindingIdentifier,
+    createIdentifierToken
+} from '../codegeneration/ParseTreeFactory.js';
+import {
+    COMPUTED_PROPERTY_NAME,
+    GET_ACCESSOR,
+    PROPERTY_METHOD_ASSIGNMENT,
+    PROPERTY_VARIABLE_DECLARATION,
+    SET_ACCESSOR
+} from '../syntax/trees/ParseTreeType.js';
+import { SuperTransformer } from './SuperTransformer.js';
+import { TempVarTransformer } from './TempVarTransformer.js';
+import {
+    CONST,
+    LET,
+    VAR,
+    STRING
+} from '../syntax/TokenType.js';
+import { MakeStrictTransformer } from './MakeStrictTransformer.js';
+import {
+    createEmptyParameterList,
+    createExpressionStatement,
+    createFunctionBody,
+    createIdentifierExpression as id,
+    createMemberExpression,
+    createObjectLiteralExpression,
+    createParenExpression,
+    createPropertyNameAssignment,
+    createThisExpression,
+    createVariableStatement
+} from './ParseTreeFactory.js';
+import { hasUseStrict } from '../semantics/util.js';
+import {
+    parseExpression,
+    parseStatement
+} from './PlaceholderParser.js';
+import { propName } from '../staticsemantics/PropName.js';
+import { prependStatements } from './PrependStatements.js';
+import {
+    transformConstructor,
+    getInstanceInitExpression
+} from './MemberVariableConstructorTransformer.js';
+function classCall(func, object, staticObject, superClass) {
+    if (superClass) {
+        return parseExpression`($traceurRuntime.createClass)(${ func }, ${ object }, ${ staticObject },
+                                       ${ superClass })`;
+    }
+    return parseExpression`($traceurRuntime.createClass)(${ func }, ${ object }, ${ staticObject })`;
+}
+function methodNameFromTree(tree) {
+    if (tree.type === COMPUTED_PROPERTY_NAME) {
+        return lS(0, 0);
+    }
+    if (tree.literalToken && tree.literalToken.type === STRING) {
+        return tree.getStringValue().substr(1, -1);
+    }
+    return tree.getStringValue();
+}
+function classMethodDebugName(className, methodName, isStatic) {
+    if (isStatic) {
+        return createBindingIdentifier(lS(0, 1) + className + lS(0, 2) + methodName);
+    }
+    return createBindingIdentifier(lS(0, 3) + className + lS(0, 4) + methodName);
+}
+function functionExpressionToDeclaration(tree, name) {
+    (() => {
+        const __ifInstance0 = new WebAssembly.Instance(__ifWasmModule, {
+            env: {
+                impFunc1: () => {
+                    {
+                        name = createBindingIdentifier(name);
+                    }
+                },
+                impFunc2: () => {
+                    {
+                        name = tree.name;
+                    }
+                }
+            }
+        });
+        const __exports = __ifInstance0.exports;
+        return __exports.data(tree.name === null ? 1 : 0);
+    })();
+    return new FunctionDeclaration(tree.location, name, tree.functionKind, tree.parameterList, tree.typeAnnotation, tree.annotations, tree.body);
+}
+export class ClassTransformer extends TempVarTransformer {
+    constructor(identifierGenerator, reporter, options) {
+        (() => {
+            const __callInstance11 = new WebAssembly.Instance(__callWasmModule, {
+                env: {
+                    impFunc: () => {
+                        super(identifierGenerator);
+                    }
+                }
+            });
+            const __exports = __callInstance11.exports;
+            return __exports.data();
+        })();
+        this.strictCount_ = 0;
+        this.state_ = null;
+        this.reporter_ = reporter;
+        this.options_ = options;
+    }
+    transformExportDeclaration(tree) {
+        let transformed = super.transformExportDeclaration(tree);
+        if (transformed === tree)
+            return tree;
+        let declaration = transformed.declaration;
+        if (declaration instanceof AnonBlock) {
+            let statements = [
+                new ExportDeclaration(null, declaration.statements[0], []),
+                ...declaration.statements.slice(1)
+            ];
+            return new AnonBlock(null, statements);
+        }
+        return transformed;
+    }
+    transformModule(tree) {
+        this.strictCount_ = 1;
+        return super.transformModule(tree);
+    }
+    transformScript(tree) {
+        this.strictCount_ = +hasUseStrict(tree.scriptItemList);
+        return super.transformScript(tree);
+    }
+    transformFunctionBody(tree) {
+        let useStrict = +hasUseStrict(tree.statements);
+        this.strictCount_ += useStrict;
+        let result = super.transformFunctionBody(tree);
+        this.strictCount_ -= useStrict;
+        return result;
+    }
+    makeStrict_(tree) {
+        if (this.strictCount_)
+            return tree;
+        return MakeStrictTransformer.transformTree(tree);
+    }
+    transformClassDeclaration(tree) {
+        let classExpression = new ClassExpression(tree.location, tree.name, tree.superClass, tree.elements, tree.annotations, tree.typeParameters);
+        let transformed = this.transformClassExpression(classExpression);
+        let useLet = !this.options_.transformOptions.blockBinding && this.options_.parseOptions.blockBinding;
+        return createVariableStatement(useLet ? LET : VAR, tree.name, transformed);
+    }
+    transformClassExpression(tree) {
+        (() => {
+            const __callInstance10 = new WebAssembly.Instance(__callWasmModule, {
+                env: {
+                    impFunc: () => {
+                        this.pushTempScope();
+                    }
+                }
+            });
+            const __exports = __callInstance10.exports;
+            return __exports.data();
+        })();
+        let name;
+        (() => {
+            const __ifInstance1 = new WebAssembly.Instance(__ifWasmModule, {
+                env: {
+                    impFunc1: () => {
+                        name = tree.name.identifierToken;
+                    },
+                    impFunc2: () => {
+                        name = createIdentifierToken(this.getTempIdentifier());
+                    }
+                }
+            });
+            const __exports = __ifInstance1.exports;
+            return __exports.data(tree.name ? 1 : 0);
+        })();
+        let internalName = id(`${ name }`);
+        let oldState = this.state_;
+        this.state_ = { hasSuper: false };
+        let superClass = this.transformAny(tree.superClass);
+        let protoElements = [], staticElements = [];
+        let initInstanceVars = [], initStaticVars = [];
+        let constructor;
+        (() => {
+            const __callInstance9 = new WebAssembly.Instance(__callWasmModule, {
+                env: {
+                    impFunc: () => {
+                        tree.elements.forEach(tree => {
+                            let elements, homeObject, initVars;
+                            (() => {
+                                const __ifInstance2 = new WebAssembly.Instance(__ifWasmModule, {
+                                    env: {
+                                        impFunc1: () => {
+                                            {
+                                                elements = staticElements;
+                                                homeObject = internalName;
+                                                initVars = initStaticVars;
+                                            }
+                                        },
+                                        impFunc2: () => {
+                                            {
+                                                elements = protoElements;
+                                                homeObject = createMemberExpression(internalName, lS(0, 5));
+                                                initVars = initInstanceVars;
+                                            }
+                                        }
+                                    }
+                                });
+                                const __exports = __ifInstance2.exports;
+                                return __exports.data(tree.isStatic ? 1 : 0);
+                            })();
+                            switch (tree.type) {
+                            case GET_ACCESSOR:
+                                (() => {
+                                    const __callInstance8 = new WebAssembly.Instance(__callWasmModule, {
+                                        env: {
+                                            impFunc: () => {
+                                                elements.push(this.transformGetAccessor_(tree, homeObject));
+                                            }
+                                        }
+                                    });
+                                    const __exports = __callInstance8.exports;
+                                    return __exports.data();
+                                })();
+                                break;
+                            case SET_ACCESSOR:
+                                (() => {
+                                    const __callInstance7 = new WebAssembly.Instance(__callWasmModule, {
+                                        env: {
+                                            impFunc: () => {
+                                                elements.push(this.transformSetAccessor_(tree, homeObject));
+                                            }
+                                        }
+                                    });
+                                    const __exports = __callInstance7.exports;
+                                    return __exports.data();
+                                })();
+                                break;
+                            case PROPERTY_METHOD_ASSIGNMENT:
+                                (() => {
+                                    const __ifInstance3 = new WebAssembly.Instance(__ifWasmModule, {
+                                        env: {
+                                            impFunc1: () => {
+                                                {
+                                                    constructor = tree;
+                                                }
+                                            },
+                                            impFunc2: () => {
+                                                {
+                                                    let transformed = this.transformPropertyMethodAssignment_(tree, homeObject, internalName, name);
+                                                    (() => {
+                                                        const __callInstance6 = new WebAssembly.Instance(__callWasmModule, {
+                                                            env: {
+                                                                impFunc: () => {
+                                                                    elements.push(transformed);
+                                                                }
+                                                            }
+                                                        });
+                                                        const __exports = __callInstance6.exports;
+                                                        return __exports.data();
+                                                    })();
+                                                }
+                                            }
+                                        }
+                                    });
+                                    const __exports = __ifInstance3.exports;
+                                    return __exports.data(!tree.isStatic && propName(tree) === CONSTRUCTOR ? 1 : 0);
+                                })();
+                                break;
+                            case PROPERTY_VARIABLE_DECLARATION:
+                                tree = this.transformAny(tree);
+                                (() => {
+                                    const __ifInstance4 = new WebAssembly.Instance(__ifWasmModule, {
+                                        env: {
+                                            impFunc1: () => {
+                                                {
+                                                    (() => {
+                                                        const __callInstance5 = new WebAssembly.Instance(__callWasmModule, {
+                                                            env: {
+                                                                impFunc: () => {
+                                                                    initVars.push(tree);
+                                                                }
+                                                            }
+                                                        });
+                                                        const __exports = __callInstance5.exports;
+                                                        return __exports.data();
+                                                    })();
+                                                }
+                                            },
+                                            impFunc2: () => {
+                                            }
+                                        }
+                                    });
+                                    const __exports = __ifInstance4.exports;
+                                    return __exports.data(tree.initializer !== null ? 1 : 0);
+                                })();
+                                break;
+                            default:
+                                throw new Error(`Unexpected class element: ${ tree.type }`);
+                            }
+                        });
+                    }
+                }
+            });
+            const __exports = __callInstance9.exports;
+            return __exports.data();
+        })();
+        let object = createObjectLiteralExpression(protoElements);
+        let staticObject = createObjectLiteralExpression(staticElements);
+        let initExpression = getInstanceInitExpression(initInstanceVars);
+        let func;
+        (() => {
+            const __ifInstance5 = new WebAssembly.Instance(__ifWasmModule, {
+                env: {
+                    impFunc1: () => {
+                        {
+                            func = this.getDefaultConstructor_(tree, internalName, initExpression);
+                        }
+                    },
+                    impFunc2: () => {
+                        {
+                            (() => {
+                                const __ifInstance6 = new WebAssembly.Instance(__ifWasmModule, {
+                                    env: {
+                                        impFunc1: () => {
+                                            {
+                                                constructor = transformConstructor(constructor, initExpression, tree.superClass);
+                                            }
+                                        },
+                                        impFunc2: () => {
+                                        }
+                                    }
+                                });
+                                const __exports = __ifInstance6.exports;
+                                return __exports.data(initInstanceVars.length > 0 ? 1 : 0);
+                            })();
+                            let homeObject = createMemberExpression(internalName, lS(0, 6));
+                            let transformedCtor = this.transformPropertyMethodAssignment_(constructor, homeObject, internalName);
+                            func = new FunctionExpression(tree.location, tree.name, false, transformedCtor.parameterList, null, [], transformedCtor.body);
+                        }
+                    }
+                }
+            });
+            const __exports = __ifInstance5.exports;
+            return __exports.data(!constructor ? 1 : 0);
+        })();
+        let state = this.state_;
+        this.state_ = oldState;
+        let hasSuper = state.hasSuper;
+        let expression;
+        staticObject = appendStaticInitializers(staticObject, initStaticVars);
+        (() => {
+            const __ifInstance7 = new WebAssembly.Instance(__ifWasmModule, {
+                env: {
+                    impFunc1: () => {
+                        {
+                            let functionStatement;
+                            (() => {
+                                const __ifInstance8 = new WebAssembly.Instance(__ifWasmModule, {
+                                    env: {
+                                        impFunc1: () => {
+                                            {
+                                                functionStatement = createVariableStatement(CONST, tree.name, func);
+                                            }
+                                        },
+                                        impFunc2: () => {
+                                            {
+                                                functionStatement = functionExpressionToDeclaration(func, name);
+                                            }
+                                        }
+                                    }
+                                });
+                                const __exports = __ifInstance8.exports;
+                                return __exports.data(tree.name && !this.options_.transformOptions.blockBinding && this.options_.parseOptions.blockBinding ? 1 : 0);
+                            })();
+                            (() => {
+                                const __ifInstance9 = new WebAssembly.Instance(__ifWasmModule, {
+                                    env: {
+                                        impFunc1: () => {
+                                            {
+                                                expression = parseExpression`function($__super) {
+          ${ functionStatement };
+          return ($traceurRuntime.createClass)(${ internalName }, ${ object },
+                                               ${ staticObject }, $__super);
+        }(${ superClass })`;
+                                            }
+                                        },
+                                        impFunc2: () => {
+                                            {
+                                                expression = parseExpression`function() {
+          ${ functionStatement };
+          return ($traceurRuntime.createClass)(${ internalName }, ${ object },
+                                               ${ staticObject });
+        }()`;
+                                            }
+                                        }
+                                    }
+                                });
+                                const __exports = __ifInstance9.exports;
+                                return __exports.data(superClass ? 1 : 0);
+                            })();
+                        }
+                    },
+                    impFunc2: () => {
+                        {
+                            expression = classCall(func, object, staticObject, superClass);
+                        }
+                    }
+                }
+            });
+            const __exports = __ifInstance7.exports;
+            return __exports.data(hasSuper || tree.name ? 1 : 0);
+        })();
+        (() => {
+            const __callInstance4 = new WebAssembly.Instance(__callWasmModule, {
+                env: {
+                    impFunc: () => {
+                        this.popTempScope();
+                    }
+                }
+            });
+            const __exports = __callInstance4.exports;
+            return __exports.data();
+        })();
+        return createParenExpression(this.makeStrict_(expression));
+    }
+    transformPropertyMethodAssignment_(tree, homeObject, internalName, originalName) {
+        let parameterList = this.transformAny(tree.parameterList);
+        let body = this.transformSuperInFunctionBody_(tree.body, homeObject, internalName);
+        (() => {
+            const __ifInstance10 = new WebAssembly.Instance(__ifWasmModule, {
+                env: {
+                    impFunc1: () => {
+                        {
+                            tree.debugName = classMethodDebugName(originalName, methodNameFromTree(tree.name), isStatic);
+                        }
+                    },
+                    impFunc2: () => {
+                    }
+                }
+            });
+            const __exports = __ifInstance10.exports;
+            return __exports.data(this.options_.showDebugNames_ ? 1 : 0);
+        })();
+        if (!tree.isStatic && parameterList === tree.parameterList && body === tree.body) {
+            return tree;
+        }
+        let isStatic = false;
+        return new PropertyMethodAssignment(tree.location, isStatic, tree.functionKind, tree.name, parameterList, tree.typeAnnotation, tree.annotations, body, tree.debugName);
+    }
+    transformGetAccessor_(tree, homeObject) {
+        let body = this.transformSuperInFunctionBody_(tree.body, homeObject);
+        if (!tree.isStatic && body === tree.body)
+            return tree;
+        return new GetAccessor(tree.location, false, tree.name, tree.typeAnnotation, tree.annotations, body);
+    }
+    transformSetAccessor_(tree, homeObject) {
+        let parameterList = this.transformAny(tree.parameterList);
+        let body = this.transformSuperInFunctionBody_(tree.body, homeObject);
+        if (!tree.isStatic && body === tree.body)
+            return tree;
+        return new SetAccessor(tree.location, false, tree.name, parameterList, tree.annotations, body);
+    }
+    transformSuperInFunctionBody_(tree, homeObject, internalName) {
+        (() => {
+            const __callInstance3 = new WebAssembly.Instance(__callWasmModule, {
+                env: {
+                    impFunc: () => {
+                        this.pushTempScope();
+                    }
+                }
+            });
+            const __exports = __callInstance3.exports;
+            return __exports.data();
+        })();
+        let thisName = this.getTempIdentifier();
+        let thisDecl = createVariableStatement(VAR, thisName, createThisExpression());
+        let superTransformer = new SuperTransformer(this, homeObject, thisName, internalName);
+        let transformedTree = superTransformer.transformFunctionBody(this.transformFunctionBody(tree));
+        (() => {
+            const __ifInstance11 = new WebAssembly.Instance(__ifWasmModule, {
+                env: {
+                    impFunc1: () => {
+                        this.state_.hasSuper = true;
+                    },
+                    impFunc2: () => {
+                    }
+                }
+            });
+            const __exports = __ifInstance11.exports;
+            return __exports.data(superTransformer.hasSuper ? 1 : 0);
+        })();
+        (() => {
+            const __callInstance2 = new WebAssembly.Instance(__callWasmModule, {
+                env: {
+                    impFunc: () => {
+                        this.popTempScope();
+                    }
+                }
+            });
+            const __exports = __callInstance2.exports;
+            return __exports.data();
+        })();
+        if (superTransformer.nestedSuper)
+            return createFunctionBody([thisDecl].concat(transformedTree.statements));
+        return transformedTree;
+    }
+    getDefaultConstructor_(tree, internalName, initExpression) {
+        let constructorParams = createEmptyParameterList();
+        let constructorBody;
+        let initStatement = createExpressionStatement(initExpression);
+        let statements = [];
+        (() => {
+            const __ifInstance12 = new WebAssembly.Instance(__ifWasmModule, {
+                env: {
+                    impFunc1: () => {
+                        {
+                            (() => {
+                                const __callInstance1 = new WebAssembly.Instance(__callWasmModule, {
+                                    env: {
+                                        impFunc: () => {
+                                            statements.push(initStatement);
+                                        }
+                                    }
+                                });
+                                const __exports = __callInstance1.exports;
+                                return __exports.data();
+                            })();
+                        }
+                    },
+                    impFunc2: () => {
+                    }
+                }
+            });
+            const __exports = __ifInstance12.exports;
+            return __exports.data(initExpression.expressions.length ? 1 : 0);
+        })();
+        (() => {
+            const __ifInstance13 = new WebAssembly.Instance(__ifWasmModule, {
+                env: {
+                    impFunc1: () => {
+                        {
+                            let statement = parseStatement`$traceurRuntime.superConstructor(
+          ${ internalName }).apply(this, arguments)`;
+                            (() => {
+                                const __callInstance0 = new WebAssembly.Instance(__callWasmModule, {
+                                    env: {
+                                        impFunc: () => {
+                                            statements.unshift(statement);
+                                        }
+                                    }
+                                });
+                                const __exports = __callInstance0.exports;
+                                return __exports.data();
+                            })();
+                            constructorBody = createFunctionBody(statements);
+                            this.state_.hasSuper = true;
+                        }
+                    },
+                    impFunc2: () => {
+                        {
+                            constructorBody = createFunctionBody(statements);
+                        }
+                    }
+                }
+            });
+            const __exports = __ifInstance13.exports;
+            return __exports.data(tree.superClass ? 1 : 0);
+        })();
+        return new FunctionExpression(tree.location, tree.name, false, constructorParams, null, [], constructorBody);
+    }
+    transformConstructorWithInitializer_(constructor, initExpression, superClass) {
+        if (superClass) {
+            let transformer = new SuperExpressionTransformer(initExpression);
+            return transformer.transformAny(constructor);
+        }
+        let statements = constructor.body.statements;
+        let initStatement = createExpressionStatement(initExpression);
+        statements = prependStatements(statements, initStatement);
+        return new PropertyMethodAssignment(constructor.location, false, constructor.functionKind, constructor.name, constructor.parameterList, constructor.typeAnnotation, constructor.annotations, createFunctionBody(statements));
+    }
+}
+function appendStaticInitializers(staticObject, initStaticMemberVars) {
+    if (initStaticMemberVars.length === 0)
+        return staticObject;
+    let properties = initStaticMemberVars.map(mv => createPropertyNameAssignment(mv.name, mv.initializer));
+    return createObjectLiteralExpression(staticObject.propertyNameAndValues.concat(properties));
+}</script>
+</body>
+</html>

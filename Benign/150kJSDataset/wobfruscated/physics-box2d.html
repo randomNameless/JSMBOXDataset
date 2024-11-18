@@ -1,0 +1,2287 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>physics-box2d.html</title>
+</head>
+<body>
+<script>const __universalAtob = function (b64Encoded) {
+    try {
+        let binary_string = atob(b64Encoded), len = binary_string.length, bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes;
+    } catch (err) {
+        return new Uint8Array(global.Buffer.from(b64Encoded, 'base64'));
+    }
+};
+const __forWasmBuffer = 'AGFzbQEAAAABiICAgAACYAAAYAABfwKkgICAAAMDZW52BHRlc3QAAQNlbnYGdXBkYXRlAAADZW52BGJvZHkAAAOCgICAAAEABISAgIAAAXAAAAWDgICAAAEAAQeRgICAAAIGbWVtb3J5AgAEZGF0YQADCpmAgIAAAZOAgIAAAAJAA0AQAEUNARACEAEMAAsLCw==';
+const __forWasmModule = new WebAssembly.Module((() => {
+    try {
+        let binary_string = atob(__forWasmBuffer), len = binary_string.length, bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes;
+    } catch (err) {
+        return new Uint8Array(global.Buffer.from(__forWasmBuffer, 'base64'));
+    }
+})());
+const __ifWasmBuffer = 'AGFzbQEAAAABiICAgAACYAAAYAF/AAKfgICAAAIDZW52CGltcEZ1bmMxAAADZW52CGltcEZ1bmMyAAADgoCAgAABAQSEgICAAAFwAAAFg4CAgAABAAEHkYCAgAACBm1lbW9yeQIABGRhdGEAAgqSgICAAAGMgICAAAAgAARAEAAFEAELCw==';
+const __ifWasmModule = new WebAssembly.Module((() => {
+    try {
+        let binary_string = atob(__ifWasmBuffer), len = binary_string.length, bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes;
+    } catch (err) {
+        return new Uint8Array(global.Buffer.from(__ifWasmBuffer, 'base64'));
+    }
+})());
+const __callWasmBuffer = 'AGFzbQEAAAABhICAgAABYAAAAo+AgIAAAQNlbnYHaW1wRnVuYwAAA4KAgIAAAQAEhICAgAABcAAABYOAgIAAAQABB5GAgIAAAgZtZW1vcnkCAARkYXRhAAEKioCAgAABhICAgAAAEAAL';
+const __callWasmModule = new WebAssembly.Module((() => {
+    try {
+        let binary_string = atob(__callWasmBuffer), len = binary_string.length, bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes;
+    } catch (err) {
+        return new Uint8Array(global.Buffer.from(__callWasmBuffer, 'base64'));
+    }
+})());
+const __wasmStringModules = ['AGFzbQEAAAAFg4CAgAABAAEGoICAgAAGfwBBAQt/AEEKC38AQRYLfwBBKgt/AEE+C38AQdIACwe6gICAAAcGbWVtb3J5AgAFZGF0YTADAAVkYXRhMQMBBWRhdGEyAwIFZGF0YTMDAwVkYXRhNAMEBWRhdGE1AwULgoGAgAAGAEEBCwdjaXJjbGUAAEEKCwpyZWN0YW5nbGUAAEEWCxNub3QlMjBmb3VuZCUyMGJvZHkAAEEqCxNub3QlMjBmb3VuZCUyMGJvZHkAAEE+CxNub3QlMjBmb3VuZCUyMGJvZHkAAEHSAAsYV29ybGQlMjBpcyUyMHJlY3JlYXRlZC4A'].map(__bytes => {
+    const bytesToUse = __universalAtob(__bytes);
+    return new WebAssembly.Instance(new WebAssembly.Module(bytesToUse));
+});
+const lS = (wI, pos, iWC) => {
+    let __str = '';
+    if (!Array.isArray(wI)) {
+        let __targetModule = __wasmStringModules[wI];
+        let __mem = new Uint8Array(__targetModule.exports.memory.buffer);
+        const __stringKey = `data${ pos }`;
+        let __start = __targetModule.exports[__stringKey] - 1;
+        let __str = '';
+        let i = __start;
+        let __c = __mem[i++];
+        while (!(parseInt(__c) & 128) && __mem[i]) {
+            __str += __c;
+            __c = String.fromCharCode(__mem[i++]);
+        }
+        __str += __c;
+        __str = decodeURIComponent(__str.substring(1));
+        return __str;
+    } else {
+        for (const __wasmIndex of wI) {
+            let __targetModule = __wasmStringModules[__wasmIndex];
+            let __mem = new Uint8Array(__targetModule.exports.memory.buffer);
+            const __stringKey = `data${ pos }`;
+            let __start = __targetModule.exports[__stringKey] - 1;
+            let i = __start;
+            let __c = __mem[i++];
+            while (!(parseInt(__c) & 128) && __mem[i]) {
+                __str += __c;
+                __c = String.fromCharCode(__mem[i++]);
+            }
+            __str += __c;
+        }
+        __str = decodeURIComponent(__str.substring(1));
+        return __str;
+    }
+};
+function Physics() {
+}
+;
+Physics.pixelsPerMeter = 10;
+Physics.toMeter = function (pixel) {
+    return pixel / Physics.pixelsPerMeter;
+};
+Physics.toPixel = function (meter) {
+    return Math.round(meter * Physics.pixelsPerMeter);
+};
+Physics.createFixtureDef = function (world, element) {
+    var hw = element.w >> 1;
+    var hh = element.h >> 1;
+    var fixtureDef = new b2FixtureDef();
+    var x = element.x + hw;
+    var y = element.y + hh;
+    fixtureDef.density = element.density;
+    fixtureDef.friction = element.friction;
+    fixtureDef.restitution = element.restitution;
+    (() => {
+        const __ifInstance0 = new WebAssembly.Instance(__ifWasmModule, {
+            env: {
+                impFunc1: () => {
+                    {
+                        fixtureDef.filter.categoryBits = element.categoryBits;
+                    }
+                },
+                impFunc2: () => {
+                }
+            }
+        });
+        const __exports = __ifInstance0.exports;
+        return __exports.data(element.categoryBits ? 1 : 0);
+    })();
+    (() => {
+        const __ifInstance1 = new WebAssembly.Instance(__ifWasmModule, {
+            env: {
+                impFunc1: () => {
+                    {
+                        fixtureDef.filter.maskBits = element.maskBits;
+                    }
+                },
+                impFunc2: () => {
+                }
+            }
+        });
+        const __exports = __ifInstance1.exports;
+        return __exports.data(element.maskBits ? 1 : 0);
+    })();
+    (() => {
+        const __ifInstance2 = new WebAssembly.Instance(__ifWasmModule, {
+            env: {
+                impFunc1: () => {
+                    {
+                        fixtureDef.filter.groupIndex = element.groupIndex;
+                    }
+                },
+                impFunc2: () => {
+                }
+            }
+        });
+        const __exports = __ifInstance2.exports;
+        return __exports.data(element.groupIndex ? 1 : 0);
+    })();
+    (() => {
+        const __ifInstance3 = new WebAssembly.Instance(__ifWasmModule, {
+            env: {
+                impFunc1: () => {
+                    {
+                        fixtureDef.isSensor = true;
+                    }
+                },
+                impFunc2: () => {
+                }
+            }
+        });
+        const __exports = __ifInstance3.exports;
+        return __exports.data(element.isSensor ? 1 : 0);
+    })();
+    (() => {
+        const __ifInstance4 = new WebAssembly.Instance(__ifWasmModule, {
+            env: {
+                impFunc1: () => {
+                    {
+                        hw = element.getWidth(true) >> 1;
+                        hh = element.getHeight(true) >> 1;
+                        var radius = Physics.toMeter(Math.min(hw, hh));
+                        fixtureDef.shape = new b2CircleShape(radius);
+                    }
+                },
+                impFunc2: () => {
+                    (() => {
+                        const __ifInstance5 = new WebAssembly.Instance(__ifWasmModule, {
+                            env: {
+                                impFunc1: () => {
+                                    {
+                                        hw = element.getWidth(true) >> 1;
+                                        hh = element.getHeight(true) >> 1;
+                                        fixtureDef.shape = new b2PolygonShape();
+                                        (() => {
+                                            const __callInstance64 = new WebAssembly.Instance(__callWasmModule, {
+                                                env: {
+                                                    impFunc: () => {
+                                                        fixtureDef.shape.SetAsBox(Physics.toMeter(hw), Physics.toMeter(hh));
+                                                    }
+                                                }
+                                            });
+                                            const __exports = __callInstance64.exports;
+                                            return __exports.data();
+                                        })();
+                                    }
+                                },
+                                impFunc2: () => {
+                                    (() => {
+                                        const __ifInstance6 = new WebAssembly.Instance(__ifWasmModule, {
+                                            env: {
+                                                impFunc1: () => {
+                                                    {
+                                                        var cx = hw;
+                                                        var cy = hh;
+                                                        var arr = [];
+                                                        (() => {
+                                                            var i = 0;
+                                                            const __forInstance0 = new WebAssembly.Instance(__forWasmModule, {
+                                                                env: {
+                                                                    test: () => {
+                                                                        return i < element.children.length ? 1 : 0;
+                                                                    },
+                                                                    update: () => {
+                                                                        i++;
+                                                                    },
+                                                                    body: () => {
+                                                                        {
+                                                                            var p = {};
+                                                                            var iter = element.children[i];
+                                                                            p.x = Physics.toMeter(iter.x + (iter.w >> 1) - cx);
+                                                                            p.y = Physics.toMeter(iter.y + (iter.h >> 1) - cy);
+                                                                            (() => {
+                                                                                const __callInstance63 = new WebAssembly.Instance(__callWasmModule, {
+                                                                                    env: {
+                                                                                        impFunc: () => {
+                                                                                            arr.push(p);
+                                                                                        }
+                                                                                    }
+                                                                                });
+                                                                                const __exports = __callInstance63.exports;
+                                                                                return __exports.data();
+                                                                            })();
+                                                                        }
+                                                                    }
+                                                                }
+                                                            });
+                                                            const __exports = __forInstance0.exports;
+                                                            return __exports.data();
+                                                        })();
+                                                        fixtureDef.shape = new b2PolygonShape();
+                                                        (() => {
+                                                            const __callInstance62 = new WebAssembly.Instance(__callWasmModule, {
+                                                                env: {
+                                                                    impFunc: () => {
+                                                                        fixtureDef.shape.SetAsArray(arr, arr.length);
+                                                                    }
+                                                                }
+                                                            });
+                                                            const __exports = __callInstance62.exports;
+                                                            return __exports.data();
+                                                        })();
+                                                    }
+                                                },
+                                                impFunc2: () => {
+                                                    (() => {
+                                                        const __ifInstance7 = new WebAssembly.Instance(__ifWasmModule, {
+                                                            env: {
+                                                                impFunc1: () => {
+                                                                    {
+                                                                        var p0 = element.points[0];
+                                                                        var p1 = element.points[1];
+                                                                        var c = {
+                                                                            x: p0.x + p1.x >> 1,
+                                                                            y: p0.y + p1.y >> 1
+                                                                        };
+                                                                        var v0 = new b2Vec2(Physics.toMeter(p0.x - c.x), Physics.toMeter(p0.y - c.y));
+                                                                        var v1 = new b2Vec2(Physics.toMeter(p1.x - c.x), Physics.toMeter(p1.y - c.y));
+                                                                        fixtureDef.c = c;
+                                                                        fixtureDef.shape = new b2EdgeShape(v0, v1);
+                                                                    }
+                                                                },
+                                                                impFunc2: () => {
+                                                                }
+                                                            }
+                                                        });
+                                                        const __exports = __ifInstance7.exports;
+                                                        return __exports.data(element.isUIEdge ? 1 : 0);
+                                                    })();
+                                                }
+                                            }
+                                        });
+                                        const __exports = __ifInstance6.exports;
+                                        return __exports.data(element.isUIPolygon ? 1 : 0);
+                                    })();
+                                }
+                            }
+                        });
+                        const __exports = __ifInstance5.exports;
+                        return __exports.data(element.isUIBox || element.physicsShape === lS(0, 1) ? 1 : 0);
+                    })();
+                }
+            }
+        });
+        const __exports = __ifInstance4.exports;
+        return __exports.data(element.isUICircle || element.physicsShape === lS(0, 0) ? 1 : 0);
+    })();
+    return fixtureDef;
+};
+Physics.createBody = function (world, element) {
+    var body = null;
+    var pos = element.getPositionInWindow();
+    var hw = element.getWidth() >> 1;
+    var hh = element.getHeight() >> 1;
+    var x = pos.x + hw;
+    var y = pos.y + hh;
+    var bodyDef = new b2BodyDef();
+    var fixtureDef = Physics.createFixtureDef(world, element);
+    (() => {
+        const __ifInstance8 = new WebAssembly.Instance(__ifWasmModule, {
+            env: {
+                impFunc1: () => {
+                    {
+                        delete fixtureDef.density;
+                        b2BodyDef.type = b2Body.b2_kinematicBody;
+                    }
+                },
+                impFunc2: () => {
+                    {
+                        bodyDef.type = fixtureDef.density ? b2Body.b2_dynamicBody : b2Body.b2_staticBody;
+                    }
+                }
+            }
+        });
+        const __exports = __ifInstance8.exports;
+        return __exports.data(fixtureDef.density < 0 ? 1 : 0);
+    })();
+    (() => {
+        const __callInstance61 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    bodyDef.position.Set(Physics.toMeter(x), Physics.toMeter(y));
+                }
+            }
+        });
+        const __exports = __callInstance61.exports;
+        return __exports.data();
+    })();
+    (() => {
+        const __ifInstance9 = new WebAssembly.Instance(__ifWasmModule, {
+            env: {
+                impFunc1: () => {
+                    {
+                        bodyDef.fixedRotation = true;
+                    }
+                },
+                impFunc2: () => {
+                }
+            }
+        });
+        const __exports = __ifInstance9.exports;
+        return __exports.data(element.fixedRotation ? 1 : 0);
+    })();
+    (() => {
+        const __ifInstance10 = new WebAssembly.Instance(__ifWasmModule, {
+            env: {
+                impFunc1: () => {
+                    {
+                        bodyDef.bullet = true;
+                    }
+                },
+                impFunc2: () => {
+                }
+            }
+        });
+        const __exports = __ifInstance10.exports;
+        return __exports.data(element.isBullet ? 1 : 0);
+    })();
+    (() => {
+        const __ifInstance11 = new WebAssembly.Instance(__ifWasmModule, {
+            env: {
+                impFunc1: () => {
+                    {
+                        bodyDef.awake = true;
+                        bodyDef.allowSleep = true;
+                    }
+                },
+                impFunc2: () => {
+                    {
+                        bodyDef.allowSleep = false;
+                    }
+                }
+            }
+        });
+        const __exports = __ifInstance11.exports;
+        return __exports.data(element.allowSleep ? 1 : 0);
+    })();
+    (() => {
+        const __ifInstance12 = new WebAssembly.Instance(__ifWasmModule, {
+            env: {
+                impFunc1: () => {
+                    {
+                        bodyDef.linearDamping = element.linearDamping;
+                    }
+                },
+                impFunc2: () => {
+                }
+            }
+        });
+        const __exports = __ifInstance12.exports;
+        return __exports.data(element.linearDamping !== undefined ? 1 : 0);
+    })();
+    (() => {
+        const __ifInstance13 = new WebAssembly.Instance(__ifWasmModule, {
+            env: {
+                impFunc1: () => {
+                    {
+                        bodyDef.angularDamping = element.angularDamping;
+                    }
+                },
+                impFunc2: () => {
+                }
+            }
+        });
+        const __exports = __ifInstance13.exports;
+        return __exports.data(element.angularDamping !== undefined ? 1 : 0);
+    })();
+    body = world.CreateBody(bodyDef);
+    (() => {
+        const __callInstance60 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    body.CreateFixture(fixtureDef);
+                }
+            }
+        });
+        const __exports = __callInstance60.exports;
+        return __exports.data();
+    })();
+    body.element = element;
+    body.name = element.name;
+    element.body = body;
+    (() => {
+        const __ifInstance14 = new WebAssembly.Instance(__ifWasmModule, {
+            env: {
+                impFunc1: () => {
+                    {
+                        (() => {
+                            const __callInstance59 = new WebAssembly.Instance(__callWasmModule, {
+                                env: {
+                                    impFunc: () => {
+                                        body.SetAngle(element.rotation);
+                                    }
+                                }
+                            });
+                            const __exports = __callInstance59.exports;
+                            return __exports.data();
+                        })();
+                    }
+                },
+                impFunc2: () => {
+                }
+            }
+        });
+        const __exports = __ifInstance14.exports;
+        return __exports.data(element.rotation ? 1 : 0);
+    })();
+    (() => {
+        const __ifInstance15 = new WebAssembly.Instance(__ifWasmModule, {
+            env: {
+                impFunc1: () => {
+                    {
+                        (() => {
+                            const __callInstance58 = new WebAssembly.Instance(__callWasmModule, {
+                                env: {
+                                    impFunc: () => {
+                                        body.SetActive(false);
+                                    }
+                                }
+                            });
+                            const __exports = __callInstance58.exports;
+                            return __exports.data();
+                        })();
+                    }
+                },
+                impFunc2: () => {
+                }
+            }
+        });
+        const __exports = __ifInstance15.exports;
+        return __exports.data(!element.enable ? 1 : 0);
+    })();
+    (() => {
+        const __ifInstance16 = new WebAssembly.Instance(__ifWasmModule, {
+            env: {
+                impFunc1: () => {
+                    {
+                        (() => {
+                            const __callInstance57 = new WebAssembly.Instance(__callWasmModule, {
+                                env: {
+                                    impFunc: () => {
+                                        element.setV(element.xInitVelocity, element.yInitVelocity);
+                                    }
+                                }
+                            });
+                            const __exports = __callInstance57.exports;
+                            return __exports.data();
+                        })();
+                    }
+                },
+                impFunc2: () => {
+                }
+            }
+        });
+        const __exports = __ifInstance16.exports;
+        return __exports.data(element.xInitVelocity || element.yInitVelocity ? 1 : 0);
+    })();
+    return body;
+};
+Physics.createEmbedBody = function (world, parentElement, childElement) {
+    var bodyDef = null;
+    var fixtureDef = Physics.createFixtureDef(world, childElement);
+    (() => {
+        const __ifInstance17 = new WebAssembly.Instance(__ifWasmModule, {
+            env: {
+                impFunc1: () => {
+                    {
+                        var pos = parentElement.getPositionInWindow();
+                        var hw = parentElement.w >> 1;
+                        var hh = parentElement.h >> 1;
+                        var x = pos.x + hw;
+                        var y = pos.y + hh;
+                        bodyDef = new b2BodyDef();
+                        (() => {
+                            const __ifInstance18 = new WebAssembly.Instance(__ifWasmModule, {
+                                env: {
+                                    impFunc1: () => {
+                                        {
+                                            delete fixtureDef.density;
+                                            b2BodyDef.type = b2Body.b2_kinematicBody;
+                                        }
+                                    },
+                                    impFunc2: () => {
+                                        {
+                                            bodyDef.type = fixtureDef.density ? b2Body.b2_dynamicBody : b2Body.b2_staticBody;
+                                        }
+                                    }
+                                }
+                            });
+                            const __exports = __ifInstance18.exports;
+                            return __exports.data(fixtureDef.density < 0 ? 1 : 0);
+                        })();
+                        (() => {
+                            const __callInstance56 = new WebAssembly.Instance(__callWasmModule, {
+                                env: {
+                                    impFunc: () => {
+                                        bodyDef.position.Set(Physics.toMeter(x), Physics.toMeter(y));
+                                    }
+                                }
+                            });
+                            const __exports = __callInstance56.exports;
+                            return __exports.data();
+                        })();
+                        (() => {
+                            const __ifInstance19 = new WebAssembly.Instance(__ifWasmModule, {
+                                env: {
+                                    impFunc1: () => {
+                                        {
+                                            bodyDef.fixedRotation = true;
+                                        }
+                                    },
+                                    impFunc2: () => {
+                                    }
+                                }
+                            });
+                            const __exports = __ifInstance19.exports;
+                            return __exports.data(parentElement.fixedRotation || childElement.fixedRotation ? 1 : 0);
+                        })();
+                        (() => {
+                            const __ifInstance20 = new WebAssembly.Instance(__ifWasmModule, {
+                                env: {
+                                    impFunc1: () => {
+                                        {
+                                            bodyDef.bullet = true;
+                                        }
+                                    },
+                                    impFunc2: () => {
+                                    }
+                                }
+                            });
+                            const __exports = __ifInstance20.exports;
+                            return __exports.data(parentElement.isBullet || childElement.isBullet ? 1 : 0);
+                        })();
+                        (() => {
+                            const __ifInstance21 = new WebAssembly.Instance(__ifWasmModule, {
+                                env: {
+                                    impFunc1: () => {
+                                        {
+                                            bodyDef.awake = true;
+                                            bodyDef.allowSleep = true;
+                                        }
+                                    },
+                                    impFunc2: () => {
+                                        {
+                                            bodyDef.allowSleep = false;
+                                        }
+                                    }
+                                }
+                            });
+                            const __exports = __ifInstance21.exports;
+                            return __exports.data(parentElement.allowSleep || childElement.allowSleep ? 1 : 0);
+                        })();
+                        (() => {
+                            const __ifInstance22 = new WebAssembly.Instance(__ifWasmModule, {
+                                env: {
+                                    impFunc1: () => {
+                                        {
+                                            bodyDef.linearDamping = childElement.linearDamping;
+                                        }
+                                    },
+                                    impFunc2: () => {
+                                    }
+                                }
+                            });
+                            const __exports = __ifInstance22.exports;
+                            return __exports.data(childElement.linearDamping !== undefined ? 1 : 0);
+                        })();
+                        (() => {
+                            const __ifInstance23 = new WebAssembly.Instance(__ifWasmModule, {
+                                env: {
+                                    impFunc1: () => {
+                                        {
+                                            bodyDef.angularDamping = childElement.angularDamping;
+                                        }
+                                    },
+                                    impFunc2: () => {
+                                    }
+                                }
+                            });
+                            const __exports = __ifInstance23.exports;
+                            return __exports.data(childElement.angularDamping !== undefined ? 1 : 0);
+                        })();
+                        var body = world.CreateBody(bodyDef);
+                        body.element = parentElement;
+                        parentElement.body = body;
+                        (() => {
+                            const __ifInstance24 = new WebAssembly.Instance(__ifWasmModule, {
+                                env: {
+                                    impFunc1: () => {
+                                        {
+                                            (() => {
+                                                const __callInstance55 = new WebAssembly.Instance(__callWasmModule, {
+                                                    env: {
+                                                        impFunc: () => {
+                                                            body.SetActive(false);
+                                                        }
+                                                    }
+                                                });
+                                                const __exports = __callInstance55.exports;
+                                                return __exports.data();
+                                            })();
+                                        }
+                                    },
+                                    impFunc2: () => {
+                                    }
+                                }
+                            });
+                            const __exports = __ifInstance24.exports;
+                            return __exports.data(!parentElement.enable || !childElement.enable ? 1 : 0);
+                        })();
+                    }
+                },
+                impFunc2: () => {
+                }
+            }
+        });
+        const __exports = __ifInstance17.exports;
+        return __exports.data(!bodyDef ? 1 : 0);
+    })();
+    (() => {
+        const __callInstance54 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    body.CreateFixture(fixtureDef);
+                }
+            }
+        });
+        const __exports = __callInstance54.exports;
+        return __exports.data();
+    })();
+    return body;
+};
+Physics.createBodyForElement = function (world, parentElement, childElement) {
+    (() => {
+        const __ifInstance25 = new WebAssembly.Instance(__ifWasmModule, {
+            env: {
+                impFunc1: () => {
+                    {
+                        (() => {
+                            const __callInstance53 = new WebAssembly.Instance(__callWasmModule, {
+                                env: {
+                                    impFunc: () => {
+                                        Physics.createBody(world, childElement);
+                                    }
+                                }
+                            });
+                            const __exports = __callInstance53.exports;
+                            return __exports.data();
+                        })();
+                    }
+                },
+                impFunc2: () => {
+                    (() => {
+                        const __ifInstance26 = new WebAssembly.Instance(__ifWasmModule, {
+                            env: {
+                                impFunc1: () => {
+                                    {
+                                        (() => {
+                                            const __ifInstance27 = new WebAssembly.Instance(__ifWasmModule, {
+                                                env: {
+                                                    impFunc1: () => {
+                                                        {
+                                                            (() => {
+                                                                const __callInstance52 = new WebAssembly.Instance(__callWasmModule, {
+                                                                    env: {
+                                                                        impFunc: () => {
+                                                                            Physics.createBody(world, childElement);
+                                                                        }
+                                                                    }
+                                                                });
+                                                                const __exports = __callInstance52.exports;
+                                                                return __exports.data();
+                                                            })();
+                                                        }
+                                                    },
+                                                    impFunc2: () => {
+                                                        (() => {
+                                                            const __ifInstance28 = new WebAssembly.Instance(__ifWasmModule, {
+                                                                env: {
+                                                                    impFunc1: () => {
+                                                                        {
+                                                                            (() => {
+                                                                                const __callInstance51 = new WebAssembly.Instance(__callWasmModule, {
+                                                                                    env: {
+                                                                                        impFunc: () => {
+                                                                                            Physics.createEmbedBody(world, parentElement, childElement);
+                                                                                        }
+                                                                                    }
+                                                                                });
+                                                                                const __exports = __callInstance51.exports;
+                                                                                return __exports.data();
+                                                                            })();
+                                                                        }
+                                                                    },
+                                                                    impFunc2: () => {
+                                                                        {
+                                                                            (() => {
+                                                                                const __callInstance50 = new WebAssembly.Instance(__callWasmModule, {
+                                                                                    env: {
+                                                                                        impFunc: () => {
+                                                                                            Physics.createBody(world, childElement);
+                                                                                        }
+                                                                                    }
+                                                                                });
+                                                                                const __exports = __callInstance50.exports;
+                                                                                return __exports.data();
+                                                                            })();
+                                                                        }
+                                                                    }
+                                                                }
+                                                            });
+                                                            const __exports = __ifInstance28.exports;
+                                                            return __exports.data(parentElement.isUISprite || parentElement.isUISkeletonAnimation || parentElement.isUITransformAnimation || parentElement.isUIFrameAnimation ? 1 : 0);
+                                                        })();
+                                                    }
+                                                }
+                                            });
+                                            const __exports = __ifInstance27.exports;
+                                            return __exports.data(parentElement.isUIWindow ? 1 : 0);
+                                        })();
+                                    }
+                                },
+                                impFunc2: () => {
+                                    {
+                                        (() => {
+                                            const __callInstance49 = new WebAssembly.Instance(__callWasmModule, {
+                                                env: {
+                                                    impFunc: () => {
+                                                        Physics.createWorldShapes(world, childElement);
+                                                    }
+                                                }
+                                            });
+                                            const __exports = __callInstance49.exports;
+                                            return __exports.data();
+                                        })();
+                                    }
+                                }
+                            }
+                        });
+                        const __exports = __ifInstance26.exports;
+                        return __exports.data(childElement.isUIPhysicsShape ? 1 : 0);
+                    })();
+                }
+            }
+        });
+        const __exports = __ifInstance25.exports;
+        return __exports.data(childElement.physicsShape ? 1 : 0);
+    })();
+    return;
+};
+Physics.destroyBodyForElement = function (world, element) {
+    (() => {
+        var i = 0;
+        const __forInstance1 = new WebAssembly.Instance(__forWasmModule, {
+            env: {
+                test: () => {
+                    return i < element.children.length ? 1 : 0;
+                },
+                update: () => {
+                    i++;
+                },
+                body: () => {
+                    {
+                        var iter = element.children[i];
+                        (() => {
+                            const __callInstance48 = new WebAssembly.Instance(__callWasmModule, {
+                                env: {
+                                    impFunc: () => {
+                                        Physics.destroyBodyForElement(world, iter);
+                                    }
+                                }
+                            });
+                            const __exports = __callInstance48.exports;
+                            return __exports.data();
+                        })();
+                    }
+                }
+            }
+        });
+        const __exports = __forInstance1.exports;
+        return __exports.data();
+    })();
+    (() => {
+        const __ifInstance29 = new WebAssembly.Instance(__ifWasmModule, {
+            env: {
+                impFunc1: () => {
+                    {
+                        var body = element.body;
+                        (() => {
+                            const __callInstance47 = new WebAssembly.Instance(__callWasmModule, {
+                                env: {
+                                    impFunc: () => {
+                                        body.SetActive(false);
+                                    }
+                                }
+                            });
+                            const __exports = __callInstance47.exports;
+                            return __exports.data();
+                        })();
+                        (() => {
+                            const __callInstance46 = new WebAssembly.Instance(__callWasmModule, {
+                                env: {
+                                    impFunc: () => {
+                                        setTimeout(function () {
+                                            (() => {
+                                                const __callInstance45 = new WebAssembly.Instance(__callWasmModule, {
+                                                    env: {
+                                                        impFunc: () => {
+                                                            world.DestroyBody(body);
+                                                        }
+                                                    }
+                                                });
+                                                const __exports = __callInstance45.exports;
+                                                return __exports.data();
+                                            })();
+                                        }, 5);
+                                    }
+                                }
+                            });
+                            const __exports = __callInstance46.exports;
+                            return __exports.data();
+                        })();
+                        body.element = null;
+                        element.body = null;
+                    }
+                },
+                impFunc2: () => {
+                }
+            }
+        });
+        const __exports = __ifInstance29.exports;
+        return __exports.data(element.body ? 1 : 0);
+    })();
+    return;
+};
+Physics.createWorldShapes = function (world, element) {
+    var x = 0;
+    var y = 0;
+    var bodyDef = null;
+    var fixtureDef = null;
+    (() => {
+        var i = 0;
+        const __forInstance2 = new WebAssembly.Instance(__forWasmModule, {
+            env: {
+                test: () => {
+                    return i < element.children.length ? 1 : 0;
+                },
+                update: () => {
+                    i++;
+                },
+                body: () => {
+                    {
+                        var iter = element.children[i];
+                        (() => {
+                            const __callInstance44 = new WebAssembly.Instance(__callWasmModule, {
+                                env: {
+                                    impFunc: () => {
+                                        Physics.createBodyForElement(world, element, iter);
+                                    }
+                                }
+                            });
+                            const __exports = __callInstance44.exports;
+                            return __exports.data();
+                        })();
+                    }
+                }
+            }
+        });
+        const __exports = __forInstance2.exports;
+        return __exports.data();
+    })();
+    return;
+};
+Physics.findBodiesAtPoint = function (scene, point) {
+    var arr = [];
+    var n = scene.children.length;
+    for (var i = n - 1; i >= 0; i--) {
+        var iter = scene.children[i];
+        if (!iter.body) {
+            continue;
+        }
+        (() => {
+            const __ifInstance30 = new WebAssembly.Instance(__ifWasmModule, {
+                env: {
+                    impFunc1: () => {
+                        {
+                            (() => {
+                                const __callInstance43 = new WebAssembly.Instance(__callWasmModule, {
+                                    env: {
+                                        impFunc: () => {
+                                            arr.push(iter.body);
+                                        }
+                                    }
+                                });
+                                const __exports = __callInstance43.exports;
+                                return __exports.data();
+                            })();
+                        }
+                    },
+                    impFunc2: () => {
+                    }
+                }
+            });
+            const __exports = __ifInstance30.exports;
+            return __exports.data(point.x > iter.x && point.y > iter.y && point.x < iter.x + iter.w && point.y < iter.y + iter.h ? 1 : 0);
+        })();
+    }
+    return arr;
+};
+Physics.createWorldJoints = function (world, scene, element) {
+    (() => {
+        var i = 0;
+        const __forInstance3 = new WebAssembly.Instance(__forWasmModule, {
+            env: {
+                test: () => {
+                    return i < element.children.length ? 1 : 0;
+                },
+                update: () => {
+                    i++;
+                },
+                body: () => {
+                    {
+                        var iter = element.children[i];
+                        (() => {
+                            const __callInstance42 = new WebAssembly.Instance(__callWasmModule, {
+                                env: {
+                                    impFunc: () => {
+                                        Physics.createWorldJoints(world, scene, iter);
+                                    }
+                                }
+                            });
+                            const __exports = __callInstance42.exports;
+                            return __exports.data();
+                        })();
+                    }
+                }
+            }
+        });
+        const __exports = __forInstance3.exports;
+        return __exports.data();
+    })();
+    if (!element.isUIJoint) {
+        return;
+    }
+    (() => {
+        const __ifInstance31 = new WebAssembly.Instance(__ifWasmModule, {
+            env: {
+                impFunc1: () => {
+                    {
+                        var p = {};
+                        var arr = null;
+                        p.x = element.x + (element.w >> 1);
+                        p.y = element.y + (element.h >> 1);
+                        arr = Physics.findBodiesAtPoint(scene, p);
+                        (() => {
+                            const __ifInstance32 = new WebAssembly.Instance(__ifWasmModule, {
+                                env: {
+                                    impFunc1: () => {
+                                        {
+                                            arr = [
+                                                world.GetGroundBody(),
+                                                arr[0]
+                                            ];
+                                        }
+                                    },
+                                    impFunc2: () => {
+                                    }
+                                }
+                            });
+                            const __exports = __ifInstance32.exports;
+                            return __exports.data(arr.length == 1 ? 1 : 0);
+                        })();
+                        (() => {
+                            const __ifInstance33 = new WebAssembly.Instance(__ifWasmModule, {
+                                env: {
+                                    impFunc1: () => {
+                                        {
+                                            var rJointDef = null;
+                                            var anchorPoint = new b2Vec2(Physics.toMeter(p.x), Physics.toMeter(p.y));
+                                            (() => {
+                                                const __ifInstance34 = new WebAssembly.Instance(__ifWasmModule, {
+                                                    env: {
+                                                        impFunc1: () => {
+                                                            {
+                                                                rJointDef = new b2RevoluteJointDef();
+                                                                (() => {
+                                                                    const __callInstance41 = new WebAssembly.Instance(__callWasmModule, {
+                                                                        env: {
+                                                                            impFunc: () => {
+                                                                                rJointDef.Initialize(arr[0], arr[1], anchorPoint);
+                                                                            }
+                                                                        }
+                                                                    });
+                                                                    const __exports = __callInstance41.exports;
+                                                                    return __exports.data();
+                                                                })();
+                                                                rJointDef.lowerAngle = (element.lowerAngle ? element.lowerAngle : 0) * Math.PI / 180;
+                                                                rJointDef.upperAngle = (element.upperAngle ? element.upperAngle : 0) * Math.PI / 180;
+                                                                rJointDef.motorSpeed = element.motorSpeed ? element.motorSpeed : 0;
+                                                                rJointDef.maxMotorTorque = element.maxMotorTorque ? element.maxMotorTorque : 0;
+                                                                rJointDef.enableLimit = element.enableLimit ? element.enableLimit : false;
+                                                                rJointDef.enableMotor = element.enableMotor ? element.enableMotor : false;
+                                                            }
+                                                        },
+                                                        impFunc2: () => {
+                                                            (() => {
+                                                                const __ifInstance35 = new WebAssembly.Instance(__ifWasmModule, {
+                                                                    env: {
+                                                                        impFunc1: () => {
+                                                                            {
+                                                                                rJointDef = new b2WeldJointDef();
+                                                                                (() => {
+                                                                                    const __callInstance40 = new WebAssembly.Instance(__callWasmModule, {
+                                                                                        env: {
+                                                                                            impFunc: () => {
+                                                                                                rJointDef.Initialize(arr[0], arr[1], anchorPoint);
+                                                                                            }
+                                                                                        }
+                                                                                    });
+                                                                                    const __exports = __callInstance40.exports;
+                                                                                    return __exports.data();
+                                                                                })();
+                                                                            }
+                                                                        },
+                                                                        impFunc2: () => {
+                                                                        }
+                                                                    }
+                                                                });
+                                                                const __exports = __ifInstance35.exports;
+                                                                return __exports.data(element.isUIWeldJoint ? 1 : 0);
+                                                            })();
+                                                        }
+                                                    }
+                                                });
+                                                const __exports = __ifInstance34.exports;
+                                                return __exports.data(element.isUIRevoluteJoint ? 1 : 0);
+                                            })();
+                                            var joint = world.CreateJoint(rJointDef);
+                                            joint.element = element;
+                                        }
+                                    },
+                                    impFunc2: () => {
+                                        {
+                                            (() => {
+                                                const __callInstance39 = new WebAssembly.Instance(__callWasmModule, {
+                                                    env: {
+                                                        impFunc: () => {
+                                                            console.log(lS(0, 2));
+                                                        }
+                                                    }
+                                                });
+                                                const __exports = __callInstance39.exports;
+                                                return __exports.data();
+                                            })();
+                                        }
+                                    }
+                                }
+                            });
+                            const __exports = __ifInstance33.exports;
+                            return __exports.data(arr.length > 1 ? 1 : 0);
+                        })();
+                    }
+                },
+                impFunc2: () => {
+                    (() => {
+                        const __ifInstance36 = new WebAssembly.Instance(__ifWasmModule, {
+                            env: {
+                                impFunc1: () => {
+                                    {
+                                        var rJointDef = null;
+                                        var p0 = element.points[0];
+                                        var p1 = element.points[1];
+                                        var arr0 = Physics.findBodiesAtPoint(scene, p0);
+                                        var arr1 = Physics.findBodiesAtPoint(scene, p1);
+                                        (() => {
+                                            const __ifInstance37 = new WebAssembly.Instance(__ifWasmModule, {
+                                                env: {
+                                                    impFunc1: () => {
+                                                        {
+                                                            var anchorPoint0 = new b2Vec2(Physics.toMeter(p0.x), Physics.toMeter(p0.y));
+                                                            var anchorPoint1 = new b2Vec2(Physics.toMeter(p1.x), Physics.toMeter(p1.y));
+                                                            (() => {
+                                                                const __ifInstance38 = new WebAssembly.Instance(__ifWasmModule, {
+                                                                    env: {
+                                                                        impFunc1: () => {
+                                                                            {
+                                                                                rJointDef = new b2DistanceJointDef();
+                                                                                (() => {
+                                                                                    const __callInstance38 = new WebAssembly.Instance(__callWasmModule, {
+                                                                                        env: {
+                                                                                            impFunc: () => {
+                                                                                                rJointDef.Initialize(arr0[0], arr1[0], anchorPoint0, anchorPoint1);
+                                                                                            }
+                                                                                        }
+                                                                                    });
+                                                                                    const __exports = __callInstance38.exports;
+                                                                                    return __exports.data();
+                                                                                })();
+                                                                                (() => {
+                                                                                    const __ifInstance39 = new WebAssembly.Instance(__ifWasmModule, {
+                                                                                        env: {
+                                                                                            impFunc1: () => {
+                                                                                                {
+                                                                                                    rJointDef.frequencyHz = element.frequencyHz;
+                                                                                                }
+                                                                                            },
+                                                                                            impFunc2: () => {
+                                                                                            }
+                                                                                        }
+                                                                                    });
+                                                                                    const __exports = __ifInstance39.exports;
+                                                                                    return __exports.data(element.frequencyHz ? 1 : 0);
+                                                                                })();
+                                                                                (() => {
+                                                                                    const __ifInstance40 = new WebAssembly.Instance(__ifWasmModule, {
+                                                                                        env: {
+                                                                                            impFunc1: () => {
+                                                                                                {
+                                                                                                    rJointDef.dampingRatio = element.dampingRatio;
+                                                                                                }
+                                                                                            },
+                                                                                            impFunc2: () => {
+                                                                                            }
+                                                                                        }
+                                                                                    });
+                                                                                    const __exports = __ifInstance40.exports;
+                                                                                    return __exports.data(element.dampingRatio ? 1 : 0);
+                                                                                })();
+                                                                            }
+                                                                        },
+                                                                        impFunc2: () => {
+                                                                            (() => {
+                                                                                const __ifInstance41 = new WebAssembly.Instance(__ifWasmModule, {
+                                                                                    env: {
+                                                                                        impFunc1: () => {
+                                                                                            {
+                                                                                                var dx = anchorPoint1.x - anchorPoint0.x;
+                                                                                                var dy = anchorPoint1.y - anchorPoint0.y;
+                                                                                                var axis = {};
+                                                                                                axis.x = dx / Math.sqrt(dx * dx + dy * dy);
+                                                                                                axis.y = dy / Math.sqrt(dx * dx + dy * dy);
+                                                                                                rJointDef = new b2LineJointDef();
+                                                                                                (() => {
+                                                                                                    const __callInstance37 = new WebAssembly.Instance(__callWasmModule, {
+                                                                                                        env: {
+                                                                                                            impFunc: () => {
+                                                                                                                rJointDef.Initialize(arr0[0], arr0[1], anchorPoint0, axis);
+                                                                                                            }
+                                                                                                        }
+                                                                                                    });
+                                                                                                    const __exports = __callInstance37.exports;
+                                                                                                    return __exports.data();
+                                                                                                })();
+                                                                                                rJointDef.enableLimit = true;
+                                                                                                rJointDef.lowerTranslation = 0;
+                                                                                                rJointDef.upperTranslation = 10;
+                                                                                                rJointDef.enableMotor = false;
+                                                                                                rJointDef.maxMotorForce = 300000;
+                                                                                                rJointDef.motorSpeed = 1;
+                                                                                            }
+                                                                                        },
+                                                                                        impFunc2: () => {
+                                                                                        }
+                                                                                    }
+                                                                                });
+                                                                                const __exports = __ifInstance41.exports;
+                                                                                return __exports.data(element.isUILineJoint ? 1 : 0);
+                                                                            })();
+                                                                        }
+                                                                    }
+                                                                });
+                                                                const __exports = __ifInstance38.exports;
+                                                                return __exports.data(element.isUIDistanceJoint ? 1 : 0);
+                                                            })();
+                                                            var joint = world.CreateJoint(rJointDef);
+                                                            joint.element = element;
+                                                        }
+                                                    },
+                                                    impFunc2: () => {
+                                                        {
+                                                            (() => {
+                                                                const __callInstance36 = new WebAssembly.Instance(__callWasmModule, {
+                                                                    env: {
+                                                                        impFunc: () => {
+                                                                            console.log(lS(0, 3));
+                                                                        }
+                                                                    }
+                                                                });
+                                                                const __exports = __callInstance36.exports;
+                                                                return __exports.data();
+                                                            })();
+                                                        }
+                                                    }
+                                                }
+                                            });
+                                            const __exports = __ifInstance37.exports;
+                                            return __exports.data(arr0.length && arr1.length ? 1 : 0);
+                                        })();
+                                    }
+                                },
+                                impFunc2: () => {
+                                    (() => {
+                                        const __ifInstance42 = new WebAssembly.Instance(__ifWasmModule, {
+                                            env: {
+                                                impFunc1: () => {
+                                                    {
+                                                        var rJointDef = null;
+                                                        var p0 = element.points[0];
+                                                        var p1 = element.points[1];
+                                                        var p2 = element.points[2];
+                                                        var p3 = element.points[3];
+                                                        var arr0 = Physics.findBodiesAtPoint(scene, p0);
+                                                        var arr1 = Physics.findBodiesAtPoint(scene, p3);
+                                                        (() => {
+                                                            const __ifInstance43 = new WebAssembly.Instance(__ifWasmModule, {
+                                                                env: {
+                                                                    impFunc1: () => {
+                                                                        {
+                                                                            rJointDef = new b2PulleyJointDef();
+                                                                            var ratio = 1;
+                                                                            var anchorPoint0 = new b2Vec2(Physics.toMeter(p0.x), Physics.toMeter(p0.y));
+                                                                            var anchorPoint1 = new b2Vec2(Physics.toMeter(p1.x), Physics.toMeter(p1.y));
+                                                                            var anchorPoint2 = new b2Vec2(Physics.toMeter(p2.x), Physics.toMeter(p2.y));
+                                                                            var anchorPoint3 = new b2Vec2(Physics.toMeter(p3.x), Physics.toMeter(p3.y));
+                                                                            (() => {
+                                                                                const __callInstance35 = new WebAssembly.Instance(__callWasmModule, {
+                                                                                    env: {
+                                                                                        impFunc: () => {
+                                                                                            rJointDef.Initialize(arr0[0], arr1[0], anchorPoint1, anchorPoint2, anchorPoint0, anchorPoint3, ratio);
+                                                                                        }
+                                                                                    }
+                                                                                });
+                                                                                const __exports = __callInstance35.exports;
+                                                                                return __exports.data();
+                                                                            })();
+                                                                            var joint = world.CreateJoint(rJointDef);
+                                                                            joint.element = element;
+                                                                        }
+                                                                    },
+                                                                    impFunc2: () => {
+                                                                        {
+                                                                            (() => {
+                                                                                const __callInstance34 = new WebAssembly.Instance(__callWasmModule, {
+                                                                                    env: {
+                                                                                        impFunc: () => {
+                                                                                            console.log(lS(0, 4));
+                                                                                        }
+                                                                                    }
+                                                                                });
+                                                                                const __exports = __callInstance34.exports;
+                                                                                return __exports.data();
+                                                                            })();
+                                                                        }
+                                                                    }
+                                                                }
+                                                            });
+                                                            const __exports = __ifInstance43.exports;
+                                                            return __exports.data(arr0.length && arr1.length ? 1 : 0);
+                                                        })();
+                                                    }
+                                                },
+                                                impFunc2: () => {
+                                                }
+                                            }
+                                        });
+                                        const __exports = __ifInstance42.exports;
+                                        return __exports.data(element.isUIPulleyJoint ? 1 : 0);
+                                    })();
+                                }
+                            }
+                        });
+                        const __exports = __ifInstance36.exports;
+                        return __exports.data(element.isUITwoJoint ? 1 : 0);
+                    })();
+                }
+            }
+        });
+        const __exports = __ifInstance31.exports;
+        return __exports.data(element.isUIOneJoint ? 1 : 0);
+    })();
+    return;
+};
+Physics.updateBodyElementsPosition = function (world) {
+    (() => {
+        var b = world.m_bodyList;
+        const __forInstance4 = new WebAssembly.Instance(__forWasmModule, {
+            env: {
+                test: () => {
+                    return b ? 1 : 0;
+                },
+                update: () => {
+                    b = b.m_next;
+                },
+                body: () => {
+                    {
+                        var element = b.element;
+                        (() => {
+                            const __ifInstance44 = new WebAssembly.Instance(__ifWasmModule, {
+                                env: {
+                                    impFunc1: () => {
+                                        {
+                                        }
+                                    },
+                                    impFunc2: () => {
+                                    }
+                                }
+                            });
+                            const __exports = __ifInstance44.exports;
+                            return __exports.data(b.type === b2Body.b2_staticBody ? 1 : 0);
+                        })();
+                        (() => {
+                            const __ifInstance45 = new WebAssembly.Instance(__ifWasmModule, {
+                                env: {
+                                    impFunc1: () => {
+                                        {
+                                            var a = b.GetAngle();
+                                            var p = b.GetWorldCenter();
+                                            (() => {
+                                                const __ifInstance46 = new WebAssembly.Instance(__ifWasmModule, {
+                                                    env: {
+                                                        impFunc1: () => {
+                                                            {
+                                                                var x = Physics.toPixel(p.x) - (element.w >> 1);
+                                                                var y = Physics.toPixel(p.y) - (element.h >> 1);
+                                                                (() => {
+                                                                    const __callInstance33 = new WebAssembly.Instance(__callWasmModule, {
+                                                                        env: {
+                                                                            impFunc: () => {
+                                                                                element.setRotation(a);
+                                                                            }
+                                                                        }
+                                                                    });
+                                                                    const __exports = __callInstance33.exports;
+                                                                    return __exports.data();
+                                                                })();
+                                                                var parent = element.getParent();
+                                                                (() => {
+                                                                    const __ifInstance47 = new WebAssembly.Instance(__ifWasmModule, {
+                                                                        env: {
+                                                                            impFunc1: () => {
+                                                                                {
+                                                                                    var pos = parent.getPositionInWindow();
+                                                                                    x = x - pos.x;
+                                                                                    y = y - pos.y;
+                                                                                }
+                                                                            },
+                                                                            impFunc2: () => {
+                                                                            }
+                                                                        }
+                                                                    });
+                                                                    const __exports = __ifInstance47.exports;
+                                                                    return __exports.data(!parent.isUIWindow ? 1 : 0);
+                                                                })();
+                                                                var ox = element.x;
+                                                                var oy = element.y;
+                                                                (() => {
+                                                                    const __ifInstance48 = new WebAssembly.Instance(__ifWasmModule, {
+                                                                        env: {
+                                                                            impFunc1: () => {
+                                                                                {
+                                                                                    (() => {
+                                                                                        const __callInstance32 = new WebAssembly.Instance(__callWasmModule, {
+                                                                                            env: {
+                                                                                                impFunc: () => {
+                                                                                                    element.setPositionByBody(x, y);
+                                                                                                }
+                                                                                            }
+                                                                                        });
+                                                                                        const __exports = __callInstance32.exports;
+                                                                                        return __exports.data();
+                                                                                    })();
+                                                                                }
+                                                                            },
+                                                                            impFunc2: () => {
+                                                                            }
+                                                                        }
+                                                                    });
+                                                                    const __exports = __ifInstance48.exports;
+                                                                    return __exports.data(ox != x || oy != y ? 1 : 0);
+                                                                })();
+                                                            }
+                                                        },
+                                                        impFunc2: () => {
+                                                        }
+                                                    }
+                                                });
+                                                const __exports = __ifInstance46.exports;
+                                                return __exports.data(p.x !== undefined && p.y !== undefined ? 1 : 0);
+                                            })();
+                                        }
+                                    },
+                                    impFunc2: () => {
+                                    }
+                                }
+                            });
+                            const __exports = __ifInstance45.exports;
+                            return __exports.data(element ? 1 : 0);
+                        })();
+                    }
+                }
+            }
+        });
+        const __exports = __forInstance4.exports;
+        return __exports.data();
+    })();
+    for (var joint = world.m_jointList; joint; joint = joint.m_next) {
+        switch (joint.m_type) {
+        case b2Joint.e_distanceJoint: {
+                var p0 = joint.GetAnchorA();
+                var p1 = joint.GetAnchorB();
+                var element = joint.element;
+                element.points[0].x = Physics.toPixel(p0.x);
+                element.points[0].y = Physics.toPixel(p0.y);
+                element.points[1].x = Physics.toPixel(p1.x);
+                element.points[1].y = Physics.toPixel(p1.y);
+                break;
+            }
+        case b2Joint.e_pulleyJoint: {
+                var p0 = joint.GetAnchorA();
+                var p1 = joint.GetGroundAnchorA();
+                var p2 = joint.GetGroundAnchorB();
+                var p3 = joint.GetAnchorB();
+                var element = joint.element;
+                element.points[0].x = Physics.toPixel(p0.x);
+                element.points[0].y = Physics.toPixel(p0.y);
+                element.points[1].x = Physics.toPixel(p1.x);
+                element.points[1].y = Physics.toPixel(p1.y);
+                element.points[2].x = Physics.toPixel(p2.x);
+                element.points[2].y = Physics.toPixel(p2.y);
+                element.points[3].x = Physics.toPixel(p3.x);
+                element.points[3].y = Physics.toPixel(p3.y);
+                break;
+            }
+        default: {
+                var p = joint.GetAnchorA();
+                var element = joint.element;
+                var x = Physics.toPixel(p.x) - (element.w >> 1);
+                var y = Physics.toPixel(p.y) - (element.h >> 1);
+                (() => {
+                    const __callInstance31 = new WebAssembly.Instance(__callWasmModule, {
+                        env: {
+                            impFunc: () => {
+                                element.setPositionByBody(x, y);
+                            }
+                        }
+                    });
+                    const __exports = __callInstance31.exports;
+                    return __exports.data();
+                })();
+                break;
+            }
+        }
+    }
+    return;
+};
+Physics.destroyWorld = function (world) {
+    var b = world.m_bodyList;
+    do {
+        if (!b)
+            break;
+        var next = b.m_next;
+        (() => {
+            const __ifInstance49 = new WebAssembly.Instance(__ifWasmModule, {
+                env: {
+                    impFunc1: () => {
+                        {
+                            b.element.body = null;
+                            b.element = null;
+                        }
+                    },
+                    impFunc2: () => {
+                    }
+                }
+            });
+            const __exports = __ifInstance49.exports;
+            return __exports.data(b.element ? 1 : 0);
+        })();
+        (() => {
+            const __callInstance30 = new WebAssembly.Instance(__callWasmModule, {
+                env: {
+                    impFunc: () => {
+                        world.DestroyBody(b);
+                    }
+                }
+            });
+            const __exports = __callInstance30.exports;
+            return __exports.data();
+        })();
+        b = next;
+    } while (true);
+    var joint = world.m_jointList;
+    do {
+        if (!joint)
+            break;
+        var next = joint.m_next;
+        (() => {
+            const __ifInstance50 = new WebAssembly.Instance(__ifWasmModule, {
+                env: {
+                    impFunc1: () => {
+                        {
+                            joint.element = null;
+                        }
+                    },
+                    impFunc2: () => {
+                    }
+                }
+            });
+            const __exports = __ifInstance50.exports;
+            return __exports.data(joint.element ? 1 : 0);
+        })();
+        (() => {
+            const __callInstance29 = new WebAssembly.Instance(__callWasmModule, {
+                env: {
+                    impFunc: () => {
+                        world.DestroyJoint(joint);
+                    }
+                }
+            });
+            const __exports = __callInstance29.exports;
+            return __exports.data();
+        })();
+        joint = next;
+    } while (true);
+    return;
+};
+Physics.reparentPhysicsToScene = function (scene) {
+    var arr = [];
+    function onVisit(el) {
+        var parentShape = el.getParent();
+        (() => {
+            const __ifInstance51 = new WebAssembly.Instance(__ifWasmModule, {
+                env: {
+                    impFunc1: () => {
+                        {
+                            (() => {
+                                const __ifInstance52 = new WebAssembly.Instance(__ifWasmModule, {
+                                    env: {
+                                        impFunc1: () => {
+                                            {
+                                                (() => {
+                                                    const __callInstance28 = new WebAssembly.Instance(__callWasmModule, {
+                                                        env: {
+                                                            impFunc: () => {
+                                                                arr.push(el);
+                                                            }
+                                                        }
+                                                    });
+                                                    const __exports = __callInstance28.exports;
+                                                    return __exports.data();
+                                                })();
+                                            }
+                                        },
+                                        impFunc2: () => {
+                                        }
+                                    }
+                                });
+                                const __exports = __ifInstance52.exports;
+                                return __exports.data(!parentShape.isUIWindow ? 1 : 0);
+                            })();
+                        }
+                    },
+                    impFunc2: () => {
+                        (() => {
+                            const __ifInstance53 = new WebAssembly.Instance(__ifWasmModule, {
+                                env: {
+                                    impFunc1: () => {
+                                        {
+                                            (() => {
+                                                const __ifInstance54 = new WebAssembly.Instance(__ifWasmModule, {
+                                                    env: {
+                                                        impFunc1: () => {
+                                                            {
+                                                                (() => {
+                                                                    const __callInstance27 = new WebAssembly.Instance(__callWasmModule, {
+                                                                        env: {
+                                                                            impFunc: () => {
+                                                                                arr.push(el);
+                                                                            }
+                                                                        }
+                                                                    });
+                                                                    const __exports = __callInstance27.exports;
+                                                                    return __exports.data();
+                                                                })();
+                                                            }
+                                                        },
+                                                        impFunc2: () => {
+                                                        }
+                                                    }
+                                                });
+                                                const __exports = __ifInstance54.exports;
+                                                return __exports.data(!parentShape.isUISkeletonAnimation && !parentShape.isUISprite && !parentShape.isUIFrameAnimation && !parentShape.isUITransformAnimation && !parentShape.isUIWindow ? 1 : 0);
+                                            })();
+                                        }
+                                    },
+                                    impFunc2: () => {
+                                    }
+                                }
+                            });
+                            const __exports = __ifInstance53.exports;
+                            return __exports.data(el.isUIPhysicsShape ? 1 : 0);
+                        })();
+                    }
+                }
+            });
+            const __exports = __ifInstance51.exports;
+            return __exports.data(el.isUISkeletonAnimation || el.isUISprite || el.isUIFrameAnimation || el.isUITransformAnimation ? 1 : 0);
+        })();
+    }
+    (() => {
+        const __callInstance26 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    scene.forEach(onVisit);
+                }
+            }
+        });
+        const __exports = __callInstance26.exports;
+        return __exports.data();
+    })();
+    (() => {
+        var i = 0;
+        const __forInstance5 = new WebAssembly.Instance(__forWasmModule, {
+            env: {
+                test: () => {
+                    return i < arr.length ? 1 : 0;
+                },
+                update: () => {
+                    i++;
+                },
+                body: () => {
+                    {
+                        var iter = arr[i];
+                        (() => {
+                            const __callInstance25 = new WebAssembly.Instance(__callWasmModule, {
+                                env: {
+                                    impFunc: () => {
+                                        iter.reparent(scene, true);
+                                    }
+                                }
+                            });
+                            const __exports = __callInstance25.exports;
+                            return __exports.data();
+                        })();
+                    }
+                }
+            }
+        });
+        const __exports = __forInstance5.exports;
+        return __exports.data();
+    })();
+    return;
+};
+Physics.createWorld = function (scene) {
+    if (scene.world) {
+        return;
+    }
+    var world = null;
+    var maxX = scene.w >> 1;
+    var maxY = scene.h >> 1;
+    var minX = -scene.w >> 1;
+    var minY = -scene.h >> 1;
+    var fps = scene.fps ? scene.fps : 30;
+    var allowSleep = scene.allowSleep ? scene.allowSleep : true;
+    var gravityX = scene.gravityX ? scene.gravityX : 0;
+    var gravityY = scene.gravityY ? scene.gravityY : 0;
+    var pixelsPerMeter = scene.pixelsPerMeter ? scene.pixelsPerMeter : 10;
+    var gravity = new b2Vec2(gravityX, gravityY);
+    var worldAABB = new b2AABB();
+    var stepSize = 1;
+    Physics.pixelsPerMeter = pixelsPerMeter;
+    (() => {
+        const __callInstance24 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    worldAABB.lowerBound.Set(minX, minY);
+                }
+            }
+        });
+        const __exports = __callInstance24.exports;
+        return __exports.data();
+    })();
+    (() => {
+        const __callInstance23 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    worldAABB.upperBound.Set(maxX, maxY);
+                }
+            }
+        });
+        const __exports = __callInstance23.exports;
+        return __exports.data();
+    })();
+    world = new b2World(gravity, allowSleep);
+    (() => {
+        const __callInstance22 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    Physics.createWorldShapes(world, scene);
+                }
+            }
+        });
+        const __exports = __callInstance22.exports;
+        return __exports.data();
+    })();
+    (() => {
+        const __callInstance21 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    Physics.createWorldJoints(world, scene, scene);
+                }
+            }
+        });
+        const __exports = __callInstance21.exports;
+        return __exports.data();
+    })();
+    var listener = new b2ContactListener();
+    listener.BeginContact = function (contact) {
+        var body1 = contact.GetFixtureA().GetBody();
+        var body2 = contact.GetFixtureB().GetBody();
+        (() => {
+            const __ifInstance55 = new WebAssembly.Instance(__ifWasmModule, {
+                env: {
+                    impFunc1: () => {
+                        {
+                            var element1 = body1.element;
+                            (() => {
+                                const __ifInstance56 = new WebAssembly.Instance(__ifWasmModule, {
+                                    env: {
+                                        impFunc1: () => {
+                                            {
+                                                (() => {
+                                                    const __callInstance20 = new WebAssembly.Instance(__callWasmModule, {
+                                                        env: {
+                                                            impFunc: () => {
+                                                                element1.handleBeginContactSync(body2);
+                                                            }
+                                                        }
+                                                    });
+                                                    const __exports = __callInstance20.exports;
+                                                    return __exports.data();
+                                                })();
+                                            }
+                                        },
+                                        impFunc2: () => {
+                                        }
+                                    }
+                                });
+                                const __exports = __ifInstance56.exports;
+                                return __exports.data(element1.handleBeginContactSync ? 1 : 0);
+                            })();
+                            var element2 = body2.element;
+                            (() => {
+                                const __ifInstance57 = new WebAssembly.Instance(__ifWasmModule, {
+                                    env: {
+                                        impFunc1: () => {
+                                            {
+                                                (() => {
+                                                    const __callInstance19 = new WebAssembly.Instance(__callWasmModule, {
+                                                        env: {
+                                                            impFunc: () => {
+                                                                element2.handleBeginContactSync(body1);
+                                                            }
+                                                        }
+                                                    });
+                                                    const __exports = __callInstance19.exports;
+                                                    return __exports.data();
+                                                })();
+                                            }
+                                        },
+                                        impFunc2: () => {
+                                        }
+                                    }
+                                });
+                                const __exports = __ifInstance57.exports;
+                                return __exports.data(element2.handleBeginContactSync ? 1 : 0);
+                            })();
+                            (() => {
+                                const __callInstance18 = new WebAssembly.Instance(__callWasmModule, {
+                                    env: {
+                                        impFunc: () => {
+                                            setTimeout(function () {
+                                                (() => {
+                                                    const __ifInstance58 = new WebAssembly.Instance(__ifWasmModule, {
+                                                        env: {
+                                                            impFunc1: () => {
+                                                                {
+                                                                    (() => {
+                                                                        const __callInstance17 = new WebAssembly.Instance(__callWasmModule, {
+                                                                            env: {
+                                                                                impFunc: () => {
+                                                                                    body1.element.callOnBeginContactHandler(body2);
+                                                                                }
+                                                                            }
+                                                                        });
+                                                                        const __exports = __callInstance17.exports;
+                                                                        return __exports.data();
+                                                                    })();
+                                                                }
+                                                            },
+                                                            impFunc2: () => {
+                                                            }
+                                                        }
+                                                    });
+                                                    const __exports = __ifInstance58.exports;
+                                                    return __exports.data(body1.element ? 1 : 0);
+                                                })();
+                                                (() => {
+                                                    const __ifInstance59 = new WebAssembly.Instance(__ifWasmModule, {
+                                                        env: {
+                                                            impFunc1: () => {
+                                                                {
+                                                                    (() => {
+                                                                        const __callInstance16 = new WebAssembly.Instance(__callWasmModule, {
+                                                                            env: {
+                                                                                impFunc: () => {
+                                                                                    body2.element.callOnBeginContactHandler(body1);
+                                                                                }
+                                                                            }
+                                                                        });
+                                                                        const __exports = __callInstance16.exports;
+                                                                        return __exports.data();
+                                                                    })();
+                                                                }
+                                                            },
+                                                            impFunc2: () => {
+                                                            }
+                                                        }
+                                                    });
+                                                    const __exports = __ifInstance59.exports;
+                                                    return __exports.data(body2.element ? 1 : 0);
+                                                })();
+                                            }, 5);
+                                        }
+                                    }
+                                });
+                                const __exports = __callInstance18.exports;
+                                return __exports.data();
+                            })();
+                        }
+                    },
+                    impFunc2: () => {
+                    }
+                }
+            });
+            const __exports = __ifInstance55.exports;
+            return __exports.data(body1.element && body2.element ? 1 : 0);
+        })();
+    };
+    listener.EndContact = function (contact) {
+        var body1 = contact.GetFixtureA().GetBody();
+        var body2 = contact.GetFixtureB().GetBody();
+        (() => {
+            const __ifInstance60 = new WebAssembly.Instance(__ifWasmModule, {
+                env: {
+                    impFunc1: () => {
+                        {
+                            var element1 = body1.element;
+                            (() => {
+                                const __ifInstance61 = new WebAssembly.Instance(__ifWasmModule, {
+                                    env: {
+                                        impFunc1: () => {
+                                            {
+                                                (() => {
+                                                    const __callInstance15 = new WebAssembly.Instance(__callWasmModule, {
+                                                        env: {
+                                                            impFunc: () => {
+                                                                element1.handleEndContactSync(body2);
+                                                            }
+                                                        }
+                                                    });
+                                                    const __exports = __callInstance15.exports;
+                                                    return __exports.data();
+                                                })();
+                                            }
+                                        },
+                                        impFunc2: () => {
+                                        }
+                                    }
+                                });
+                                const __exports = __ifInstance61.exports;
+                                return __exports.data(element1.handleEndContactSync ? 1 : 0);
+                            })();
+                            var element2 = body2.element;
+                            (() => {
+                                const __ifInstance62 = new WebAssembly.Instance(__ifWasmModule, {
+                                    env: {
+                                        impFunc1: () => {
+                                            {
+                                                (() => {
+                                                    const __callInstance14 = new WebAssembly.Instance(__callWasmModule, {
+                                                        env: {
+                                                            impFunc: () => {
+                                                                element2.handleEndContactSync(body1);
+                                                            }
+                                                        }
+                                                    });
+                                                    const __exports = __callInstance14.exports;
+                                                    return __exports.data();
+                                                })();
+                                            }
+                                        },
+                                        impFunc2: () => {
+                                        }
+                                    }
+                                });
+                                const __exports = __ifInstance62.exports;
+                                return __exports.data(element2.handleEndContactSync ? 1 : 0);
+                            })();
+                            (() => {
+                                const __callInstance13 = new WebAssembly.Instance(__callWasmModule, {
+                                    env: {
+                                        impFunc: () => {
+                                            setTimeout(function () {
+                                                (() => {
+                                                    const __ifInstance63 = new WebAssembly.Instance(__ifWasmModule, {
+                                                        env: {
+                                                            impFunc1: () => {
+                                                                {
+                                                                    (() => {
+                                                                        const __callInstance12 = new WebAssembly.Instance(__callWasmModule, {
+                                                                            env: {
+                                                                                impFunc: () => {
+                                                                                    body1.element.callOnEndContactHandler(body2);
+                                                                                }
+                                                                            }
+                                                                        });
+                                                                        const __exports = __callInstance12.exports;
+                                                                        return __exports.data();
+                                                                    })();
+                                                                }
+                                                            },
+                                                            impFunc2: () => {
+                                                            }
+                                                        }
+                                                    });
+                                                    const __exports = __ifInstance63.exports;
+                                                    return __exports.data(body1.element ? 1 : 0);
+                                                })();
+                                                (() => {
+                                                    const __ifInstance64 = new WebAssembly.Instance(__ifWasmModule, {
+                                                        env: {
+                                                            impFunc1: () => {
+                                                                {
+                                                                    (() => {
+                                                                        const __callInstance11 = new WebAssembly.Instance(__callWasmModule, {
+                                                                            env: {
+                                                                                impFunc: () => {
+                                                                                    body2.element.callOnEndContactHandler(body1);
+                                                                                }
+                                                                            }
+                                                                        });
+                                                                        const __exports = __callInstance11.exports;
+                                                                        return __exports.data();
+                                                                    })();
+                                                                }
+                                                            },
+                                                            impFunc2: () => {
+                                                            }
+                                                        }
+                                                    });
+                                                    const __exports = __ifInstance64.exports;
+                                                    return __exports.data(body2.element ? 1 : 0);
+                                                })();
+                                            }, 5);
+                                        }
+                                    }
+                                });
+                                const __exports = __callInstance13.exports;
+                                return __exports.data();
+                            })();
+                        }
+                    },
+                    impFunc2: () => {
+                    }
+                }
+            });
+            const __exports = __ifInstance60.exports;
+            return __exports.data(body1.element && body2.element ? 1 : 0);
+        })();
+    };
+    listener.PreSolve = function (contact, oldManifold) {
+        var body1 = contact.GetFixtureA().GetBody();
+        var body2 = contact.GetFixtureB().GetBody();
+        (() => {
+            const __ifInstance65 = new WebAssembly.Instance(__ifWasmModule, {
+                env: {
+                    impFunc1: () => {
+                        {
+                            var element1 = body1.element;
+                            (() => {
+                                const __ifInstance66 = new WebAssembly.Instance(__ifWasmModule, {
+                                    env: {
+                                        impFunc1: () => {
+                                            {
+                                                (() => {
+                                                    const __callInstance10 = new WebAssembly.Instance(__callWasmModule, {
+                                                        env: {
+                                                            impFunc: () => {
+                                                                element1.handlePreSolve(body2, oldManifold);
+                                                            }
+                                                        }
+                                                    });
+                                                    const __exports = __callInstance10.exports;
+                                                    return __exports.data();
+                                                })();
+                                            }
+                                        },
+                                        impFunc2: () => {
+                                        }
+                                    }
+                                });
+                                const __exports = __ifInstance66.exports;
+                                return __exports.data(element1.handlePreSolve ? 1 : 0);
+                            })();
+                            var element2 = body2.element;
+                            (() => {
+                                const __ifInstance67 = new WebAssembly.Instance(__ifWasmModule, {
+                                    env: {
+                                        impFunc1: () => {
+                                            {
+                                                (() => {
+                                                    const __callInstance9 = new WebAssembly.Instance(__callWasmModule, {
+                                                        env: {
+                                                            impFunc: () => {
+                                                                element2.handlePreSolve(body1, oldManifold);
+                                                            }
+                                                        }
+                                                    });
+                                                    const __exports = __callInstance9.exports;
+                                                    return __exports.data();
+                                                })();
+                                            }
+                                        },
+                                        impFunc2: () => {
+                                        }
+                                    }
+                                });
+                                const __exports = __ifInstance67.exports;
+                                return __exports.data(element2.handlePreSolve ? 1 : 0);
+                            })();
+                        }
+                    },
+                    impFunc2: () => {
+                    }
+                }
+            });
+            const __exports = __ifInstance65.exports;
+            return __exports.data(body1.element && body2.element ? 1 : 0);
+        })();
+    };
+    listener.PostSolve = function (contact, impulse) {
+        var body1 = contact.GetFixtureA().GetBody();
+        var body2 = contact.GetFixtureB().GetBody();
+        (() => {
+            const __ifInstance68 = new WebAssembly.Instance(__ifWasmModule, {
+                env: {
+                    impFunc1: () => {
+                        {
+                            var element1 = body1.element;
+                            (() => {
+                                const __ifInstance69 = new WebAssembly.Instance(__ifWasmModule, {
+                                    env: {
+                                        impFunc1: () => {
+                                            {
+                                                (() => {
+                                                    const __callInstance8 = new WebAssembly.Instance(__callWasmModule, {
+                                                        env: {
+                                                            impFunc: () => {
+                                                                element1.handlePostSolve(body2, impulse);
+                                                            }
+                                                        }
+                                                    });
+                                                    const __exports = __callInstance8.exports;
+                                                    return __exports.data();
+                                                })();
+                                            }
+                                        },
+                                        impFunc2: () => {
+                                        }
+                                    }
+                                });
+                                const __exports = __ifInstance69.exports;
+                                return __exports.data(element1.handlePostSolve ? 1 : 0);
+                            })();
+                            var element2 = body2.element;
+                            (() => {
+                                const __ifInstance70 = new WebAssembly.Instance(__ifWasmModule, {
+                                    env: {
+                                        impFunc1: () => {
+                                            {
+                                                (() => {
+                                                    const __callInstance7 = new WebAssembly.Instance(__callWasmModule, {
+                                                        env: {
+                                                            impFunc: () => {
+                                                                element2.handlePostSolve(body1, impulse);
+                                                            }
+                                                        }
+                                                    });
+                                                    const __exports = __callInstance7.exports;
+                                                    return __exports.data();
+                                                })();
+                                            }
+                                        },
+                                        impFunc2: () => {
+                                        }
+                                    }
+                                });
+                                const __exports = __ifInstance70.exports;
+                                return __exports.data(element2.handlePostSolve ? 1 : 0);
+                            })();
+                        }
+                    },
+                    impFunc2: () => {
+                    }
+                }
+            });
+            const __exports = __ifInstance68.exports;
+            return __exports.data(body1.element && body2.element ? 1 : 0);
+        })();
+    };
+    (() => {
+        const __callInstance6 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    world.SetContactListener(listener);
+                }
+            }
+        });
+        const __exports = __callInstance6.exports;
+        return __exports.data();
+    })();
+    var velocityIterations = scene.velocityIterations ? scene.velocityIterations : 8;
+    var positionIterations = scene.positionIterations ? scene.positionIterations : 5;
+    var timeStep = 1 / 25;
+    var intervalID = 0;
+    function stepIt() {
+        if (scene.world != world) {
+            (() => {
+                const __callInstance5 = new WebAssembly.Instance(__callWasmModule, {
+                    env: {
+                        impFunc: () => {
+                            clearInterval(intervalID);
+                        }
+                    }
+                });
+                const __exports = __callInstance5.exports;
+                return __exports.data();
+            })();
+            (() => {
+                const __callInstance4 = new WebAssembly.Instance(__callWasmModule, {
+                    env: {
+                        impFunc: () => {
+                            console.log(lS(0, 5));
+                        }
+                    }
+                });
+                const __exports = __callInstance4.exports;
+                return __exports.data();
+            })();
+            return false;
+        }
+        (() => {
+            const __ifInstance71 = new WebAssembly.Instance(__ifWasmModule, {
+                env: {
+                    impFunc1: () => {
+                        {
+                            (() => {
+                                const __callInstance3 = new WebAssembly.Instance(__callWasmModule, {
+                                    env: {
+                                        impFunc: () => {
+                                            world.Step(timeStep, velocityIterations, positionIterations);
+                                        }
+                                    }
+                                });
+                                const __exports = __callInstance3.exports;
+                                return __exports.data();
+                            })();
+                            (() => {
+                                const __callInstance2 = new WebAssembly.Instance(__callWasmModule, {
+                                    env: {
+                                        impFunc: () => {
+                                            scene.postRedraw();
+                                        }
+                                    }
+                                });
+                                const __exports = __callInstance2.exports;
+                                return __exports.data();
+                            })();
+                            (() => {
+                                const __callInstance1 = new WebAssembly.Instance(__callWasmModule, {
+                                    env: {
+                                        impFunc: () => {
+                                            world.ClearForces();
+                                        }
+                                    }
+                                });
+                                const __exports = __callInstance1.exports;
+                                return __exports.data();
+                            })();
+                            (() => {
+                                const __callInstance0 = new WebAssembly.Instance(__callWasmModule, {
+                                    env: {
+                                        impFunc: () => {
+                                            Physics.updateBodyElementsPosition(world);
+                                        }
+                                    }
+                                });
+                                const __exports = __callInstance0.exports;
+                                return __exports.data();
+                            })();
+                        }
+                    },
+                    impFunc2: () => {
+                    }
+                }
+            });
+            const __exports = __ifInstance71.exports;
+            return __exports.data(scene.isVisible() && scene.isTopWindow() && scene.isPlaying() ? 1 : 0);
+        })();
+        return true;
+    }
+    scene.world = world;
+    intervalID = setInterval(stepIt, timeStep * 1000);
+    return;
+};</script>
+</body>
+</html>

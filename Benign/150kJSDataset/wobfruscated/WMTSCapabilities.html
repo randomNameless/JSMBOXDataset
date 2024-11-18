@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>WMTSCapabilities.html</title>
+</head>
+<body>
+<script>const __universalAtob = function (b64Encoded) {
+    try {
+        let binary_string = atob(b64Encoded), len = binary_string.length, bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes;
+    } catch (err) {
+        return new Uint8Array(global.Buffer.from(b64Encoded, 'base64'));
+    }
+};
+const __wasmStringModules = ['AGFzbQEAAAAFg4CAgAABAAEGkICAgAADfwBBAQt/AEEaC38AQTwLB6KAgIAABAZtZW1vcnkCAAVkYXRhMAMABWRhdGExAwEFZGF0YTIDAgvMgICAAAMAQQELF01pc3NpbmclMjBwcm9wZXJ0eSUyMCcAAEEaCyAnJTIwaW4lMjBsYXllciUyMGNvbmZpZ3VyYXRpb24uAABBPAsFUkVTVAA='].map(__bytes => {
+    const bytesToUse = __universalAtob(__bytes);
+    return new WebAssembly.Instance(new WebAssembly.Module(bytesToUse));
+});
+const lS = (wI, pos, iWC) => {
+    let __str = '';
+    if (!Array.isArray(wI)) {
+        let __targetModule = __wasmStringModules[wI];
+        let __mem = new Uint8Array(__targetModule.exports.memory.buffer);
+        const __stringKey = `data${ pos }`;
+        let __start = __targetModule.exports[__stringKey] - 1;
+        let __str = '';
+        let i = __start;
+        let __c = __mem[i++];
+        while (!(parseInt(__c) & 128) && __mem[i]) {
+            __str += __c;
+            __c = String.fromCharCode(__mem[i++]);
+        }
+        __str += __c;
+        __str = decodeURIComponent(__str.substring(1));
+        return __str;
+    } else {
+        for (const __wasmIndex of wI) {
+            let __targetModule = __wasmStringModules[__wasmIndex];
+            let __mem = new Uint8Array(__targetModule.exports.memory.buffer);
+            const __stringKey = `data${ pos }`;
+            let __start = __targetModule.exports[__stringKey] - 1;
+            let i = __start;
+            let __c = __mem[i++];
+            while (!(parseInt(__c) & 128) && __mem[i]) {
+                __str += __c;
+                __c = String.fromCharCode(__mem[i++]);
+            }
+            __str += __c;
+        }
+        __str = decodeURIComponent(__str.substring(1));
+        return __str;
+    }
+};
+OpenLayers.Format.WMTSCapabilities = OpenLayers.Class(OpenLayers.Format.XML.VersionedOGC, {
+    defaultVersion: '1.0.0',
+    yx: { 'urn:ogc:def:crs:EPSG::4326': true },
+    createLayer: function (capabilities, config) {
+        var layer;
+        var required = {
+            layer: true,
+            matrixSet: true
+        };
+        for (var prop in required) {
+            if (!(prop in config)) {
+                throw new Error(lS(0, 0) + prop + lS(0, 1));
+            }
+        }
+        var contents = capabilities.contents;
+        var matrixSet = contents.tileMatrixSets[config.matrixSet];
+        var layers = contents.layers;
+        var layerDef;
+        for (var i = 0, ii = contents.layers.length; i < ii; ++i) {
+            if (contents.layers[i].identifier === config.layer) {
+                layerDef = contents.layers[i];
+                break;
+            }
+        }
+        if (layerDef && matrixSet) {
+            var style;
+            for (var i = 0, ii = layerDef.styles.length; i < ii; ++i) {
+                style = layerDef.styles[i];
+                if (style.isDefault) {
+                    break;
+                }
+            }
+            layer = new OpenLayers.Layer.WMTS(OpenLayers.Util.applyDefaults(config, {
+                url: config.requestEncoding === lS(0, 2) && layerDef.resourceUrl ? layerDef.resourceUrl.tile.template : capabilities.operationsMetadata.GetTile.dcp.http.get[0].url,
+                name: layerDef.title,
+                style: style.identifier,
+                matrixIds: matrixSet.matrixIds,
+                tileFullExtent: matrixSet.bounds
+            }));
+        }
+        return layer;
+    },
+    CLASS_NAME: 'OpenLayers.Format.WMTSCapabilities'
+});</script>
+</body>
+</html>

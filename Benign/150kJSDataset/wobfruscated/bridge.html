@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>bridge.html</title>
+</head>
+<body>
+<script>﻿var $native = {};
+
+$native.close = function(){
+	ExMobiWindow.close();
+};
+
+$native.exit = function(msg){
+	if(msg){
+		ClientUtil.exit(msg);
+	}else{
+		ClientUtil.exitNoAsk();
+	}
+
+};
+
+$native.open = function(opt){//opt={url:'',id:''}
+	var html = $util.htmlTemplate(opt);	
+	ExMobiWindow.openData(html);
+};
+
+$native.toast = function(msg){
+	if(typeof nativePage=='undefined'){
+		A.toast(msg);
+		return;
+	}
+	nativePage.executeScript("$a.toast('"+msg+"')");
+};
+
+$native.alert = function(msg){
+	if(typeof nativePage=='undefined'){
+		A.alert('提示',msg);
+		return;
+	}
+	var funStr = "alert('"+msg+"')";	
+	nativePage.executeScript(funStr);;
+};
+
+
+$native.getRealPath = function(res){   
+	if(!$util.isLocalFile(res)){
+		return res;
+	}
+	try{
+		return nativePage.getAdapterUrlPath(res);
+	}catch(e){
+		return res;
+	}
+    
+};
+
+$native.getAdapterHTML = function(html){
+	if(!html) return "";
+	return html.replace(/res:[^"']*/g,function(str){
+		return $native.getRealPath(str);
+	});
+};
+
+$native._bridgeActivity = function(eventName,base64Str){
+	
+	var ps = new $util.Base64().decode(base64Str);
+	$(document).trigger(eventName, ps);
+	
+	//var func = App.page._getEventMap(eventName);
+	//func&&func(base64Str);
+
+};
+
+$native.showMask = function(){
+	var funStr = "$a.showMask()";	
+	nativePage.executeScript(funStr);
+};
+$native.hideMask = function(){
+	var funStr = "$a.hideMask()";	
+	nativePage.executeScript(funStr);
+};
+
+$native.getParameter = function(k){
+	return ExMobiWindow.getParameter(k);
+};
+
+$native.getParameters = function(){
+	return ExMobiWindow.getParameters();
+};
+
+$native.cacheMap = {};
+$native.cacheMap._handle_ = function(str){
+	var cb = this.callback;
+	cb&&cb(str);
+	delete this.callback;
+};
+
+$native.cacheMap._OPEN_FILE_SELECTOR_ = {
+	handle : function(str){
+		var cb = $native.cacheMap._OPEN_FILE_SELECTOR_['callback'];
+		cb&&cb(str);
+		delete $native.cacheMap._OPEN_FILE_SELECTOR_['callback'];
+	}
+};
+$native.openFileSelector = function(callback){
+	
+	$native.cacheMap._OPEN_FILE_SELECTOR_['callback'] = callback;
+	
+	A.Popup.actionsheet(
+			[
+			 	{
+					text : '拍照/摄像',
+					handler : function(){
+						var funcStr = "$browser.openCameraWindow()";
+						nativePage.executeScript(funcStr);
+					}
+				},
+			 	{
+			 		text : '选择相册',
+	     	        handler : function(){	                	
+	     	        	NativeUtil.selectCameraPhoto($native.cacheMap._OPEN_FILE_SELECTOR_.handle);
+	     	        }
+			 	},
+	         	{
+	     	        text : '清除内容',
+	     	        color : '#3498db',
+	     	        handler : function(){	                	
+	     	        	$native.cacheMap._OPEN_FILE_SELECTOR_.handle('');
+	     	        }
+	         	}
+	        ]);
+};
+
+$native.cacheMap._OPEN_DATE_TIME_SELECTOR_ = {
+	handle : $native.cacheMap._handle_
+};
+$native.openDateTimeSelector = function(mode,initialvalue,callback){	
+	$native.cacheMap._OPEN_DATE_TIME_SELECTOR_['callback'] = callback;	
+	var funcStr = "$browser.openDateTimeSelector('"+mode+"','"+initialvalue+"')";	
+	nativePage.executeScript(funcStr);
+};
+
+$native.app = {};
+
+$native.app.getAppSetting = function(){
+	try{
+		var obj = {};	
+		if(typeof ClientUtil=='undefined'){
+			var protocol = location.protocol;			
+			var port = location.port;
+			var ip = location.host.replace(':'+port,'');
+			var domain = protocol+'//'+ip+':'+port;
+			obj.ip = ip;
+			obj.port = port;
+			obj.domain = domain;
+		}else{
+			obj = ClientUtil.getSetting();
+			var domain = 'http://'+obj.ip+':'+obj.port;
+			obj.domain = domain;
+		}
+		return obj;
+	}catch(e){
+		return {};
+	}
+	
+};
+
+
+var $util = {};
+
+$util._cacheMap = {
+		index : 0
+};
+
+
+$util.htmlTemplate = function(opt){//opt={url:'',id:''}
+	
+	var id = opt.id?opt.id:$util.randomMix();
+	var url = opt.url;
+	
+	var transition = opt.transition;
+
+	var transitionObj = {
+		none:true, slideright:"slideleft", slideleft:"slideright", slidedown:"slideup", slideup:"slidedown", zoom:true, fade:true,curlup:true
+	};
+
+	var style = (transitionObj[transition]?"openanimation:"+transition+";closeanimation:"+(transitionObj[transition]==true?transition:transitionObj[transition])+";":"");
+
+	var html = [];
+	html.push('<html id="'+id+'" isbridge="true" style="'+style+'">');
+	html.push('<head>');
+	html.push('<meta charset="UTF-8"/>');
+	html.push('<title show="false">webapp</title>');
+	html.push('<script type="text/javascript" src="res:script/exmobijs/base.js"></script>');
+	html.push('<script src="res:script/exmobijs/app.js" type="text/javascript"></script>');
+	html.push('<script src="res:script/exmobijs/utility.js" type="text/javascript"></script>');
+	html.push('<script src="res:script/exmobijs/browser.js" type="text/javascript"></script>');
+	html.push('<script src="res:script/agile/js/lib/template-native.js" type="text/javascript"></script>');
+	
+	html.push('<script>');
+	html.push('<![CDATA[');
+	html.push(']]>');
+	html.push('</script>');
+	html.push('');
+	//html.push('<body ondestroy="$browser.bridgeDestroy()" onload="$browser.bridgeLoad(''+url+'')" onstart="$browser.bridgeStart()" onstop="$browser.bridgeStop()" style="margin:0px;padding:0px;">');
+	html.push('<body ondestroy="$browser.bridgeDestroy()" onload="$browser.bridgeLoad()" onstart="$browser.bridgeStart()" onstop="$browser.bridgeStop()" style="margin:0px;padding:0px;">');
+	html.push('<webview id="browser" url="'+url+'"></webview>');// backMonitor="true"
+	//html.push('<browser action="true" adapter="true" id="browser"></browser>');
+	html.push('</body>');
+	html.push('</body></body></html>');
+	
+	return html.join('');
+};
+
+$util.formatBrowserUrl = function(encode){
+	var decode = "";
+	try{
+		return (new $util.Base64()).decode(encode.split("'")[1]);
+	}catch(e){
+		return encode;
+	}
+};
+
+$util.isLocalFile = function(url){//opt={url:'',id:''}
+	if(!url){
+		return false;
+	}
+	return (url.indexOf("res:")==0);
+};
+
+$util.parseResURL = function(str){
+	if(!str||str.indexOf("res:")!=0){
+		return {};
+	}
+	var opt = {
+			url:"",
+			href:"",
+			query:"",
+			fileName:"",
+			suffix:""
+	};
+	
+	opt.url = str;
+
+	var ps = str.split("?");
+	if(ps.length==1){
+		opt.href = str;
+	}else if(ps.length==2){
+		opt.href = ps[0];
+		opt.query = ps[1];
+	}
+	
+	var fs = opt.href.substring(3,opt.href.length).split("/");
+	var tempFile = fs[fs.length-1];
+	var tempFileArr = tempFile.split(".");
+	if(ps.length==1){
+		opt.fileName = tempFileArr[0];
+		opt.suffix = "";
+	}else{
+		opt.fileName = tempFileArr[0];
+		opt.suffix = tempFileArr[1];
+	}
+	
+	return opt;	
+
+};
+
+
+/**
+ * JS base64 加解密函数
+ */
+ 
+$util.Base64 = function () {
+ 
+	// private property
+	_keyStr = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
+ 
+	// public method for encoding
+	this.encode = function (input) {
+		var output = "";
+		var chr1, chr2, chr3, enc1, enc2, enc3, enc4;
+		var i = 0;
+		input = _utf8_encode(input);
+		while (i &lt; input.length) {
+			chr1 = input.charCodeAt(i++);
+			chr2 = input.charCodeAt(i++);
+			chr3 = input.charCodeAt(i++);
+			enc1 = chr1 &gt;&gt; 2;
+			enc2 = ((chr1 &amp; 3) &lt;&lt; 4) | (chr2 &gt;&gt; 4);
+			enc3 = ((chr2 &amp; 15) &lt;&lt; 2) | (chr3 &gt;&gt; 6);
+			enc4 = chr3 &amp; 63;
+			if (isNaN(chr2)) {
+				enc3 = enc4 = 64;
+			} else if (isNaN(chr3)) {
+				enc4 = 64;
+			}
+			output = output +
+			_keyStr.charAt(enc1) + _keyStr.charAt(enc2) +
+			_keyStr.charAt(enc3) + _keyStr.charAt(enc4);
+		}
+		return output;
+	}
+ 
+	// public method for decoding
+	this.decode = function (input) {
+		var output = "";
+		var chr1, chr2, chr3;
+		var enc1, enc2, enc3, enc4;
+		var i = 0;
+		input = input.replace(/[^A-Za-z0-9\+\/\=]/g, "");
+		while (i &lt; input.length) {
+			enc1 = _keyStr.indexOf(input.charAt(i++));
+			enc2 = _keyStr.indexOf(input.charAt(i++));
+			enc3 = _keyStr.indexOf(input.charAt(i++));
+			enc4 = _keyStr.indexOf(input.charAt(i++));
+			chr1 = (enc1 &lt;&lt; 2) | (enc2 &gt;&gt; 4);
+			chr2 = ((enc2 &amp; 15) &lt;&lt; 4) | (enc3 &gt;&gt; 2);
+			chr3 = ((enc3 &amp; 3) &lt;&lt; 6) | enc4;
+			output = output + String.fromCharCode(chr1);
+			if (enc3 != 64) {
+				output = output + String.fromCharCode(chr2);
+			}
+			if (enc4 != 64) {
+				output = output + String.fromCharCode(chr3);
+			}
+		}
+		output = _utf8_decode(output);
+		return output;
+	}
+ 
+	// private method for UTF-8 encoding
+	_utf8_encode = function (string) {
+		string = string.replace(/\r\n/g,"\n");
+		var utftext = "";
+		for (var n = 0; n &lt; string.length; n++) {
+			var c = string.charCodeAt(n);
+			if (c &lt; 128) {
+				utftext += String.fromCharCode(c);
+			} else if((c &gt; 127) &amp;&amp; (c &lt; 2048)) {
+				utftext += String.fromCharCode((c &gt;&gt; 6) | 192);
+				utftext += String.fromCharCode((c &amp; 63) | 128);
+			} else {
+				utftext += String.fromCharCode((c &gt;&gt; 12) | 224);
+				utftext += String.fromCharCode(((c &gt;&gt; 6) &amp; 63) | 128);
+				utftext += String.fromCharCode((c &amp; 63) | 128);
+			}
+ 
+		}
+		return utftext;
+	}
+ 
+	// private method for UTF-8 decoding
+	_utf8_decode = function (utftext) {
+		var string = "";
+		var i = 0;
+		var c = c1 = c2 = 0;
+		while ( i &lt; utftext.length ) {
+			c = utftext.charCodeAt(i);
+			if (c &lt; 128) {
+				string += String.fromCharCode(c);
+				i++;
+			} else if((c &gt; 191) &amp;&amp; (c &lt; 224)) {
+				c2 = utftext.charCodeAt(i+1);
+				string += String.fromCharCode(((c &amp; 31) &lt;&lt; 6) | (c2 &amp; 63));
+				i += 2;
+			} else {
+				c2 = utftext.charCodeAt(i+1);
+				c3 = utftext.charCodeAt(i+2);
+				string += String.fromCharCode(((c &amp; 15) &lt;&lt; 12) | ((c2 &amp; 63) &lt;&lt; 6) | (c3 &amp; 63));
+				i += 3;
+			}
+		}
+		return string;
+	}
+};
+
+$util.randomString = function(len){	
+	
+	len = len?len:8;
+	
+	var letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";	
+	
+	var rs = [];
+	for(var i=0;i<len;i++){ "'";="" "',").replace(="" ":'")="" $util._ajax_errorfunction="function(data){" $util._ajax_getfunction="function(ajax){" $util._ajax_successfunction="function(data){" $util._cachemap['_ajax_opts_key_'+index]="opts;" $util._cachemap['_ajax_opts_key_'+index];="" $util.ajax="function(opts){" $util.form="function(opts){" $util.go="function(opts," $util.go(opts,="" $util.loadlocaldata="function(url){" $util.paramstojson="function(data){" $util.provide="function(pageObj," $util.queryjson="function(query){" $util.randommix="function(len){" $util.randomnumber="function(len){" $util.sendmail="function(opts){" $util.server="function(opts){" '500');="" (\w+)="(\w+)/ig," ))="" ){="" +="" +(fileelementid?fileelementid:'')+',';="" +opts.to+"','"+opts.subject+"','"+opts.content+"')";="" ;="" <="" =="" ?'post':'get';="" ?opts.fileelementid.join():fileelementid;="" [];="" a.ajax(opts);="" ajax="new" ajax);="" ajax.send();="" ajax.setstringdata('_ajax_opts_key_',="" ajaxdata="{};" ajaxdata.data="opts.data;" ajaxdata.failfunction="$util._ajax_errorFunction" ajaxdata.isblock="opts.isBlock" ajaxdata.method="opts.type" ajaxdata.requestheader="opts.headers;" ajaxdata.successfunction="$util._ajax_successFunction" ajaxdata.timeout="opts.timeout?(opts.timeout/1000):20;" ajaxdata.url="opts.url;" arr="[];" arr.push(obj);="" arr;="" b,="" c){="" callback&&callback(html);="" callback){="" cb('');="" cb(html);="" cb(opts);="" cb){="" data="A.Util.formatJSON(data);" data!="string" data.replace(="" data.status);="" dataarr="$util.paramsToJSON(opts.data);" dataarr[i]="obj;" dataarr[i]){="" delete="" directajax);="" directformsubmit);="" doajax="function(opts," doajax(pageobj,="" doajax(sourceobj,="" eval(template.replace(="" fileelementid="," for(var="" funcstr="$a.sendMail('" function(a,="" function(data){="" function(html){="" g,="" handler(ajaxdata);="" handler){="" html="render(data);" html;="" i="0;i&lt;dataArr.length;i++){" id="Math.ceil(Math.random()*35);" if(!data||(typeof="" if(!opts||!opts.url)="" if(!pageobj||!sourceobj||!callback){="" if(!query){="" if(opts.data)="" if(opts.data){="" if(opts.datatype="json" if(opts.headers)="" if(typeof="" in="" index="ajax.getStringData('_ajax_opts_key_');" index);="" k="" len="len?len:8;" mix="abcdefghijklmnopqrstuvwxyz0123456789" nativepage.executescript(funcstr);="" numbers="0123456789876543210" obj="{};" obj.name="k;" obj.type="fileElementId.indexOf(','+obj.name+',')==-1?0:1;" obj.value="dataArr[i][k];" obj[b]="unescape(c);" opts="string" opts.data="dataArr;" opts.datatype="opts.dataType&amp;&amp;opts.dataType.toLowerCase()=='json'?'json':'text';" opts.error="function(){" opts.error&&opts.error(data,="" opts.fileelementid="object" opts.isblock="true?true:false;" opts.result="ajax.responseText;" opts.result;="" opts.success="function(html){" opts.success&&opts.success(opts.result);="" opts.type="opts.type||'post';" opts.type&&opts.type.tolowercase()="post" opts.url="A.Util.script(opts.url);" opts;="" p="" properties="query.replace(/&amp;/g," properties));="" render="template.compile(html);" return="" return;="" rs="[];" rs.join('');="" rs.push(letters.charat(id));="" rs.push(mix.charat(id));="" rs.push(numbers.charat(id));="" script="" sourceobj,="" template="var obj = {p}" try{="" var="" {};="" ||!opts.url){="" }="" });="" };="" }catch(e){="" }else{="" 对应exmobi的ajax="" 对应exmobi的directajax="" 对应exmobi的directformsubmit="">
+
+
+</len;i++){>

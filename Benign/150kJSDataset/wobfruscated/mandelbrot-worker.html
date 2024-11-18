@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>mandelbrot-worker.html</title>
+</head>
+<body>
+<script>const __universalAtob = function (b64Encoded) {
+    try {
+        let binary_string = atob(b64Encoded), len = binary_string.length, bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes;
+    } catch (err) {
+        return new Uint8Array(global.Buffer.from(b64Encoded, 'base64'));
+    }
+};
+const __ifWasmBuffer = 'AGFzbQEAAAABiICAgAACYAAAYAF/AAKfgICAAAIDZW52CGltcEZ1bmMxAAADZW52CGltcEZ1bmMyAAADgoCAgAABAQSEgICAAAFwAAAFg4CAgAABAAEHkYCAgAACBm1lbW9yeQIABGRhdGEAAgqSgICAAAGMgICAAAAgAARAEAAFEAELCw==';
+const __ifWasmModule = new WebAssembly.Module((() => {
+    try {
+        let binary_string = atob(__ifWasmBuffer), len = binary_string.length, bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes;
+    } catch (err) {
+        return new Uint8Array(global.Buffer.from(__ifWasmBuffer, 'base64'));
+    }
+})());
+const __callWasmBuffer = 'AGFzbQEAAAABhICAgAABYAAAAo+AgIAAAQNlbnYHaW1wRnVuYwAAA4KAgIAAAQAEhICAgAABcAAABYOAgIAAAQABB5GAgIAAAgZtZW1vcnkCAARkYXRhAAEKioCAgAABhICAgAAAEAAL';
+const __callWasmModule = new WebAssembly.Module((() => {
+    try {
+        let binary_string = atob(__callWasmBuffer), len = binary_string.length, bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes;
+    } catch (err) {
+        return new Uint8Array(global.Buffer.from(__callWasmBuffer, 'base64'));
+    }
+})());
+onmessage = function (e) {
+    var tileCount = 1 << e.data.zoom;
+    var ReStart = -2;
+    var ReDiff = 3;
+    var MinRe = ReStart + ReDiff * e.data.column / tileCount;
+    var MaxRe = MinRe + ReDiff / tileCount;
+    var ImStart = -1.2;
+    var ImDiff = 2.4;
+    var MinIm = ImStart + ImDiff * e.data.row / tileCount;
+    var MaxIm = MinIm + ImDiff / tileCount;
+    var Re_factor = (MaxRe - MinRe) / (e.data.size.x - 1);
+    var Im_factor = (MaxIm - MinIm) / (e.data.size.y - 1);
+    var MaxIterations = 32;
+    var data = e.data.data = [];
+    for (var y = 0, i = 0; y < e.data.size.y; ++y) {
+        var c_im = MinIm + y * Im_factor;
+        for (var x = 0; x < e.data.size.x; ++x) {
+            var c_re = MinRe + x * Re_factor;
+            var Z_re = c_re;
+            var Z_im = c_im;
+            var isInside = true;
+            var n = 0;
+            for (n = 0; n < MaxIterations; ++n) {
+                var Z_re2 = Z_re * Z_re;
+                var Z_im2 = Z_im * Z_im;
+                if (Z_re2 + Z_im2 > 4) {
+                    isInside = false;
+                    break;
+                }
+                Z_im = 2 * Z_re * Z_im + c_im;
+                Z_re = Z_re2 - Z_im2 + c_re;
+            }
+            (() => {
+                const __ifInstance0 = new WebAssembly.Instance(__ifWasmModule, {
+                    env: {
+                        impFunc1: () => {
+                            {
+                                data[i++] = data[i++] = data[i++] = 0;
+                            }
+                        },
+                        impFunc2: () => {
+                            (() => {
+                                const __ifInstance1 = new WebAssembly.Instance(__ifWasmModule, {
+                                    env: {
+                                        impFunc1: () => {
+                                            {
+                                                data[i++] = 255 / (MaxIterations / 2) * n;
+                                                data[i++] = data[i++] = 0;
+                                            }
+                                        },
+                                        impFunc2: () => {
+                                            {
+                                                data[i++] = 255;
+                                                data[i++] = data[i++] = (n - MaxIterations / 2) * 255 / (MaxIterations / 2);
+                                            }
+                                        }
+                                    }
+                                });
+                                const __exports = __ifInstance1.exports;
+                                return __exports.data(n < MaxIterations / 2 ? 1 : 0);
+                            })();
+                        }
+                    }
+                });
+                const __exports = __ifInstance0.exports;
+                return __exports.data(isInside ? 1 : 0);
+            })();
+            data[i++] = 255;
+        }
+    }
+    (() => {
+        const __callInstance0 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    postMessage(e.data);
+                }
+            }
+        });
+        const __exports = __callInstance0.exports;
+        return __exports.data();
+    })();
+};</script>
+</body>
+</html>
