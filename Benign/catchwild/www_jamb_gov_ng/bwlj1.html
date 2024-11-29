@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>bwlj1.html</title>
+</head>
+<body>
+
+<script>
+ /*****************************************************
+  *@Description: BWLNewsTicker Plugin
+  *@Created By: Mahbub
+  *@Created At: 30-03-2013
+  *@Last Edited: 30-03-2013
+  *****************************************************/
+
+if ( typeof Object.create !== 'function' ) {
+    
+    Object.create = function ( obj ) {
+        
+        function F() {};
+        F.prototype = obj;
+        return new F();
+    }
+    
+}
+
+
+(function( $, window, document, undefind ){
+
+    var BWLNewsTicker = {
+        
+        init: function( options, elem ) {
+            
+           var self = this;
+                self.elem = elem;
+                self.$elem = $( elem );
+                
+            
+//                console.log("Element ID: "+$( elem ).attr('id'))
+            /*------------------------------ DEFAULT OPTIONS ---------------------------------*/
+              
+            this.options = $.extend ( {}, $.fn.bwlJqueryNewsTicker.config, options); // Override old sutff          
+            
+            /*------------------------------  Ticker Height---------------------------------*/
+            
+           
+            
+            if(this.options.height == 'auto' ) {
+                this.options.height = 32;
+            }
+            
+            /*------------------------------  GENERATE PARENT ID ---------------------------------*/
+//            console.log($(elem).toSource());
+            var bwl_ticker_rand_id = $(elem).data('ticker_rand_id');
+            this.options.parent_id = $("#"+$( elem ).parent('div').attr('id'));
+            this.options.root_id = $("div."+$(elem).attr('id'));
+            this.options.ticker_container_id = $('div.bwl_breaking_news_ticker_container_'+bwl_ticker_rand_id);
+            
+            
+            // Hide Ticker.
+            
+             if( this.options.hide_ticker == true ) {
+                this.options.ticker_container_id.remove();
+            }
+            
+            
+//            console.log("Random ID: " + bwl_ticker_rand_id);
+            
+//            return false;
+            var $ticker_container_id = this.options.ticker_container_id;
+//            console.log("Parent Height:" +$ticker_container_id.height());
+//            console.log("Parent Outer Height:" +$ticker_container_id.outerHeight() );
+//            console.log("Ticker ID"+$ticker_container_id.length);
+//            .957644651
+//            #bwl_breaking_news_ticker_957644651
+//            console.log($( elem ).data('ticker_rand_id'));
+//            console.log($(elem).attr('id'));
+//            console.log(this.options.root_id);
+            
+//            console.log();
+            
+            
+            /*------------------------------  Get Ticker Type ---------------------------------*/
+            
+            
+//            var ticker_type = $ticker_container_id.next('div');
+//            console.log("Ticker Type: " + ticker_type.toSource());
+            
+             /*------------------------------  Ticker Button Icons Settings ---------------------------------*/
+             
+            this.options.bwl_up_icon = '<i class="fa '+self.options.bwl_up_icon+'"></i>';
+            this.options.bwl_down_icon = '<i class="fa '+self.options.bwl_down_icon+'"></i>';
+            this.options.bwl_prev_icon = '<i class="fa '+self.options.bwl_prev_icon+'"></i>';
+            this.options.bwl_next_icon = '<i class="fa '+self.options.bwl_next_icon+'"></i>';
+            
+            /*------------------------------  Initalize Tickers---------------------------------*/
+            
+             if(this.options.position == "footer") {
+                 
+                 // Added One second delay to display Footer Ticker.
+                 // Safe to Load all ticker items.
+                 setTimeout(function(){
+                     self._bnm_sticky_footer_ticker_settings();
+                 }, this.options.bnm_custom_delay);
+                 
+             } else if(this.options.position == "header") {
+                 
+                 // Added One second delay to display Header Ticker.
+                 // Safe to Load all ticker items.
+                 setTimeout(function(){
+                     self._bnm_sticky_header_ticker_settings();
+                 }, this.options.bnm_custom_delay);
+                 
+             } else {
+                 // We don't need to do anything for inline and widget section for toggel button!'
+             }
+            
+            /*------------------------------  Ticker Button Settings---------------------------------*/
+            
+            if( this.options.btn_show == true ) {
+
+                self.$elem.after('<div class="ticker_btn_wrapper">'+
+                                        '<span class="bwl_prev_btn">'+this.options.bwl_prev_icon+'</span>'+
+                                        '<span class="bwl_next_btn">'+this.options.bwl_next_icon+'</span>'+
+                                       '</div>');
+                                   
+//                var $ticker_btn_height = $ticker_container_id.find(".bwl_prev_btn").height();
+
+                // Added One second delay to adjust next/previous button position
+                 
+                 setTimeout(function(){
+                    self._bnm_adjust_next_prev_btn_position( $ticker_container_id ); // adjust next/previous button position
+                 }, this.options.bnm_custom_delay);
+                
+//                $ticker_container_id.find(".ticker_btn_wrapper").css({
+//
+//                    'top': ( (parseInt($ticker_container_id.find("#"+self.options.position).height(),10) - parseInt($ticker_btn_height,10)) /2 - 4)  + 'px'
+//
+//                });
+                
+            }
+            
+            /*------------------------------  Process Animation Class ---------------------------------*/
+            
+            var animation_class = self.func_get_animation_class();
+            
+            this.options.OutAnimation = animation_class[0];
+            this.options.inAnimation = animation_class[1];
+            
+            /*------------------------------ SET TIMMER ---------------------------------*/
+            self._bwl_set_timmer();
+            
+            /*------------------------------ BIND ALL CLICK EVENTS  ---------------------------------*/
+            
+            this._bindEvent();
+
+            /*------------------------------  RTL Settings ---------------------------------*/
+            
+            self._bwl_ticker_rtl_settings( $ticker_container_id );
+
+            /*------------------------------ Navigation Button Effects ---------------------------------*/
+ 
+            var $ticker_btn_wrapper = $( elem ).next('.ticker_btn_wrapper');
+            var $bwl_next_btn = $ticker_btn_wrapper.find('span.bwl_next_btn');
+            var $bwl_prev_btn = $ticker_btn_wrapper.find('span.bwl_prev_btn');
+ 
+               
+            $bwl_next_btn.on("click", function(){
+                self._bwl_display_next_item();
+            });
+            
+            $bwl_prev_btn.on("click", function(){
+                self._bwl_display_prev_item();
+            });
+ 
+//             console.log(this.options.position);
+             
+             
+        },
+                
+        _bindEvent: function() {
+    
+            var self = this;
+//            console.log("Parent ID: " + self.options.parent_id);
+            self.$elem.find( 'li' ).first().addClass( self.options.inAnimation );
+            
+            self.$elem.find('li').each(function() {
+
+                $(this).hover(function() {
+                    //                            console.log("Mouse Hover");
+                    clearTimeout(self.bnt_timmer);
+                }, function() {
+                    //                            console.log("Mouse Out");
+                    self._bwl_set_timmer();
+                })
+
+            });
+
+        },
+        
+        _bwl_display_next_item: function(){
+           
+            var self = this,
+                 parent_height = self.$elem.height();
+                 clearTimeout(self.bnt_timmer); // reset timmer
+                 
+            self.$elem.find('li').first().addClass(self.options.OutAnimation).delay(300).queue(function() {
+
+                $(this).removeAttr('class').appendTo(self.$elem).dequeue();
+                self.$elem.find('li').first().addClass(self.options.inAnimation).attr("height", parent_height + "px");
+                self._bwl_set_timmer(); // enable timmer.
+
+            })
+            
+        },
+        
+         _bwl_display_prev_item: function(){
+           
+            var self = this,
+                 parent_height = self.$elem.height();
+                 clearTimeout(self.bnt_timmer); // reset timmer
+            self.$elem.find('li').last().addClass(self.options.OutAnimation).delay(300).queue(function() {
+
+                $(this).removeAttr('class').prependTo(self.$elem).dequeue();
+                self.$elem.find('li').removeAttr('class');
+                self.$elem.find('li').first().addClass(self.options.inAnimation).attr("height", parent_height + "px");
+                self._bwl_set_timmer(); // enable timmer.
+            })
+            
+        },
+        
+        _bwl_show_ticker_next_item: function() {
+
+            var self = this,
+                 parent_height =  self.$elem.height();
+                
+                self.$elem.find( 'li' ).first().addClass( self.options.OutAnimation ).delay( 1000 ).queue(function() {
+
+                    $(this).removeAttr( 'class' ).appendTo( self.$elem ).dequeue();
+                    self.$elem.find( 'li' ).first().addClass(  self.options.inAnimation ).attr("height", parent_height+"px");
+
+                })
+
+               self._bwl_set_timmer();
+
+        },
+        
+        _bwl_set_timmer: function(){
+           
+            var self = this;
+            
+            self.bnt_timmer = setTimeout(function () {
+
+                                                    self._bwl_show_ticker_next_item();
+
+                                            }, self.options.interval );
+            
+        },
+        
+        _bwl_ticker_rtl_settings: function( $elem ) {
+            
+//            console.log($elem.attr('id'));
+//            return false;
+             var self = this;
+      
+             if( self.options.rtl == true ) {
+                 
+//                 console.log("RTL");
+                    
+//                    $elem.find('.ticker_title').css({
+//                        'float':'right',
+//                        'margin-right' : '0px',
+//                        'margin-left' : '5px'
+//                    });
+//                    
+//                    $elem.find('ul.bwl_news_lists li').css({
+//                        'text-align':'right',
+//                        'float' : 'right'
+//                    });
+//                    
+                    $elem.find('div.ticker_btn_wrapper').css({
+                        'left':'5px'
+                    });
+                    
+                     $elem.find('div.ticker_btn_wrapper .bwl_prev_btn').css({
+                        'margin-right':'0px',
+                        'margin-left':'5px'
+                    })
+                    
+                    
+                    
+//                    
+//                    if( self.options.position == 'inline' ) {
+//                    
+//                        if( self.options.custom_border == false ) {
+//                            self.options.border_size = 1;
+//                        }
+//                    
+//                        $elem.css({
+//                            'border-left': self.options.border_size+'px ' + self.options.border_style +' '+self.options.border_color
+//                        })
+//                    
+//                    }
+                    
+            } else {
+                
+                //LTL
+//                console.log($elem.length);
+//                return false;
+                $elem.each(function(){
+                    
+//                    console.log($(this).find('ul').data('position'));
+                    
+                    if( $(this).data('position') == 'widget') {
+                        
+                        // Widget Area Button Position.
+//                        console.log($(this).find('div.ticker_btn_wrapper').length);
+                        $(this).find('div.ticker_btn_wrapper').css({
+                            'bottom':'5px',
+                            'right':'5px'
+                        }); 
+                        
+                    } else {
+                        
+                        //Header/Footer/Inline Area Button Position.
+                        $(this).find('div.ticker_btn_wrapper').css({
+                            'right':'5px'
+                        }); 
+                    
+                    }
+                    
+                })
+                
+//console.log($elem.find('div.ticker_btn_wrapper').length);
+//                    $elem.find('div.ticker_btn_wrapper').css({
+//                        'right':'5px'
+//                    }); 
+                   
+                   // Handle The Border Section When Ticker Title is Hidden
+                   
+//                   if( self.options.position == 'inline' && this.options.title_show == false) {
+//                    
+//                        if( self.options.custom_border == false ) {
+//                            self.options.border_size = 1;
+//                        }
+//                    
+//                        $elem.css({
+//                            'border-left': self.options.border_size+'px ' + self.options.border_style +' '+self.options.border_color
+//                        })
+//                    
+//                    } else {
+//                   
+//                        $elem.css({
+//                            'border-left': '0px ' + self.options.border_style +' '+self.options.border_color
+//                        })    
+//                
+//                   }
+                   
+            }
+            
+        },
+            
+         func_get_animation_class : function() {
+          
+          var self = this;
+        
+         var inAnimation = "animated ",
+               outAnimation = "animated ";
+       
+        if (self.options.animation == "flash" ) {
+              
+            outAnimation += 'fadeOut';
+            inAnimation += 'flash';                
+            
+        } else if (self.options.animation == "shake" ) {
+              
+               outAnimation += 'fadeOut';
+               inAnimation += 'shake';
+              
+          } else if (self.options.animation == "tada" ) {
+              
+               outAnimation += 'tada';
+               inAnimation += 'tada';
+              
+          } else if (self.options.animation == "swing" ) {
+              
+               outAnimation += 'swing';
+               inAnimation += 'swing';
+              
+          } else if (self.options.animation == "wobble" ) {
+              
+               outAnimation += 'wobble';
+               inAnimation += 'wobble';
+              
+          } else if (self.options.animation == "pulse" ) {
+              
+               outAnimation += 'pulse';
+               inAnimation += 'pulse';
+              
+          } else if (self.options.animation == "flipx" ) {
+              
+               outAnimation += 'flipOutX';
+               inAnimation += 'flipInX';
+              
+          } else if (self.options.animation == "faderight" ) {
+              
+               outAnimation += 'fadeOutRight';
+               inAnimation += 'fadeInLeft';
+              
+          } else if (self.options.animation == "fadeleft" ) {
+              
+               outAnimation += 'fadeOutLeft';
+               inAnimation += 'fadeInRight';
+              
+          } else if (self.options.animation == "slide" ) {
+              
+               outAnimation += 'slideOutLeft';
+               inAnimation += 'slideInRight';
+              
+          } else if (self.options.animation == "slideup" ) {
+              
+               outAnimation += 'slideOutUp';
+               inAnimation += 'slideInDown';
+              
+          } else if (self.options.animation == "bounce" ) {
+              
+               outAnimation += 'bounceOu';
+               inAnimation += 'bounceIn';
+              
+          } else if (self.options.animation == "lightspeed" ) {
+              
+               outAnimation += 'lightSpeedOut';
+               inAnimation += 'lightSpeedIn';
+              
+          } else if (self.options.animation == "roll" ) {
+              
+               outAnimation += 'rollOut';
+               inAnimation += 'rollIn';
+              
+          } else if (self.options.animation == "rotate" ) {
+              
+               outAnimation += 'rotateOut';
+               inAnimation += 'rotateIn';
+              
+          } else {
+              
+               outAnimation += 'fadeOut';
+               inAnimation += 'fadeIn';
+              
+          }
+
+          return [outAnimation, inAnimation];
+        
+    },     
+            
+        func_show_next_ticker_row: function() {
+
+            var self = this; 
+            
+            var parent_height =  self.$elem.height();
+                
+                self.$elem.find( 'li' ).first().addClass( self.options.OutAnimation ).delay( 1000 ).queue(function() {
+
+                    $(this).removeAttr( 'class' ).appendTo( self.$elem ).dequeue();
+                    self.$elem.find( 'li' ).first().addClass(  self.options.inAnimation ).attr("height", parent_height+"px");
+
+                })
+
+             setTimeout(function () {
+
+                    self.func_show_next_ticker_row();
+
+            }, self.options.interval );
+
+        },
+
+        function_hover_effect: function() {
+
+                var self = this; 
+
+                self.$elem.find( 'li' ).each(function(){
+
+                    var $post_link = $(this).find("a");
+
+                    var preserve_style = $post_link.attr("style");
+
+                     $post_link.hover(function(){
+
+                         var hover_color =  $post_link.data("hover-color");
+
+                         if ( typeof hover_color !== 'undefined' ) {
+
+                            $post_link.css({
+                                color : hover_color
+                            })
+
+                         }
+
+                     }, function(){
+
+                         $post_link.attr("style", preserve_style );
+
+                     })
+
+                })
+
+        },
+        
+       _bnm_adjust_next_prev_btn_position: function( $ticker_container_id ) {
+            
+            var self = this;
+           
+           var $ticker_btn_height = $ticker_container_id.find(".bwl_prev_btn").height();
+                
+            $ticker_container_id.find(".ticker_btn_wrapper").css({
+
+                'top': ( (parseInt($ticker_container_id.find("#"+self.options.position).height(),10) - parseInt($ticker_btn_height,10)) /2 - 4)  + 'px'
+
+            });
+           
+        },
+        
+
+        _bnm_sticky_header_ticker_settings: function( ) {
+            
+            var self = this;
+//            console.log("Boom");
+            
+            /*------------------------------ Header Ticker ---------------------------------*/
+    
+            var bnm_header_container = $('#bwl_breaking_news_header_container'),
+                bnm_header_ctrl_btn = $('.bwl_breaking_news_header_ctrl_btn'),
+                bnm_container_height = bnm_header_container.outerHeight();
+        
+                // Header CTRL Button Position.
+                //Fixed In Version 1.0.8
+
+                var bnm_header_ctrl_btn_pos = 0;
+//                alert(" "+$('#wpadminbar').length);
+                if( $('#wpadminbar').length > 0 ) {
+                    bnm_header_ctrl_btn_pos = $('#wpadminbar').outerHeight();
+                }
+//                alert(" "+bnm_header_ctrl_btn_pos);
+        
+               // End Header CTRL Button Position.
+
+                if( self._bnm_read_cookie("header_display_status") == 1 ){
+                    
+                       $('body').removeClass('bnm_header'); // Added & Fixed Body Margin Issue in version 1.0.8
+                    
+                        bnm_header_ctrl_btn.html(self.options.bwl_down_icon).css({
+//                            'top' : '0px'
+                            'top' : bnm_header_ctrl_btn_pos // fixed in version 1.0.8
+                        }).slideDown("slow").attr('data-header-display-status', 1);
+
+                } else {
+                        
+                        $('body').addClass('bnm_header'); // Added & Fixed Body Margin Issue in version 1.0.8
+                        
+                        bnm_header_container.slideDown("slow", function(){
+                            $(this).removeClass('bnm_dn');
+                            bnm_header_ctrl_btn.html(self.options.bwl_up_icon).css({
+                                'top' : parseInt( bnm_container_height,10 ) + parseInt( bnm_header_ctrl_btn_pos,10 ) - 4 // Added & Fixed Parse Int issue in version 1.0.8
+                            }).delay(500).slideDown("slow");
+                        });
+                }
+
+
+        /*------------------------------ HEADER TICKER CONTROL BUTTON CLICK EVENTS ---------------------------------*/
+
+            bnm_header_ctrl_btn.click(function(){
+
+            var $this = $(this); 
+                    $this.hide();
+            var header_display_status = $this.attr('data-header-display-status');
+
+                if ( header_display_status == 0 ) {
+
+                    $this.attr('data-header-display-status', 1);
+                    
+                    $('body').removeClass('bnm_header'); // Added & Fixed Body Margin Issue in version 1.0.8
+
+                    bnm_header_container.slideUp(function(){
+                        $this.html(self.options.bwl_down_icon).css({
+//                            'top' : '0px'
+                            'top' : bnm_header_ctrl_btn_pos // fixed in version 1.0.8
+                        }).slideDown("slow");
+                    });
+
+                    self._bnm_create_cookie("header_display_status", 1, 30);
+
+                } else {
+
+                    $this.attr('data-header-display-status', 0);
+                    
+                    $('body').addClass('bnm_header'); // Added & Fixed Body Margin Issue in version 1.0.8
+                    
+                    bnm_header_container.slideDown(function(){
+                        $this.html(self.options.bwl_up_icon).css({
+                             'top' : parseInt( bnm_container_height,10 ) + parseInt( bnm_header_ctrl_btn_pos,10 ) - 4 // Added & Fixed Parse Int issue in version 1.0.8
+                        }).slideDown("slow");
+                    });
+
+                    self._bnm_create_cookie("header_display_status", 0, 30);
+
+                    self._bnm_adjust_next_prev_btn_position( bnm_header_container );
+                }
+
+            });
+            
+        },
+        
+        _bnm_sticky_footer_ticker_settings: function( ) {
+            var self = this;
+            
+            /*------------------------------ Footer Ticker ---------------------------------*/
+    
+//    console.log(self.options.bwl_down_icon);
+            var bnm_footer_container = $('#bwl_breaking_news_footer_container'),
+                bnm_footer_ctrl_btn = $('.bwl_breaking_news_footer_ctrl_btn'),
+                bnm_footer_container_height = bnm_footer_container.outerHeight();
+
+                if( self._bnm_read_cookie("footer_display_status") == 1 ){
+                    
+                        $('body').removeClass('bnm_footer'); // Added & Fixed Body Margin Issue in version 1.0.8
+
+                        bnm_footer_ctrl_btn.html(self.options.bwl_up_icon).css({
+                            'bottom' : '0px'
+                        }).slideDown("slow").attr('data-footer-display-status', 1);
+
+                } else {
+                    
+                        $('body').addClass('bnm_footer'); // Added & Fixed Body Margin Issue in version 1.0.8
+                        
+                        bnm_footer_container.slideDown("slow", function(){
+                            $(this).removeClass('bnm_dn');
+                            bnm_footer_ctrl_btn.html(self.options.bwl_down_icon).css({
+                                'bottom' : bnm_footer_container_height+'px'
+                            }).delay(1000).slideDown("slow");
+                        });
+                }
+
+
+            bnm_footer_ctrl_btn.click(function(){
+
+            var $this = $(this); 
+                    $this.hide();
+            var footer_display_status = $this.attr('data-footer-display-status');
+
+                if ( footer_display_status == 0 ) {
+
+                    $this.attr('data-footer-display-status', 1);
+                    
+                    $('body').removeClass('bnm_footer'); // Added & Fixed Body Margin Issue in version 1.0.8
+
+                    bnm_footer_container.slideUp(function(){
+                        $this.html(self.options.bwl_up_icon).css({
+                            'bottom' : '0px'
+                        }).slideDown("slow");
+                    });
+
+                    self._bnm_create_cookie("footer_display_status", 1, 30);
+
+                } else {
+
+                    $this.attr('data-footer-display-status', 0);
+                    
+                     $('body').addClass('bnm_footer'); // Added & Fixed Body Margin Issue in version 1.0.8
+
+                    bnm_footer_container.slideDown(function(){
+                        $this.html(self.options.bwl_down_icon).css({
+                            'bottom' : bnm_footer_container_height+'px'
+                        }).slideDown("slow");
+                    });
+
+                    self._bnm_create_cookie("footer_display_status", 0, 30);
+                    
+                    self._bnm_adjust_next_prev_btn_position( bnm_footer_container );
+
+                }
+
+            });
+            
+            
+        },
+        
+         /*------------------------------ Create Cookie  ---------------------------------*/
+    
+    _bnm_create_cookie: function(name,value,days) {
+        if (days) {
+          var date = new Date();
+          date.setTime(date.getTime()+(days*24*60*60*1000));
+          var expires = "; expires="+date.toGMTString();
+        }
+        else var expires = "";
+        document.cookie = name+"="+value+expires+"; path=/";
+    },
+    
+/*------------------------------ Read Cookie  ---------------------------------*/
+
+    _bnm_read_cookie: function(name) {
+       var nameEQ = name + "=";
+       var ca = document.cookie.split(';');
+       for(var i=0;i < ca.length;i++) {
+         var c = ca[i];
+         while (c.charAt(0)==' ') c = c.substring(1,c.length);
+         if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length);
+       }
+       return null;
+     },
+      
+/*------------------------------ Erase Cookie  ---------------------------------*/
+
+    bnm_eraseCookie: function(name) {
+      _bnm_create_cookie(name,"",-1);
+    }
+ 
+     
+    };
+    
+    // Initialization Of Plugin
+
+    $.fn.bwlJqueryNewsTicker = function( options ) {
+       
+        return this.each(function(){
+            
+            var news_ticker=  Object.create( BWLNewsTicker );
+            news_ticker.init( options, this );
+            
+        });
+        
+    };
+    
+    // Default Options Setion.
+    
+    $.fn.bwlJqueryNewsTicker.config = {            
+            interval: 5000,
+            animation: 'fade',
+            height: 'auto',
+            position: 'header', // 3 Positions. header,footer,inline 
+            bwl_breaking_news_header_container : '#bwl_breaking_news_header_container',
+            bwl_breaking_news_footer_container : '#bwl_breaking_news_footer_container',
+            bwl_breaking_news_inline_container : '#bwl_breaking_news_inline_container',
+            header_close_btn: '#header_close_btn',
+            footer_close_btn: '#footer_close_btn',
+            hide_ticker: false, // Set value as True, if you want to hide ticker.
+            btn_show: true, // Set value as false, if you want to hide Next/Prev Button.
+            bwl_up_icon: 'fa-chevron-up', // fa-arrow-up/fa-angle-double-up/fa-angle-up/fa-chevron-up/fa-caret-up/fa-chevron-circle-up
+            bwl_down_icon: 'fa-chevron-down',  // fa-arrow-down/fa-angle-double-down/fa-angle-down/fa-chevron-down/fa-caret-down/fa-chevron-circle-down
+            bwl_prev_icon: 'fa-arrow-left', // fa-arrow-left/fa-angle-double-left/fa-angle-left/fa-chevron-left/fa-caret-left/fa-chevron-circle-left
+            bwl_next_icon: 'fa-arrow-right', // fa-arrow-right/fa-angle-double-right/fa-angle-right/fa-chevron-right/fa-caret-right/fa-chevron-circle-right,
+            bnm_custom_delay: 1000 // display ticker after 1 second :: Added in version 1.0.8
+
+//            interval: 7000, // For each slide rotation.
+//            animation: 'fade', // Available animations. rotate/roll/lightspeed/bounce/slideup/slide/fadeleft/faderight/flipx/wobble/shake/pluse/flash/swing/tada
+//            height: '48', // Add any numeric value to set ticker custom height.
+//            title: 'Breaking News', // Set Custom Ticker Title.
+//            title_show: true, // Set value as False, if you hde the title box.
+//            title_arrow_show: true,  // Set value as False, if you want to hide the arrow before title.
+//            title_arrow: 'triangle', // triangle/circle
+//            title_bg: '#2c2c2c', // Set Ticker Title Background color.
+//            title_color: '#FFFFFF', // Set Ticker Title Text Color.
+//            ticker_content_bg: '#FFFFFF', // Set Ticker Content Background Color
+//            ticker_content_color: '#2c2c2c', // Set Ticker Content Text Color
+//            border_status: true, // Set value as false if you want to hide border.
+//            custom_border: false, // Set value as true if you want to create you're own ticker border.'
+//            border_size: 3, // Set border Width.
+//            border_color: '#2c2c2c', // Set border color.
+//            border_style: 'solid', //dotted, solid, dashed
+            
+            
+           
+//            rtl: false, // Set value as True if you want to enable Right To Left Text Mode.
+//            feed: false, // Set value as True if you want to parse RSS Feed
+//            feed_url: 'http://codecanyon.net/feeds/new-codecanyon-items.atom', // Put A Valid RSS/Atom Feed link.
+//            feed_location: 'header', // header/footer/inline
+//            feed_limit: 5, // set any numeric value.
+//            feed_link_new_window: true, // Set true if you want to open feed link in new window.
+//            envato_user: '', // Set you're envato user name for Referral link. Example: xenioushk'
+//            theme: 'black' // black(default)/red/green/blue/orange/pink/purple/olive/yellow/gray/chocolate
+            
+    };
+    
+})( jQuery, window, document);
+</script>
+
+</body>
+</html>

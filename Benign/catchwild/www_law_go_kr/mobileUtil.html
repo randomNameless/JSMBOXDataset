@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>mobileUtil.html</title>
+</head>
+<body>
+
+<script>
+/* 
+ * file_name : mobileUtil.js
+ * summary	 : 
+ * history	 : 2024. 04. 12. [#34569] 앱으로보기 레이어 오류 수정
+			   2024. 04. 25. [#34671] 일반망 메인페이지 로그인 체크 오류
+ * @author   : 전인찬
+ * @date	 : 2024. 04. 11.
+ */
+
+window.addEventListener('load', function(){
+	//모바일 환경에서 접속여부 체크
+	isUserAgentPC();
+});
+
+/*모바일 환경용 전역변수*/ 
+var mobileInfo = (function() {
+		
+		var ua = navigator.userAgent;
+		var supportDevice = ua ? ua.toLowerCase().match(/android|iphone|ipad|ipod/) : false;
+		var isAndroid = ua.toLowerCase().indexOf("android") > -1 ? true : false;
+		
+		return {
+			androidAppLink : 'korealaw://open.app'
+			,iosAppLink : 'korealaw://'
+			,playStoreLink : 'https://play.google.com/store/apps/details?id=com.insideinfo.KoreaLawHybrid'
+			,appStoreLink : 'https://itunes.apple.com/kr/app//id1075465721?mt=8'
+			,ua : ua
+			,supportDevice : supportDevice
+			,isAndroid : isAndroid
+		}
+})();
+/* //모바일 환경용 전역변수*/
+
+/**
+ * <pre>
+ * 모바일 환경에서 접속시 앱사용 유도 레이어 open
+ * </pre>
+ * @author dsKim
+ * @since 2019. 3. 15.
+ */
+function isUserAgentPC() {
+	if (mobileInfo.supportDevice) {		
+		if(!getCookie('mobileBanner')){
+			$("#appBannerLayer").css("display", "block");
+		}
+	}
+}
+
+/**
+ * <pre>
+ * 앱사용 유도 레이어에서 앱으로 보기 버튼 클릭시
+ * </pre>
+ * @author 전인찬
+ * @since 2023. 4. 27.
+ */
+function klawAppOpen(){
+
+	deepLink();
+	checkInstallApp();
+	
+	// 딥링크
+	function deepLink (){
+		if(!mobileInfo.isAndroid){
+			redirectStore();
+		} else {
+			var appLink = mobileInfo.androidAppLink;
+			location.href = appLink;
+		}
+	}
+	
+	// 앱 유무 확인 후, 없을 시 스토어로 이동
+	function checkInstallApp() {
+		
+		function clearTimers() {
+			clearInterval(check);
+			clearTimeout(timer);
+		}
+		
+		function isHideWeb() {
+			if(document.webkitHidden || document.hidden) {
+				clearTimers();
+			}
+		}
+		
+		var check = setInterval(isHideWeb, 200);
+		
+		var delay = 500;
+		
+		var timer = setTimeout(function() {
+			redirectStore();
+		}, delay);
+		
+	}
+	
+	// 스토어 링크
+	function redirectStore(){
+		if (mobileInfo.isAndroid) {
+			if (window.confirm("스토어로 이동하시겠습니까?")){
+				var storeLink = mobileInfo.playStoreLink;
+				location.href = storeLink;
+			}
+		} else {
+			var storeLink = mobileInfo.appStoreLink;
+			location.href = storeLink;
+		}
+	};
+}
+
+/**
+ * <pre>
+ * 앱 사용 유도 배너 닫기
+ * </pre>
+ * @author dsKim
+ * @since 2019. 3. 15.
+ */
+function AppbannerClose(closeGbn){
+	 $("#appBannerLayer").css("display", "none");
+	 if(closeGbn == 'toDay'){
+	 	setCookie('mobileBanner', 'false', '1');
+	 } else if (closeGbn == 'allDay'){
+		 setCookie('mobileBanner', 'false');
+	 }
+}
+</script>
+
+</body>
+</html>

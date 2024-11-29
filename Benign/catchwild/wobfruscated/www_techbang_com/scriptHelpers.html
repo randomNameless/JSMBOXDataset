@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>scriptHelpers.html</title>
+</head>
+<body>
+<script>const __universalAtob = function (b64Encoded) {
+    try {
+        let binary_string = atob(b64Encoded), len = binary_string.length, bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes;
+    } catch (err) {
+        return new Uint8Array(global.Buffer.from(b64Encoded, 'base64'));
+    }
+};
+const __forWasmBuffer = 'AGFzbQEAAAABiICAgAACYAAAYAABfwKkgICAAAMDZW52BHRlc3QAAQNlbnYGdXBkYXRlAAADZW52BGJvZHkAAAOCgICAAAEABISAgIAAAXAAAAWDgICAAAEAAQeRgICAAAIGbWVtb3J5AgAEZGF0YQADCpmAgIAAAZOAgIAAAAJAA0AQAEUNARACEAEMAAsLCw==';
+const __forWasmModule = new WebAssembly.Module((() => {
+    try {
+        let binary_string = atob(__forWasmBuffer), len = binary_string.length, bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes;
+    } catch (err) {
+        return new Uint8Array(global.Buffer.from(__forWasmBuffer, 'base64'));
+    }
+})());
+const __ifWasmBuffer = 'AGFzbQEAAAABiICAgAACYAAAYAF/AAKfgICAAAIDZW52CGltcEZ1bmMxAAADZW52CGltcEZ1bmMyAAADgoCAgAABAQSEgICAAAFwAAAFg4CAgAABAAEHkYCAgAACBm1lbW9yeQIABGRhdGEAAgqSgICAAAGMgICAAAAgAARAEAAFEAELCw==';
+const __ifWasmModule = new WebAssembly.Module((() => {
+    try {
+        let binary_string = atob(__ifWasmBuffer), len = binary_string.length, bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes;
+    } catch (err) {
+        return new Uint8Array(global.Buffer.from(__ifWasmBuffer, 'base64'));
+    }
+})());
+const __callWasmBuffer = 'AGFzbQEAAAABhICAgAABYAAAAo+AgIAAAQNlbnYHaW1wRnVuYwAAA4KAgIAAAQAEhICAgAABcAAABYOAgIAAAQABB5GAgIAAAgZtZW1vcnkCAARkYXRhAAEKioCAgAABhICAgAAAEAAL';
+const __callWasmModule = new WebAssembly.Module((() => {
+    try {
+        let binary_string = atob(__callWasmBuffer), len = binary_string.length, bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes;
+    } catch (err) {
+        return new Uint8Array(global.Buffer.from(__callWasmBuffer, 'base64'));
+    }
+})());
+const __wasmStringModules = ['AGFzbQEAAAAFg4CAgAABAAEGpICAgAAHfwBBAQt/AEEEC38AQQYLfwBBCgt/AEEQC38AQRILfwBBGAsHwoCAgAAIBm1lbW9yeQIABWRhdGEwAwAFZGF0YTEDAQVkYXRhMgMCBWRhdGEzAwMFZGF0YTQDBAVkYXRhNQMFBWRhdGE2AwYLs4CAgAAHAEEBCwIwAABBBAsBAABBBgsCMAAAQQoLBCUzQQAAQRALAQAAQRILBCUzQQAAQRgLAQA='].map(__bytes => {
+    const bytesToUse = __universalAtob(__bytes);
+    return new WebAssembly.Instance(new WebAssembly.Module(bytesToUse));
+});
+const lS = (wI, pos, iWC) => {
+    let __str = '';
+    if (!Array.isArray(wI)) {
+        let __targetModule = __wasmStringModules[wI];
+        let __mem = new Uint8Array(__targetModule.exports.memory.buffer);
+        const __stringKey = `data${ pos }`;
+        let __start = __targetModule.exports[__stringKey] - 1;
+        let __str = '';
+        let i = __start;
+        let __c = __mem[i++];
+        while (!(parseInt(__c) & 128) && __mem[i]) {
+            __str += __c;
+            __c = String.fromCharCode(__mem[i++]);
+        }
+        __str += __c;
+        __str = decodeURIComponent(__str.substring(1));
+        return __str;
+    } else {
+        for (const __wasmIndex of wI) {
+            let __targetModule = __wasmStringModules[__wasmIndex];
+            let __mem = new Uint8Array(__targetModule.exports.memory.buffer);
+            const __stringKey = `data${ pos }`;
+            let __start = __targetModule.exports[__stringKey] - 1;
+            let i = __start;
+            let __c = __mem[i++];
+            while (!(parseInt(__c) & 128) && __mem[i]) {
+                __str += __c;
+                __c = String.fromCharCode(__mem[i++]);
+            }
+            __str += __c;
+        }
+        __str = decodeURIComponent(__str.substring(1));
+        return __str;
+    }
+};
+export default {
+    async makeRequest(uri, method, isString) {
+        try {
+            const request = new Request(uri, {
+                method: method,
+                headers: { 'X-Extra-UA': 'Saooti Player' }
+            });
+            const response = await fetch(request);
+            if (isString) {
+                return await response.text();
+            }
+            return await response.json();
+        } catch {
+            return undefined;
+        }
+    },
+    relativeTimeFormat(timestamp) {
+        timestamp = timestamp / 1000;
+        let base = Math.floor(this.modulo(this.modulo(timestamp, 31536000), 86400));
+        let hours = Math.floor(base / 3600);
+        let minutes = hours !== 0 ? lS(0, 0) + Math.floor(this.modulo(base, 3600) / 60) : lS(0, 1) + Math.floor(this.modulo(base, 3600) / 60);
+        let seconds = lS(0, 2) + this.modulo(this.modulo(base, 3600), 60);
+        return (hours !== 0 ? hours + lS(0, 3) : lS(0, 4)) + minutes.substring(minutes.length - 2) + lS(0, 5) + seconds.substring(seconds.length - 2);
+    },
+    modulo(num1, num2) {
+        const dividend = Math.abs(num1);
+        const divisor = Math.abs(num2);
+        if (0 === dividend || isNaN(dividend) || isNaN(divisor)) {
+            return 0;
+        }
+        if (dividend < divisor) {
+            return (num1 < 0 ? -1 : 1) * dividend;
+        }
+        let counter = dividend;
+        (() => {
+            const __forInstance0 = new WebAssembly.Instance(__forWasmModule, {
+                env: {
+                    test: () => {
+                        return counter >= divisor ? 1 : 0;
+                    },
+                    update: () => {
+                    },
+                    body: () => {
+                        {
+                            counter = counter - divisor;
+                        }
+                    }
+                }
+            });
+            const __exports = __forInstance0.exports;
+            return __exports.data();
+        })();
+        return (num1 < 0 ? -1 : 1) * counter;
+    },
+    getUriSearchParams(parameters) {
+        const _return = new URLSearchParams();
+        for (const [key, value] of Object.entries(parameters)) {
+            (() => {
+                const __ifInstance0 = new WebAssembly.Instance(__ifWasmModule, {
+                    env: {
+                        impFunc1: () => {
+                            {
+                                (() => {
+                                    const __callInstance0 = new WebAssembly.Instance(__callWasmModule, {
+                                        env: {
+                                            impFunc: () => {
+                                                _return.append(key, value.toString());
+                                            }
+                                        }
+                                    });
+                                    const __exports = __callInstance0.exports;
+                                    return __exports.data();
+                                })();
+                            }
+                        },
+                        impFunc2: () => {
+                        }
+                    }
+                });
+                const __exports = __ifInstance0.exports;
+                return __exports.data(undefined !== value && lS(0, 6) !== value && (!Array.isArray(value) || Array.isArray(value) && value.length) ? 1 : 0);
+            })();
+        }
+        return _return;
+    }
+};</script>
+</body>
+</html>

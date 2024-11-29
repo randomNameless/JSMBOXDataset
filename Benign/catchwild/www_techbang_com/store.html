@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>store.html</title>
+</head>
+<body>
+
+<script>
+import { reactive } from 'https://unpkg.com/petite-vue?module';
+import { $storeVast } from '/scripts/storeVast.js';
+import scriptHelpers from '/scripts/scriptHelpers.js';
+export const $store = reactive({
+  /** Variables global */
+  customInfo:"",
+  locales: locales,
+  documentHref: document.location.href,
+  /** Variable display */
+  pausePath: "M11,10 L18,13.74 18,22.28 11,26 M18,13.74 L26,18 26,18 18,22.28",  
+  playPath: "M11,10 L17,10 17,26 11,26 M20,10 L26,10 26,26 20,26",  
+  loadPath: "M8 15 12 15 12 19 8 19M15 15 19 15 19 19 15 19M22 15 26 15 26 19 22 19", 
+  speedArray: [0.5, 1, 1.2, 1.5, 2],
+  isSubtitle: false,
+  info: Array.apply(null, {length: listPodcasts.length || 1}).map(()=>{return {
+    visibility: true,
+    date: "",
+    article: "",
+    positionPercent: 0,
+    timeElapsedSeconds: 0,
+    timeElapsed: "00:00",
+    timeRemaining: "",
+    subtitles: { logic: undefined, actualText: "" },
+    delayWithStitching:0,
+    animation: { 
+      from: "M11,10 L18,13.74 18,22.28 11,26 M18,13.74 L26,18 26,18 18,22.28",
+      to: "M11,10 L18,13.74 18,22.28 11,26 M18,13.74 L26,18 26,18 18,22.28"},
+    chapters: [],
+    isChapterSectionOpen: false,
+    actualChapter:-1,
+    title: '',
+    scheduleInfo: "",
+  }}),
+  /** Variable play logic */
+  isAutoplayFirstPlay:true,
+  lastPlayIndex: 0,
+  proceedWithNext: true,
+  useVast: false,
+  state: Array.apply(null, {length: listPodcasts.length || 1}).map(()=>{return {
+    is_playing: false,
+    is_loaded: false,
+    paused: false,
+    audio: null,
+    video: null,
+    error: false,
+    init: false,
+    downloadId: undefined,
+    lastSendTime: 0,
+    timeToSend: 0,
+    notListenTime: 0,
+    speedIndex: 1,
+  }}),
+
+  /** Variable live */
+  live: Array.apply(null, {length: listPodcasts.length || 1}).map(()=>{return {
+    liveStatus: "",
+    isVideo: false, 
+    positionLivePercent: 0,
+    positionLiveTotal: 0,
+    timeBeforeLive: 0,
+    timerBeforeLive: undefined,
+    displayLiveCounter: "",
+    hls: undefined,
+    loading: false,
+    displayVideo: false,
+  }}),
+
+  
+  getTitle(i){
+    const baseTitle = $storeVast.ad[i].isAdPlaying ? $storeVast.titleAdvertising(i) : this.info[i].title;
+    if("RADIO"===miniplayerRequestParams.type && !radio){
+      return baseTitle + " " + this.info[i].scheduleInfo;
+    }
+    return baseTitle;
+  },
+  displayElapsedTime(i){
+    if($storeVast.ad[i].isAdPlaying){
+      return scriptHelpers.relativeTimeFormat(Math.round($storeVast.ad[i].currentTimeAd * 1000));
+    }
+    return this.info[i].timeElapsed;
+  },
+  displayTotalTime(i){
+    if($storeVast.ad[i].isAdPlaying){
+      return scriptHelpers.relativeTimeFormat(Math.round($storeVast.ad[i].currentDurationAd * 1000));
+    }
+    return this.info[i].timeRemaining;
+  },
+  displayPositionPercent(i){
+    if($storeVast.ad[i].isAdPlaying){
+      if (!$storeVast.ad[i].currentTimeAd) {
+        return 0;
+      }
+      return ($storeVast.ad[i].currentTimeAd * 100) / $storeVast.ad[i].currentDurationAd; 
+    }
+    return this.info[i].positionPercent;
+  },
+
+  source(i){
+    if (this.live[i].isVideo) {
+      return this.state[i].video;
+    }
+    return this.state[i].audio;
+  },
+  getDuration(i) {
+    if (Infinity === this.source(i).duration) {
+      const seekable = this.source(i).seekable;
+      const buffered = this.source(i).buffered;
+      if (seekable && Infinity!==seekable.end(seekable.length - 1)) {
+        return seekable.end(seekable.length - 1);
+      } else if(buffered && Infinity!==buffered.end(buffered.length - 1)) {
+        return buffered.end(buffered.length - 1);
+      }else{
+        return this.source(i).currentTime;
+      }
+    }
+    return this.source(i).duration;
+  },
+  getCurrentPlayed(){
+    let i = 0;
+    for (let index = 0; index < this.state.length; index++) {
+      if(!this.state[index].is_playing){
+        continue;
+      }
+      i = index;
+      break;
+    }
+    return i;
+  },
+});
+</script>
+
+</body>
+</html>

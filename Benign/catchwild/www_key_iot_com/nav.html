@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>nav.html</title>
+</head>
+<body>
+
+<script>
+$(function() {
+		
+		$.fn.extend({
+			Tabs: function(options) {
+				// 处理参数
+				options = $.extend({
+					event: 'mouseover',
+					timeout: 0,
+					auto: 0,
+					callback: null
+				}, options);
+				var self = $(this),
+					tabBox = self.children('div.tab_box').children('div'),
+					menu = self.children('ul.tab_menu'),
+					items = menu.find('li'),
+					timer;
+				var tabHandle = function(elem) {
+						elem.siblings('li').removeClass('current').end().addClass('current');
+						tabBox.siblings('div').addClass('hide').end().eq(elem.index()).removeClass('hide');
+					},
+					delay = function(elem, time) {
+						time ? setTimeout(function() {
+							tabHandle(elem);
+						}, time) : tabHandle(elem);
+					},
+					start = function() {
+						if(!options.auto) return;
+						timer = setInterval(autoRun, options.auto);
+					},
+					autoRun = function() {
+						var current = menu.find('li.current'),
+							firstItem = items.eq(0),
+							len = items.length,
+							index = current.index() + 1,
+							item = index === len ? firstItem : current.next('li'),
+							i = index === len ? 0 : index;
+						current.removeClass('current');
+						item.addClass('current');
+						tabBox.siblings('div').addClass('hide').end().eq(i).removeClass('hide');
+					};
+				items.bind(options.event, function() {
+					var index = $(this).index() + 1; // 获取当前点击项的索引
+					delay($(this), options.timeout);
+					baikeSwiper(index); // 调用 baikeSwiper 函数并传入索引
+					if(options.callback) {
+						options.callback(self);
+					}
+				});
+				if(options.auto) {
+					start();
+					self.hover(function() {
+						clearInterval(timer);
+						timer = undefined;
+					}, function() {
+						start();
+					});
+				}
+				return this;
+			}
+		});
+		const navLinks = document.querySelectorAll('.nav-menu ul li a');
+
+		function chagebg() {
+			$('.navtop').css({
+				'background': '#fff',
+				'border-bottom': '1px solid #999999'
+			});
+			$('.showlogo').css('display', 'none');
+			$('.defaultlg').css('display', 'none');
+			$('.languageclass').attr('style', 'color: #20c997!important;');
+			$('.chagedefaultlg').css('display', 'inline-block');
+			$('.dislogo').css('display', 'block');
+			$('.sanjiao1').css('display', 'none');
+			$('.sanjiao2').css('display', 'block');
+			$('.loginyun').attr('style', 'color: #000 !important;');
+			// 遍历所有元素,并设置样式
+			navLinks.forEach(link => {
+				link.style.setProperty('color', '#000', 'important');
+			});
+		}
+
+		function tip(overClass, tipClass) {
+			function getEvent(event) { //获取事件对象
+				return event ? event : window.event;
+			}
+
+			function getRelatedTarget(event) { //获取相关对象
+				if(event.relatedTarget) {
+					return event.relatedTarget;
+				} else if(event.toElement) {
+					return event.toElement;
+				} else if(event.fromElement) {
+					return event.fromElement;
+				} else {
+					return null;
+				}
+			}
+
+			function getElementsByClass(searchClass, node, tag) {
+				var classElements = new Array();
+				if(node == null) node = document;
+				if(tag == null) tag = '*';
+				var els = node.getElementsByTagName(tag);
+				var elsLen = els.length;
+				var pattern = new RegExp("(^|\\s)" + searchClass + "(\\s|$)");
+				for(i = 0, j = 0; i < elsLen; i++) {
+					if(pattern.test(els[i].className)) {
+						classElements[j] = els[i];
+						j++;
+					}
+				}
+				return classElements;
+			}
+			var overArray = getElementsByClass(overClass),
+				tipArray = getElementsByClass(tipClass),
+				len = overArray.length;
+			for(var i = 0; i < len; i++) {
+				(function(i) {
+					overArray[i].onmouseover = function() { //鼠标经过
+						tipArray[i].style.display = 'block';
+					}
+					overArray[i].onmouseout = function(event) { //鼠标移出经过区
+						event = getEvent(event);
+						var relatedTarget = getRelatedTarget(event);
+						if(relatedTarget.className == tipClass) {
+							tipArray[i].style.display = 'block';
+						} else {
+							tipArray[i].style.display = 'none';
+						}
+					}
+					tipArray[i].onmousemove = function() { //鼠标移动tip区
+						tipArray[i].style.display = 'block';
+					}
+					tipArray[i].onmouseout = function() { //鼠标移出tip区
+						tipArray[i].style.display = 'none';
+					}
+				})(i)
+			}
+		}
+		tip('nav-tip', 'tip');
+
+		function initSwiper(tabElement) {
+			var swiperContainer = tabElement.querySelector('.swiper-container');
+			if(swiperContainer) {
+				new Swiper(swiperContainer, {
+					// Swiper 配置选项
+					autoplay: true,
+					// ...
+				});
+			}
+		}
+		var mySwiper = new Swiper('.swiper-container', {
+			direction: 'horizontal',
+			loop: true,
+			speed: 6000,
+			autoplay: {
+				delay: 7000,
+				disableOnInteraction: false
+			},
+			// 如果需要分页器
+			pagination: {
+				el: '.swiper-pagination',
+				clickable: true,
+			},
+			// 如果需要前进后退按钮
+			navigation: {
+				nextEl: '.swiper-button-next',
+				prevEl: '.swiper-button-prev',
+			},
+		})
+		var listd = document.querySelectorAll("#top a");
+		for(var i = 0; i < listd.length; i++) {
+			(function(i) {
+				listd[i].onclick = function() {
+					//把其他的都给取消了
+					for(var j = 0; j < listd.length; j++) {
+						listd[j].className = "";
+					}
+					//选定当前的123
+					this.className = "active1";
+				}
+			})(i)
+		}
+		$('.tagshover').mouseover(function() {
+			$(this).addClass('pulse');
+		});
+		$('.tagshover').mouseout(function() {
+			$(this).removeClass('pulse');
+		});
+		// 二级产品导航
+		
+		
+		$('.headproducts').mouseleave(function(){
+		   $('.navproduct-img').css('display','none');
+		})
+		$('.oneproduct').mouseenter(function() {
+			// 隐藏所有激活产品的区域
+			var targetValue = $(this).data('target');
+		
+			// 找到对应class的元素的第一个p标签内的img，并设置其display为block
+			$('.' + targetValue + ' p:first img').css('display', 'block');
+			$('.activeproduct').addClass("disnone");
+			// 移除所有产品的"active"类
+			$('.oneproduct').removeClass("active");
+			// 为当前产品添加"active"类
+			$(this).addClass("active");
+			// 显示当前激活的产品区域
+			$('.' + $(this).data('target')).removeClass("disnone");
+			$('.activeproduct1 p:first,.activeproduct2 p:first,.activeproduct3 p:first,.activeproduct4 p:first,.activeproduct5 p:first').addClass('active2-news').siblings().removeClass('active2-news');
+		});
+		$('.oneproduct').mouseleave(function() {
+			// 隐藏所有激活产品的区域
+			$(this).removeClass("active");
+			$('.newactive a :first img').css('display', 'block');
+			$('.activeproduct1 p:first,.activeproduct2 p:first,.activeproduct3 p:first,.activeproduct4 p:first,.activeproduct5 p:first').removeClass('active2-news');
+		});
+		//   导航变化样式
+		$('.navtop').mouseenter(function() {
+			chagebg()
+		});
+		$('.navtop').mouseleave(function() {
+			$(this).css({
+				'background': 'rgba(255, 255, 255, 0.05)', // 半透明白色
+			});
+			$('.defaultlg').css('display', 'inline-block');
+			$('.languageclass').attr('style', 'color: #fff!important;');
+			
+			$('.chagedefaultlg').css('display', 'none');
+			$('.loginyun').attr('style', 'color: #fff !important;');
+			$('.navtop').css('border', 'none');
+			$('.showlogo').css('display', 'block');
+			$('.dislogo').css('display', 'none');
+			$('.topnavchild').find('.sanjiao3').css('display', 'none');
+			$('.topnavchild').find('.sanjiao2').css('display', 'none');
+			$('.topnavchild').find('.sanjiao1').css('display', 'block');
+			navLinks.forEach(link => {
+				link.style.setProperty('color', '#fff', 'important');
+			});
+		})
+		$('.tip').mouseleave(function() {
+			$('.topnavchild').find('.sanjiao1').css('display', 'block');
+			$('.topnavchild').find('.sanjiao2').css('display', 'none');
+			$('.topnavchild').find('.sanjiao3').css('display', 'none');
+			$('.navtop').css({
+				'background': 'rgba(255, 255, 255, 0.05)', // 半透明白色
+				'border': 'none'
+			});
+			$('.showlogo').css('display', 'block');
+			$('.dislogo').css('display', 'none');
+			//  $('.sanjiao').css('display','inline-block');
+			// $('.sanjiaohover').css('display','none');
+			navLinks.forEach(link => {
+				link.style.setProperty('color', '#fff', 'important');
+			});
+		})
+		$('.tip').mouseenter(function() {
+			chagebg();
+			$('.navtop').css({
+				'background': '#fff',
+			});
+			$('.showlogo').css('display', 'none');
+			$('.dislogo').css('display', 'block');
+			// $('.topnavchild').find('.sanjiao3').css('display','block');
+			// $('.topnavchild').find('.sanjiao2').css('display','none');
+			// $('.topnavchild').find('.sanjiao1').css('display','none');
+			// 遍历所有元素,并设置样式
+			navLinks.forEach(link => {
+				link.style.setProperty('color', '#000', 'important');
+			});
+		});
+		$('.newactive').each(function() {
+			// 获取每个元素内部的img标签
+			const $img = $(this).find('img');
+			// 检查img是否存在
+			if($img.length > 0) {
+				// 初始状态隐藏img
+				$img.hide();
+				// 绑定鼠标悬停事件
+				$(this).mouseenter(function() {
+					// 移除所有.newactive元素的active类
+					$(this).siblings().removeClass('active2-news');
+					// 当前鼠标悬停的.newactive元素添加active类
+					$(this).siblings().find('img').hide();
+					$(this).addClass('active2-news');
+					// 鼠标悬停时显示img
+					$img.show();
+				});
+				// 绑定鼠标离开事件
+				// $(this).mouseleave(function() {
+				//     // 鼠标离开时隐藏img
+				//     $img.hide();
+				// });
+			}
+		});
+		$('.show-product-btn').mouseenter(function() {
+			// 获取data-target属性值
+			$('.show-product-btn').removeClass('active');
+			$(this).addClass('active');
+			var target = $(this).data('target');
+			// 检查是否已经处理过data-target为"activeproduct13"的情况
+			if(target === 'activeproduct13' && !$(this).data('handled')) {
+				// 标记为已处理
+				$(this).data('handled', true);
+				$('.pruductnavtwo p:first').addClass('active');
+				// 为.activeproduct1内的第一个p标签内的a添加active类
+				$('.activeproduct1 p:first').addClass('active2-news');
+				// 将.activeproduct1内的第一个p标签内的img设置为display: block
+				$('.activeproduct1 p:first img').css('display', 'block');
+			}
+		});
+		$('.show-product-btn').mouseleave(function() {
+			var target = $(this).data('target');
+			if(target == "activeproduct12") {
+				$('.show-product-btn').removeClass('active');
+				$('.navtop').css('border', 'none');
+			}
+		});
+		$('.tip').mouseleave(function() {
+			$('.show-product-btn').removeClass('active');
+			$('.loginyun').attr('style', 'color: #fff !important;');
+		})
+		$('.indexclass').hover(function() {
+			$('.show-product-btn').removeClass('active');
+			$(this).addClass('active');
+			$('.navtop').css('border', 'none');
+		}, function() {
+			$('.show-product-btn').removeClass('active');
+			$(this).removeClass('active');
+			$('.navtop').css('border', 'none');
+		})
+		$('.topnavchild').mouseenter(function(event) {
+			event.stopPropagation();
+			chagebg();
+			$(this).siblings().removeClass('active');
+			$(this).find('.sanjiao1').css('display', 'none');
+			$(this).find('.sanjiao2').css('display', 'none');
+			$(this).find('.sanjiao3').css('display', 'block');
+		});
+		$('.topnavchild').mouseleave(function(event) {
+			event.stopPropagation();
+			$(this).find('.sanjiao2').css('display', 'block');
+			$(this).find('.sanjiao3').css('display', 'none');
+		});
+		//   产品选项卡
+		//选项卡切换
+		$('.category ul li').click(function() {
+				indexC = $(this).index();
+				$(this).addClass('active').siblings().removeClass('active');
+				$('.cont').eq(indexC).addClass('active').siblings().removeClass('active');
+				var num = indexC + 1;
+				createSwiper(num);
+			})
+			//按钮箭头
+		var catew = $('.category').width() - 150;
+		var cateLiw = 0;
+		$('.category ul li').each(function() {
+			cateLiw += $(this).outerWidth();
+		})
+		var i = 0;
+		$('.ceshitexiao1').mouseover(function() {
+			$('.ceshitexiao2').css('display', 'none');
+			$('.ceshitexiao3').css('display', 'block');
+		});
+		$('.ceshitexiao1').mouseout(function() {
+			$('.ceshitexiao2').css('display', 'block');
+			$('.ceshitexiao3').css('display', 'none');
+		});
+		$('.texiaopg').mouseover(function() {
+			$('.texiaopg1').css('display', 'none');
+			$('.texiaopg2').css('display', 'block');
+		});
+		$('.texiaopg').mouseout(function() {
+			$('.texiaopg1').css('display', 'block');
+			$('.texiaopg2').css('display', 'none');
+		});
+		$('.texiaold').mouseover(function() {
+			$('.texiaold1').css('display', 'none');
+			$('.texiaold2').css('display', 'block');
+		});
+		$('.texiaold').mouseout(function() {
+			$('.texiaold1').css('display', 'block');
+			$('.texiaold2').css('display', 'none');
+		});
+		$('.yangji').mouseover(function() {
+			$('.yangji1').css('display', 'none');
+			$('.yangji2').css('display', 'block');
+		});
+		$('.yangji').mouseout(function() {
+			$('.yangji1').css('display', 'block');
+			$('.yangji2').css('display', 'none');
+		});
+		$('.chanliang').mouseover(function() {
+			$('.chanliang1').css('display', 'none');
+			$('.chanliang2').css('display', 'block');
+		});
+		$('.chanliang').mouseout(function() {
+			$('.chanliang1').css('display', 'block');
+			$('.chanliang2').css('display', 'none');
+		});
+		$('.imgkaifa').mouseover(function() {
+			$(this).addClass('tada');
+		});
+		$('.imgkaifa').mouseout(function() {
+			$(this).removeClass('tada');
+		});
+		$('.jishuson').mouseover(function() {
+			$(this).addClass('pulse');
+		});
+		$('.jishuson').mouseout(function() {
+			$(this).removeClass('pulse');
+		});
+		$('.tagshover').mouseover(function() {
+			$(this).addClass('pulse');
+		});
+		$('.tagshover').mouseout(function() {
+			$(this).removeClass('pulse');
+		});
+		$('.hover-bigbox').mouseover(function() {
+			$(this).children('.hover-smallbox').addClass('index-pic-text');
+		});
+		$('.hover-bigbox').mouseout(function() {
+			$(this).children('.hover-smallbox').removeClass('index-pic-text');
+		});
+	})
+	//图片滚动列表 5icool.org
+var Speed = 1; //速度(毫秒)
+var Space = 5; //每次移动(px)
+var PageWidth = 528; //翻页宽度
+var fill = 0; //整体移位
+var MoveLock = false;
+var MoveTimeObj;
+var Comp = 0;
+var AutoPlayObj = null;
+GetObj("List2").innerHTML = GetObj("List1").innerHTML;
+GetObj('ISL_Cont').scrollLeft = fill;
+GetObj("ISL_Cont").onmouseover = function() {
+	clearInterval(AutoPlayObj);
+}
+GetObj("ISL_Cont").onmouseout = function() {
+	AutoPlay();
+}
+AutoPlay();
+
+function GetObj(objName) {
+	if(document.getElementById) {
+		return eval('document.getElementById("' + objName + '")')
+	} else {
+		return eval('document.all.' + objName)
+	}
+}
+
+function AutoPlay() { //自动滚动
+	clearInterval(AutoPlayObj);
+	AutoPlayObj = setInterval('ISL_GoDown();ISL_StopDown();', 3000); //间隔时间
+}
+
+function ISL_GoUp() { //上翻开始
+	if(MoveLock) return;
+	clearInterval(AutoPlayObj);
+	MoveLock = true;
+	MoveTimeObj = setInterval('ISL_ScrUp();', Speed);
+}
+
+function ISL_StopUp() { //上翻停止
+	clearInterval(MoveTimeObj);
+	if(GetObj('ISL_Cont').scrollLeft % PageWidth - fill != 0) {
+		Comp = fill - (GetObj('ISL_Cont').scrollLeft % PageWidth);
+		CompScr();
+	} else {
+		MoveLock = false;
+	}
+	AutoPlay();
+}
+
+function ISL_ScrUp() { //上翻动作
+	if(GetObj('ISL_Cont').scrollLeft <= 0) {
+		GetObj('ISL_Cont').scrollLeft = GetObj('ISL_Cont').scrollLeft + GetObj('List1').offsetWidth
+	}
+	GetObj('ISL_Cont').scrollLeft -= Space;
+}
+
+function ISL_GoDown() { //下翻
+	clearInterval(MoveTimeObj);
+	if(MoveLock) return;
+	clearInterval(AutoPlayObj);
+	MoveLock = true;
+	ISL_ScrDown();
+	MoveTimeObj = setInterval('ISL_ScrDown()', Speed);
+}
+
+function ISL_StopDown() { //下翻停止
+	clearInterval(MoveTimeObj);
+	if(GetObj('ISL_Cont').scrollLeft % PageWidth - fill != 0) {
+		Comp = PageWidth - GetObj('ISL_Cont').scrollLeft % PageWidth + fill;
+		CompScr();
+	} else {
+		MoveLock = false;
+	}
+	AutoPlay();
+}
+
+function ISL_ScrDown() { //下翻动作
+	if(GetObj('ISL_Cont').scrollLeft >= GetObj('List1').scrollWidth) {
+		GetObj('ISL_Cont').scrollLeft = GetObj('ISL_Cont').scrollLeft - GetObj('List1').scrollWidth;
+	}
+	GetObj('ISL_Cont').scrollLeft += Space;
+}
+
+function CompScr() {
+	var num;
+	if(Comp == 0) {
+		MoveLock = false;
+		return;
+	}
+	if(Comp < 0) { //上翻
+		if(Comp < -Space) {
+			Comp += Space;
+			num = Space;
+		} else {
+			num = -Comp;
+			Comp = 0;
+		}
+		GetObj('ISL_Cont').scrollLeft -= num;
+		setTimeout('CompScr()', Speed);
+	} else { //下翻
+		if(Comp > Space) {
+			Comp -= Space;
+			num = Space;
+		} else {
+			num = Comp;
+			Comp = 0;
+		}
+		GetObj('ISL_Cont').scrollLeft += num;
+		setTimeout('CompScr()', Speed);
+	}
+}
+
+function showProPub(img, pro, cursel, n, imgNum) {
+	for(i = 1; i <= n; i++) {
+		var imglist = document.getElementById("img" + imgNum + i);
+		var prolist = document.getElementById("pro" + imgNum + i);
+		var menulist = document.getElementById("menu" + imgNum + i);
+		if(imglist) {
+			imglist.className = i == cursel ? "col-md-4 mb-4" : "col-md-4 mb-4 contab";
+		}
+		if(prolist) {
+			prolist.className = i == cursel ? "col-md-8 pr-0" : "col-md-5 pr-0 contab";
+		}
+		//background-color: #19C2A5 !important;
+		//menulist.style.backgroundColor="#19C2A5 !important";
+		if(menulist) {
+			menulist.className = i == cursel ? " col-md-2 col-sm-6 col-6 fl pl-0 pr-0 text-center mb-3 index-content-tabs  active2  text-white" : " col-md-2 col-sm-6 col-6 fl pl-0 pr-0  text-center mb-3 index-content-tabs ";
+			menulist.getElementsByTagName("a")[0].className = i == cursel ? " pointer img-rounded  pr-2 pb-2 pt-2 pl-2 ayt" : " pointer pr-2 pb-2 pt-2 pl-2 img-rounded  ayt";
+			//menulist.getElementsByTagName("a").className=i==cursel?"text-seagreen":"text-white";
+		}
+	}
+}
+
+function showPro(img, pro, cursel, n) {
+	showProPub(img, pro, cursel, n, "");
+}
+
+function showPro2(img, pro, cursel, n) {
+	showProPub(img, pro, cursel, n, "2");
+}
+
+function showPro3(img, pro, cursel, n) {
+	showProPub(img, pro, cursel, n, "3");
+}
+
+function showPro4(img, pro, cursel, n) {
+	showProPub(img, pro, cursel, n, "4");
+}
+
+function showPro5(img, pro, cursel, n) {
+	showProPub(img, pro, cursel, n, "5");
+}
+
+function showPro6(img, pro, cursel, n) {
+	showProPub(img, pro, cursel, n, "6");
+}
+var listd = document.querySelectorAll("#top a");
+for(var i = 0; i < listd.length; i++) {
+	(function(i) {
+		listd[i].onclick = function() {
+			//把其他的都给取消了
+			for(var j = 0; j < listd.length; j++) {
+				listd[j].className = "";
+			}
+			//选定当前的
+			this.className = "active1";
+		}
+	})(i)
+
+	function createSwiper(index) {
+		var swiper = new Swiper('.swiper-container' + index, {
+			direction: 'horizontal',
+			loop: true,
+			speed: 1500,
+			autoplay: {
+				delay: 3500,
+				disableOnInteraction: false
+			},
+			// 如果需要分页器
+			pagination: {
+				el: '.swiper-pagination' + index,
+				clickable: true,
+			},
+			// 如果需要前进后退按钮
+			navigation: {
+				nextEl: '.swiper-button-next' + index,
+				prevEl: '.swiper-button-prev' + index,
+			},
+			on: {
+				slideChangeTransitionStart: function() {
+					const activeSlide = this.slides[this.activeIndex];
+					const textElements = activeSlide.querySelectorAll('p');
+					const applyProduct = activeSlide.querySelector('.apply-product');
+					textElements.forEach(element => {
+						element.classList.remove('animated', 'fadeInDown', 'wow');
+						element.style.opacity = 0;
+						element.style.removeProperty('-webkit-text-fill-color');
+					});
+					if(applyProduct) {
+						applyProduct.classList.remove('animated', 'fadeInDown', 'wow');
+						applyProduct.style.display = 'none'; // 添加这一行
+					}
+				},
+				slideChangeTransitionEnd: function() {
+					const activeSlide = this.slides[this.activeIndex];
+					const textElements = activeSlide.querySelectorAll('p');
+					const applyProduct = activeSlide.querySelector('.apply-product');
+					textElements.forEach(element => {
+						element.classList.add('animated', 'fadeInDown', 'wow');
+						element.style.opacity = 1;
+						element.style.setProperty('-webkit-text-fill-color', '#ffff', 'important');
+					});
+					if(applyProduct) {
+						applyProduct.classList.add('animated', 'fadeInDown', 'wow');
+						applyProduct.style.display = 'block'; // 添加这一行
+					}
+				},
+			},
+		});
+		return swiper;
+	}
+	var wow = new WOW({
+		boxClass: 'wow',
+		animateClass: 'animated',
+		offset: 0,
+		mobile: true,
+		live: true
+	});
+	wow.init();
+	$(".poster-main").Carousel({
+		"width": 800,
+		"height": 450,
+		"posterWidth": 300,
+		"posterHeight": 407,
+		"scale": 0.85,
+		"speed": 500,
+		"autoPlay": false,
+		"delay": 1500,
+		"verticalAlign": "middle"
+	});
+
+	function toselect() {
+		window.location.href = "https://www.key-iot.com/select/"
+	}
+	$('.hoverclass').mouseenter(function() {
+		$(this).find('img').addClass('animated tada');
+	});
+	$('.hoverclass').mouseleave(function() {
+		$(this).find('img').removeClass('animated tada');
+	});
+	$("#weixin").mouseenter(function() {
+		$("#wxpiccompny").show();
+	});
+	$("#weixin").mouseleave(function() {
+		$("#wxpiccompny").hide();
+	});
+}
+
+function openpkPage() {
+	window.location.href = "https://www.key-iot.com/comparison/";
+}
+
+function toselect() {
+	window.location.href = "https://www.key-iot.com/select/"
+}
+$('.hoverclass').mouseenter(function() {
+	$(this).find('img').addClass('animated tada');
+});
+$('.hoverclass').mouseleave(function() {
+	$(this).find('img').removeClass('animated tada');
+});
+$("#weixin").mouseenter(function() {
+	$("#wxpiccompny").show();
+});
+$("#weixin").mouseleave(function() {
+	$("#wxpiccompny").hide();
+});
+//ajax提交表单
+function subform(obj) {
+	var url = '{pboot:form fcode=2}';
+	var tel = $(obj).find("#tel").val();
+	var reg = /^(1|0)[\d\-]+$/;
+	if(!reg.test(tel)) {
+		alert('电话号码错误！');
+		return false;
+	}
+	$.ajax({
+		type: 'POST',
+		url: url,
+		dataType: 'json',
+		data: {
+			tel: tel
+		},
+		success: function(response, status) {
+			if(response.code) {
+				alert("您的来电已收到，我们会尽快联系您！");
+				$(obj)[0].reset();
+			} else {
+				alert(response.data);
+			}
+		},
+		error: function(xhr, status, error) {
+			alert('返回数据异常！');
+		}
+	});
+	return false;
+}
+
+function mouseOver() {
+	document.image2.src = "{pboot:sitetplpath}/images/support/style-1.png"
+}
+
+function mouseOut() {
+	document.image2.src = "{pboot:sitetplpath}/images/support/style.png"
+}
+// import FluentRevealEffect from "../lib/js/main";
+
+// console.log(FluentRevealEffect)
+
+
+
+</script>
+
+</body>
+</html>

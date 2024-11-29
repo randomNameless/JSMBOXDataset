@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>hg.html</title>
+</head>
+<body>
+
+<script>
+/* COPYRIGHT 2012-2022 HELLO GURUS - All Rights Reserved */
+(function() {
+window.HG = {
+
+  /* HG.debug
+  value: true / false
+  If false, HG.log doesn't generate HG.log
+  */
+	debug : true,
+
+  /* HG.ready
+  value: true / false
+  HG.int set it to TRUE on DOM ready
+  */
+	ready: false,
+
+  /* HG.ie
+  value: integer
+  Internet Explorer version. Set by HG.init if running Internet Explorer
+  */
+	ie : 0,
+
+  /* HG.w
+  value: integer
+  cressbrowser window.innerWidth - defined by HG.getViewport
+  */
+	w : 0,
+
+  /* HG.h
+  value: integer
+  cressbrowser window.innerHeight - defined by HG.getViewport
+  */
+	h : 0,
+
+  /* HG.ajaxTimeoutVal
+  value: integer (milliseconds)
+  Used by HG.ajax as a timeout limit - default is 30 secondes
+  */
+	ajaxTimeoutVal : 30000,
+
+  /* HG.log
+  input :   anything
+  output :  none
+  Performs a HG.log() is the browser supports it, and HG.debug is TRUE
+  */
+	log : 	function(a)	{ if(window.console!==undefined && HG.debug){console.log(a);} return;},
+
+  /* HG.gbi
+  input :   string (DOM element ID value)
+  output :  DOM element
+  Shortcut to document.getElementById
+  */
+	gbi : 	function(a)	{ return document.getElementById(a);},
+
+  /* HG.gbtn
+  input :   string (tag element reference)
+  output :  Array
+  Shortcut to document.getElementsByTagName
+  */
+	gbtn : 	function(a,b)	{ var c=(b)?HG.gbi(b):document;return c.getElementsByTagName(a); },
+
+  /* HG.gbcn
+  input :   a: string (classname reference) b: string (DOM element ID value)
+  output :  Array
+  Shortcut to document.getElementsByClassName. Second param is the element to limit the selection to - default is document.
+  */
+	gbcn : 	function(a,b)	{
+	  var c;
+	  if(document.getElementsByClassName) {
+  	  c=(b)?HG.gbi(b):document;return c.getElementsByClassName(a);
+  	} else {
+  	  c=(b)?this.gbi(b):document;
+  	  var cn = a.replace(/^ */, '');
+      var classes = cn.split(/ +/), clength = classes.length;
+      var els = c.getElementsByTagName('*'), elength = els.length;
+      var results = [];
+      var i, j, match;
+      for(i = 0; i < elength; i++)
+      {
+          match = true;
+          for(j = clength; j--;) {
+              if(!RegExp(' ' + classes[j] + ' ').test(' ' + els[i].className + ' '))
+                  match = false;
+          }
+          if(match)
+              results.push(els[i]);
+      }
+      return results;
+  	}
+	},
+
+  /* HG.init
+  input :   none
+  output :  none
+  Performs a couple of tests & modifications to the DOM. The sooner loaded, the better!!
+  - changes 'nojs' classname of HTML element to 'js'
+  - adds WindowsPhone8 -ms-viewport hack
+  - register window resize events (onresize or onorientation)
+  - adds 'css3' classname of HTML element if css3 is supported
+  - set HG.ie to the Internet Explorer version
+  - Loads HG.getViewport
+  - set HG.ready to true
+  - triggers HG.handleOnLoadCallback
+  */
+	init : function()
+	{
+	  setTimeout(function() {
+      HG.log('HG init');
+      HG.changeCN(document.getElementsByTagName('html')[0],'nojs','js');
+      ('orientationchange' in window)?HG.addEvent(window, 'orientationchange', HG.handleResizeCallback):HG.addEvent(window, 'resize', HG.handleResizeCallback);
+      HG.getViewport();
+
+// DEAL WITH IE
+      var ie=navigator.userAgent.match(/MSIE ([0-9.]{2})/g);
+      HG.ie=(ie)?ie[0].replace(/[^0-9]/g,''):0;
+      HG.css3=(HG.ie!=0 && HG.ie<10)?false:true;
+
+	  function testIfLoaded() {
+        HG.log('testIfLoaded');
+        if(document.body) {
+          HG.ready=true;
+          HG.handleOnLoadCallback();
+        } else {
+          setTimeout(testIfLoaded,10);
+        }
+      }
+      testIfLoaded();
+
+    }, 100);
+	},
+
+  /* HG.handleOnLoadCallback
+  input :   none
+  output :  none
+  Calls the function called 'onLoadCallback'. To be used as a DOMREADY callback.
+  */
+	handleOnLoadCallback : function() {
+		if(typeof onLoadCallback != 'undefined') {
+			onLoadCallback();
+		} else {
+			setTimeout(HG.handleOnLoadCallback, 200);
+		}
+	},
+
+  /* HG.handleResizeCallback
+  input :   none
+  output :  none
+  Anytime a resize event is triggered, it calls HG.getViewport + a function called 'handleResizeCallback' (if you have one in your code)
+  */
+	handleResizeCallback : function() {
+		HG.getViewport();
+		if(typeof handleResizeCallback == 'function')
+			handleResizeCallback();
+	},
+
+  /* HG.touchEvent
+  input :   none
+  output :  string
+  Detect browser touch event support
+  */
+	touchEvent : function() {
+	  return (window.navigator.msPointerEnabled)?'mspointer':('ontouchstart' in window)?'touch':'none';
+	},
+
+  /* HG.getViewport
+  input :   none
+  output :  Object
+  Crossbrowser window.innerWidth/innerHeight. Set HG.w & HG.h, and returns an object with 'w' & 'h'
+  */
+	getViewport : function() {
+		HG.w = (document.documentElement)?document.documentElement.clientWidth:window.innerWidth;
+		HG.h = (document.documentElement)?document.documentElement.clientHeight:window.innerHeight;
+		if( ((navigator.userAgent.indexOf('iPhone')>-1) || (navigator.userAgent.indexOf('iPod')>-1)) )
+      HG.h += 60;
+		else if( ((navigator.userAgent.indexOf('BlackBerry')>-1) && (navigator.userAgent.indexOf('AppleWebKit')>-1)) )
+      HG.h += 40;
+		return {'w':HG.w,'h':HG.h};
+	},
+
+
+  /* HG.getDocumentHeight
+  input :   none
+  output :  integer
+  Crossbrowser document total height
+  */
+	getDocumentHeight : function() {
+		return Math.max(document.body.scrollHeight, document.documentElement.scrollHeight, document.body.offsetHeight, document.documentElement.offsetHeight, document.body.clientHeight, document.documentElement.clientHeight);
+	},
+
+  /* HG.scrollTop
+  input :   none
+  output :  integer
+  Crossbrowser window.pageYOffset
+  */
+	scrollTop : function() {
+	  return (window.pageYOffset)?window.pageYOffset:(document.documentElement)?document.documentElement.scrollTop:(document.scrollTop)?document.scrollTop:null;
+	},
+
+  /* HG.addEvent
+  input :   none
+  output :  none
+  Crossbrowser addEventListener
+  */
+	addEvent : function(el,ev,cb)
+	{
+		if (el.addEventListener) {
+			el.addEventListener(ev, cb, false);
+		} else if (el.attachEvent) {
+			el['e' + ev + cb] = cb;
+			el[ev + cb] = function() {
+				el['e' + ev + cb](window.event);
+			};
+			el.attachEvent('on' + ev, el[ev + cb]);
+		}
+		return;
+	},
+
+  /* HG.hasCN
+  input :   a: DOM element | b: string
+  output :  true / false
+  Test if DOM element (a) has a classname (b)
+  */
+	hasCN: function(a, b)
+	{
+		// a: element
+		// b: classname
+		if(a && b) {
+			var re = new RegExp("(^|\\s)"+b+"($|\\s)");
+			return (re.exec(a.getAttribute("class")) != null);
+		}
+		else return false;
+	},
+
+  /* HG.addCN
+  input :   a: DOM element | b: string
+  output :  true / false
+  Adds a classname (b) to a DOM element (a)
+  */
+	addCN: function(a, b)
+	{
+		// a: element
+		// b: classname
+		if (a && !this.hasCN(a,b)) a.className += " "+b;
+	},
+
+  /* HG.changeCN
+  input :   a: DOM element | b: string | c: string
+  output :  true / false
+  Changes a classname (b) to a DOM element (a) by a new given classname (c)
+  */
+	changeCN: function(a, b, c)
+	{
+		var d = (c!=null)?c:'';
+		if (this.hasCN(a,b)) {
+			var reg = new RegExp('(\\s|^)'+b+'(\\s|$)');
+			a.className=a.className.replace(reg,' '+d+' ');
+		}
+	},
+
+  /* HG.limitLen
+  input :   a: DOM element ID value
+  output :  none
+  Check maxlength attribute value & force the limitation
+  */
+	limitLen : function(a)
+	{
+		var nb = HG.gbi(a).value.length;
+		var b = HG.gbi(a);
+		var limit = parseInt(b.getAttribute('maxlength'));
+
+		if(nb>limit) {
+			var txt = b.value.substr(0,l);
+			nb=limit;
+		} else
+			var txt = b.value;
+		b.value	= txt;
+	},
+
+  /* HG.numOnly
+  input :   a: DOM element ID value
+  output :  none
+  Keeps only numbers in an input value
+  */
+	numOnly : function(id) {
+		var a = HG.gbi(id);
+		if(a.value) {
+			a.value = a.value.replace(/[^\d.]/g, "");
+		}
+	},
+
+/* HG.isPhoneValid
+input :   string
+output :  true / false
+Test if a phone number is valid
+*/
+	isPhoneValid : function(id) {
+		var el = HG.gbi(id);
+		if(el.value.search(/^[0-9+]{1,16}$/)!=0) {
+			el.value = el.value.replace(/[^0-9+]/g,'');
+		}
+	},
+
+  /* HG.isEmailValid
+  input :   string
+  output :  true / false
+  Test if an email address is valid
+  */
+	isEmailValid : function(s) {
+		var a = s.search(/^[\w][\w\._\-]*@(?:[\w]+\.?)*[\w][\w\._\-]*\.[a-zA-Z]{2,4}$/);
+		return (a==0)?true:false;
+	},
+
+  /* HG.isZipcodeValid
+  input :   string
+  output :  true / false
+  Test if a ZipCode address is valid (french ZIP only)
+  */
+	isZipcodeValid : function(s) {
+		if( (s.toLowerCase()=='2a' || s.toLowerCase()=='2b') || ((s.match(/^[0-9]{5}$/)!=null) && (s.substr(0,2)!='00')) )
+			return true;
+		else
+			return false;
+	},
+
+  /* HG.innerText
+  input :   a: DOM element | b: string
+  output :  none
+  crossbrowser innerText (thx Firefox!)
+  */
+	innerText : function(a, b) {
+		if(document.all)
+			a.innerText = b;
+		else
+			a.textContent = b;
+	},
+
+  /* HG.urlFriendly
+  input :   string
+  output :  string
+  Returns the same string without all URL sensitive caracters
+  */
+	urlFriendly : function(a) {
+
+        var s			= (a.toLowerCase()).replace(/^\s+|\s+$/g,'');
+		s = s.split(".").join("");
+        var f = ["ç","æ" ,"á","é","í","ó","ú","à","è","ì","ò","ù","ä","ë","ï","ö","ü","ÿ","â","ê","î","ô","û","å","e","i","ø","u",'“','”','&','#','.'];
+        var r = ["c","ae","a","e","i","o","u","a","e","i","o","u","a","e","i","o","u","y","a","e","i","o","u","a","e","i","o","u",'','','','',''];
+        for(var i=0,inb=f.length;i<=inb;i++) { s = s.replace(f[i], r[i]); }
+        s = HG.entitiesdecode(s);
+        s = s.replace(/\s+/g, '-');
+        return s;
+	},
+
+  /* HG.entitiesdecode
+  input :   string
+  output :  string
+  HTML entities decoder
+  */
+	entitiesdecode : function(s) {
+		s = s.replace(/&acute;/g,'');
+		s = s.replace(/&#224;/g,'');
+		s = s.replace(/&#233;/g,'');
+		s = s.replace(/&#234;/g,'');
+		s = s.replace(/&#235;/g,'');
+		s = s.replace(/&#238;/g,'');
+		s = s.replace(/&#239;/g,'');
+		s = s.replace(/&#244;/g,'');
+		s = s.replace(/&#246;/g,'');
+		s = s.replace(/&#249;/g,'');
+		s = s.replace(/&#251;/g,'');
+		s = s.replace(/&#252;/g,'');
+		return s;
+	},
+
+  // SHOULD BE REMOVED
+	maxLength : function(a)
+	{ HG.limitLength(a); },
+
+
+
+// BUILD EMAIL ADDRESS FROM A OBFUSCATE STRING USED BY HG_emailEncode()
+	emailDecode : function( element ) {
+
+		var pattern		= 'azertyuiopmlkjhgfdsqwxcvbnAZERTYUIOPMLKJHGFDSQWXCVBN@.-_0123456789',
+			obfpattern	= '0123456789azertyuiopmlkjhgfdsqwxcvbnAZERTYUIOPMLKJHGFDSQWXCVBN@.-_';
+
+		var links = HG.gbtn('a', element);
+		for(var i=0,inb=links.length;i<inb;i++)
+		{
+			var href = links[i].getAttribute('href');
+			if(links[i].getAttribute('data-obfuscate') && href.substr(0,6)=='mailto')
+			{
+				var email='';
+				for(var a=7,anb=(href.length-1);a<anb;a++) {
+					var letterpos = pattern.indexOf(href[a]);
+					email += obfpattern[letterpos];
+				}
+				email = email.split("").reverse().join("");
+				links[i].setAttribute('href','mailto:'+email);
+				links[i].removeAttribute('data-obfuscate');
+				links[i].innerHTML = email;
+			}
+
+		}
+    },
+
+
+/* HG.ce - create element
+input :   obj
+output :  a DOM element
+Create & return a DOM element with its params
+*/
+	ce : function(obj) {
+		var el = false, tag, att;
+		for (tag in obj) {
+			if (obj[tag].hasOwnProperty) {
+				el = document.createElement(tag);
+				for (att in obj[tag]) {
+					if (obj[tag][att].hasOwnProperty) {
+						if (typeof obj[tag][att] === 'string') {
+							el.setAttribute(att, obj[tag][att]);
+						}
+					}
+				}
+				break;
+				}
+		}
+		return el;
+	},
+
+	/*
+	input : element : DOM element | search : classname or tag name
+	output : DOM element / false
+	Returns the closest parent node based on search value
+	*/
+	getClosestElement : function (element, search){
+	   var parent = element.parentNode;
+	   var compare;
+
+	   if(search.substring(0,1) == '.') compare = function(e, s){return HG.hasCN(e, s.substring(1, s.length))};
+	   else{
+		   compare = function(e, s){return e.tagName == s};
+		   search = search.toUpperCase();
+	   }
+
+	   while(!compare(parent, search)){
+		   parent = parent.parentNode;
+		   if(parent == null) break;
+	   }
+
+	   return (parent == null) ? false : parent;
+	},
+
+  /* HG.xhr
+  input :   none
+  output :  Object
+  Returns a supported XMLHTTP Request Object
+  */
+  xhr : function() {
+    try { var a = new XMLHttpRequest(); } catch(e) {}
+    try { var a = new ActiveXObject("Msxml2.XMLHTTP"); } catch (e) {}
+    try { var a = new ActiveXObject("Microsoft.XMLHTTP"); } catch (e) {}
+    return (a)?a:null;
+  },
+
+  /* HG.xhr
+  input :   a :string | b: object | c: string | d: function
+  output :  none
+  Full ajax stack. Send a ajax request to url (a) with params (b) via GET or POST (c).
+  Once the request is done, it executes a callback function (d)
+  */
+    ajax: function(a, b, c, d)
+    {
+        var x = HG.xhr();
+        c = (c)?c.toUpperCase():"GET";
+        if (b && c == "GET")
+            a = a+"?"+HG.param(b);
+
+        x.open(c,a,true);
+        if(d) {
+            x.onreadystatechange = function(res) {
+                if(x.readyState==4 && x.status==200 && x.responseText) { d(x.responseText); } };
+        }
+        var data = null;
+        if (b && c != "GET") {
+            x.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+            data = HG.param(b);
+        }
+        x.send(data);
+        setTimeout(function()
+        {
+            if(x.readyState != 4 && x.readyState != 0)
+                x.onreadystatechange = function() { };
+            // test x.abord support to avoid bug in IE9
+            if(x.abort)
+            {
+                x.abort();
+                x.aborted = true;
+            }
+            else
+            {
+                HG.log(err);
+            }
+        } , HG.ajaxTimeoutVal );
+
+        return x;
+    },
+
+  /* HG.param
+  input :   Object
+  output :  string
+  Serialize an object of data to key/value pairs string
+  */
+	param: function(o)
+	{
+    /*
+    method: emy.param(o)
+    Stripped-down, simplified object-only version of a jQuery function that
+    converts an object of keys/values into a URL-encoded querystring.
+    */
+		var s = [];
+		// Serialize the key/values
+		for ( var key in o )
+		{
+			var value = o[key];
+			if (typeof(value) == "object" && typeof(value.length) == "number")
+			{
+				for (var i = 0; i < value.length ; i++)
+				{
+					s[ s.length ] = encodeURIComponent(key) + '=' + encodeURIComponent(value[i]);
+				}
+			}
+			else
+				s[ s.length ] = encodeURIComponent(key) + '=' + encodeURIComponent(value);
+		}
+		// Return the resulting serialization
+		return s.join("&").replace(/%20/g, "+");
+	},
+
+  /* HG.preloadImage
+  input :   a: string | b: function
+  output :  none
+  Preloads an image url (a) and triggers a callback function (b)
+  */
+	preloadImage : function(a, b) {
+		var i = new Image();
+		i.onload = b;
+		i.src = a;
+	},
+
+  /* HG.compStyle
+  input :   a: DOM element | b: string
+  output :  none
+  Crossbrowser getComputedStyle for a DOM element (a). Output true / false if a property (b) is defined
+  */
+	compStyle : function(el, prop) {
+    var a;
+    if(typeof el.currentStyle != 'undefined') {
+      return (prop)?el.currentStyle[prop]:el.currentStyle;
+    } else {
+      return (prop)?document.defaultView.getComputedStyle(el,null).getPropertyValue(prop):document.defaultView.getComputedStyle(el,null);
+    }
+	},
+
+	smoothScroll : function(eID, pos)
+	{
+  		pos = (pos==0)?1:pos;
+			function currentYPosition()
+			{
+					// Firefox, Chrome, Opera, Safari
+					if (self.pageYOffset) return self.pageYOffset;
+					// Internet Explorer 6 - standards mode
+					if (document.documentElement && document.documentElement.scrollTop)
+							return document.documentElement.scrollTop;
+					// Internet Explorer 6, 7 and 8
+					if (document.body.scrollTop) return document.body.scrollTop;
+					return 0;
+			}
+
+			function elmYPosition(eID) {
+					var elm = HG.gbi(eID);
+					var y = elm.offsetTop;
+					var node = elm;
+					while (node.offsetParent && node.offsetParent != document.body) {
+							node = node.offsetParent;
+							y += node.offsetTop;
+					} return y;
+			}
+
+			var startY = currentYPosition();
+			var stopY = (pos)?pos:elmYPosition(eID);
+			var distance = stopY > startY ? stopY - startY : startY - stopY;
+			if (distance < 100) {
+					scrollTo(0, stopY); return;
+			}
+			var speed = Math.round(distance/100);
+			if (speed >= 20) speed = 20;
+			speed = speed/0.7;
+			var step = Math.round(distance / 25);
+			var leapY = stopY > startY ? startY + step : startY - step;
+			var timer = 0;
+			if (stopY > startY) {
+					for ( var i=startY; i<stopY; i+=step ) {
+							setTimeout("window.scrollTo(0, "+leapY+")", timer * speed);
+							leapY += step; if (leapY > stopY) leapY = stopY; timer++;
+					} return;
+			}
+      for ( var i=startY; i>stopY; i-=step ) {
+          setTimeout("window.scrollTo(0, "+leapY+")", timer * speed);
+          leapY -= step; if (leapY < stopY) leapY = stopY; timer++;
+      }
+	},
+
+	slideInt : 1,
+	slide : function(el, value, ease, speed, from, to, cb)
+	{
+		from = (from==0)?1:from;
+		var stop = false;
+
+		if(ease=='easeIn')
+		{
+			HG.slideInt = HG.slideInt*speed;
+			var pos = (from<to)?(from+HG.slideInt):(from-HG.slideInt);
+			if(from < to && pos > to) { stop=true; }
+			else if(from > to && pos < to) { stop=true; }
+
+			if(stop)
+				el.style[value] = to+'px';
+			else {
+				el.style[value] = pos+'px';
+				setTimeout(function() {
+				  HG.slide(el, value, ease, speed, pos, to, cb);
+				}, 10);
+			}
+		}
+
+		if(stop) {
+			HG.slideInt = 1;
+			HG.log('slide callback');
+			eval(cb);
+		}
+
+	}
+
+};
+setTimeout(HG.init, 1);
+})();
+
+</script>
+
+</body>
+</html>

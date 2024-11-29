@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>dlc-tts-new-w.html</title>
+</head>
+<body>
+
+<script>
+function onUpdate(audio_element)
+{
+	var isPlaying = (!getAudioElement(audio_element).paused);
+	document.getElementById("playerplay").style.display = (isPlaying)?"none":"block";
+	document.getElementById("playerpause").style.display = (isPlaying)?"block":"none";
+};
+
+function getAudioElement(audio_element)
+{
+	return document.getElementById(audio_element);
+}
+
+function play(audio_element) {
+	getAudioElement(audio_element).play();
+	onUpdate(audio_element);
+}
+
+function play2(audio_element) {
+	getAudioElement(audio_element).play();
+}
+
+function pause(audio_element) {
+	getAudioElement(audio_element).pause();
+	onUpdate(audio_element);
+}
+
+function stop(audio_element) {
+	getAudioElement(audio_element).pause();
+	getAudioElement(audio_element).currentTime=0;
+	onUpdate(audio_element);
+	getAudioElement(audio_element).load();
+}
+
+var isIE8 = window.XDomainRequest ? true : false;
+var url = "http://dilmanc.az/cgi-bin/tts/tts-html5-new-w.cgi";
+var invocation = createCrossRequest();
+
+function removeElement(objID) {
+    var node = document.getElementById(objID); node.parentNode.removeChild(node); }
+
+function addImageLoading() {
+	var img = document.createElement("img");
+	img.src = "http://dilmanc.az/images/tts/loading_green.gif";
+	img.style.padding = "0px 0px -3px 10px";
+	img.id = "id_img_load";
+	img.height = "21";
+	img.width = "20";
+	var src = document.getElementById("id_tts_main");
+	src.appendChild(img);
+}
+
+function addImageLoadingNew() {
+	var img = document.createElement("img");
+	img.src = "http://dilmanc.az/images/tts/loading_green.gif";
+	img.style.padding = "0px 0px -3px 10px";
+	img.id = "id_img_load";
+	img.height = "21";
+	img.width = "20";
+	var src = document.getElementById("dlc_tts_main");
+	src.appendChild(img);
+}
+
+function createCrossRequest(url)
+{
+	var request;
+	if (isIE8) {
+		request = new window.XDomainRequest();
+	}
+	else {
+		request = new XMLHttpRequest();
+	}
+	return request;
+}
+
+function outputResult() {
+	removeElement('id_img_load');
+	document.getElementById("id_tts_main").innerHTML = invocation.responseText;
+	getAudioElement("id_audio_element").load();
+	play("id_audio_element");
+}
+
+function outputResultNew() {
+	removeElement('id_img_load');
+	document.getElementById("dlc_tts_main").innerHTML = invocation.responseText;
+	document.getElementById("dlc_tts_main").style.width = "110px";
+	document.getElementById("dlc_tts_main").style.border = "0px solid #229bc7";
+	getAudioElement("id_audio_element").load();
+	play("id_audio_element");
+}
+
+function outputResultText() {
+	document.getElementById("id_banner_tts").innerHTML = invocation.responseText;
+	stop("id_audio_element");
+	getAudioElement("id_audio_element_banner").load();
+	play2("id_audio_element_banner");
+}
+
+function callURL(params)
+{
+	if (invocation) {
+		if(isIE8) {
+			invocation.open("POST",url,true);
+			invocation.send(params);
+			invocation.onload = outputResult;
+		}
+		else {
+			invocation.onreadystatechange = function() {
+				if (invocation.readyState==4 && invocation.status==200) {
+					if (invocation.responseText != "") {
+						outputResult();
+					}
+				}
+			}
+			invocation.open("POST", url, true);
+			invocation.setRequestHeader('Content-Type','application/x-www-form-urlencoded; charset=UTF-8');
+			invocation.send(params);
+		}
+	}
+}
+
+function callURLNew(params)
+{
+	if (invocation) {
+		if(isIE8) {
+			invocation.open("POST",url,true);
+			invocation.send(params);
+			invocation.onload = outputResultNew;
+		}
+		else {
+			invocation.onreadystatechange = function() {
+				if (invocation.readyState==4 && invocation.status==200) {
+					if (invocation.responseText != "") {
+						outputResultNew();
+					}
+				}
+			}
+			invocation.open("POST", url, true);
+			invocation.setRequestHeader('Content-Type','application/x-www-form-urlencoded; charset=UTF-8');
+			invocation.send(params);
+		}
+	}
+}
+
+function SpeakSource(id_all_content, id_selected_content) {
+	document.getElementById('id_tts_main').style.float = 'left';
+
+	var all_txt = document.getElementById(id_all_content).innerHTML;
+	var selected_txt = document.getElementById(id_selected_content).innerHTML;
+
+	var txt = "";
+	if (selected_txt) {
+		txt = selected_txt;
+	}
+	else {
+		txt = all_txt;
+	}
+
+	txt = txt.replace(/\;/g, '.');
+	txt = txt.replace(/\&/g, ' ');
+	var params = "from="+txt+";SYNALPHA=0.42"+";F0SHIFT=-3"+";DURATION=1.05;ALL_CONTENT="+id_all_content+";speak_text=0";
+
+	try {	
+		if (document.getElementById('id_make_audio')) {
+			removeElement('id_make_audio');
+		}
+		if (document.getElementById('player')) {
+			removeElement('player');
+		}
+		document.getElementById("id_tts_main").style.height = "21px";
+		addImageLoading();
+	} 
+	catch (e) {
+		alert("Your browser broke!");
+		return false;
+	}
+
+	callURL(params);
+};
+
+
+function SpeakSourceNew(id_all_content, id_selected_content) {
+	document.getElementById('dlc_tts_main').style.float = 'left';
+
+	var all_txt = document.getElementById(id_all_content).innerHTML;
+	var selected_txt = document.getElementById(id_selected_content).innerHTML;
+
+	var txt = "";
+	if (selected_txt) {
+		txt = selected_txt;
+	}
+	else {
+		txt = all_txt;
+	}
+
+	txt = txt.replace(/\;/g, '.');
+	txt = txt.replace(/\&/g, ' ');
+	var params = "from="+txt+";SYNALPHA=0.42"+";F0SHIFT=-3"+";DURATION=1.05;ALL_CONTENT="+id_all_content+";speak_text=0";
+
+	try {
+		if (document.getElementById('id_make_audio')) {
+			removeElement('id_make_audio');
+		}
+		if (document.getElementById('player')) {
+			removeElement('player');
+		}
+		document.getElementById("dlc_tts_main").style.height = "21px";
+		addImageLoadingNew();
+	} 
+	catch (e) {
+		alert("Your browser broke!");
+		return false;
+	}
+
+	callURLNew(params);
+};
+
+function SpeakText(txt) {
+	txt = txt.replace(/\;/g, '.');
+	txt = txt.replace(/\&/g, ' ');
+	var params = "from="+txt+";SYNALPHA=0.42"+";F0SHIFT=-3"+";DURATION=1.05;speak_text=1";
+
+	if (invocation) {
+		if(isIE8) {
+			invocation.open("POST",url,true);
+			invocation.send(params);
+			invocation.onload = outputResultText;
+		}
+		else {
+			invocation.onreadystatechange = function() {
+				if (invocation.readyState==4 && invocation.status==200) {
+					if (invocation.responseText != "") {
+						outputResultText();
+					}
+				}
+			}
+			invocation.open("POST", url, true);
+			invocation.setRequestHeader('Content-Type','application/x-www-form-urlencoded; charset=UTF-8');
+			invocation.send(params);
+		}
+	}
+};
+
+</script>
+
+</body>
+</html>

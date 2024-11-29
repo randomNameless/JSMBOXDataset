@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>gyj.html</title>
+</head>
+<body>
+
+<script>
+var gyjVar = {
+    showYear:'',
+    url:jsCommonDataV1.webApi +'/gateway/lottery/getWelfareFundV1.qry',
+    showData:function (data){
+        if(data.errorCode == 0){
+            if(Object.keys(data.value).length > 0){
+                if(data.value.reportDate !=='' && !isNaN(data.value.reportDate) && data.value.reportDate.length ===8){
+                    $("#gyjDate").html(gyjVar.getDate(data.value.reportDate));
+                    if(data.value.historyAmount !=='' && data.value.historyAmount !==undefined){
+                        $("#historyAmount").html(data.value.historyAmount);
+                    }else{
+                        $("#historyAmount").parent().css("display","none")
+                    }
+                    if(data.value.currentYearAmount !=='' && data.value.currentYearAmount !==undefined) {
+                        $("#currentYearAmount").html(data.value.currentYearAmount);
+                        gyjVar.getDateFormat(data.value.reportDate)
+                    }else{
+                        $("#currentYearAmount").parent().css("display","none")
+                    }
+                    if((data.value.historyAmount ==='' || data.value.historyAmount === undefined)
+                        && (data.value.currentYearAmount ==='' || data.value.currentYearAmount === undefined)){
+                        $(".g-gyj").css("display","none")
+                    }
+
+                }else{
+                    $(".g-gyj").css("display","none")
+                }
+            }else{
+                $(".g-gyj").css("display","none")
+            }
+        }else{
+            $(".g-gyj").css("display","none")
+        }
+
+    },
+    getDate:function(strDate){
+        var dateString = strDate;
+        var pattern = /(\d{4})(\d{2})(\d{2})/;
+        var formatedDate = dateString.replace(pattern, '$1年$2月$3日');
+        return formatedDate;
+    },
+    getDateFormat(strDate){
+        var dateString = strDate;
+        var pattern = /(\d{4})(\d{2})(\d{2})/;
+        var formatedDate = dateString.replace(pattern, '$1/$2/$3');
+        var newDate = new Date(formatedDate)
+        var year = newDate.getFullYear()
+        var parentStr = $("#currentYearAmount").parent().html().replaceAll('本年度', year+'年度')
+        $("#currentYearAmount").parent().html(parentStr)
+    }
+}
+commonV1Fun.ajaxFun(gyjVar.showData, gyjVar.url, {errorCode: -1},'POST');
+</script>
+
+</body>
+</html>

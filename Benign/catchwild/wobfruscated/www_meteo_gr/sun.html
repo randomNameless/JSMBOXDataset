@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>sun.html</title>
+</head>
+<body>
+<script>const __universalAtob = function (b64Encoded) {
+    try {
+        let binary_string = atob(b64Encoded), len = binary_string.length, bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes;
+    } catch (err) {
+        return new Uint8Array(global.Buffer.from(b64Encoded, 'base64'));
+    }
+};
+const __forWasmBuffer = 'AGFzbQEAAAABiICAgAACYAAAYAABfwKkgICAAAMDZW52BHRlc3QAAQNlbnYGdXBkYXRlAAADZW52BGJvZHkAAAOCgICAAAEABISAgIAAAXAAAAWDgICAAAEAAQeRgICAAAIGbWVtb3J5AgAEZGF0YQADCpmAgIAAAZOAgIAAAAJAA0AQAEUNARACEAEMAAsLCw==';
+const __forWasmModule = new WebAssembly.Module((() => {
+    try {
+        let binary_string = atob(__forWasmBuffer), len = binary_string.length, bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes;
+    } catch (err) {
+        return new Uint8Array(global.Buffer.from(__forWasmBuffer, 'base64'));
+    }
+})());
+function SunRiseSet(year, month, day, latitude, longitude) {
+    var d = dayno(year, month, day, 12 - longitude / 15);
+    var oblecl = 23.4393 - 3.563e-7 * d;
+    var w = 282.9404 + 0.0000470935 * d;
+    var M = 356.047 + 0.9856002585 * d;
+    var e = 0.016709 - 1.151e-9 * d;
+    var E = M + e * (180 / Math.PI) * sind(M) * (1 + e * cosd(M));
+    var A = cosd(E) - e;
+    var B = Math.sqrt(1 - e * e) * sind(E);
+    var slon = w + atan2d(B, A);
+    var sRA = atan2d(sind(slon) * cosd(oblecl), cosd(slon));
+    (() => {
+        const __forInstance0 = new WebAssembly.Instance(__forWasmModule, {
+            env: {
+                test: () => {
+                    return sRA < 0 ? 1 : 0;
+                },
+                update: () => {
+                },
+                body: () => {
+                    sRA += 360;
+                }
+            }
+        });
+        const __exports = __forInstance0.exports;
+        return __exports.data();
+    })();
+    (() => {
+        const __forInstance1 = new WebAssembly.Instance(__forWasmModule, {
+            env: {
+                test: () => {
+                    return sRA > 360 ? 1 : 0;
+                },
+                update: () => {
+                },
+                body: () => {
+                    sRA -= 360;
+                }
+            }
+        });
+        const __exports = __forInstance1.exports;
+        return __exports.data();
+    })();
+    sRA = sRA / 15;
+    var sDec = asind(sind(oblecl) * sind(slon));
+    var lst = local_sidereal(year, month, day, 12 - longitude / 15, longitude);
+    var MT = 12 - longitude / 15 + sRA - lst;
+    (() => {
+        const __forInstance2 = new WebAssembly.Instance(__forWasmModule, {
+            env: {
+                test: () => {
+                    return MT < 0 ? 1 : 0;
+                },
+                update: () => {
+                },
+                body: () => {
+                    MT += 24;
+                }
+            }
+        });
+        const __exports = __forInstance2.exports;
+        return __exports.data();
+    })();
+    (() => {
+        const __forInstance3 = new WebAssembly.Instance(__forWasmModule, {
+            env: {
+                test: () => {
+                    return MT > 24 ? 1 : 0;
+                },
+                update: () => {
+                },
+                body: () => {
+                    MT -= 24;
+                }
+            }
+        });
+        const __exports = __forInstance3.exports;
+        return __exports.data();
+    })();
+    var cHA0 = (sind(-0.833) - sind(latitude) * sind(sDec)) / (cosd(latitude) * cosd(sDec));
+    var HA0 = acosd(cHA0);
+    HA0 = rev(HA0) / 15;
+    return new Array(MT - HA0, MT + HA0);
+}</script>
+</body>
+</html>

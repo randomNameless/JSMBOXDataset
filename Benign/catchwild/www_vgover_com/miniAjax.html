@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>miniAjax.html</title>
+</head>
+<body>
+
+<script>
+
+/**
+ * date:2020/04/28
+ * author:Mr.Chen
+ * version:1.0
+ * description:layuimini ajax框架扩展
+ */
+layui.define(["jquery"], function (exports) {
+    var $ = layui.$;
+
+    var miniAjax = {
+
+        send: function (params) {
+
+            var url = params.url || "";
+            var data = params.data || [];
+            var type = params.data ? "post" : "get";
+            var timeout = params.timeout || 30000;
+            var async = params.async || true;
+            var completeCallback = params.complete || function () {};
+            var successCallback = params.success || function () {};
+            var errorCallback = params.error ? params.error : function () {};
+
+            var layer_load_index = VGOVER.load();
+
+            $.ajax({
+                url: url,
+                data: data,
+                type: type,
+                dataType: "json",
+                async: async,
+                timeout: timeout,
+                complete: function (xhr, ts) {
+                    completeCallback && completeCallback(xhr, ts)
+                    layer.close(layer_load_index);
+                },
+                success: function (res) {
+                    successCallback && successCallback(res)
+                },
+                error: function (xml, error) {
+                    errorCallback && errorCallback(xml, error)
+                    layer.msg(error, { icon: 2 });
+                }
+            })
+        },
+
+        upload: function (params) {
+            var url = params.url || "";
+            var data = params.data || [];
+            var timeout = params.timeout || 30000;
+            var async = params.async || true;
+            var xhrCallback = params.xhr || function () { };
+            var completeCallback = params.complete || function () { };
+            var successCallback = params.success || function () { };
+            var errorCallback = params.error ? params.error : function () { };
+
+            var layer_load_index = VGOVER.load();
+
+            $.ajax({
+                url: url,
+                data: data,
+                type: "post",
+                dataType: "json",
+                async: async,
+                timeout: timeout,
+                processData: false,
+                contentType: false,
+                xhr: function () {
+                    var xhr = new XMLHttpRequest();
+                    xhr.upload.addEventListener('progress', function (e) {
+                        var progressRate = (e.loaded / e.total) * 100 + '%';
+                        // console.log(progressRate)
+                        xhrCallback && xhrCallback(progressRate)
+                    })
+                    return xhr;
+                },
+                complete: function (xhr, ts) {
+                    completeCallback && completeCallback(xhr, ts)
+                    layer.close(layer_load_index);
+                },
+                success: function (res) {
+                    successCallback && successCallback(res)
+                },
+                error: function (xml, error) {
+                    errorCallback && errorCallback(xml, error)
+                    layer.msg(error, { icon: 2 });
+                }
+            })
+        }
+        
+    };
+
+    exports("miniAjax", miniAjax);
+});
+</script>
+
+</body>
+</html>

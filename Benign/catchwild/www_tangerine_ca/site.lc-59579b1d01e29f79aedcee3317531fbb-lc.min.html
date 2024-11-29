@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>site.lc-59579b1d01e29f79aedcee3317531fbb-lc.min.html</title>
+</head>
+<body>
+
+<script>
+(function () {
+  const locale = document.querySelector('html').getAttribute('lang') === 'fr' ? 'fr' : 'en';
+  let sessionId, sessionAudience, analyticsSessionId, insightsCache;
+  const CACHE_NAME_PREFIX = "tng.insightsCache";
+  const SESSION_COOKIE_NAME = "tng.insights.sessionId";
+  const SESSION_AUDIENCE_ANONYMOUS = "Anonymous";
+  const SESSION_AUDIENCE_CUSTOMER = "Customer";
+  const SESSION_ID_HEADER = "interact-sessionid";
+  const STATUS_CODE_SEGMENTATION_INCOMPLETE = "33";   // session failed to complete on server
+  const STATUS_CODE_SESSION_NOT_FOUND = "1";          // session may have expired on server
+  const RETRY_THRESHOLD = 3;
+  let apiUrl, channel, appId, insightsAssetBaseUrl;
+  let retryCount = 0;
+  window.dataLayer = window.dataLayer || [];
+  function getCookie(sKey) {
+    return (
+      decodeURIComponent(
+        document.cookie.replace(
+          new RegExp(
+            '(?:(?:^|.*;)\\s*' +
+              encodeURIComponent(sKey).replace(/[\-\.\+\*]/g, '\\$&') +
+              '\\s*\\=\\s*([^;]*).*$)|^.*$'
+          ),
+          '$1'
+        )
+      ) || null
+    );
+  }
+
+  function setCookie(sKey, sValue, vEnd, sPath, sDomain, bSecure) {
+    if (!sKey || /^(?:expires|max\-age|path|domain|secure)$/i.test(sKey)) {
+      return false;
+    }
+    if (!bSecure) {
+      bSecure = location.protocol === 'https:';
+    }
+    var sExpires = '';
+    if (vEnd) {
+      switch (vEnd.constructor) {
+        case Number:
+          sExpires =
+            vEnd === Infinity
+              ? '; expires=Fri, 31 Dec 9999 23:59:59 GMT'
+              : '; max-age=' + vEnd;
+          break;
+        case String:
+          sExpires = '; expires=' + vEnd;
+          break;
+        case Date:
+          sExpires = '; expires=' + vEnd.toUTCString();
+          break;
+      }
+    }
+    document.cookie =
+      encodeURIComponent(sKey) +
+      '=' +
+      encodeURIComponent(sValue) +
+      sExpires +
+      (sDomain ? '; domain=' + sDomain : '') +
+      (sPath ? '; path=' + sPath : '') +
+      (bSecure ? '; secure' : '');
+  }
+
+  function hasCookie(sKey) {
+    return new RegExp(
+      '(?:^|;\\s*)' +
+        encodeURIComponent(sKey).replace(/[\-\.\+\*]/g, '\\$&') +
+        '\\s*\\='
+    ).test(document.cookie);
+  }
+
+  function removeCookie(sKey, sPath, sDomain){
+    if (!sKey || !hasCookie(sKey)) {
+      return false;
+    }
+    console.log(
+      `AD | cookie.remove | sKey: ${sKey}, sPath: ${sPath}, sDomain: ${sDomain}`
+    );
+    document.cookie =
+      encodeURIComponent(sKey) +
+      '=; expires=Thu, 01 Jan 1970 00:00:00 GMT' +
+      (sDomain ? '; domain=' + sDomain : '') +
+      (sPath ? '; path=' + sPath : '');
+    return true;
+  }
+
+  function getOrangeKeyNumbersOnly() {
+    const orangeKey = getCookie("gtmok");
+    if(!!orangeKey) {
+      return orangeKey.match(/^[0-9]+/)[0];
+    }
+    return null;
+  }
+
+  function generateRandomNumber(num = 1){
+    const random_num = new Uint32Array(num);
+    window.crypto.getRandomValues(random_num);
+    return random_num[0] / (0xffffffff + 1);
+  }
+
+  function setSession(id, audience) {
+    sessionId = id;
+    sessionAudience = audience;
+    if(!id) {
+      removeCookie(SESSION_COOKIE_NAME);
+      return;
+    }
+    setCookie(SESSION_COOKIE_NAME, `${sessionId};${sessionAudience}`);
+  }
+
+  function getSession() {
+    if(sessionId && sessionAudience) {
+      return {id: sessionId, audience: sessionAudience};
+    }
+
+    const sessionCookie = getCookie(SESSION_COOKIE_NAME);
+    if(!sessionCookie) return {};
+
+    const parts = sessionCookie.split(";");
+    return {
+      id: parts[0],
+      audience: parts[1]
+    }
+  }
+
+  function clearLocalSession() {
+    console.log("Clearing local interact session id");
+    setSession(undefined, SESSION_AUDIENCE_ANONYMOUS);
+  }
+
+  function endSession() {
+    if(insightsCache) {
+      sessionStorage.removeItem(insightsCache.key);
+      insightsCache = null;
+    }
+    const deleteUrl = `${apiUrl}v1/campaign/session?appId=${appId}`;
+
+    return fetch(deleteUrl, {
+      method: "DELETE",
+      headers: {
+        "interact-sessionid": getSession().id
+      }
+    }).finally(clearLocalSession);
+  }
+
+  function generateCacheKey(offerId, treatmentCode) {
+    const sessionId = getSession().id;
+    const key = sessionId + "|" + offerId;
+    if (!treatmentCode) {
+      return key;
+    }
+    return key + "|" + treatmentCode.substring(0, 8);
+  }
+
+  function initializeCacheForSession(sessionId) {
+    const cacheName = `${CACHE_NAME_PREFIX}.${sessionId}`;
+    if(!sessionStorage.getItem(cacheName)) {
+      const currentTime = new Date().getTime();
+      const storageValue = {
+        key: CACHE_NAME_PREFIX,
+        created: currentTime,
+        expires: currentTime + 60000,
+        accessed: currentTime,
+        value: []
+      }
+      sessionStorage.setItem(cacheName, JSON.stringify(storageValue))
+    }
+    return {key: cacheName, value: sessionStorage.getItem(cacheName)}
+  }
+  
+  function hasCachedEvent(cacheKey) {
+    return JSON.parse(sessionStorage.getItem(insightsCache.key)).value.indexOf(cacheKey) > -1;
+  }
+
+  function cacheEvent(cacheKey) {
+    if (!insightsCache) return;
+    const tempCache = JSON.parse(insightsCache.value);
+    const prevValue = tempCache.value.value || [];
+    prevValue.push(cacheKey);
+    sessionStorage.setItem(tempCache.key, tempCache);
+  }
+
+  function handleInteractEvent(insight, properties) {
+    var eventData = [{ "key": "offerCode", "value": insight.id }];
+    if (properties.responseType) eventData.push({ "key": "UACIResponseTypeCode", "value": properties.responseType });
+    if (insight.interactionPoint) eventData.push({ key: 'intpoint', value: insight.interactionPoint });
+
+    sendEvent(insight, properties.eventType, eventData, true);
+  }
+
+  function sendEvent(insight, eventType, eventData, isInteractEvent) {
+    if (!shouldSendEvent()) return;
+
+    const interactEvent = {
+      eventType: eventType,
+      eventData: [{ "key": "UACIOfferTrackingCode", "value": insight.treatmentCode }]
+    };
+
+    const viewEvent = {
+      eventType: "evt_LogContact" + insight.offertype,
+    };
+    const viewEventData = [{ key: 'UDFOfferType', value: insight.offertype }, { key: 'offerCode', value: insight.id }];
+    if (insight.interactionPoint) viewEventData.push({ key: 'intpoint', value: insight.interactionPoint });
+    viewEventData.push({ key: 'UACIOfferTrackingCode', value: insight.treatmentCode });
+    viewEvent.eventData = viewEventData;
+
+    interactEvent.eventData = interactEvent.eventData.concat(eventData);
+
+    const events = [];
+    if (isInteractEvent) {
+      events.push(viewEvent);
+    }
+    events.push(interactEvent);
+    const payload = {
+      events: events
+    };
+
+    const headers = new Headers();
+    headers[SESSION_ID_HEADER] = getSession().id;
+
+    fetch(`${apiUrl}/v1/campaign/events?appId=${appId}&audience=${getSession().audience}`,{
+      method: "POST",
+      body: JSON.stringify(payload),
+      headers: headers,
+    }).then((response) => {
+      const respSessionId = response.headers.get(SESSION_ID_HEADER);
+      if(!getSession().id) {
+        setSession(respSessionId, SESSION_AUDIENCE_ANONYMOUS);
+      }
+      cacheEvent(insight.cacheKey);
+    }).catch((error) => {
+      console.error(error);
+    });
+
+  }
+
+  function sendViewEvent(insight) {
+    if (!shouldSendEvent()) return;
+
+    if (!insight) return;
+
+    const eventType = "evt_LogContact" + insight.offertype;
+    if(hasCachedEvent(insight.cacheKey)) {
+      console.log("Ignoring previously posted event", eventType);
+      return;
+    }
+
+    const eventData = [{ "key": "UDFOfferType", "value": insight.offertype }, { "key": "offerCode", "value": insight.id }];
+    sendEvent(insight, eventType, eventData, false);
+  }
+
+  function shouldSendEvent() {
+    const path = window.location.pathname
+    const exemption = ((path === "/en" || path === "/fr" ||
+    path === "/en/logout" || path === "/fr/logout") && window.GLOBAL_KEYS.hpInsightsEvt && getCookie("gtmok"))
+    return getSession().audience === SESSION_AUDIENCE_CUSTOMER || exemption;
+  }
+
+  function sendReceivedEvent(insightResp) {
+    if (!shouldSendEvent()) return;
+
+    const events = [];
+    insightResp.forEach((obj) => {
+      const cacheKey = obj.insight.cacheKey + "_received";
+      if (hasCachedEvent(cacheKey)) return;
+      cacheEvent(cacheKey);
+      events.push({
+        eventType: "evt_LogContactOLIST",
+        eventData: [
+          { 'key': 'UACIOfferTrackingCode', 'value': obj.insight.treatmentCode },
+          { 'key': 'UDFOfferType', 'value': 'OLIST' }
+        ]
+      })
+    });
+    if(events.length) return;
+
+
+    const headers = new Headers();
+    headers[SESSION_ID_HEADER] = getSession().id;
+
+    const payload = {events};
+
+    fetch(`${apiUrl}/v1/campaign/events?appId=${appId}&audience=${getSession().audience}`,{
+      method: "POST",
+      body: JSON.stringify(payload),
+      headers: headers,
+    }).then((response) => {
+      const respSessionId = response.headers.get(SESSION_ID_HEADER);
+      if(!getSession().id) {
+        setSession(respSessionId, SESSION_AUDIENCE_ANONYMOUS);
+      }
+    }).catch((error) => {
+      console.error(error);
+    });
+  }
+
+  function initalize() {
+    const existingSesstionId = getSession().id;
+    if(existingSesstionId) {
+      insightsCache = initializeCacheForSession(existingSesstionId);
+    }
+
+    analyticsSessionId = getOrangeKeyNumbersOnly() || getCookie("_ga") || getCookie("_aid");
+    if(!analyticsSessionId) {
+      analyticsSessionId = Math.floor(generateRandomNumber() * 1000000);
+      setCookie("_aid", analyticsSessionId);
+    }
+  }
+
+  function processTargetElement(targetEle, insight, interactionPoint) {
+    const buttonEle = targetEle.querySelector(".cmp-button");
+    const linkEle = targetEle.querySelectorAll(".insightcard .cmp-text a");
+    if(linkEle) {
+      window.processTextLinks(linkEle);
+    }
+    const offerDetail = btoa(JSON.stringify(insight));
+    const queryParams = `offer_id=${insight.id}&tngod=${offerDetail}&interact_zone=${interactionPoint}`;
+    if(buttonEle) {
+      let btnHref = `${buttonEle.href}${buttonEle.href.indexOf('?') > -1 ? '&' : '?'}${queryParams}`;
+      if(document.querySelector('meta[name="wcmmode"]').content == 'DISABLED'){
+        btnHref = btnHref.replace('/content/tangerine/ca', '');
+      }
+      buttonEle.href = btnHref;
+      const btnDataLayer = JSON.parse(buttonEle.getAttribute('data-cmp-data-layer'));
+      btnDataLayer[buttonEle.id]["xdm:linkURL"] = btnHref;
+      buttonEle.setAttribute('data-cmp-data-layer', JSON.stringify(btnDataLayer));
+      window.addComponentEventListener(buttonEle);
+      buttonEle.addEventListener('click', (event) => {
+        handleInteractEvent(insight, { eventType: 'evt_LearnMore', responseType: 'LRNMR'});
+      })
+    }
+  }
+  function loadInsightsAssets(insights, targetElements, interactionPoint, insightType) {
+    return Promise.all(insights.map((rawInsight, index) => {
+      let insight = {
+        id: rawInsight.code ? rawInsight.code[0] : undefined,
+        name: rawInsight.name,
+        interactionPoint: interactionPoint,
+        treatmentCode: rawInsight.treatmentCode,
+        score: rawInsight.score,
+        pos: index + 1,
+        cacheKey: generateCacheKey(rawInsight.code ? rawInsight.code[0]: "", rawInsight.treatmentCode)
+      }
+      const properties = rawInsight.attributes.reduce((prev, attr) => {
+        const rawValue = attr.value;
+        prev[attr.name] = rawValue;
+        const valueParts = rawValue.toString().split("|").map((v) => v.trim());
+
+        if(typeof(rawValue) === "string" && valueParts.length >=3) {
+          const [propertyName, propertyType, propertyValue] = valueParts;
+          if(propertyType.indexOf("numeric") === 0) {
+            let decimalPlaces = 2;
+            const match = /^\w+:(\d+)/.exec(propertyType);
+            if (match) decimalPlaces = match[1];
+            propertyValue = parseFloat(propertyValue).toFixed(2);
+          }
+          else if(propertyType === "currency") {
+            propertyValue = `$${parseFloat(propertyValue).toFixed(2)}`;
+          }
+
+          prev[propertyName] = propertyValue;
+        }
+        return prev;
+      }, {});
+      if(properties.chartData) {
+        properties.chartData = JSON.stringify(properties.chartData);
+      }
+      insight = Object.assign(insight, properties);
+      if(properties.ic_cardName) {
+
+        // Determines what folder to enter
+        let folderType = insightType;
+
+        if (insightType === 'homepage-banner' && index > 0) {
+          // If it's not the first homepage banner, show them as MFZ
+          folderType = 'mfz';
+        }
+
+        const tempCardUrl = `${insightsAssetBaseUrl}/${locale}/static/insights/${folderType}/${properties.ic_cardName.toLowerCase()}`;
+        return fetch(tempCardUrl)
+          .then((response) => {
+            if(response.status !== 200 || response.url.indexOf("/error") > -1) {
+              return '';
+            } else {
+              return response.text()
+            }
+          })
+          .then((htmlData) => {
+            return {htmlData, insight};
+          }, (error) => {
+            console.error("Cannot fetch insight card");
+            return error;
+          })
+      } else {
+        console.error("card name not found", insight);
+        return error;
+      }
+    }));
+  }
+  function fetchInsightsFromServer(targetElements, embedEle, interactionPoint, count, insightType) {
+    const audience = getSession().audience || SESSION_AUDIENCE_ANONYMOUS;
+    const sessionIdentifier = getSession().id;
+    const urlParams = `?interaction-point=${interactionPoint}&count=${count}&appId=${appId}&audienceLevel=${audience}&channel=${channel}&aid=${analyticsSessionId}`;
+    const url = `${apiUrl}/v1/campaign/insights${urlParams}`;
+    fetch(url, {
+      method: 'GET',
+      headers: {
+        "interact-sessionid": sessionIdentifier ? sessionIdentifier : ''
+      }
+    })
+    .then((response) => {
+      response.json().then((data) => {
+        if(data.statusCode === STATUS_CODE_SESSION_NOT_FOUND || 
+          data.statusCode === STATUS_CODE_SEGMENTATION_INCOMPLETE){
+          const statusCode = data.statusCode;
+          if(retryCount++ < RETRY_THRESHOLD) {
+            let retryDelay = 100;
+            if(statusCode === STATUS_CODE_SESSION_NOT_FOUND) clearLocalSession();
+            else if(statusCode === STATUS_CODE_SEGMENTATION_INCOMPLETE) retryDelay = 500;
+
+            setTimeout(() => {
+              fetchInsightsFromServer(targetElements, embedEle, interactionPoint, count, insightType);
+            }, retryDelay);
+          }
+        }
+
+        const interactSessionId = response.headers.get(SESSION_ID_HEADER);
+        if (!getSession().id) {
+          setSession(interactSessionId, SESSION_AUDIENCE_ANONYMOUS);
+        }
+
+        const insights = data.insights;
+        if (insights) {
+          loadInsightsAssets(insights, targetElements, interactionPoint, insightType).then((insightResp) => {
+            if (!insightsCache) insightsCache = initializeCacheForSession(interactSessionId);
+            try {
+              if(audience === SESSION_AUDIENCE_CUSTOMER) {
+                sendReceivedEvent(insightResp);
+              }
+            } catch(error) {
+              console.error(error);
+            }
+
+            insightResp.forEach((obj, index) => {
+              if(!obj.htmlData) return;
+              // Get the insight's HTML
+              const htmlData = obj.htmlData;
+              // Fetch target (or placeholder) element
+              const targetEle = document.querySelector(`#${targetElements[index].trim()}`);
+              if(targetEle && htmlData) {
+                // Replace the target (placeholder) with the insight HTML if it's valid
+                targetEle.innerHTML = htmlData;
+                processTargetElement(targetEle, obj.insight, interactionPoint);
+                sendViewEvent(obj.insight);
+              } else {
+                console.error("Target element/Insight card not found");
+                return "Target element/Insight  not found";
+              }
+            });
+            const targetEleSelectors = targetElements.map((ele) => {
+              return `#${ele}`;
+            }).join(",");
+            document.dispatchEvent(new CustomEvent("REPLACE_WITH_PRODUCT_RATE", {detail: targetEleSelectors}));
+            if(insightType === 'default-card') {
+              document.dispatchEvent(new CustomEvent("RELOAD_DEFAULT_CARDS", {detail: targetEleSelectors}));
+            }
+            embedEle.removeAttribute("data-loadinsights");
+          })
+        } else {
+          // not an error necessarily, but good to know
+          console.log('No insights received')
+        }
+      }, (error) => {
+        console.error("Cannot process Json data");
+      })
+
+    }, (error)=> {
+      console.error("Interact service is down");
+    });
+
+
+  }
+
+  // Fetches the insight cards once the page loads
+  function onDocumentReady() {
+    // Check to see if there are embed components on the page
+    const embedEles = document.querySelectorAll(".insightZone[data-loadinsights]");
+    if (embedEles && embedEles.length) {
+      embedEles.forEach((embedEle) => {
+
+        // interaction point (e.g. ip_ProdDetail_GIC_Banner, ip_VisitorCarousel)
+        const interactionPoint = embedEle.getAttribute("data-interactionpoint");
+        const count = embedEle.getAttribute("data-count");
+        // insight type (e.g. mfz, homepage banner, alert)
+        const insightType = embedEle.getAttribute("data-insighttype");
+        // target ids - the element that will get injected
+        const targetElements = embedEle.getAttribute("data-targetids").split(",");
+        apiUrl = window.GLOBAL_KEYS.insightsApiUrl;
+        channel = window.GLOBAL_KEYS.insightsChannel;
+        appId = window.GLOBAL_KEYS.insightsAppId;
+        insightsAssetBaseUrl = window.GLOBAL_KEYS.BASE_URL || "";
+        initalize();
+        if (interactionPoint === "ip_LogoutBanner") {
+          endSession().finally(() => {
+            fetchInsightsFromServer(targetElements, embedEle, interactionPoint, count, insightType);
+          })
+        } else {
+          fetchInsightsFromServer(targetElements, embedEle, interactionPoint, count, insightType);
+        }
+      })
+    }
+  }
+
+  if (document.readyState !== "loading") {
+    onDocumentReady();
+  } else {
+    document.addEventListener("DOMContentLoaded", onDocumentReady);
+  }
+})();
+
+</script>
+
+</body>
+</html>

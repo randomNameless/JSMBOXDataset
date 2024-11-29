@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AnnotationBadgeSection.html</title>
+</head>
+<body>
+<script>import {
+  resultContext,
+} from "https://static.cloud.coveo.com/atomic/v2/index.esm.js";
+import { checkDomainUrl, parseMultivalueFieldValue } from "../utility-functions.js";
+import { RPC_URL, RPC_TOP_LABEL } from "./Constants.js";
+
+//Annotation/Badge
+export class AnnotationBadgeSection extends HTMLElement {
+  shadow;
+  result;
+  initialized = false;
+  loggedIn;
+
+  async connectedCallback() {
+    if (this.initialized) {
+      return;
+    }
+
+    this.initialized = true;
+    this.shadow = this.attachShadow({ mode: "open" });
+
+    try {
+      this.result = await resultContext(this);
+      this.loggedIn = window.drupalSettings.user_roles.includes('authenticated');
+      this.render();
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+// Print following fields in the order of preference
+// 1. StructureType is present (case 1)
+//		note :for Blogs prefix with "Research and Policy Center|"
+//else if it is RPC item print one of this and exit in the order of preference (case 2)
+// NOTE: This case is never going to occur cuz @rpcUrl always going to be empty since RPCFQDN is empty on /sitecore/content/RPC/Configurations/Settings/RPCSearchSettings
+//  2.1 "Featured "  + publicationlabel -- ** unlike featured we print all of the items in publicationlabel array
+//  2.2 "Featured "  + seriescontentcomputed
+//else if it not RPC item (example blogs etc.,) print one of this in the order of preference and exit (case 3)
+//  3.1 "Featured "  + structuretype
+//  3.2 "Featured "  + articleseries
+//  3.3 "Featured "  + multimediaseries
+//otherwise print just "Featured " (case 4)
+//  4. "Featured "
+
+  render() {
+    const featuredannotation = this.result.raw.featuredannotation || "";
+    const clickableuri = this.result.raw.clickableuri || "";
+    const publicationlabel = this.result.raw.publicationlabel || "";
+    const seriescontentcomputed = this.result.raw.seriescontentcomputed || "";
+    const structuretype = this.result.raw.structuretype || "";
+    const articleseries = this.result.raw.articleseries || "";
+    const multimediaseries = this.result.raw.multimediaseries || "";
+    const isTopResult = this.result.isTopResult;
+    const isloginrequired = (this.result.isloginrequired || this.result.raw.isloginrequired) === '1';
+
+    let resultType = "";
+    if (isTopResult) {
+      if (featuredannotation) {
+        resultType = featuredannotation;
+      } else if (checkDomainUrl(clickableuri, RPC_URL)) {
+        if (publicationlabel) {
+          const publicationlabelArr =
+            parseMultivalueFieldValue(publicationlabel);
+          if (publicationlabelArr && publicationlabelArr.length > 0) {
+            resultType = `Featured ${publicationlabelArr[0]}`;
+          }
+        } else if (seriescontentcomputed) {
+          resultType = `Featured ${seriescontentcomputed}`;
+        }
+      } else if (structuretype) {
+        resultType = `Featured ${structuretype}`;
+      } else if (articleseries) {
+        resultType = `Featured ${articleseries}`;
+      } else if (multimediaseries) {
+        resultType = `Featured ${multimediaseries}`;
+      } else {
+        resultType = "Featured";
+      }
+    } else {
+      if (structuretype) {
+        if (structuretype === "Blogs") {
+          resultType += `<span class="result--type">Publication</span>`;
+          resultType += `<span class="result--detail">&nbsp;in ${RPC_TOP_LABEL}</span>`;
+        } else if (checkDomainUrl(clickableuri, RPC_URL)) {
+          if (publicationlabel) {
+            const publicationlabelArr =
+              parseMultivalueFieldValue(publicationlabel);
+            const labels = publicationlabelArr.reduce((acc, label) => {
+              if (!acc) {
+                return label;
+              } else {
+                return `${acc}, ${label}`;
+              }
+            }, '');
+            resultType += `<span class="result--type">${labels}</span>`;
+            resultType += `<span class="result--detail">&nbsp;in ${RPC_TOP_LABEL}</span>`;
+          } else if (seriescontentcomputed) {
+            resultType += `<span class="result--type">Comment Letter</span>`;
+            resultType += `<span class="result--detail">&nbsp;in ${seriescontentcomputed}</span>`;
+          }
+        } else {
+            resultType += `<span class="result--type">${structuretype}</span>`;
+            if (articleseries) {
+              resultType += `<span class="result--detail">&nbsp;in ${articleseries}</span>`;
+            }
+            if (multimediaseries) {
+              resultType += `<span class="result--detail">&nbsp;in ${multimediaseries}</span>`;
+            }
+          }
+      }
+    }
+    this.shadow.innerHTML = `
+      <style>
+        .coveo-result-type {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          margin-bottom: var(--cfa--spacing--md);
+        }
+
+        .result--type {
+          font-size: 1rem;
+          font-style: normal;
+          font-weight: 500;
+          line-height: 1;
+          text-transform: uppercase;
+        }
+
+        .result--detail {
+          font-size: 1rem;
+          font-style: normal;
+          font-weight: 400;
+          line-height: 1.5;
+        }
+
+        .spacer {
+          flex-grow: 1;
+        }
+
+        .coveo-result-auth-required {
+          display: flex;
+          align-items: center;
+          gap: var(--cfa--spacing--sm);
+          font-size: 1rem;
+          font-style: normal;
+          font-weight: 500;
+          line-height: 1;
+        }
+
+        .coveo-result-auth-required::before {
+          content: '\\e897';
+          font-size: 1.5rem;
+          font-family: 'material';
+        }
+      </style>
+      <div class="coveo-result-type">
+        ${resultType}
+        ${(isloginrequired && !this.loggedIn) ? `
+          <div class="spacer"></div>
+          <div class="coveo-result-auth-required">
+            Sign in required
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+}</script>
+</body>
+</html>

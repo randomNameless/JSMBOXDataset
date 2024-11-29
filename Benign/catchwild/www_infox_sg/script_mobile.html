@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>script_mobile.html</title>
+</head>
+<body>
+
+<script>
+var loadingContent = false;
+var count_page_load = 0;
+var max_count_page_load = 9;
+var personalIndex = null;
+SEARCH = '';
+count_column = 1;
+
+$(window).bind('scroll resize', function () {	
+	if (($(window).height() + $(window).scrollTop() >= $(document).height() - 180)) {	
+		if(count_page_load == 0) {
+			setTimeout(nextPage(2), 500);
+		} else {
+			setTimeout(nextPage(3), 500);
+		}
+	}	
+});
+
+function nextPage(template_id) {
+	var template_name = 'rambler_mobile_down' + template_id;
+	var category_id = $($('.mainnews a')[0]).data('group');				
+	if (count_page_load <= max_count_page_load && !loadingContent) {
+		loadingContent = true;
+		url = "?force_template=" + template_name + "&group_id=" + category_id + "&page=" + count_page_load;
+		if(document.location.pathname == '/') {
+			url = url + "&skip_mob=444,493,472,498,397,435,513,520,450,195,106";
+		} else if(typeof contentList !== 'undefined' && contentList === true) {
+			url = url + "&skip_mob=444,493,472,498,397,435,513,520,450,195,106";
+		}
+		if(loadingContent){
+			$('.load_button').hide();
+			loadBlock(url, count_page_load);
+		}
+		count_page_load++;
+	}		
+	return false;
+};
+
+function loadBlock(url, count_page_load){
+	$.ajax({
+		url: url,
+		cache: false, error: function () {
+			loadingContent = false;
+		}
+	}).done(function (data) {
+		if($(data).find('div.thumb').length > 0) {
+			$('#load_news_block').append('<div class="load_news_block_' + count_page_load + '"></div>');
+			$('.load_news_block_' + count_page_load).html(data).hide().fadeIn(2000);
+			loadingContent = false;		
+			if(count_page_load <= (max_count_page_load-1)) {
+				$('.load_button').show().fadeIn(2000);
+			}
+		}
+	});	
+	return false;
+}
+	
+$('a#next_load').click(function(event) {
+	event.preventDefault();
+	nextPage();
+	return false;
+});
+
+$(document).ready(function () {
+	index_bg_news = 0;
+	$('.transitwl1280v2').on('click', '.mainnews', function(e){
+		news_replace();
+	});
+	
+	//var hostNaneNews =  location.hostname;
+	var hostNaneNews =  'www.infox.sg';
+	var nrUrl = '/out.php/?force_template=json_sponsor&skip_cache=true';	
+	var nrUrls = window.location.pathname.split('/news/');
+	if(nrUrls.length > 1) {
+		nrUrl = '/out.php/?force_template=json_sponsor&slug=' + nrUrls[1].replace('/', '');
+	}
+	
+	function news_replace(){
+		var category_id = $($('.mainnews a.tilelistpic_item_title')[0]).data('group');
+		var skip_mob = $($('.mainnews a.tilelistpic_item_title')[0]).data('skip');
+		$.getJSON(
+			//'/smart/tube/?force_template=mobile_json_sponsor&group_id=' + category_id + '&skip_mob=' + skip_mob,
+			//'/out.php/?force_template=mobile_json_sponsor&group_id=' + category_id + '&skip_mob=' + skip_mob,
+			nrUrl + "&skip_mob=" + skip_mob,
+			null,
+			function(data) {
+				if(index_bg_news >= data.length) {
+					index_bg_news = 0;
+				}
+				if(data.length) {	
+					var replace_news = data[index_bg_news];
+					var item_main = $('.mainnews');
+					
+					index_bg_news++;
+					var newHref = '/smart/cgi/out.php?member=' + replace_news['site'] + '&url=https://' + hostNaneNews + replace_news['slug'].replace("news", "outclick");
+					var newImage = replace_news['image'];
+					var newTitle = replace_news['title'];
+					var newSponsor = replace_news['sponsor'];
+					item_main.find('a.tilelistpic_item_title').attr('href', newHref);
+					item_main.find('img.area').attr('src', newImage);
+					item_main.find('.mainnews_title').html(newTitle);
+					item_main.find('.source').html(newSponsor);
+					
+					headNewsUrl = newHref;
+				}
+			}
+		);
+		
+		return false;
+	}
+	
+	var headNewsUrl = $('.mainnews a.tilelistpic_item_title').attr('href');
+	$('.reload').on('click', 'a', function(e){
+		setTimeout(function(){
+		  window.location.href = headNewsUrl;
+		}, 15 * 1000);
+	});
+	
+	var injectNode = function(data) {
+	var body = document.body;
+	var children;
+	var x = document.createElement('x');
+	x.innerHTML = data;
+	children = x.querySelector('svg');
+	if (children) {
+	children.style.position = 'absolute';
+	children.style.width = 0;
+	children.style.height = 0;
+	children.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
+	body.insertBefore(children, body.firstChild);
+	}
+	};
+	const svgMetaElem = document.getElementById('svg-icons');
+	var svg = svgMetaElem.dataset.url;
+	xhr = new XMLHttpRequest();
+	xhr.open('GET', svg, true);
+	xhr.onload = function() {
+	injectNode(xhr.response);
+	};
+	xhr.send();
+});
+</script>
+
+</body>
+</html>

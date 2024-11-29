@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>adobe-analytics.html</title>
+</head>
+<body>
+
+<script>
+// helper functions
+function getType(url) {
+    var extensions = ["pdf","ppt","xlsx","docx","xls"];
+    if(checkForExtension(extensions,url)) {
+        return "downloads"
+    }
+    else if(url.indexOf("etisalat.ae") > -1) {
+        return "others"
+    }
+    
+    else {
+        return "exit"
+    }
+}
+function checkForExtension(extensions,url) {
+    return extensions.find(extension=>{
+        return url.indexOf(extension) > -1
+    })
+}
+function navigate(url,selector) {
+    if($(selector).attr("target") !== "_blank") {
+        window.location = url;
+    }
+    else {
+        window.open(url)
+    }
+}
+function getParameterByName(name, href) {
+    name = name.replace(/[\[]/, "\\\[").replace(/[\]]/, "\\\]");
+    var regexS = "[\\?&]" + name + "=([^&#]*)";
+    var regex = new RegExp(regexS);
+    var results = regex.exec(href);
+    if (results == null)
+        return "";
+    else
+        return decodeURIComponent(results[1].replace(/\+/g, " "));
+}
+function getDeviceType() {
+    let url = window.location.href;
+    
+    if(url.indexOf("smartphones") > -1) {
+        return "smartphones"
+    }
+    else if(url.indexOf("Laptops") > -1) {
+        return "laptop & tablets"
+    }
+    else if(url.indexOf("accessories") > -1) {
+        return "accessories"
+    }
+    else if(url.indexOf("smart-living") > -1) {
+        return "smart living solutions"
+    }
+    else if(url.indexOf("gaming") > -1) {
+        return "gaming"
+    }
+    else {
+        return "wearables"
+    }
+}
+$(document).ready(function() {
+    // adobe analytics on page load
+    let results = window.location.href.split("/");
+    let pageTitle = results[results.length - 1].split(".")[0].replaceAll("-"," ");
+    // other attributes
+    let lang = window.location.href.indexOf("/ar/") > -1 ? 'ar' :'en';
+    let prevPage = "";
+    let customerType = "new customer";
+    let loginStatus = "logged-out";
+    let errorPage  = document.getElementsByTagName("title")[0].innerHTML.split("|").pop().indexOf("404") > -1 ? true : false;
+    if(sessionStorage.getItem("prevPage")) {
+      prevPage = sessionStorage.getItem("prevPage");
+    }
+    else {
+      sessionStorage.setItem("prevPage",window.location.href)
+    }
+  
+    if(sessionStorage.getItem("isNewUserFromUAEPass")) {
+      if(sessionStorage.getItem("isNewUserFromUAEPass") == "true") {
+        customerType = "new customer";
+      }
+      else {
+        customerType = "existing customer";
+      }
+    }
+  
+    if(sessionStorage.getItem("isLoggedIn")) {
+      if(sessionStorage.getItem("isLoggedIn") == "true") {
+        loginStatus = "logged-in";
+      }
+      else {
+        loginStatus = "logged-out";
+      }
+    }
+    
+    if(window.adobeDataLayer){
+      adobeDataLayer.push({
+        "event": "pageLoaded",
+        "xdmPageLoad": {
+          "web": {
+            "webPageDetails": {
+              // "name": document.getElementsByTagName("title")[0].innerHTML.split("|").pop().trim(),//<page name>
+              "name":lang + '-ae:etisalat:' + pageTitle,
+              "server": window.location.hostname, ////<site hostname> ex: www.etisalat.ae, uat.etisalat.ae
+              "siteSection": "",
+              "siteSection1": "",
+              "siteSection2": "",
+              "siteSection3": "",
+              "isErrorPage": errorPage, // boolean: false if the page is not an error page
+              "URL": window.location.href, //<page url> ex: https://www.etisalat.ae/en/smb/index.html
+              "pageViews": {
+                "value": 1
+              }
+            }
+          },
+          "pageInfo": {
+            "country": "ae",
+            "language": lang, //"<en/ar>" page language locate such as: "ar" or "en"
+            "previousPageName": prevPage,//"<previous page name>",
+            "pageType": "",
+            "pageLoadTime": ""
+          },
+          "user": {
+            "loginStatus": loginStatus, // ex: logged-in/logged-out
+            "customerId": sessionStorage.getItem("userId") ? sessionStorage.getItem("userId") : "", // non PII (Personally Identifiable Information) ID                           such as CRM ID
+            "customerType": customerType // ex: new customer, existing customer
+          },
+          "timestamp": new Date(),
+          "userAgentString": navigator.userAgent // browser’s agent string 
+        }
+      
+      })
+    }
+    if(window.adobeDataLayer) {
+        // Top menu
+        $('.top-nav-section .eand-list li a').on('click', function (e) {
+            e.preventDefault();
+            let type = getType($(this).attr("href"))
+            let url = $(this).attr("href");
+            window.adobeDataLayer.push({
+                "event": "linkClicked",
+                "xdmActionDetails": {
+                    "web": {
+                        "webInteraction": {
+                            "name": "top menu:" +$(this).text().trim(), //"<CTA Name>",
+                            "URL": window.location.href, //"<URL where the CTA is located>",
+                            "type": type, //"<other or exit or download>" link type "others" for internal website links, "downloads“ for links with extensions (pdf, ppt, xlsx, etc) and "exit" for external website links
+                            "region": "",
+                            "linkClicks": {
+                                "value": 1
+                            }
+                        }
+                    },
+                    "linkInfo": {
+                        "sectionHeading": "navigation menu",//"<CTA section heading/Link Page Name>",  // ex: "featured offer", "navmenu", "quick links", "hero banner section“, etc
+                        "action": "navigation menu item clicked", // ex: "view offer", "nav menu clicked", "quick links clicked", "hero banner click", etc
+                        "name": "top menu:" +$(this).text().trim() //"<CTA name>" // ex: "gear up the second pitch", "my account:register", "quick pay", "next or previous", etc
+                    }
+                }
+            })
+            navigate(url,this)
+            
+        })
+
+        $('.mega-menu-desktop .sub-menu-wrap .mega-Menu-links ul li a').on('click', function (e) {
+            e.preventDefault();
+            let type = getType($(this).attr("href"))
+            window.adobeDataLayer.push({
+                "event": "linkClicked",
+                "xdmActionDetails": {
+                    "web": {
+                        "webInteraction": {
+                            "name": $(this).parent('li').parents('li').children('a').text().trim() + ':' + $(this).parents('.mega-Menu-links').find('.eand-main-headings h5').text().trim() + ':' + $(this).text().trim(), //"<CTA Name>",
+                            "URL": window.location.href, //"<URL where the CTA is located>",
+                            "type": type, //"<other or exit or download>" link type "others" for internal website links, "downloads“ for links with extensions (pdf, ppt, xlsx, etc) and "exit" for external website links
+                            "region": "",
+                            "linkClicks": {
+                                "value": 1
+                            }
+                        }
+                    },
+                    "linkInfo": {
+                        "sectionHeading": "navigation menu",//"<CTA section heading/Link Page Name>",  // ex: "featured offer", "navmenu", "quick links", "hero banner section“, etc
+                        "action": "navigation menu item clicked", // ex: "view offer", "nav menu clicked", "quick links clicked", "hero banner click", etc
+                        "name": $(this).parent('li').parents('li').children('a').text().trim() + ':' + $(this).parents('.mega-Menu-links').find('.eand-main-headings h5').text().trim() + ':' + $(this).text().trim() //"<CTA name>" // ex: "gear up the second pitch", "my account:register", "quick pay", "next or previous", etc
+                    }
+                }
+            })
+        })
+        // mobile menu
+        $('.nav-drill .nav-expand-content .eand-list .p2 li a').on('click', function (e) {
+            e.preventDefault();
+            let type = getType($(this).attr("href"))
+            window.adobeDataLayer.push({
+                "event": "linkClicked",
+                "xdmActionDetails": {
+                    "web": {
+                        "webInteraction": {
+                            "name": $(this).parents('.nav-item').children('.nav-link').text().trim() + ':' + $(this).parents('.eand-list').prev().find('h5').text().trim() + ':' + $(this).text().trim(), //"<CTA Name>",
+                            "URL": window.location.href, //"<URL where the CTA is located>",
+                            "type": type, //"<other or exit or download>" link type "others" for internal website links, "downloads“ for links with extensions (pdf, ppt, xlsx, etc) and "exit" for external website links
+                            "region": "",
+                            "linkClicks": {
+                                "value": 1
+                            }
+                        }
+                    },
+                    "linkInfo": {
+                        "sectionHeading": "navigation menu",//"<CTA section heading/Link Page Name>",  // ex: "featured offer", "navmenu", "quick links", "hero banner section“, etc
+                        "action": "navigation menu item clicked", // ex: "view offer", "nav menu clicked", "quick links clicked", "hero banner click", etc
+                        "name": $(this).parents('.nav-item').children('.nav-link').text().trim() + ':' + $(this).parents('.eand-list').prev().find('h5').text().trim() + ':' + $(this).text().trim() //"<CTA name>" // ex: "gear up the second pitch", "my account:register", "quick pay", "next or previous", etc
+                    }
+                }
+            })
+        })
+        $('.mega-menu-desktop .sub-menu-wrap .mega-menu-image a ,.nav-drill .mega-menu-image a').on('click', function (e) {
+            e.preventDefault();
+            let type = getType($(this).attr("href"));
+            let url = $(this).attr("href");
+            window.adobeDataLayer.push({
+                "event": "linkClicked",
+                "xdmActionDetails": {
+                    "web": {
+                        "webInteraction": {
+                            "name": $(this).parents('.mega-menu-image').parents('li').children('a').text().trim() + ':' + $(this).siblings(".eand-main-headings").find("h5").text().trim(), //"<CTA Name>",
+                            "URL": window.location.href, //"<URL where the CTA is located>",
+                            "type": type, //"<other or exit or download>" link type "others" for internal website links, "downloads“ for links with extensions (pdf, ppt, xlsx, etc) and "exit" for external website links
+                            "region": "",
+                            "linkClicks": {
+                                "value": 1
+                            }
+                        }
+                    },
+                    "linkInfo": {
+                        "sectionHeading": "navigation menu",//"<CTA section heading/Link Page Name>",  // ex: "featured offer", "navmenu", "quick links", "hero banner section“, etc
+                        "action": "navigation menu item clicked", // ex: "view offer", "nav menu clicked", "quick links clicked", "hero banner click", etc
+                        "name": $(this).parents('.mega-menu-image').parents('li').children('a').text().trim() + ':' + $(this).siblings(".eand-main-headings").find("h5").text().trim() //"<CTA name>" // ex: "gear up the second pitch", "my account:register", "quick pay", "next or previous", etc
+                    }
+                }
+            });
+            navigate(url,this)
+        })
+        // Menu sign in button
+        $('.mega-menu-desktop .sub-menu-wrap .btn.btn-eand-primary-100 , .nav-drill .btn.btn-eand-primary-100').on('click', function (e) {
+            e.preventDefault();
+            let type = getType($(this).attr("href"));
+            let url = $(this).attr("href");
+            window.adobeDataLayer.push({
+                "event": "linkClicked",
+                "xdmActionDetails": {
+                    "web": {
+                        "webInteraction": {
+                            "name": "my account:" + $(this).text().trim(), //"<CTA Name>",
+                            "URL": window.location.href, //"<URL where the CTA is located>",
+                            "type": type, //"<other or exit or download>" link type "others" for internal website links, "downloads“ for links with extensions (pdf, ppt, xlsx, etc) and "exit" for external website links
+                            "region": "",
+                            "linkClicks": {
+                                "value": 1
+                            }
+                        }
+                    },
+                    "linkInfo": {
+                        "sectionHeading": "navigation menu",//"<CTA section heading/Link Page Name>",  // ex: "featured offer", "navmenu", "quick links", "hero banner section“, etc
+                        "action": "navigation menu item clicked", // ex: "view offer", "nav menu clicked", "quick links clicked", "hero banner click", etc
+                        "name": "my account:" + $(this).text().trim() //"<CTA name>" // ex: "gear up the second pitch", "my account:register", "quick pay", "next or previous", etc
+                    }
+                }
+            });
+            navigate(url,this)
+        })
+
+
+        $('.cross-promo-tile-d .content-wrap .btn-wrapper .btn').on('click', function (e) {
+            e.preventDefault();
+            var type = getType($(this).attr("href"))
+            let url = $(this).attr("href");
+            window.adobeDataLayer.push({
+                "event": "linkClicked",
+                "xdmActionDetails": {
+                    "web": {
+                        "webInteraction": {
+                            "name": $(this).text().trim(), //"<CTA Name>",
+                            "URL": window.location.href, //"<URL where the CTA is located>",
+                            "type": type, //"<other or exit or download>" link type "others" for internal website links, "downloads“ for links with extensions (pdf, ppt, xlsx, etc) and "exit" for external website links
+                            "region": "",
+                            "linkClicks": {
+                                "value": 1
+                            }
+                        }
+                    },
+                    "linkInfo": {
+                        "sectionHeading": $(this).parents(".content-wrap").find(".eand-main-headings h2").text().trim(),//"<CTA section heading/Link Page Name>",  // ex: "featured offer", "navmenu", "quick links", "hero banner section“, etc
+                        "action":$(this).text().trim() + " clicked", // ex: "view offer", "nav menu clicked", "quick links clicked", "hero banner click", etc
+                        "name": $(this).text().trim() //"<CTA name>" // ex: "gear up the second pitch", "my account:register", "quick pay", "next or previous", etc
+                    }
+                }
+            })
+            // navigate(url,this)
+        })
+
+        $('.eand-tariff-cards-module:not(.eand-tariff-dynanmic) .eand-tariff-card-tile .btn-wrapper .btn , .eand-tariff-cards-module:not(.eand-tariff-dynanmic) .eand-tariff-card-tile .button-wrapper .btn').on('click', function (e) {
+            e.preventDefault();
+            var type = getType($(this).attr("href"))
+            let url = $(this).attr("href");
+            window.adobeDataLayer.push({
+                "event": "linkClicked",
+                "xdmActionDetails": {
+                    "web": {
+                        "webInteraction": {
+                            "name": $(this).text().trim(), //"<CTA Name>",
+                            "URL": window.location.href, //"<URL where the CTA is located>",
+                            "type": type, //"<other or exit or download>" link type "others" for internal website links, "downloads“ for links with extensions (pdf, ppt, xlsx, etc) and "exit" for external website links
+                            "region": "",
+                            "linkClicks": {
+                                "value": 1
+                            }
+                        }
+                    },
+                    "linkInfo": {
+                        "sectionHeading": $(this).parents(".eand-tariff-cards-module").find(".eand-main-headings h2").text().trim(),//"<CTA section heading/Link Page Name>",  // ex: "featured offer", "navmenu", "quick links", "hero banner section“, etc
+                        "action": $(this).text().trim() + " clicked", // ex: "view offer", "nav menu clicked", "quick links clicked", "hero banner click", etc
+                        "name": $(this).text().trim() //"<CTA name>" // ex: "gear up the second pitch", "my account:register", "quick pay", "next or previous", etc
+                    }
+                }
+            })
+            navigate(url,this)
+        })
+        
+        // cross promo F
+
+        $('.cross-promo-f .cta-wrapper a').on('click', function (e) {
+            e.preventDefault();
+            var type = getType($(this).attr("href"))
+            window.adobeDataLayer.push({
+                "event": "linkClicked",
+                "xdmActionDetails": {
+                    "web": {
+                        "webInteraction": {
+                            "name": $(this).text().trim(), //"<CTA Name>",
+                            "URL": window.location.href, //"<URL where the CTA is located>",
+                            "type": type, //"<other or exit or download>" link type "others" for internal website links, "downloads“ for links with extensions (pdf, ppt, xlsx, etc) and "exit" for external website links
+                            "region": "",
+                            "linkClicks": {
+                                "value": 1
+                            }
+                        }
+                    },
+                    "linkInfo": {
+                        "sectionHeading": $(this).parents(".cross-promo-f-tile").find(".eand-main-headings h3").text().trim(),//"<CTA section heading/Link Page Name>",  // ex: "featured offer", "navmenu", "quick links", "hero banner section“, etc
+                        "action": $(this).text().trim() + " clicked", // ex: "view offer", "nav menu clicked", "quick links clicked", "hero banner click", etc
+                        "name": $(this).text().trim() //"<CTA name>" // ex: "gear up the second pitch", "my account:register", "quick pay", "next or previous", etc
+                    }
+                }
+            })
+        })
+
+
+
+        // media cta
+
+        $('.eand-media-cta .content-wrap .cta-wrapper a').on('click', function (e) {
+            e.preventDefault();
+            var type = getType($(this).attr("href"))
+            
+            window.adobeDataLayer.push({
+                "event": "linkClicked",
+                "xdmActionDetails": {
+                    "web": {
+                        "webInteraction": {
+                            "name": $(this).text().trim(), //"<CTA Name>",
+                            "URL": window.location.href, //"<URL where the CTA is located>",
+                            "type": type, //"<other or exit or download>" link type "others" for internal website links, "downloads“ for links with extensions (pdf, ppt, xlsx, etc) and "exit" for external website links
+                            "region": "",
+                            "linkClicks": {
+                                "value": 1
+                            }
+                        }
+                    },
+                    "linkInfo": {
+                        "sectionHeading": $(this).parents(".content-wrap").find(".eand-main-headings h3").text().trim(),//"<CTA section heading/Link Page Name>",  // ex: "featured offer", "navmenu", "quick links", "hero banner section“, etc
+                        "action": $(this).text().trim() + " clicked", // ex: "view offer", "nav menu clicked", "quick links clicked", "hero banner click", etc
+                        "name": $(this).text().trim() //"<CTA name>" // ex: "gear up the second pitch", "my account:register", "quick pay", "next or previous", etc
+                    }
+                }
+            })
+            console.log($(this).text().trim());
+            console.log(type)
+        })
+
+        // current promotions 2
+
+        $('.current-promotions-2 .current-promotion-tile-2 .cta-wrapper a').on('click', function (e) {
+            e.preventDefault();
+            var type = getType($(this).attr("href"))
+            //let url = $(this).attr("href");
+            window.adobeDataLayer.push({
+                "event": "linkClicked",
+                "xdmActionDetails": {
+                    "web": {
+                        "webInteraction": {
+                            "name": $(this).text().trim(), //"<CTA Name>",
+                            "URL": window.location.href, //"<URL where the CTA is located>",
+                            "type": type, //"<other or exit or download>" link type "others" for internal website links, "downloads“ for links with extensions (pdf, ppt, xlsx, etc) and "exit" for external website links
+                            "region": "",
+                            "linkClicks": {
+                                "value": 1
+                            }
+                        }
+                    },
+                    "linkInfo": {
+                        "sectionHeading": $(this).parents(".current-promotion-tile-2").find(".eand-main-headings h4").text().trim(),//"<CTA section heading/Link Page Name>",  // ex: "featured offer", "navmenu", "quick links", "hero banner section“, etc
+                        "action": $(this).text().trim() + " clicked", // ex: "view offer", "nav menu clicked", "quick links clicked", "hero banner click", etc
+                        "name": $(this).text().trim() //"<CTA name>" // ex: "gear up the second pitch", "my account:register", "quick pay", "next or previous", etc
+                    }
+                }
+            })
+            //navigate(url,this)
+        })
+
+        // current promotion
+
+        $('.current-promotion-tile .cta-wrapper a').on('click', function (e) {
+            e.preventDefault();
+            var type = getType($(this).attr("href"))
+            let url = $(this).attr("href");
+            window.adobeDataLayer.push({
+                "event": "linkClicked",
+                "xdmActionDetails": {
+                    "web": {
+                        "webInteraction": {
+                            "name": $(this).text().trim(), //"<CTA Name>",
+                            "URL": window.location.href, //"<URL where the CTA is located>",
+                            "type": type, //"<other or exit or download>" link type "others" for internal website links, "downloads“ for links with extensions (pdf, ppt, xlsx, etc) and "exit" for external website links
+                            "region": "",
+                            "linkClicks": {
+                                "value": 1
+                            }
+                        }
+                    },
+                    "linkInfo": {
+                        "sectionHeading": $(this).parents(".current-promotion-tile").find(".eand-main-headings").children().text().trim(),//"<CTA section heading/Link Page Name>",  // ex: "featured offer", "navmenu", "quick links", "hero banner section“, etc
+                        "action": $(this).text().trim() + " clicked", // ex: "view offer", "nav menu clicked", "quick links clicked", "hero banner click", etc
+                        "name": $(this).text().trim() //"<CTA name>" // ex: "gear up the second pitch", "my account:register", "quick pay", "next or previous", etc
+                    }
+                }
+            })
+            navigate(url,this)
+        })
+
+        // cross promo C
+
+        $('.cross-promo-c .content-wrapper .btn').on('click', function (e) {
+            e.preventDefault();
+            var type = getType($(this).attr("href"))
+            let url = $(this).attr("href");
+            window.adobeDataLayer.push({
+                "event": "linkClicked",
+                "xdmActionDetails": {
+                    "web": {
+                        "webInteraction": {
+                            "name": $(this).text().trim(), //"<CTA Name>",
+                            "URL": window.location.href, //"<URL where the CTA is located>",
+                            "type": type, //"<other or exit or download>" link type "others" for internal website links, "downloads“ for links with extensions (pdf, ppt, xlsx, etc) and "exit" for external website links
+                            "region": "",
+                            "linkClicks": {
+                                "value": 1
+                            }
+                        }
+                    },
+                    "linkInfo": {
+                        "sectionHeading": $(this).parents(".cross-promo-c-tile").find(".eand-main-headings h4").text().trim(),//"<CTA section heading/Link Page Name>",  // ex: "featured offer", "navmenu", "quick links", "hero banner section“, etc
+                        "action": $(this).text().trim() + " clicked", // ex: "view offer", "nav menu clicked", "quick links clicked", "hero banner click", etc
+                        "name": $(this).text().trim() //"<CTA name>" // ex: "gear up the second pitch", "my account:register", "quick pay", "next or previous", etc
+                    }
+                }
+            })
+            //navigate(url,this)
+        })
+
+        // tariff card small
+        $('.eand-tariff-cards-module .eand-tariff-cards-small.eand-tariff-card-tile .button-wrapper .btn').on('click', function (e) {
+            e.preventDefault();
+            var type = getType($(this).attr("href"))
+            let url = $(this).attr("href");
+            window.adobeDataLayer.push({
+                "event": "linkClicked",
+                "xdmActionDetails": {
+                    "web": {
+                        "webInteraction": {
+                            "name": $(this).text().trim(), //"<CTA Name>",
+                            "URL": window.location.href, //"<URL where the CTA is located>",
+                            "type": type, //"<other or exit or download>" link type "others" for internal website links, "downloads“ for links with extensions (pdf, ppt, xlsx, etc) and "exit" for external website links
+                            "region": "",
+                            "linkClicks": {
+                                "value": 1
+                            }
+                        }
+                    },
+                    "linkInfo": {
+                        "sectionHeading": "mobile plans:postpaid",//"<CTA section heading/Link Page Name>",  // ex: "featured offer", "navmenu", "quick links", "hero banner section“, etc
+                        "action": $(this).text().trim() +" clicked", // ex: "view offer", "nav menu clicked", "quick links clicked", "hero banner click", etc
+                        "name": $(this).text().trim() //"<CTA name>" // ex: "gear up the second pitch", "my account:register", "quick pay", "next or previous", etc
+                    }
+                }
+            })
+            //navigate(url,this)
+        })
+
+        // cross promo B
+        $('.eand-cross-promo-b .content-wrapper .btn-wrapper .btn').on('click', function (e) {
+            e.preventDefault();
+            var type = getType($(this).attr("href"))
+            
+            window.adobeDataLayer.push({
+                "event": "linkClicked",
+                "xdmActionDetails": {
+                    "web": {
+                        "webInteraction": {
+                            "name": $(this).text().trim(), //"<CTA Name>",
+                            "URL": window.location.href, //"<URL where the CTA is located>",
+                            "type": type, //"<other or exit or download>" link type "others" for internal website links, "downloads“ for links with extensions (pdf, ppt, xlsx, etc) and "exit" for external website links
+                            "region": "",
+                            "linkClicks": {
+                                "value": 1
+                            }
+                        }
+                    },
+                    "linkInfo": {
+                        "sectionHeading": $(this).parents(".eand-cross-promo-b").find(".eand-main-headings h2").text().trim(),//"<CTA section heading/Link Page Name>",  // ex: "featured offer", "navmenu", "quick links", "hero banner section“, etc
+                        "action": $(this).text().trim() + " clicked", // ex: "view offer", "nav menu clicked", "quick links clicked", "hero banner click", etc
+                        "name": $(this).text().trim() //"<CTA name>" // ex: "gear up the second pitch", "my account:register", "quick pay", "next or previous", etc
+                    }
+                }
+            })
+            console.log($(this).parents(".eand-cross-promo-b").find(".eand-main-headings h2").text().trim());
+            console.log($(this).text().trim());
+            console.log(type)
+        })
+
+        // important to know
+        $('.important-to-know .cta-wrapper a').on('click', function (e) {
+            e.preventDefault();
+            var type = getType($(this).attr("href"))
+            let url = $(this).attr("href");
+            window.adobeDataLayer.push({
+                "event": "linkClicked",
+                "xdmActionDetails": {
+                    "web": {
+                        "webInteraction": {
+                            "name": $(this).text().trim(), //"<CTA Name>",
+                            "URL": window.location.href, //"<URL where the CTA is located>",
+                            "type": type, //"<other or exit or download>" link type "others" for internal website links, "downloads“ for links with extensions (pdf, ppt, xlsx, etc) and "exit" for external website links
+                            "region": "",
+                            "linkClicks": {
+                                "value": 1
+                            }
+                        }
+                    },
+                    "linkInfo": {
+                        "sectionHeading": $(this).parents(".important-to-know").find(".eand-main-headings h2").text().trim(),//"<CTA section heading/Link Page Name>",  // ex: "featured offer", "navmenu", "quick links", "hero banner section“, etc
+                        "action": $(this).text().trim() + " clicked", // ex: "view offer", "nav menu clicked", "quick links clicked", "hero banner click", etc
+                        "name": $(this).text().trim() //"<CTA name>" // ex: "gear up the second pitch", "my account:register", "quick pay", "next or previous", etc
+                    }
+                }
+            })
+            navigate(url,this)
+        })
+
+
+        // context-navigation
+        $('.eand-context-navigation .cta-wrapper a').on('click', function (e) {
+            e.preventDefault();
+            var type = getType($(this).attr("href"))
+            let url = $(this).attr("href");
+
+            window.adobeDataLayer.push({
+                "event": "linkClicked",
+                "xdmActionDetails": {
+                    "web": {
+                        "webInteraction": {
+                            "name": $(this).text().trim(), //"<CTA Name>",
+                            "URL": window.location.href, //"<URL where the CTA is located>",
+                            "type": type, //"<other or exit or download>" link type "others" for internal website links, "downloads“ for links with extensions (pdf, ppt, xlsx, etc) and "exit" for external website links
+                            "region": "",
+                            "linkClicks": {
+                                "value": 1
+                            }
+                        }
+                    },
+                    "linkInfo": {
+                        "sectionHeading":$(this).parents(".content-wrapper").find(".eand-main-headings h4").text().trim(),//"<CTA section heading/Link Page Name>",  // ex: "featured offer", "navmenu", "quick links", "hero banner section“, etc
+                        "action": $(this).text().trim() + " clicked", // ex: "view offer", "nav menu clicked", "quick links clicked", "hero banner click", etc
+                        "name": $(this).text().trim() //"<CTA name>" // ex: "gear up the second pitch", "my account:register", "quick pay", "next or previous", etc
+                    }
+                }
+            })
+            // navigate(url,this)
+        })
+
+        // Promo grid
+        $('.eand-promo-grid .cta-wrapper a , .eand-promo-grid .btn').on('click', function (e) {
+            e.preventDefault();
+            var type = getType($(this).attr("href"))
+            let url = $(this).attr("href");
+            window.adobeDataLayer.push({
+                "event": "linkClicked",
+                "xdmActionDetails": {
+                    "web": {
+                        "webInteraction": {
+                            "name": $(this).text().trim(), //"<CTA Name>",
+                            "URL": window.location.href, //"<URL where the CTA is located>",
+                            "type": type, //"<other or exit or download>" link type "others" for internal website links, "downloads“ for links with extensions (pdf, ppt, xlsx, etc) and "exit" for external website links
+                            "region": "",
+                            "linkClicks": {
+                                "value": 1
+                            }
+                        }
+                    },
+                    "linkInfo": {
+                        "sectionHeading":$(this).parents(".promo-content").find(".promo-content-only").find(".eand-main-headings h4").text().trim(),//"<CTA section heading/Link Page Name>",  // ex: "featured offer", "navmenu", "quick links", "hero banner section“, etc
+                        "action": $(this).text().trim() + " clicked", // ex: "view offer", "nav menu clicked", "quick links clicked", "hero banner click", etc
+                        "name": $(this).text().trim() //"<CTA name>" // ex: "gear up the second pitch", "my account:register", "quick pay", "next or previous", etc
+                    }
+                }
+            })
+            // navigate(url,this)
+        })
+
+        // Promo grid
+        
+
+        // FAQ
+        $('.eand-faq .cta-wrapper a').on('click', function (e) {
+            e.preventDefault();
+            let url = $(this).attr("href");
+            var type = getType($(this).attr("href"))
+            
+            window.adobeDataLayer.push({
+                "event": "linkClicked",
+                "xdmActionDetails": {
+                    "web": {
+                        "webInteraction": {
+                            "name": $(this).text().trim(), //"<CTA Name>",
+                            "URL": window.location.href, //"<URL where the CTA is located>",
+                            "type": type, //"<other or exit or download>" link type "others" for internal website links, "downloads“ for links with extensions (pdf, ppt, xlsx, etc) and "exit" for external website links
+                            "region": "",
+                            "linkClicks": {
+                                "value": 1
+                            }
+                        }
+                    },
+                    "linkInfo": {
+                        "sectionHeading":$(this).parent().siblings(".eand-main-headings").children().text().trim(),//"<CTA section heading/Link Page Name>",  // ex: "featured offer", "navmenu", "quick links", "hero banner section“, etc
+                        "action": $(this).text().trim() + " clicked", // ex: "view offer", "nav menu clicked", "quick links clicked", "hero banner click", etc
+                        "name": $(this).text().trim() //"<CTA name>" // ex: "gear up the second pitch", "my account:register", "quick pay", "next or previous", etc
+                    }
+                }
+            })
+            navigate(url,this)
+        })
+
+        // Special offer
+        $('.special-offer-tile .btn-wrapper a').on('click', function (e) {
+            e.preventDefault();
+            var type = getType($(this).attr("href"))
+            let url = $(this).attr("href");
+            window.adobeDataLayer.push({
+                "event": "linkClicked",
+                "xdmActionDetails": {
+                    "web": {
+                        "webInteraction": {
+                            "name": $(this).text().trim(), //"<CTA Name>",
+                            "URL": window.location.href, //"<URL where the CTA is located>",
+                            "type": type, //"<other or exit or download>" link type "others" for internal website links, "downloads“ for links with extensions (pdf, ppt, xlsx, etc) and "exit" for external website links
+                            "region": "",
+                            "linkClicks": {
+                                "value": 1
+                            }
+                        }
+                    },
+                    "linkInfo": {
+                        "sectionHeading":$(this).parents(".content-wrapper").find(".eand-main-headings h5").text().trim(),//"<CTA section heading/Link Page Name>",  // ex: "featured offer", "navmenu", "quick links", "hero banner section“, etc
+                        "action": $(this).text().trim() + " clicked", // ex: "view offer", "nav menu clicked", "quick links clicked", "hero banner click", etc
+                        "name": $(this).text().trim() //"<CTA name>" // ex: "gear up the second pitch", "my account:register", "quick pay", "next or previous", etc
+                    }
+                }
+            })
+            //navigate(url,this)
+        })
+
+        // hero-banner
+        $('.hero-banner-tile .btn-wrapper a').on('click', function (e) {
+            //e.preventDefault();
+            var type = getType($(this).attr("href"))
+            
+            window.adobeDataLayer.push({
+                "event": "linkClicked",
+                "xdmActionDetails": {
+                    "web": {
+                        "webInteraction": {
+                            "name": $(this).text().trim(), //"<CTA Name>",
+                            "URL": window.location.href, //"<URL where the CTA is located>",
+                            "type": type, //"<other or exit or download>" link type "others" for internal website links, "downloads“ for links with extensions (pdf, ppt, xlsx, etc) and "exit" for external website links
+                            "region": "",
+                            "linkClicks": {
+                                "value": 1
+                            }
+                        }
+                    },
+                    "linkInfo": {
+                        "sectionHeading":$(this).parents(".content-wrap").find(".eand-main-headings").children().text().trim(),//"<CTA section heading/Link Page Name>",  // ex: "featured offer", "navmenu", "quick links", "hero banner section“, etc
+                        "action": $(this).text().trim() + " clicked", // ex: "view offer", "nav menu clicked", "quick links clicked", "hero banner click", etc
+                        "name": $(this).text().trim() //"<CTA name>" // ex: "gear up the second pitch", "my account:register", "quick pay", "next or previous", etc
+                    }
+                }
+            })
+        })
+        
+
+        // Cross promo A
+        $('.cross-promo-tile-a .btn-wrapper a ,.cross-promo-tile-a .cta-wrapper a').on('click', function (e) {
+            e.preventDefault();
+            var type = getType($(this).attr("href"))
+            
+            window.adobeDataLayer.push({
+                "event": "linkClicked",
+                "xdmActionDetails": {
+                    "web": {
+                        "webInteraction": {
+                            "name": $(this).text().trim(), //"<CTA Name>",
+                            "URL": window.location.href, //"<URL where the CTA is located>",
+                            "type": type, //"<other or exit or download>" link type "others" for internal website links, "downloads“ for links with extensions (pdf, ppt, xlsx, etc) and "exit" for external website links
+                            "region": "",
+                            "linkClicks": {
+                                "value": 1
+                            }
+                        }
+                    },
+                    "linkInfo": {
+                        "sectionHeading":$(this).parents(".content-wrapper").find(".eand-main-headings").children().text().trim(),//"<CTA section heading/Link Page Name>",  // ex: "featured offer", "navmenu", "quick links", "hero banner section“, etc
+                        "action": $(this).text().trim() + " clicked", // ex: "view offer", "nav menu clicked", "quick links clicked", "hero banner click", etc
+                        "name": $(this).text().trim() //"<CTA name>" // ex: "gear up the second pitch", "my account:register", "quick pay", "next or previous", etc
+                    }
+                }
+            })
+
+        })
+
+
+        // Media cta slider
+        $('.eand-media-cta-carousal .cta-wrapper a').on('click', function (e) {
+            e.preventDefault();
+            var type = getType($(this).attr("href"))
+            
+            window.adobeDataLayer.push({
+                "event": "linkClicked",
+                "xdmActionDetails": {
+                    "web": {
+                        "webInteraction": {
+                            "name": $(this).text().trim(), //"<CTA Name>",
+                            "URL": window.location.href, //"<URL where the CTA is located>",
+                            "type": type, //"<other or exit or download>" link type "others" for internal website links, "downloads“ for links with extensions (pdf, ppt, xlsx, etc) and "exit" for external website links
+                            "region": "",
+                            "linkClicks": {
+                                "value": 1
+                            }
+                        }
+                    },
+                    "linkInfo": {
+                        "sectionHeading":$(this).parents(".media-carousal-tile").find(".eand-main-headings").children().text().trim(),//"<CTA section heading/Link Page Name>",  // ex: "featured offer", "navmenu", "quick links", "hero banner section“, etc
+                        "action": $(this).text().trim() + " clicked", // ex: "view offer", "nav menu clicked", "quick links clicked", "hero banner click", etc
+                        "name": $(this).text().trim() //"<CTA name>" // ex: "gear up the second pitch", "my account:register", "quick pay", "next or previous", etc
+                    }
+                }
+            })
+
+        })
+
+        // product action 
+        $('.eand-product-action-wraper .button-wrapper .btn').on('click', function (e) {
+            e.preventDefault();
+            var type = getType($(this).attr("href"))
+            let url = $(this).attr("href");
+            window.adobeDataLayer.push({
+                "event": "linkClicked",
+                "xdmActionDetails": {
+                    "web": {
+                        "webInteraction": {
+                            "name": $(this).text().trim(), //"<CTA Name>",
+                            "URL": window.location.href, //"<URL where the CTA is located>",
+                            "type": type, //"<other or exit or download>" link type "others" for internal website links, "downloads“ for links with extensions (pdf, ppt, xlsx, etc) and "exit" for external website links
+                            "region": "",
+                            "linkClicks": {
+                                "value": 1
+                            }
+                        }
+                    },
+                    "linkInfo": {
+                        "sectionHeading":$(this).parents(".content-wrap").find(".eand-main-headings").children().text().trim(),//"<CTA section heading/Link Page Name>",  // ex: "featured offer", "navmenu", "quick links", "hero banner section“, etc
+                        "action": $(this).text().trim() + " clicked", // ex: "view offer", "nav menu clicked", "quick links clicked", "hero banner click", etc
+                        "name": $(this).text().trim() //"<CTA name>" // ex: "gear up the second pitch", "my account:register", "quick pay", "next or previous", etc
+                    }
+                }
+            })
+            //navigate(url,this)
+        })
+
+        // cross promo g 
+        $('.cross-promo-g .cta-wrapper a').on('click', function (e) {
+            e.preventDefault();
+            var type = getType($(this).attr("href"))
+            let url = $(this).attr("href");
+            window.adobeDataLayer.push({
+                "event": "linkClicked",
+                "xdmActionDetails": {
+                    "web": {
+                        "webInteraction": {
+                            "name": $(this).text().trim(), //"<CTA Name>",
+                            "URL": window.location.href, //"<URL where the CTA is located>",
+                            "type": type, //"<other or exit or download>" link type "others" for internal website links, "downloads“ for links with extensions (pdf, ppt, xlsx, etc) and "exit" for external website links
+                            "region": "",
+                            "linkClicks": {
+                                "value": 1
+                            }
+                        }
+                    },
+                    "linkInfo": {
+                        "sectionHeading":$(this).parents(".cross-promo-g-tile").find(".eand-main-headings").children().text().trim(),//"<CTA section heading/Link Page Name>",  // ex: "featured offer", "navmenu", "quick links", "hero banner section“, etc
+                        "action": $(this).text().trim() + " clicked", // ex: "view offer", "nav menu clicked", "quick links clicked", "hero banner click", etc
+                        "name": $(this).text().trim() //"<CTA name>" // ex: "gear up the second pitch", "my account:register", "quick pay", "next or previous", etc
+                    }
+                }
+            })
+            navigate(url,this)
+        })
+
+        // tariff cards dynamic (products)
+        var pClickedDetails = $('.eand-tariff-cards-module.eand-tariff-dynanmic .button-wrapper a');
+        //if (pClickedDetails !== 'undefined' && pClickedDetails.length > 0) {
+            $('.eand-tariff-cards-module.eand-tariff-dynanmic').on('click', '.eand-tariff-card-tile .button-wrapper a', function(e) {
+                var curnt = $(e.target).attr('data-target');
+                e.preventDefault();
+                var selectedProductMain = $(e.target).parents('.eand-tariff-card-tile');
+                var name = selectedProductMain.find('.card-heading').children().find('br').length > 0 ? selectedProductMain.find('.card-heading').children().html().split('<br>')[1].trim() : selectedProductMain.find('.card-heading').children().text()
+                var price = selectedProductMain.find('.price').find('h4').text();
+                var category = getParameterByName('catName', curnt);
+                var contractType = selectedProductMain.find('.card-price').find('.eand-paragraph.from p').text().trim();
+                var type = getType($(this).attr("href"));
+                var brand = selectedProductMain.attr("data-brand");
+                var devicetype = selectedProductMain.attr("data-deviceType");
+                var description = "";
+                selectedProductMain.find(".benefit-list-tile").each((i,tile)=>{
+                    description += $(tile).find(".p2.text-eand-granite-70 p").text().trim() + ':' + $(tile).find(".p1.plus-others p").text().trim() + ', '
+                })
+                window.adobeDataLayer.push({
+                    "event": "linkClicked",
+                    "xdmActionDetails": {
+                        "web": {
+                            "webInteraction": {
+                                "name": $(this).text().trim(), //"<CTA Name>",
+                                "URL": window.location.href, //"<URL where the CTA is located>",
+                                "type": type, //"<other or exit or download>" link type "others" for internal website links, "downloads“ for links with extensions (pdf, ppt, xlsx, etc) and "exit" for external website links
+                                "region": "",
+                                "linkClicks": {
+                                    "value": 1
+                                }
+                            }
+                        },
+                        "linkInfo": {
+                            "sectionHeading":"mobile plans:emirati",//"<CTA section heading/Link Page Name>",  // ex: "featured offer", "navmenu", "quick links", "hero banner section“, etc
+                            "action": $(this).text().trim() + " clicked", // ex: "view offer", "nav menu clicked", "quick links clicked", "hero banner click", etc
+                            "name": $(this).text().trim() //"<CTA name>" // ex: "gear up the second pitch", "my account:register", "quick pay", "next or previous", etc
+                        },
+                        "productListItems": [{
+                            "name": name,
+                            "_merchVars": {
+                                "productType": devicetype,
+                                "productCategory":category, // ex: “mobile plans”, “mobile add-on”, “devices”, etc 
+                                "productSubCategory1":"", 
+                                "productSubCategory2":"",
+                                "productSubCategory3":"",
+                                "productDescription":description, //product description,pipe delimited list of product details like Local data, Local Mins, CUG Mins, CarryForward, Intl Mins etc.
+                                "price":price,
+                                "contractPeriod":contractType, // contract period selected
+                                "contractType":contractType, //contract type selected: monthly, yearly, etc
+                                "deviceBrand":brand,
+                                "deviceStorage":"",
+                                "deviceMemory":"",
+                                "deviceColor":"",
+                                "deviceScreenSize":"",
+                                "deviceOperatingSystem":"",
+                                "deviceModelYear":"",
+                            }
+                        }]
+                    }
+                })
+
+            })
+        //}
+
+
+        // device cards dynamic (products)
+        var pClickedDetails = $('.eand-device-cards-module.eand-device-dynanmic .button-wrapper a');
+        //if (pClickedDetails !== 'undefined' && pClickedDetails.length > 0) {
+            $('.eand-device-cards-module.eand-device-dynanmic').on('click', '.eand-device-card-tile .button-wrapper a', function(e) {
+                console.log($(e.target))
+                var curnt = $(e.target).attr('data-target');
+                e.preventDefault();
+                var selectedProductMain = $(e.target).parents('.eand-device-card-tile');
+                var name = selectedProductMain.find('.top-part .eand-main-headings').children().text().trim();
+                var price = selectedProductMain.find('.bottom-part .price .eand-main-headings.value').attr('data-price');
+                var category = getParameterByName('catName', curnt);
+                var type = getType($(this).attr("href"))
+                var devicetype = selectedProductMain.attr("data-deviceType");
+                var deviceBrand = selectedProductMain.find(".top-part .p2.text-eand-granite-70 p").text().trim();
+                window.adobeDataLayer.push({
+                    "event": "linkClicked",
+                    "xdmActionDetails": {
+                        "web": {
+                            "webInteraction": {
+                                "name": $(this).text().trim(), //"<CTA Name>",
+                                "URL": window.location.href, //"<URL where the CTA is located>",
+                                "type": type, //"<other or exit or download>" link type "others" for internal website links, "downloads“ for links with extensions (pdf, ppt, xlsx, etc) and "exit" for external website links
+                                "region": "",
+                                "linkClicks": {
+                                    "value": 1
+                                }
+                            }
+                        },
+                        "linkInfo": {
+                            "sectionHeading":"devices:"+getDeviceType(),//"<CTA section heading/Link Page Name>",  // ex: "featured offer", "navmenu", "quick links", "hero banner section“, etc
+                            "action": $(this).text().trim() + " clicked", // ex: "view offer", "nav menu clicked", "quick links clicked", "hero banner click", etc
+                            "name": $(this).text().trim() //"<CTA name>" // ex: "gear up the second pitch", "my account:register", "quick pay", "next or previous", etc
+                        },
+                        "productListItems": [{
+                            "name": name,
+                            "_merchVars": {
+                                "productType": devicetype,
+                                "productCategory":category, // ex: “mobile plans”, “mobile add-on”, “devices”, etc 
+                                "productSubCategory1":"", 
+                                "productSubCategory2":"",
+                                "productSubCategory3":"",
+                                "productDescription":"", //product description,pipe delimited list of product details like Local data, Local Mins, CUG Mins, CarryForward, Intl Mins etc.
+                                "price":price,
+                                "contractPeriod":"", // contract period selected
+                                "contractType":"", //contract type selected: monthly, yearly, etc
+                                "deviceBrand":deviceBrand,
+                                "deviceStorage":"",
+                                "deviceMemory":"",
+                                "deviceColor":"",
+                                "deviceScreenSize":"",
+                                "deviceOperatingSystem":"",
+                                "deviceModelYear":"",
+                            }
+                        }]
+                    }
+                })
+
+            })
+
+            $('.eand-device-cards-module.eand-device-dynanmic').on('click', '.eand-device-card-tile .link-full-view', function(e) {
+                console.log($(e.target))
+                var curnt = $(e.target).attr('href');
+                e.preventDefault();
+                var selectedProductMain = $(e.target).parents('.eand-device-card-tile');
+                var name = selectedProductMain.find('.top-part .eand-main-headings').children().text().trim();
+                var price = selectedProductMain.find('.bottom-part .price .eand-main-headings.value').attr('data-price');
+                var category = getParameterByName('catName', curnt);
+                var type = getType($(this).attr("href"))
+                var devicetype = selectedProductMain.attr("data-deviceType");
+                var deviceBrand = selectedProductMain.find(".top-part .p2.text-eand-granite-70 p").text().trim();
+                window.adobeDataLayer.push({
+                    "event": "linkClicked",
+                    "xdmActionDetails": {
+                        "web": {
+                            "webInteraction": {
+                                "name": $(this).text().trim(), //"<CTA Name>",
+                                "URL": window.location.href, //"<URL where the CTA is located>",
+                                "type": type, //"<other or exit or download>" link type "others" for internal website links, "downloads“ for links with extensions (pdf, ppt, xlsx, etc) and "exit" for external website links
+                                "region": "",
+                                "linkClicks": {
+                                    "value": 1
+                                }
+                            }
+                        },
+                        "linkInfo": {
+                            "sectionHeading":"devices:"+getDeviceType(),//"<CTA section heading/Link Page Name>",  // ex: "featured offer", "navmenu", "quick links", "hero banner section“, etc
+                            "action": selectedProductMain.find(".btn").text().trim() + " clicked", // ex: "view offer", "nav menu clicked", "quick links clicked", "hero banner click", etc
+                            "name": selectedProductMain.find(".btn").text().trim() //"<CTA name>" // ex: "gear up the second pitch", "my account:register", "quick pay", "next or previous", etc
+                        },
+                        "productListItems": [{
+                            "name": name,
+                            "_merchVars": {
+                                "productType": devicetype,
+                                "productCategory":category, // ex: “mobile plans”, “mobile add-on”, “devices”, etc 
+                                "productSubCategory1":"", 
+                                "productSubCategory2":"",
+                                "productSubCategory3":"",
+                                "productDescription":"", //product description,pipe delimited list of product details like Local data, Local Mins, CUG Mins, CarryForward, Intl Mins etc.
+                                "price":price,
+                                "contractPeriod":"", // contract period selected
+                                "contractType":"", //contract type selected: monthly, yearly, etc
+                                "deviceBrand":deviceBrand,
+                                "deviceStorage":"",
+                                "deviceMemory":"",
+                                "deviceColor":"",
+                                "deviceScreenSize":"",
+                                "deviceOperatingSystem":"",
+                                "deviceModelYear":"",
+                            }
+                        }]
+                    }
+                })
+
+            })
+        //}
+
+        // category small cards
+        $('.category-card-small .cta-wrapper a').on('click', function (e) {
+            //e.preventDefault();
+            var type = getType($(this).attr("href"))
+            let url = $(this).attr("href");
+            window.adobeDataLayer.push({
+                "event": "linkClicked",
+                "xdmActionDetails": {
+                    "web": {
+                        "webInteraction": {
+                            "name": $(this).text().trim(), //"<CTA Name>",
+                            "URL": window.location.href, //"<URL where the CTA is located>",
+                            "type": type, //"<other or exit or download>" link type "others" for internal website links, "downloads“ for links with extensions (pdf, ppt, xlsx, etc) and "exit" for external website links
+                            "region": "",
+                            "linkClicks": {
+                                "value": 1
+                            }
+                        }
+                    },
+                    "linkInfo": {
+                        "sectionHeading":$(this).parents(".category-card-small").find(".eand-main-headings").children().text().trim(),//"<CTA section heading/Link Page Name>",  // ex: "featured offer", "navmenu", "quick links", "hero banner section“, etc
+                        "action": $(this).text().trim() + " clicked", // ex: "view offer", "nav menu clicked", "quick links clicked", "hero banner click", etc
+                        "name": $(this).text().trim() //"<CTA name>" // ex: "gear up the second pitch", "my account:register", "quick pay", "next or previous", etc
+                    }
+                }
+            })
+            //navigate(url,this)
+        })
+
+        // category icon card
+        $('.eand-category-icon-card .cta-wrapper a').on('click', function (e) {
+            //e.preventDefault();
+            var type = getType($(this).attr("href"))
+            let url = $(this).attr("href");
+            window.adobeDataLayer.push({
+                "event": "linkClicked",
+                "xdmActionDetails": {
+                    "web": {
+                        "webInteraction": {
+                            "name": $(this).text().trim(), //"<CTA Name>",
+                            "URL": window.location.href, //"<URL where the CTA is located>",
+                            "type": type, //"<other or exit or download>" link type "others" for internal website links, "downloads“ for links with extensions (pdf, ppt, xlsx, etc) and "exit" for external website links
+                            "region": "",
+                            "linkClicks": {
+                                "value": 1
+                            }
+                        }
+                    },
+                    "linkInfo": {
+                        "sectionHeading":$(this).parents(".category-icon-card-small").find(".eand-main-headings").children().text().trim(),//"<CTA section heading/Link Page Name>",  // ex: "featured offer", "navmenu", "quick links", "hero banner section“, etc
+                        "action": $(this).text().trim() + " clicked", // ex: "view offer", "nav menu clicked", "quick links clicked", "hero banner click", etc
+                        "name": $(this).text().trim() //"<CTA name>" // ex: "gear up the second pitch", "my account:register", "quick pay", "next or previous", etc
+                    }
+                }
+            })
+            //navigate(url,this)
+        })
+
+        // category big card
+        $('.eand-category-big-card .cta-wrapper a').on('click', function (e) {
+            //e.preventDefault();
+            var type = getType($(this).attr("href"))
+            let url = $(this).attr("href");
+            window.adobeDataLayer.push({
+                "event": "linkClicked",
+                "xdmActionDetails": {
+                    "web": {
+                        "webInteraction": {
+                            "name": $(this).text().trim(), //"<CTA Name>",
+                            "URL": window.location.href, //"<URL where the CTA is located>",
+                            "type": type, //"<other or exit or download>" link type "others" for internal website links, "downloads“ for links with extensions (pdf, ppt, xlsx, etc) and "exit" for external website links
+                            "region": "",
+                            "linkClicks": {
+                                "value": 1
+                            }
+                        }
+                    },
+                    "linkInfo": {
+                        "sectionHeading":$(this).parents(".category-tile-big").find(".eand-main-headings").children().text().trim(),//"<CTA section heading/Link Page Name>",  // ex: "featured offer", "navmenu", "quick links", "hero banner section“, etc
+                        "action": $(this).text().trim() + " clicked", // ex: "view offer", "nav menu clicked", "quick links clicked", "hero banner click", etc
+                        "name": $(this).text().trim() //"<CTA name>" // ex: "gear up the second pitch", "my account:register", "quick pay", "next or previous", etc
+                    }
+                }
+            })
+            //navigate(url,this)
+        })
+
+        // category logo card
+        $('.eand-category-logo-card .cta-wrapper a').on('click', function (e) {
+            //e.preventDefault();
+            var type = getType($(this).attr("href"))
+            let url = $(this).attr("href");
+            window.adobeDataLayer.push({
+                "event": "linkClicked",
+                "xdmActionDetails": {
+                    "web": {
+                        "webInteraction": {
+                            "name": $(this).text().trim(), //"<CTA Name>",
+                            "URL": window.location.href, //"<URL where the CTA is located>",
+                            "type": type, //"<other or exit or download>" link type "others" for internal website links, "downloads“ for links with extensions (pdf, ppt, xlsx, etc) and "exit" for external website links
+                            "region": "",
+                            "linkClicks": {
+                                "value": 1
+                            }
+                        }
+                    },
+                    "linkInfo": {
+                        "sectionHeading":$(this).parents(".eand-category-logo-card").find(".eand-main-headings").children().text().trim(),//"<CTA section heading/Link Page Name>",  // ex: "featured offer", "navmenu", "quick links", "hero banner section“, etc
+                        "action": $(this).text().trim() + " clicked", // ex: "view offer", "nav menu clicked", "quick links clicked", "hero banner click", etc
+                        "name": $(this).text().trim() //"<CTA name>" // ex: "gear up the second pitch", "my account:register", "quick pay", "next or previous", etc
+                    }
+                }
+            })
+            //navigate(url,this)
+        })
+        
+        // Main Text
+        $('.eand-main-text .btn-wrapper a , .eand-main-text .cta-wrapper a').on('click', function (e) {
+            //e.preventDefault();
+            var type = getType($(this).attr("href"))
+            let url = $(this).attr("href");
+            window.adobeDataLayer.push({
+                "event": "linkClicked",
+                "xdmActionDetails": {
+                    "web": {
+                        "webInteraction": {
+                            "name": $(this).text().trim(), //"<CTA Name>",
+                            "URL": window.location.href, //"<URL where the CTA is located>",
+                            "type": type, //"<other or exit or download>" link type "others" for internal website links, "downloads“ for links with extensions (pdf, ppt, xlsx, etc) and "exit" for external website links
+                            "region": "",
+                            "linkClicks": {
+                                "value": 1
+                            }
+                        }
+                    },
+                    "linkInfo": {
+                        "sectionHeading":$(this).parents(".eand-main-text").find(".eand-main-headings").children().text().trim(),//"<CTA section heading/Link Page Name>",  // ex: "featured offer", "navmenu", "quick links", "hero banner section“, etc
+                        "action": $(this).text().trim() + " clicked", // ex: "view offer", "nav menu clicked", "quick links clicked", "hero banner click", etc
+                        "name": $(this).text().trim() //"<CTA name>" // ex: "gear up the second pitch", "my account:register", "quick pay", "next or previous", etc
+                    }
+                }
+            })
+            //navigate(url,this)
+        })
+    }
+
+})
+
+
+
+</script>
+
+</body>
+</html>

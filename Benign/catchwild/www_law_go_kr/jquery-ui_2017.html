@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>jquery-ui_2017.html</title>
+</head>
+<body>
+
+<script>
+(function($){
+	// 상단 검색
+	$('.srch_bx .srch_inp input,.srch_bx .srch_inp .btn_history,.srch_bx .srch_inp .history_bx .btn_clse').click(function(){
+		if ($("#query").val() == searchMessage[searchId]) {
+	    	$("#query").val('');
+	    }
+		$(this).parents('.srch_inp').toggleClass('on');
+		return false;
+	});
+	$('.srch_bx .srch_inp .history_bx .list_bx li a').click(function(){
+		var labelTxt = $(this).text();
+		$('.srch_inp > input').val(labelTxt);
+		$(this).parents('.srch_inp').toggleClass('on');
+		return false;
+	});
+	$('.srch_bx .srch_inp input#query').keyup(function(event) {
+		var keyCode = event.keyCode ? event.keyCode : event.which ? event.which : event.charCode;
+		if (keyCode == 13) {
+			if ($(this).parents('.srch_inp').hasClass('on')) {
+				$(this).parents('.srch_inp').removeClass('on');
+			}
+	    } else {
+	    	if ($(this).val().length > 0) {
+				$(this).parents('.srch_inp').removeClass('on');
+			} else {
+				$(this).parents('.srch_inp').addClass('on');
+			}
+	    }
+	});
+	
+	// 상세검색
+	$('.search_dt_bx .btn_clse').click(function(){
+		$('.search_dt_bx').hide();
+		return false;
+	});
+	$('.sub_menu .sch_tab').click(function(){
+		$('.search_dt_bx').eq(0).show();
+		return false;
+	});
+	$('.search_dt_bx .tab_type li').click(function(){
+		$('.search_dt_bx').hide();
+		var tabIndex = $(this).index();
+		$('.search_dt_bx').eq(tabIndex).show();
+		return false;
+	});
+	
+	// 상단 배너
+	var banner_cnt = 0; 
+	var banner_tot_cnt = $('.top_banner > li').length; //배너 총 갯수
+	function banner_rolling(){
+		$('.top_banner > li').removeClass('on'); //배너 초기화
+		if(banner_cnt > banner_tot_cnt-1){
+			banner_cnt = 0;
+		}
+		$('.top_banner > li').eq(banner_cnt).addClass('on');
+		banner_cnt++;
+	}
+	var banner_timer = setInterval(banner_rolling, 5000);
+	
+	$('.sub_ico_area .btn_bx,.btn_bx .sub_bx').hover(function (){
+        $(this).find('.sub_bx').delay(2000).show();
+    }, function (){
+        $(this).find('.sub_bx').delay(1000).hide();
+    });
+	
+	// 첫 title 세팅
+	$('.sub_tab_area .sub_tab > li').each(function(){
+		if ($(this).hasClass('on')) {
+			setTitle(this);
+		}
+	});
+	
+	// 서브 커서 이벤트 등록
+	$('.sub_menu .sub_menu_inp > input').each(function() {
+		$("label[for='" + $(this).attr('id') + "']").css('cursor','pointer');
+	});
+	
+	// 탭 클릭 시 탭 변경 이벤트 적용 및 title 세팅
+	$('.sub_tab_area .sub_tab > li').click(function() {
+		$(this).siblings().each(function(){
+			$(this).removeClass('on');
+			$(this).children('a').attr('title',$(this).children('a').text() + ' 미선택');
+			$(this).children('a').attr('aria-selected', 'false');
+		}).end().addClass('on');
+		if ($(this).hasClass('on')) {
+			setTitle(this);
+			$(this).children('a').attr('title',$(this).children('a').text() + ' 선택');
+			$(this).children('a').attr('aria-selected', 'true');
+		}
+	});
+	
+}(jQuery));
+
+/**
+ * <pre>
+ * 	타이틀 세팅
+ * </pre>
+ * @author brKim
+ * @since 2017. 6. 26.
+ * @param obj
+ */
+function setTitle(obj) {
+	if ($(obj).hasClass('on')) {
+		var titleName = '국가법령정보센터 | ';
+		// 서브 메뉴명
+		$('.sub_menu .sub_menu_inp > input').each(function() {
+			if($(this).is(':checked')) {
+				titleName += $("label[for='" + $(this).attr('id') + "']").find('a').html();
+			}
+		});
+		// 탭 메뉴명
+		titleName += " > " + $(obj).find('a').html();
+		$(document).attr('title', titleName);
+	}
+}
+
+/**
+ * 1. 공통 이벤트 등록 (법령, 행정규칙, 자치법규 기준)
+ */
+var eventObj = {
+	topBtn : { // 본문 상단 이벤트
+		init : function() { // 공통 본문 버튼 이벤트들을 등록한다.
+			// 별표서식
+			if ($('#bylView').length > 0) {
+				
+				$("#bylView").mouseover(function(){
+					bylView(this);
+				});
+				
+				$("#bylView").mouseout(function(){
+					bylViewClose();
+				});
+			}
+			// 연혁
+			if ($('#hstView').length > 0) {
+				
+				$("#hstView").mouseover(function(){
+					hstView(this);
+				});
+				
+				$("#hstView").mouseout(function(){
+					hstViewClose();
+				});
+				
+				$("#hstView").focus(function(){
+					hstView(this);
+				});
+				
+				$("#hstView").click(function(){
+					$('.tab6').attr("tabIndex",0).focus();
+				});
+				
+				if(event.keyCode == 9){
+					$('#hstBtnKO').attr("tabIndex",0).focus();
+				}
+			}
+			// 생활법령
+			if ($('#csmLnkBtn').length > 0) {
+				
+				$("#csmLnkBtn").mouseover(function(){
+					csmView(this);
+				});
+				
+				$("#csmLnkBtn").mouseout(function(){
+					csmViewClose();
+				});
+			}
+		},
+		/*	본문 상단 버튼 보여주는 이벤트 (버튼 display 이벤트 구분짓기 위함)
+		 *	조건 1. 리터럴 객체를 던져준다. object 갯수는 상관 없음
+		 *  조건 2. object는 {id:'id', dpYnFunc:함수} 구조로 적용
+		 */
+		getViewBtn : function() {
+			if (arguments.length) {
+				for (var idx in arguments) {
+					var $this = $('#'+arguments[idx]['id']);
+					var dpYnFunc = arguments[idx]['dpYnFunc'];
+					if (dpYnFunc()) {
+						$this.css('display', '');
+					} else {
+						$this.css('display', 'none');
+					}
+				}
+			}
+		}
+	},
+	/*
+	 * 리스트 트리구조 이벤트
+	 * 법령을 제외한 모든 구조가 같다.
+	 */
+	list : {
+		/* 법령 조문 호출 START (팝업이 아닌경우) */
+		callLsDepth1: function(checkId) { // 조문, 부칙, 별표 보여주기 및 위치이동
+			var idx = '';
+			var matchArray = checkId.replace(/[^0-9]/g,"");
+			if (matchArray) {
+				for (var i = 0; i < matchArray.length; i++) {
+					idx += matchArray[i];
+				}
+				var $this = $('.left_list_bx > li > a:eq('+idx+')');
+				$this.parent('li').addClass('on');
+				$this.parent('li').siblings('li').removeClass('on');
+			}
+			return false;
+		},
+		callLsDepth2: function(checkId) { // 실제 조문, 부칙, 별표 리스트 or 편장절관 DIV 오픈
+			var $this = $('#'+checkId).siblings('div:first');
+			var fClass = $this.siblings().find('div:first').attr('class');
+			if (!$this.hasClass('on')) {
+				$this.addClass('on');
+				$this.siblings().find($('.'+fClass.replace(' ','.'))).addClass('on');
+				$this.find('.ico').text('본문목록닫기').css('background-image', 'url(images/button/btn_lmcl.gif)');
+			} else {
+				$this.removeClass('on');
+				$this.siblings().find('div').removeClass('on');
+				$this.siblings().find('div .ico').css('background-image', 'url(images/button/btn_lmop.gif)');
+				$this.find('.ico').text('본문목록열림').css('background-image', 'url(images/button/btn_lmop.gif)');
+			}
+			return false;
+		},
+		callLsDepth3: function(obj) { // 편장절관 안 조문 리스트 DIV 오픈
+			var $this = null;
+			if (obj instanceof $) {
+				$this = obj.is('div') ? obj : $(obj).parent();
+			} else {
+				$this = $(obj).parent();
+			}
+			var $thisDepth = $this.attr('class').substr('4','1');
+			var $nextAll = $this.nextAll('div');
+			if ($this.next('div').attr('class') == $this.attr('class')) { // 동일한 depth인 경우
+				return false;
+			} else if ($this.next('div').hasClass('on')) { // 하위메뉴 닫기
+				$this.find('.ico').text('하위메뉴열기').css('background-image', 'url(images/button/btn_lmop.gif)');
+				$nextAll.each(function(){
+					var cmpDiv = $(this).attr('class').substr('4','1');
+					if ($thisDepth < cmpDiv) {
+						$(this).removeClass('on');
+						$(this).find('.ico').css('background-image', 'url(images/button/btn_lmop.gif)');
+					} else {
+						return false;
+					}
+				});
+			} else if ($this.hasClass('on')) { // 하위메뉴 열기
+				$nextAll.each(function(){
+					var cmpDiv = $(this).attr('class').substr('4','1');
+					if (cmpDiv == (parseInt($thisDepth) + 1)) {
+						$(this).addClass('on');
+					} else if (cmpDiv == parseInt($thisDepth)) {
+						return false;
+					}
+				});
+				$this.find('.ico').text('하위메뉴닫기').css('background-image', 'url(images/button/btn_lmcl.gif)');
+			}
+			return false;
+		},
+		callLsDepth4: function(obj) { // pop 편장절관 안 조문 리스트 DIV 오픈
+			var $this = null;
+			if (obj instanceof $) {
+				$this = obj.is('div') ? obj : $(obj).parent();
+			} else {
+				$this = $(obj).parent();
+			}
+			var $thisDepth = $this.attr('class').substr('4','1');
+			var $nextAll = $this.nextAll('div');
+			if ($this.next('div').attr('class') == $this.attr('class')) { // 동일한 depth인 경우
+				return false;
+			} else if ($this.next('div').hasClass('on')) { // 하위메뉴 닫기
+				$this.find('.ico').text('하위메뉴열기').css('background-image', 'url(images/button/btn_lmop.gif)');
+				$nextAll.each(function(){
+					var cmpDiv = $(this).attr('class').substr('4','1');
+					if ($thisDepth < cmpDiv) {
+						$(this).removeClass('on');
+						$(this).css('display', 'none');
+						$(this).find('.ico').css('background-image', 'url(images/button/btn_lmop.gif)');
+					} else {
+						return false;
+					}
+				});
+			} else if (!$this.next('div').hasClass('on')) { // 하위메뉴 열기
+				$nextAll.each(function(){
+					var cmpDiv = $(this).attr('class').substr('4','1');
+//					if (cmpDiv == (parseInt($thisDepth) + 1)) {
+					if ($thisDepth < cmpDiv) {
+						$(this).addClass('on');
+						$(this).css('display', 'block');
+					} else if (cmpDiv == parseInt($thisDepth)) {
+						return false;
+					}
+				});
+				$this.find('.ico').text('하위메뉴닫기').css('background-image', 'url(images/button/btn_lmcl.gif)');
+			}
+			return false;
+		},
+		/* 법령 조문 호출 END (팝업이 아닌경우) */
+		/* 법령 외 리스트 호출 start */
+		callDepth1 : function(checkId) { // 조문, 부칙, 별표 보여주기 및 위치이동
+			var idx = '';
+			var matchArray = checkId.replace(/[^0-9]/g,"");
+			if (matchArray) {
+				for (var i = 0; i < matchArray.length; i++) {
+					idx += matchArray[i];
+				}
+				
+				var $this = $('.left_list_bx > li > a:eq('+idx+')');
+				$this.parent('li').addClass('on');
+				$this.parent('li').siblings('li').removeClass('on');
+			}
+			return false;
+		},
+		callDepth2 : function(checkId) { // 실제 조문, 부칙, 별표 리스트 or 편장절관 DIV 오픈
+			var $this = $('#'+checkId);
+			$this.parent('li').toggleClass('on');
+			if ($this.parent('li').hasClass('on')) {
+				$this.parent().find('span.ico').text( $this.parent().find('span.ico').text().replace("열림", "닫힘")) ;
+			} else {
+				$this.parent().find('span.ico').text( $this.parent().find('span.ico').text().replace("닫힘", "열림")  ) ;
+			}
+			return false;
+		},
+		callDepth3 : function(checkId) { // 편장절관 안 조문 리스트 DIV 오픈
+			var $this = $('#'+checkId);
+			$this.parent('li').toggleClass('on');
+			if ($this.parent('li').hasClass('on')) {
+				$this.children('.ico').text('하위메뉴닫기').css('background-image', 'url(images/button/btn_lmop.gif)');
+			} else {
+				$this.children('.ico').text('하위메뉴열기').css('background-image', 'url(images/button/btn_lmcl.gif)');
+			}
+		},
+		callDepth4 : function(checkId) { // 조문, 부칙, 별표 보여주기 및 위치이동 (위임행정규칙 팝업 -위임행정규칙)
+			var idx = '';
+			var matchArray = checkId.replace(/[^0-9]/g,"");
+			if (matchArray) {
+				for (var i = 0; i < matchArray.length; i++) {
+					idx += matchArray[i];
+				}
+				
+				var $this = $('.left_list_bx > li > a:eq('+idx+')');
+				$this.parent('li').addClass('on');
+				$this.parent('li').siblings('li').removeClass('on');
+				$('.left_list_bx2 > li').siblings('li').removeClass('on');
+			}
+			return false;
+		},
+		callDepth5 : function(checkId) { // 조문, 부칙, 별표 보여주기 및 위치이동 (위임행정규칙 팝업 -위임규정)
+			var idx = '';
+			var matchArray = checkId.replace(/[^0-9]/g,"");
+			if (matchArray) {
+				for (var i = 0; i < matchArray.length; i++) {
+					idx += matchArray[i];
+				}
+				
+				var $this = $('.left_list_bx2 > li > a:eq('+idx+')');
+				$this.parent('li').addClass('on');
+				$this.parent('li').siblings('li').removeClass('on');
+				$('.left_list_bx > li').siblings('li').removeClass('on');
+			}
+			return false;
+		},
+		callDepthPop2 : function(checkId) { // 실제 조문, 부칙, 별표 리스트 or 편장절관 DIV 오픈 (POP)
+			var $this = $('#'+checkId+"Dt");
+			if ($this.hasClass('dep1on')) {
+				$this.attr('class','dep1');
+				$this.children('.ico').text('하위메뉴닫기');
+				$this.find('.ico').text('하위메뉴닫기').css('background-image', 'url(images/button/btn_lmop.gif)');
+				$('#'+checkId).css('display', 'none');
+			} else {
+				$this.attr('class','dep1on');
+				$this.children('.ico').text('하위메뉴열기');
+				$this.find('.ico').text('하위메뉴열기').css('background-image', 'url(images/button/btn_lmcl.gif)');
+				$('#'+checkId).css('display', 'block');
+			}
+			return false;
+		},
+		callDepthPop3 : function(checkId) { // 편장절관 안 조문 리스트 DIV 오픈 (POP)
+			var $this = $('#'+checkId);
+			if ($this.parent('li').hasClass('listOn')) {
+				$this.parent('li').attr('class','');
+				$this.children('.ico').text('하위메뉴닫기');
+				$this.children('.ico').text('하위메뉴닫기').css('background-image', 'url(images/button/btn_lmop.gif)');
+				$('#'+checkId).css('display', 'none');
+			} else {
+				$this.parent('li').attr('class','listOn');
+				$this.children('.ico').text('하위메뉴열기');
+				$this.children('.ico').text('하위메뉴열기').css('background-image', 'url(images/button/btn_lmcl.gif)');
+				$('#'+checkId).css('display', 'block');
+			}
+		},
+		callDepthPop4 : function(obj) { // 편장절관 안 조문 리스트 DIV 오픈 (POP)
+			var $this = null;
+			if (obj instanceof $) {
+				$this = obj.is('div') ? obj : $(obj).parent();
+			} else {
+				$this = $(obj).parent();
+			}
+			var $thisDepth = $this.attr('class').substr('3','1');
+			 
+			
+			var $nextUntil = $this.nextUntil('.dep'+$thisDepth);
+			//var $nextAll = $this.nextAll('div');
+
+			if ($this.next('div').attr('class') == $this.attr('class')) { // 동일한 depth인 경우
+				return false;
+			} else if ($this.next('div').hasClass('on')) { // 하위메뉴 닫기
+				$this.children('a').find('.ico').text('하위메뉴열기').css('background-image', 'url(images/button/btn_lmop.gif)');
+//				$nextAll.each(function(){
+				$nextUntil.each(function(){
+					var cmpDiv = $(this).attr('class').substr('3','1');
+					if(cmpDiv == 0){cmpDiv = 7};
+					if ($thisDepth < cmpDiv) {
+						$(this).removeClass('on');
+						$(this).css('display','none');
+						//$(this).find('.ico').css('background-image', 'url(images/button/btn_lmop.gif)');
+					} else {
+						return false;
+					}
+				});
+			} else if ($this.hasClass('on')) { // 하위메뉴 열기
+				$this.children('a').find('.ico').text('하위메뉴닫기').css('background-image', 'url(images/button/btn_lmcl.gif)');
+//				$nextAll.each(function(){
+				$nextUntil.each(function(){
+					var cmpDiv = $(this).attr('class').substr('3','1');
+					if(cmpDiv == 0){cmpDiv = 7};
+					if (cmpDiv > $thisDepth) {
+						$(this).addClass('on');
+						$(this).css('display','block');
+					} else if (cmpDiv == parseInt($thisDepth)) {
+						return false;
+					}
+				});
+			}
+			return false;
+		}
+		/* 법령 외 리스트 호출 end */
+	}
+}
+
+function imgMouseover(divName){
+	$('#'+divName).show();
+}
+
+function imgMouseout(divName){
+	$('#'+divName).hide();
+}
+</script>
+
+</body>
+</html>

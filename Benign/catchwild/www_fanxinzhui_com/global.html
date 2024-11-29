@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>global.html</title>
+</head>
+<body>
+
+<script>
+window.GLOBAL = window.GLOBAL || {};
+
+GLOBAL.JQUERY =  GLOBAL.JQUERY || {};
+/*图片垂直居中*/
+GLOBAL.JQUERY.IMAGERESIZE = function($obj,width,height,middel){
+  var resize = function($img){
+    $img.css({width:'auto',height:'auto'}).show();
+    var img_width = $img[0].naturalWidth;
+    var img_height = $img[0].naturalHeight;
+    var width_out = function(){
+      var new_height = width/img_width*img_height;
+      $img.width(width).height(new_height);
+      if(middel) $img.css('marginTop',(height-new_height)/2);
+    }
+    var height_out = function(){
+      var new_width = height/img_height*img_width;
+      $img.height(height).width(new_width);
+      if(middel) $img.css('marginLeft',(width-new_width)/2);
+    }
+    if(img_width>width && img_height>height){
+      if((img_width/width)>(img_height/height)){
+        width_out();
+      }else{
+        height_out();
+      }
+    }else if(img_width>width){
+      width_out();
+    }else if(img_height>height){
+      height_out();
+    }else if(middel){
+      $img.css({marginTop:(height-img_height)/2,marginLeft:(width-img_width)/2,width:img_width+'px',height:img_height+'px'});
+    }
+  }
+
+  if(typeof middel=='undefined') middel = true;
+  $obj.each(function(){
+    if($(this).height()>0 && $(this).width()>0){
+      resize($(this));
+    }else{
+      $(this).load(function(){
+        resize($(this));
+      })
+    }
+  })
+}
+$.fn.imageresize = function(width,height,middel){
+  GLOBAL.JQUERY.IMAGERESIZE($(this),width,height,middel);
+  return this;
+}
+
+//延迟加载
+GLOBAL.JQUERY.LazyLoad=function($obj,callback){
+  var load = false;
+  var check_disable = function(){
+    if(load) return false;
+    var _top = $obj.offset().top;
+    if($(window).height()+$(window).scrollTop()>_top){
+      if(typeof callback=='function') callback.call($obj.get(0));
+      load = true;
+    }
+  }
+  $(window).scroll(check_disable);
+  $(window).resize(check_disable);
+  check_disable();
+}
+$.fn.LazyLoad = function(callback){
+  $(this).each(function(){
+    GLOBAL.JQUERY.LazyLoad($(this),callback);
+  })
+}
+
+/*复制功能*/
+GLOBAL.Copy=function($obj,string){
+  var flash_copy = false;
+  var copy_success = function(){ GLOBAL.ShowMsg('已复制到粘贴板中',1); }
+  var text_default = '对不起,没有可复制的内容';
+  try{
+    if(document.queryCommandSupported('Copy')){
+      $obj.click(function(){
+        var text = document.createElement('textarea');
+        text.value = typeof string!='function'?string:string.call(this);
+        if(!text.value){
+          GLOBAL.ShowMsg(text_default);return false;
+        };
+        text.style.width = 1;
+        text.style.height = 1;
+        $obj.after(text);
+        text.focus();text.select();
+        text.setSelectionRange(0, text.value.length); //IOS bug fix
+        document.execCommand('Copy',false,null);
+        text.remove();
+        copy_success();
+      })
+    }else{
+      flash_copy = true;
+    }
+  }catch(e){
+    flash_copy = true;
+  }
+  if(flash_copy){
+    var flush_copy_func = function(){
+      $obj.mouseenter(function(){
+        var _text = typeof string=='string'?string:string.call(this);
+        if(_text){
+          ZeroClipboard.setMoviePath(GLOBAL.CONST.RES_URL+'ZeroClipboard10.swf');
+          clip = new ZeroClipboard.Client();
+          clip.glue($(this).get(0));
+          clip.addEventListener('complete',copy_success);
+          clip.addEventListener('mouseout',function(client){
+            client.hide();
+          });
+          clip.setText(_text);
+        }else{
+          $(this).one('click',function(){
+            GLOBAL.ShowMsg(text_default);
+          })
+        }
+      });
+    }
+    if(typeof ZeroClipboard!='object'){
+      $.ajax({url:GLOBAL.CONST.RES_URL+'js/ZeroClipboard.js',type:'get',async:false,dataType:'script',success:function(){flush_copy_func()}})
+    }else{
+      flush_copy_func();
+    }
+  }
+}
+$.fn.copy = function(string){
+  $(this).each(function(){
+    GLOBAL.Copy($(this),string);
+  })
+  return this;
+}
+
+GLOBAL.ShowMsg = function(message){
+  window.alert(message);
+}
+</script>
+
+</body>
+</html>

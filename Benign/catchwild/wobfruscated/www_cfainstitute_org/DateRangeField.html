@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>DateRangeField.html</title>
+</head>
+<body>
+<script>import {
+  resultContext,
+} from "https://static.cloud.coveo.com/atomic/v2/index.esm.js";
+import dayjs from 'https://cdn.jsdelivr.net/npm/dayjs@1/+esm'
+import utc from 'https://cdn.jsdelivr.net/npm/dayjs/plugin/utc/+esm'
+import timezone from 'https://cdn.jsdelivr.net/npm/dayjs/plugin/timezone/+esm'
+import advancedFormat from 'https://cdn.jsdelivr.net/npm/dayjs/plugin/advancedFormat/+esm'
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+dayjs.extend(advancedFormat);
+
+//Title
+export class DateRangeField extends HTMLElement {
+  shadow;
+  result;
+  initialized = false;
+
+  startDate;
+  endDate;
+  timezoneField;
+  timezone = 'America/New_York';
+
+  static observedAttributes = [
+    'start-date-field',
+    'end-date-field',
+    'timezone-field',
+  ];
+
+  async connectedCallback() {
+    if (this.initialized) {
+      return;
+    }
+
+    this.initialized = true;
+    this.shadow = this.attachShadow({ mode: "open" });
+
+    try {
+      this.result = await resultContext(this);
+
+      this.timezoneField = this.getAttribute('timezone-field');
+
+      if (this.timezoneField) {
+        this.timezone = this.result.raw[this.timezoneField] || 'UTC';
+      } else {
+        this.timezone = 'UTC';
+      }
+
+      this.startDate = dayjs.tz(
+        this.result.raw[this.getAttribute('start-date-field')],
+        this.result.raw.field_event_timezone || 'UTC'
+      ).tz(this.timezone);
+      this.endDate = dayjs.tz(
+        this.result.raw[this.getAttribute('end-date-field')],
+        this.result.raw.field_event_timezone || 'UTC'
+      ).tz(this.timezone);
+
+      this.render();
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  render() {
+    const title_display = this.result.raw.title;
+    const link_url = this.result.raw.clickableuri;
+    const description = this.result.raw.field_short_description;
+    let itemContent = "";
+
+    const showStartMeridem = this.startDate.format('A') !== this.startDate.format('H') < 12 && this.endDate.format('H') > 11;
+    const startTimeFormat = showStartMeridem ? 'h A' : 'h';
+
+    let dateString;
+    if (this.startDate.isSame(this.endDate, 'day')) {
+      dateString = this.startDate.format('D MMM YYYY') + ' | ' + this.startDate.format(startTimeFormat) + ' - ' + this.endDate.format('h A z');
+    } else if (this.startDate.isSame(this.endDate, 'month')) {
+      dateString = this.startDate.format('D') + ' - ' + this.endDate.format('D MMM YYYY') + ' | ' + this.startDate.format(startTimeFormat) + ' - ' + this.endDate.format('h A z');
+    } else if (this.startDate.isSame(this.endDate, 'year')) {
+      dateString = this.startDate.format('D MMM') + ' - ' + this.endDate.format('D MMM YYYY') + ' | ' + this.startDate.format(startTimeFormat) + ' - ' + this.endDate.format('h A z');
+    } else {
+      dateString = this.startDate.format('D MMM YYYY') + ' - ' + this.endDate.format('D MMM YYYY') + ' | ' + this.startDate.format(startTimeFormat) + ' - ' + this.endDate.format('h A z');
+    }
+
+    if (this.startDate.$isDayjsObject && this.endDate.$isDayjsObject) {
+      itemContent = `
+        <style>
+          span {
+            font-size: 0.875rem;
+            font-style: normal;
+            font-weight: 500;
+            line-height: 1;
+          }
+        </style>
+        <span>
+          ${dateString}
+        <span>
+      `;
+    }
+    this.shadow.innerHTML = itemContent;
+  }
+}</script>
+</body>
+</html>

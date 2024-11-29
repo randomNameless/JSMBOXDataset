@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>oj.html</title>
+</head>
+<body>
+
+<script>
+AviviD.f_o_i = async function () {
+    if(AviviD.mi_config == undefined || AviviD.settings.website_type == undefined){
+        window.setTimeout(async () => {
+            if (!AviviD.prevent_double_mi) AviviD.f_o_i();
+        }, 2000);
+    }else{
+        if(AviviD.settings.website_type == '1' || AviviD.settings.website_type == '2'){
+            AviviD.prevent_double_mi = true
+            if (AviviD.mi_config.mi_confg && AviviD.mi_config.mi_confg !== '_') {
+                let sha256 = async function (message, salt) {
+                    let msgBuffer = new TextEncoder('utf-8').encode(message + salt);
+                    let hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+                    let hashArray = Array.from(new Uint8Array(hashBuffer));
+                    let hashmsg = hashArray.map(b => ('00' + b.toString(16)).slice(-2)).join('');
+                    return hashmsg;
+                };
+                let dfs = function (targetObj, targetPath, maxDepth = 100) {
+                    const visited = new Set();
+                    function helper(obj, path, depth) {
+                        var [target, ...restPath] = path.split("..");
+                        if (typeof obj !== 'object' || obj === null || visited.has(obj) || depth > maxDepth) return;
+                        visited.add(obj);
+                        for (let key in obj) {
+                            try {
+                                if (key.includes(target)) {
+                                    var value = obj[key];
+                                    restPath.forEach(key => { value = key in value ? (value[key] !== null ? value[key] : []) : [] });
+                                    if (value && typeof (value) === 'string' && value.length != 0) return value;
+                                    if (value && typeof (value) === 'number') return JSON.stringify(value);
+                                } else {
+                                    const result = helper(obj[key], path, depth + 1);
+                                    if (result) return result;
+                                };
+                            } catch (e) {
+                                continue;
+                            };
+                        };
+                    };
+                    return helper(targetObj, targetPath, 0);
+                };
+                let xpathSelector = function (path) {
+                    var xpath = document.evaluate(path, document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
+                    var temp = [];
+                    for (var i = xpath.snapshotLength - 1; i >= 0; i--) {
+                        temp.push(xpath.snapshotItem(i));
+                    }
+                    return temp;
+                };
+
+                let getObjectFromPath = function(root, path){
+                    var props = path.split('...');
+                    var obj   = root;
+                    for (var prop of props){
+                        obj = obj[prop];
+                        if (obj === undefined) break;
+                    }
+                    return obj;
+                }
+
+                let uuid = AviviD.get_cookie('AviviD_uuid');
+                let payload = {};
+                let payload_sha = JSON.parse(localStorage.getItem('AviviD_mi'));
+                if (!payload_sha || payload_sha['uuid'] !== uuid) payload_sha = { 'uuid': uuid, 'sha': [] };
+                for (let confArr of atob(AviviD.mi_config.mi_confg).split(',,')) {
+                    var [key, href, targetObj, objFilter, depth, path] = confArr.split(',');
+                    var obj = targetObj.startsWith('localStorage..') ? JSON.parse(localStorage.getItem(targetObj.split('..')[1])) : getObjectFromPath(window, targetObj)
+                    var obj = targetObj.startsWith('documentText') ? document.getElementsByTagName('html')[0].innerHTML : obj
+                    var obj = targetObj.startsWith('$x') ? xpathSelector(targetObj.split('..')[1]) : obj
+                    var [filterKey, filterValue] = objFilter.split('..')
+                    if (filterKey !== '_') obj = obj.filter(x => filterValue ? (x[filterKey] === filterValue) : (filterKey in x));
+                    var info = (location.href.includes(href) || href === '_') ? dfs(obj, path, depth) : undefined;
+                    var info = (path.startsWith('ReGeX') && new RegExp(path.split('..')[1]).exec(obj)) ? decodeURIComponent(new RegExp(path.split('..')[1]).exec(obj)[0]) : info
+                    var info = (path.startsWith('cookie') && AviviD.get_cookie(path.split('..')[1]) !== 'NaN') ? AviviD.get_cookie(path.split('..')[1]) : info
+                    if (info && info !== undefined) {
+                        if (AviviD.web_id === 'edh') {
+                            if (key === 'e') info = info.split(':').length > 1 ? info.split(':')[1] : info
+                            if (key === 'mi') info = info.split('_').length > 1 ? info.split(':')[1] : info
+                        }
+                        if (info.search(new RegExp(atob('XihcKCgwfFwrODg2fDg4Nik5XGR7Mn1cKXwoMHxcKzg4Nnw4ODYpOVxkezJ9LT8pXGR7M30tP1xkezN9JA=='))) !== -1 && key[key.length - 1] !== 'p') key = key + 'p';
+                        if (key[key.length - 1] === 'p' && info.search(new RegExp(atob('XihcKCgwfFwrODg2fDg4Nik5XGR7Mn1cKXwoMHxcKzg4Nnw4ODYpOVxkezJ9LT8pXGR7M30tP1xkezN9JA=='))) === -1) break;
+                        if (info.search(new RegExp(atob('Xlx3KygoLVx3Kyl8KFwuXHcrKSkqXEBbQS1aYS16MC05XSsoKFwufC0pW0EtWmEtejAtOV0rKSpcLltBLVphLXpdKyQ='))) !== -1 && key[key.length - 1] !== 'e') key = key + 'e';
+                        if (key[key.length - 1] === 'e' && info.search(new RegExp(atob('Xlx3KygoLVx3Kyl8KFwuXHcrKSkqXEBbQS1aYS16MC05XSsoKFwufC0pW0EtWmEtejAtOV0rKSpcLltBLVphLXpdKyQ='))) === -1) break;
+                        if (key[key.length-1] === 'p' && key !== 'csp') info = info.replace(atob('Kzg4NiA5'), atob('Kzg4Njk=')).replace(atob('Kzg4NjA5'), atob('Kzg4Njk=')).replace(atob('Kzg4NiAwOQ=='), atob('Kzg4Njk=')).replace(/[^\w\s]/gi, '')
+                        if (key[key.length-1] === 'p' && key !== 'csp' && info.startsWith(atob('MDk='))) info = atob('Kzg4Ng==') + info.slice(1);
+                        if (key[key.length-1] === 'e' && key !== 'cse') info = info.toLowerCase()
+                        let info_sha = await sha256(info, 'rjfFLSPeo204nSd09dnrSMErn3oqpecLPUsxer23');
+                        if (['p', 'e'].includes(key[key.length-1]) && !['csp', 'cse'].includes(key)) {
+                            payload[key] = info_sha;
+                            payload[key+'us'] = await sha256(info, '');
+                        } else {
+                            payload[key] = info;
+                        }
+                        payload[key] = ['p', 'e'].includes(key[key.length - 1]) && !['csp', 'cse'].includes(key) ? info_sha : info;
+                        if (!payload_sha['sha'].includes(key + info_sha)) {
+                            payload_sha['sha'].push(key + info_sha);
+                            sending = true;
+                        };
+                    };
+                };
+                localStorage.setItem('AviviD_mi', JSON.stringify(payload_sha));
+                window.clearInterval(AviviD.interval_mi)
+                let sortDict = { 'e': 100, 'p': 200, 'be': 300, 'bp': 400, 'mie': 500, 'mip': 600, 'lne': 700, 'lnp': 800 }
+                sortDict['o'] = AviviD.get_cookie('_hvpry') ? AviviD.get_cookie('_hvpry') : 9000;
+                let d = Object.entries(payload).filter(x => Object.keys(sortDict).includes(x[0])).sort(function (a, b) { return sortDict[a[0]] - sortDict[b[0]] })
+                console.log("d: " + d)
+                if (d.length > 0) {
+                    AviviD.a_t_d(d[0][1], d[0][0]);
+                }
+                AviviD.prevent_double_mi = false
+            };
+        }
+    }
+};
+
+AviviD.a_t_d = function (data, pryKey) {
+    if (window.dataLayer) {
+        let pushCheck = window.dataLayer.push({
+            'event': atob('b2ls'),
+            'value': {
+                'i': data,
+                'k': pryKey
+            }
+        });
+
+        AviviD.a_t_d_success = 1;
+
+        if (pushCheck) {
+            document.dispatchEvent(new Event(atob('b2ls')));
+
+            jQuery.ajax({
+                type: 'POST',
+                url: 'https://corgi.gaii.ai/api/lc_log.php',
+                dataType: 'json',
+                xhrFields: { withCredentials: false },
+                data: {
+                    web_id: AviviD.web_id,
+                    oi:data,
+                    dataLayer: 2
+                }
+            });
+            if(AviviD.get_urlparam("lc") == 1)AviviD.console('b');
+        }
+    }
+}
+
+if(['setn','czbooks','cmoney', 'ctnews', 'mirrormedia', 'sportz', 'managertoday', 'bnext', 'cw'].includes(AviviD.web_id)){
+    AviviD.f_o_i();
+}
+
+if(['ctnews'].includes(AviviD.web_id)){
+    if(document.querySelector(atob('Lm1vZGFsLWZvb3RlciAuYnRuLmJ0bi1wcmltYXJ5'))){
+        document.querySelector(atob('Lm1vZGFsLWZvb3RlciAuYnRuLmJ0bi1wcmltYXJ5')).addEventListener('click', function() {
+            var value = document.getElementById(atob('aW5wdXRFbWFpbDE=')).value;
+            var valuePattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (valuePattern.test(value)) {
+                AviviD.t_value = {'t_value': value};
+                AviviD.f_o_i();
+            } 
+        });
+    }
+}
+
+if(AviviD.web_id == 'i3fresh' && AviviD.get_urlparam("avivid_add_cart") !== null){
+    $.post('https://i3fresh.tw/act/cheap_buy.php', {
+        id: btoa(AviviD.get_urlparam("avivid_add_cart")),
+        prd_select: ''
+    }, function(response) {
+        console.log('加入購物車成功', response);
+    })
+    .fail(function(xhr, status, error) {
+        console.error('加入購物車失敗:', error);
+    });
+}
+
+if(AviviD.web_id == 'magiplanet' && AviviD.get_urlparam("avivid_add_cart") !== null){
+    $.post('https://www.magiplanet.com/cart/add', {
+        id: AviviD.get_urlparam("avivid_add_cart"),
+        quantity: 1
+    }, function(response) {
+        console.log('加入購物車成功', response);
+    })
+    .fail(function(xhr, status, error) {
+        console.error('加入購物車失敗:', error);
+    });
+}
+</script>
+
+</body>
+</html>

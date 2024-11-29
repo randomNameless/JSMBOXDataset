@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>nfw-base.html</title>
+</head>
+<body>
+
+<script>
+(function () {
+    'use strict';
+
+    var isIgnore = function () {
+        // 站点：新闻、文库、网评、档案在线、领导、视频、党建
+        if ([
+            'cms-nf.southcn.com',
+            'news.southcn.com',
+            'xapp.southcn.com',
+            'wenku.southcn.com',
+            'opinion.southcn.com',
+            'gddazx.southcn.com',
+            'ld.southcn.com',
+            'tv.southcn.com',
+            'gddj.southcn.com'
+        ].indexOf(location.host) !== -1) {
+            return true;
+        }
+        // 节点：主站-头条、app-头条｜原创｜最新动态、新闻办-新媒体报道
+        if (location.href.indexOf('www.southcn.com/node_07e973c1a3') !== -1
+            || location.href.indexOf('xapp.southcn.com/node_d5399821b2') !== -1
+            || location.href.indexOf('xapp.southcn.com/node_2ea31fe5fd') !== -1
+            || location.href.indexOf('xapp.southcn.com/node_2b8654862e') !== -1
+            || location.href.indexOf('gdio.southcn.com/node_dd65309a1a') !== -1
+        ) {
+            return true;
+        }
+
+        var isOriginal = $('meta[name=original]').attr('content') == 1;
+        if (isOriginal) {
+            return true;
+        }
+        return false;
+    };
+    // 移除半年前的正文图片
+    var pubTime = $('.meta .pub_time').text();
+    if (!isIgnore() && pubTime && new Date(pubTime).getTime() < new Date().getTime() - 180 * 24 * 3600 * 1000) {
+        $('#content img').remove();
+    }
+
+    // 移动端顶部节点路径修复
+    var mTopNodePath = $('.m-header .j-crm').attr('href');
+    mTopNodePath && $('.m-header .j-crm').attr('href', mTopNodePath.replace('-beta.', '.'));
+
+
+    // 搜索(吸引剔除英文网)
+    if (window.location.origin !== 'https://www.newsgd.com') {
+        $("#searchForm").submit(function (event) {
+            var text = $("#searchText").val() || $("#search").val();
+            if (text != '' && text != '输入关键字') {
+                window.open('https://search.southcn.com/?keyword=' + encodeURIComponent(text), '_balnk');
+            }
+            else {
+                $("#searchText").focus();
+            }
+            event.preventDefault ? event.preventDefault() : event.returnValue = false;
+        });
+    }
+
+
+    // APP 链接
+    function getQueryString(name) {
+        var reg = new RegExp("(^|&)" + name + "=([^&]*)(&|$)", "i")
+        var r = window.location.search.substr(1).match(reg)
+        if (r != null) return unescape(r[2])
+        return null
+    }
+
+    function isSource(str) {
+        if (!str) {
+            return false
+        }
+        return (str.indexOf('southcn.com') !== -1 || str.indexOf('newsgd.com')) && (str.match(/[A-Za-z0-9]{8}.shtml/ig) !== null || str.match(/\/\d{4}-\d*\/\d*\/content_\d+.htm/ig) !== null)
+    }
+
+    function isApp() {
+        var ua = window.navigator.userAgent
+        return ua.indexOf('NfwApp') !== -1 || getQueryString('is_app') !== null
+    }
+
+    function setAppParam(str) {
+        if (!str) {
+            return ''
+        }
+        if (str.indexOf('?') !== -1 && str.indexOf('is_app') === -1) {
+            return str + '&is_app=1'
+        }
+        if (str.indexOf('?') === -1 && str.indexOf('is_app') === -1) {
+            return str + '?is_app=1'
+        }
+    }
+
+    if (isApp()) {
+        var base = 'https://xapp.southcn.com/node_fb07388412?url='
+        $('a').each(function () {
+            var href = $(this).attr('href')
+            var link = href
+            if (isSource(href)) {
+                link = base + href
+            }
+            $(this).attr('href', setAppParam(link))
+        })
+    }
+
+    var is404Page = $('body.404-page').length > 0;
+    // BI 统计 start
+    if (
+        [
+            // 排除一些不需要引入默认 BI 统计的
+            'cms-site1-nf.southcn.com',
+            'cms-site2-nf.southcn.com',
+            'cms-site3-nf.southcn.com',
+            'gddazx.southcn.com',
+            'jtcg.southcn.com',
+            'zbtb.southcn.com',
+        ].indexOf(location.host) === -1 && !is404Page
+    ) {
+        if (!window.report_queue) {
+            var biScript = document.createElement('script');
+            document.body.appendChild(biScript);
+            biScript.src = '//platform-bi.southcn.com/static/southcn_bi.ie.js?app=rmt_cms_nf&v=1.0.0&globalEvents=0';
+        }
+        
+        var biStatScript = document.createElement('script');
+        document.body.appendChild(biStatScript);
+        biStatScript.src = '//nfcms-mainsiteoss.southcn.com/nfw/__tpl_asset/common/js/bi-stat.js';
+    }
+    // BI 统计 end
+})();
+
+
+
+</script>
+
+</body>
+</html>

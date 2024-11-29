@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ajax-post-filters.html</title>
+</head>
+<body>
+
+<script>
+(function($) {
+
+	$(document).ready( function() {
+
+		/**
+		 * Retrieve posts
+		 */
+		function get_posts($params) {
+
+			$container = $('#ajax-filter-posts-container');
+			$content   = $container.find('.ajax-filter-posts-content');
+			$status    = $container.find('.ajax-filter-posts-status');
+
+			$container.addClass('disabled');
+			$status.text('Loading ...');
+
+			$.ajax({
+				url: archiveloop.ajax_url,
+				data: {
+					action: 'do_filter_posts',
+					nonce: archiveloop.nonce,
+					params: $params
+				},
+				type: 'post',
+				dataType: 'json',
+				success: function(data, textStatus, XMLHttpRequest) {
+
+					if (data.status === 200) {
+						$content.html(data.content);
+					} else if (data.status === 201) {
+						$content.html(data.message);
+					} else {
+						$status.html(data.message);
+					}
+				},
+				error: function(MLHttpRequest, textStatus, errorThrown) {
+
+					$status.html(textStatus);
+
+				},
+				complete: function(data, textStatus) {
+
+					msg = textStatus;
+
+					if (textStatus === 'success') {
+						msg = data.responseJSON.found;
+					}
+
+					$status.text('Posts found: ' + msg);
+					$container.removeClass('disabled');
+
+				}
+			});
+		}
+
+		/**
+		 * Bind get_posts to tag cloud and navigation
+		 */
+		$('#ajax-filter-posts-container').on('click', 'a[data-filter], a[data-tab], .pagination a', function(event) {
+			if(event.preventDefault) { event.preventDefault(); }
+
+			$this = $(this);
+
+			/**
+			 * Set filter active
+			 */
+			if ($this.data('filter')) {
+				$this.closest('ul').find('.active').removeClass('active');
+				$this.parent('li').addClass('active');
+				$page = $this.data('page');
+				$tab = $('.ajax-filter-posts-tabs .active a').data('tab');
+
+				var itemSelected = $this.text();
+				$('div.ajax-filter-posts-nav-title').text(itemSelected);
+
+				$postPerPage = $this.closest('#ajax-filter-posts-container').data('paged');
+			}
+			else if ($this.data('tab')) {
+				$this.closest('.ajax-filter-posts-tabs').find('.active').removeClass('active');
+				$this.parent('span').addClass('active');
+				$tab = $this.data('tab');
+
+				$this = $('.ajax-filter-posts-nav-filter .active a');
+			}
+			else {
+				// Show all button
+				$postPerPage = -1;
+				$this = $('.ajax-filter-posts-nav-filter .active a');
+			}
+			/*
+			else {
+				// Pagination (Can be used as an alternative to 'Show all button')
+				$page = parseInt($this.attr('href').replace(/\D/g,''));
+				$this = $('.ajax-filter-posts-nav-filter .active a');
+
+				$postPerPage = $this.closest('#ajax-filter-posts-container').data('paged');
+			}
+			*/
+
+			$params    = {
+				'page' : $page,
+				'tax'  : $this.data('filter'),
+				'term' : $this.data('term'),
+				'tabs' : $this.closest('#ajax-filter-posts-container').data('tabs'),
+				'tab'  : $tab,
+				'qty'  : $postPerPage,
+				'post_type' : $this.closest('#ajax-filter-posts-container').data('posttype'),
+	        };
+
+			// Run query
+			get_posts($params);
+		});
+
+
+		/**
+		 * Dropdown handler
+		 */
+		$('div.ajax-filter-posts-nav-title').on('click', function() {
+			$(this).toggleClass('open');
+		});
+		$(document).on('mouseup', function (e){
+			var div = $('div.ajax-filter-posts-nav-title');
+			if (!div.is(e.target)
+				&& div.has(e.target).length === 0) {
+					div.removeClass('open');
+			}
+		});
+
+		/**
+		 * Load all by default
+		 */
+		$('a[data-term="all-terms"]').trigger('click');
+
+	});
+
+})(jQuery);
+</script>
+
+</body>
+</html>

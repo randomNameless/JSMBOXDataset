@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>trackonmap.es.html</title>
+</head>
+<body>
+
+<script>
+var infowindow;
+var trackPortletNamespace = $('#trackNamespace').val();
+
+console.log("initial trackPortletNamespace:"+trackPortletNamespace)
+if(trackPortletNamespace==null || trackPortletNamespace==undefined){
+	trackPortletNamespace = $('#internetNamespace').val();
+}
+
+function trackOnMap(awbNo,status){
+	console.log("loadMapURL:"+loadMapURL);
+	loadGoogleApi();
+	
+	console.log("trackPortletNamespace:"+trackPortletNamespace)
+       $.ajax({
+  	        url: loadMapURL,
+  	        dataType: "json",
+  	        type: "post",
+  	        data: {
+  	            [trackPortletNamespace+"awbNo"]: awbNo,
+  	            [trackPortletNamespace+"status"]: status
+  	        },
+  	        success: function(data) {
+  	        
+  	        	infowindow = new google.maps.InfoWindow;
+  	        	
+  	        	if(data[0].msg == trackOnMapLbl.exception){
+  	        		$('#statusAndScansTable_'+awbNo).hide();
+  	        		$('#mapBtnDiv_'+awbNo).html('');
+		  	      	$('#mapBtnDiv_'+awbNo).show();
+		  	      	$('#trackOnMapBtn_'+awbNo).hide();
+  	        		$('#mapBtnDiv_'+awbNo).append('<div id="panelDiv_'+awbNo+'"></div>');
+  	        		$('#panelDiv_'+awbNo).html('');
+		  	      	$('#panelDiv_'+awbNo).append('<div class="alert alert-danger">' + trackDart_errorLbl.podException +'</div>');
+  	        	}else if(data[0].msg == trackOnMapLbl.noData){
+  	        		$('#statusAndScansTable_'+awbNo).hide();
+  	        		$('#mapBtnDiv_'+awbNo).html('');
+		  	      	$('#mapBtnDiv_'+awbNo).show();
+		  	      	$('#trackOnMapBtn_'+awbNo).hide();
+  	        		$('#mapBtnDiv_'+awbNo).append('<div id="panelDiv_'+awbNo+'"></div>');
+  	        		$('#panelDiv_'+awbNo).html('');
+		  	      	$('#panelDiv_'+awbNo).append('<div class="alert alert-success">' + trackOnMapLbl.noRouteInfo +'</div>');
+  	        	}else{
+	  	        	$('#mapBtnDiv_'+awbNo).html('');
+		  	      	$('#mapBtnDiv_'+awbNo).show();
+		  	      	$('#trackOnMapBtn_'+awbNo).hide();
+		  	      	$('#mapBtnDiv_'+awbNo).append('<div id="panelDiv_'+awbNo+'"></div>');
+		  	      	$('#panelDiv_'+awbNo).html('');
+		  	      	$('#panelDiv_'+awbNo).append('<div id="map_'+awbNo+'" class="map" style="display:none;">');
+	  	      	  
+	  	        	$('#statusAndScansTable_'+awbNo).hide();
+	  	        	$('#map_'+awbNo).show();
+	  	        	var map = new google.maps.Map(document.getElementById('map_'+awbNo), {
+	  	      		  mapTypeId: google.maps.MapTypeId.ROADMAP,
+	  	           });
+	  	           var locationsArray = [];
+	  	           var locationsArrayNoOutscan = [];
+	  	           var locationsArrayNoInscan = [];
+	  	           var lastMileMarkerLoc = [];
+	  	        	var content = '';
+	  	        	var dateTimeContent = '';
+	  	        	var outScanToNetworkFlag;
+	  	        	if(data[0][0].mapType == trackOnMapLbl.networkMap){
+	  	        	
+				  	    locationsArray = data[1];
+		        		if(locationsArray[locationsArray.length-1].statCode!=trackOnMapLbl.outToNetworkStatCode){
+		        			outScanToNetworkFlag = false;
+		  	        		for(var i = 0; i < locationsArray.length; i++){
+		  	        			if(locationsArray[i].statType ==trackOnMapLbl.networkStatType && locationsArray[i].statCode ==trackOnMapLbl.outscanStatcode){
+		  	        				//--------------------- condition
+		  	        			}
+		  	        			else{
+		  	        				locationsArrayNoOutscan.push({
+		  	        					lat:locationsArray[i].lat,
+		  	        					lng:locationsArray[i].lng,
+		  	        					serviceTime:locationsArray[i].serviceTime,
+		  	        					serviceDate:locationsArray[i].serviceDate,
+		  	        					statCode:locationsArray[i].statCode,
+		  	        					serviceStationDesc:locationsArray[i].serviceStationDesc,
+		  	        					serviceStationAddr1:locationsArray[i].serviceStationAddr1,
+		  	        					serviceStationAddr2:locationsArray[i].serviceStationAddr2,
+		  	        					serviceStationAddr3:locationsArray[i].serviceStationAddr3,
+		  	        					serviceStationCity:locationsArray[i].serviceStationCity,
+		  	        					serviceStationState:locationsArray[i].serviceStationState,
+		  	        					serviceStationPincode:locationsArray[i].serviceStationPincode
+		  	        				});
+		  	        			}
+		  	        		}
+		  	        		displayNetworkMap(map,locationsArrayNoOutscan,locationsArrayNoInscan,outScanToNetworkFlag);
+	  	        		}
+		        		else{
+		        			outScanToNetworkFlag = true;
+		        			var allElementsEqual = identical(locationsArray);
+		        			for(var i = 0; i < locationsArray.length-1; i++){
+		  	        			if(locationsArray[i].statType ==trackOnMapLbl.networkStatType && locationsArray[i].statCode ==trackOnMapLbl.outscanStatcode){
+		  	        				//--------------------- condition
+		  	        			}
+		  	        			else{
+		  	        				if(locationsArray.length > 2){
+		  	        					if(allElementsEqual == true){
+		  	        						locationsArrayNoOutscan.push({
+				  	        					lat:locationsArray[0].lat,
+				  	        					lng:locationsArray[0].lng,
+				  	        					serviceDate:locationsArray[0].serviceDate,
+				  	        					serviceTime:locationsArray[0].serviceTime,
+				  	        					statCode:locationsArray[0].statCode,
+				  	        					serviceStationDesc:locationsArray[0].serviceStationDesc,
+				  	        					serviceStationAddr1:locationsArray[0].serviceStationAddr1,
+				  	        					serviceStationAddr2:locationsArray[0].serviceStationAddr2,
+				  	        					serviceStationAddr3:locationsArray[0].serviceStationAddr3,
+				  	        					serviceStationCity:locationsArray[0].serviceStationCity,
+				  	        					serviceStationState:locationsArray[0].serviceStationState,
+				  	        					serviceStationPincode:locationsArray[0].serviceStationPincode
+				  	        				});
+		  	        					}else{
+				  	        				if(locationsArray[i].lat != locationsArray[locationsArray.length-1].lat && locationsArray[i].lng != locationsArray[locationsArray.length-1].lng){
+					  	        				locationsArrayNoOutscan.push({
+					  	        					lat:locationsArray[i].lat,
+					  	        					lng:locationsArray[i].lng,
+					  	        					serviceDate:locationsArray[i].serviceDate,
+					  	        					serviceTime:locationsArray[i].serviceTime,
+					  	        					statCode:locationsArray[i].statCode,
+					  	        					serviceStationDesc:locationsArray[i].serviceStationDesc,
+					  	        					serviceStationAddr1:locationsArray[i].serviceStationAddr1,
+					  	        					serviceStationAddr2:locationsArray[i].serviceStationAddr2,
+					  	        					serviceStationAddr3:locationsArray[i].serviceStationAddr3,
+					  	        					serviceStationCity:locationsArray[i].serviceStationCity,
+					  	        					serviceStationState:locationsArray[i].serviceStationState,
+					  	        					serviceStationPincode:locationsArray[i].serviceStationPincode
+					  	        				});
+				  	        				}
+		  	        					}
+		  	        				}else{
+		  	        					locationsArrayNoOutscan.push({
+			  	        					lat:locationsArray[0].lat,
+			  	        					lng:locationsArray[0].lng,
+			  	        					serviceDate:locationsArray[0].serviceDate,
+			  	        					serviceTime:locationsArray[0].serviceTime,
+			  	        					statCode:locationsArray[0].statCode,
+			  	        					serviceStationDesc:locationsArray[0].serviceStationDesc,
+			  	        					serviceStationAddr1:locationsArray[0].serviceStationAddr1,
+			  	        					serviceStationAddr2:locationsArray[0].serviceStationAddr2,
+			  	        					serviceStationAddr3:locationsArray[0].serviceStationAddr3,
+			  	        					serviceStationCity:locationsArray[0].serviceStationCity,
+			  	        					serviceStationState:locationsArray[0].serviceStationState,
+			  	        					serviceStationPincode:locationsArray[0].serviceStationPincode
+			  	        				});
+		  	        				}
+		  	        			}
+		  	        		}
+		        			if(locationsArrayNoOutscan.length > 1){
+		        				var serviceStationNameCheck = '';
+		  	        			var serviceStationAddr1Check = '';
+		  	        			var serviceStationAddr2Check = '';
+		  	        			var serviceStationAddr3Check = '' ;
+		  	        			var serviceStationCityCheck = ''
+		  	        			var serviceStationStateCheck = ''
+		  	        			var serviceStationPincodeCheck = ''
+		  	        			var cityPin = '';
+		  	        			var fullAddressEmptyCheck = ''
+		  	        			locationsArrayNoInscan.push({
+		        					lat:locationsArrayNoOutscan[locationsArrayNoOutscan.length-1].lat,
+		        					lng:locationsArrayNoOutscan[locationsArrayNoOutscan.length-1].lng,
+		        					serviceDate:locationsArrayNoOutscan[locationsArrayNoOutscan.length-1].serviceDate,
+		        					serviceTime:locationsArrayNoOutscan[locationsArrayNoOutscan.length-1].serviceTime,
+			        				statCode:locationsArrayNoOutscan[locationsArrayNoOutscan.length-1].statCode,
+			        				serviceStationDesc:locationsArrayNoOutscan[locationsArrayNoOutscan.length-1].serviceStationDesc,
+			        				serviceStationAddr1:locationsArrayNoOutscan[locationsArrayNoOutscan.length-1].serviceStationAddr1,
+			        				serviceStationAddr2:locationsArrayNoOutscan[locationsArrayNoOutscan.length-1].serviceStationAddr2,
+			        				serviceStationAddr3:locationsArrayNoOutscan[locationsArrayNoOutscan.length-1].serviceStationAddr3,
+			        				serviceStationCity:locationsArrayNoOutscan[locationsArrayNoOutscan.length-1].serviceStationCity,
+			        				serviceStationState:locationsArrayNoOutscan[locationsArrayNoOutscan.length-1].serviceStationState,
+			        				serviceStationPincode:locationsArrayNoOutscan[locationsArrayNoOutscan.length-1].serviceStationPincode
+		        				});
+		  	        			locationsArrayNoInscan.push({
+		        					lat:locationsArray[locationsArray.length-1].lat,
+		        					lng:locationsArray[locationsArray.length-1].lng,
+		        					serviceDate:locationsArray[locationsArray.length-1].serviceDate,
+		        					serviceTime:locationsArray[locationsArray.length-1].serviceTime,
+			        				statCode:locationsArray[locationsArray.length-1].statCode,
+			        				serviceStationDesc:locationsArray[i].serviceStationDesc,
+			        				serviceStationAddr1:locationsArray[locationsArray.length-1].serviceStationAddr1,
+		        					serviceStationAddr2:locationsArray[locationsArray.length-1].serviceStationAddr2,
+		        					serviceStationAddr3:locationsArray[locationsArray.length-1].serviceStationAddr3,
+		        					serviceStationCity:locationsArray[locationsArray.length-1].serviceStationCity,
+		        					serviceStationState:locationsArray[locationsArray.length-1].serviceStationState,
+		        					serviceStationPincode:locationsArray[locationsArray.length-1].serviceStationPincode
+		        				});
+		  	        			for(var i = 0; i < locationsArrayNoInscan.length; i++){
+			  	        			locationsArrayNoInscan[i].lat = parseFloat(locationsArrayNoInscan[i].lat);
+			  	        			locationsArrayNoInscan[i].lng = parseFloat(locationsArrayNoInscan[i].lng);
+		  	        			}
+		  	        			serviceStationNameCheck = (locationsArrayNoInscan[1].serviceStationDesc == '')?locationsArrayNoInscan[1].serviceStationDesc:(locationsArrayNoInscan[1].serviceStationDesc+'<br/>') ;
+		  	        			serviceStationAddr1Check = (locationsArrayNoInscan[1].serviceStationAddr1 == '')?locationsArrayNoInscan[1].serviceStationAddr1:(locationsArrayNoInscan[1].serviceStationAddr1+'<br/>') ;
+		  	        			serviceStationAddr2Check = (locationsArrayNoInscan[1].serviceStationAddr2 == '')?locationsArrayNoInscan[1].serviceStationAddr2:(locationsArrayNoInscan[1].serviceStationAddr2+'<br/>') ;
+		  	        			serviceStationAddr3Check = (locationsArrayNoInscan[1].serviceStationAddr3 == '')?locationsArrayNoInscan[1].serviceStationAddr3:(locationsArrayNoInscan[1].serviceStationAddr3+'<br/>') ;
+		  	        			serviceStationCityCheck = (locationsArrayNoInscan[1].serviceStationCity == '')?locationsArrayNoInscan[1].serviceStationCity:(locationsArrayNoInscan[1].serviceStationCity) ;
+		  	        			serviceStationStateCheck = (locationsArrayNoInscan[1].serviceStationState == '')?locationsArrayNoInscan[1].serviceStationState:(locationsArrayNoInscan[1].serviceStationState+'<br/>') ;
+		  	        			serviceStationPincodeCheck = (locationsArrayNoInscan[1].serviceStationPincode == '')?locationsArrayNoInscan[1].serviceStationPincode:(locationsArrayNoInscan[1].serviceStationPincode+'<br/>') ;
+		  	        			cityPin = serviceStationCityCheck+'-'+serviceStationPincodeCheck;
+		  	        			fullAddressEmptyCheck = serviceStationNameCheck+serviceStationAddr1Check+serviceStationAddr2Check+serviceStationAddr3Check+serviceStationCityCheck+serviceStationStateCheck+serviceStationPincodeCheck;
+		  	        			
+		  	        			content = '<table class="table table-bordered">'+'<tr>' + '<td><i class="glyphicon glyphicon-home iconColor"></i></td>' +
+		 	        	         '<td>' +serviceStationNameCheck+'<br/>'+ serviceStationAddr1Check + '<br/>' + serviceStationAddr2Check + '<br/>' + serviceStationAddr3Check + '<br/>' + cityPin + '</td></tr>' +
+		 	        	         '<tr>' + '<td><i class="glyphicon glyphicon-phone-alt iconColor"></i></td>' +
+		 	        	         '<td>' + '1860 233 1234' + '</td></tr></table>';
+		 	        	         
+		 	        	        dateTimeContent = '<table class="table table-bordered">'+'<tr>' + '<td><i class="glyphicon glyphicon-calendar iconColor"></i></td>' +
+		 	        	         '<td>' +locationsArrayNoInscan[1].serviceDate+ '</td></tr>' +
+		 	        	         '<tr>' + '<td><i class="glyphicon glyphicon-time iconColor"></i></td>' +
+		 	        	         '<td>' +locationsArrayNoInscan[1].serviceTime+ '</td></tr></table>';
+		 	        	    	createOutScanToNetworkMarker(map,new google.maps.LatLng(locationsArrayNoInscan[1].lat,locationsArrayNoInscan[1].lng),dateTimeContent,content,fullAddressEmptyCheck);
+		 	        	    	displayNetworkMap(map,locationsArrayNoOutscan,locationsArrayNoInscan,outScanToNetworkFlag);
+		        			}else{
+		        				if(locationsArrayNoOutscan.length==1){
+		        					locationsArrayNoInscan.push({
+			        					lat:locationsArray[0].lat,
+			        					lng:locationsArray[0].lng,
+			        					serviceDate:locationsArray[0].serviceDate,
+			        					serviceTime:locationsArray[0].serviceTime,
+				        				statCode:locationsArray[0].statCode,
+				        				serviceStationDesc:locationsArray[0].serviceStationDesc,
+				        				serviceStationAddr1:locationsArray[0].serviceStationAddr1,
+				        				serviceStationAddr2:locationsArray[0].serviceStationAddr2,
+				        				serviceStationAddr3:locationsArray[0].serviceStationAddr3,
+				        				serviceStationCity:locationsArray[0].serviceStationCity,
+				        				serviceStationState:locationsArray[0].serviceStationState,
+				        				serviceStationPincode:locationsArray[0].serviceStationPincode
+			        				});
+		        				}else{
+			        				locationsArrayNoInscan.push({
+			        					lat:locationsArray[1].lat,
+			        					lng:locationsArray[1].lng,
+			        					serviceDate:locationsArray[1].serviceDate,
+			        					serviceTime:locationsArray[1].serviceTime,
+				        				statCode:locationsArray[1].statCode,
+				        				serviceStationDesc:locationsArray[1].serviceStationDesc,
+				        				serviceStationAddr1:locationsArray[1].serviceStationAddr1,
+				        				serviceStationAddr2:locationsArray[1].serviceStationAddr2,
+				        				serviceStationAddr3:locationsArray[1].serviceStationAddr3,
+				        				serviceStationCity:locationsArray[1].serviceStationCity,
+				        				serviceStationState:locationsArray[1].serviceStationState,
+				        				serviceStationPincode:locationsArray[1].serviceStationPincode
+			        				});
+		        				}
+		        				locationsArrayNoInscan[0].lat = parseFloat(locationsArrayNoInscan[0].lat);
+		  	        			locationsArrayNoInscan[0].lng = parseFloat(locationsArrayNoInscan[0].lng);
+		  	        			serviceStationNameCheck = (locationsArrayNoInscan[0].serviceStationDesc == '')?locationsArrayNoInscan[0].serviceStationDesc:(locationsArrayNoInscan[0].serviceStationDesc+'<br/>') ;
+		  	        			serviceStationAddr1Check = (locationsArrayNoInscan[0].serviceStationAddr1 == '')?locationsArrayNoInscan[0].serviceStationAddr1:(locationsArrayNoInscan[0].serviceStationAddr1+'<br/>') ;
+		  	        			serviceStationAddr2Check = (locationsArrayNoInscan[0].serviceStationAddr2 == '')?locationsArrayNoInscan[0].serviceStationAddr2:(locationsArrayNoInscan[0].serviceStationAddr2+'<br/>') ;
+		  	        			serviceStationAddr3Check = (locationsArrayNoInscan[0].serviceStationAddr3 == '')?locationsArrayNoInscan[0].serviceStationAddr3:(locationsArrayNoInscan[0].serviceStationAddr3+'<br/>') ;
+		  	        			serviceStationCityCheck = (locationsArrayNoInscan[0].serviceStationCity == '')?locationsArrayNoInscan[0].serviceStationCity:(locationsArrayNoInscan[0].serviceStationCity) ;
+		  	        			serviceStationStateCheck = (locationsArrayNoInscan[0].serviceStationState == '')?locationsArrayNoInscan[0].serviceStationState:(locationsArrayNoInscan[0].serviceStationState+'<br/>') ;
+		  	        			serviceStationPincodeCheck = (locationsArrayNoInscan[0].serviceStationPincode == '')?locationsArrayNoInscan[0].serviceStationPincode:(locationsArrayNoInscan[0].serviceStationPincode+'<br/>') ;
+		  	        			cityPin = serviceStationCityCheck+'-'+serviceStationPincodeCheck;
+		  	        			fullAddressEmptyCheck = serviceStationNameCheck+serviceStationAddr1Check+serviceStationAddr2Check+serviceStationAddr3Check+serviceStationCityCheck+serviceStationStateCheck+serviceStationPincodeCheck;
+		  	        			
+		  	        			content = '<table class="table table-bordered">'+'<tr>' + '<td><i class="glyphicon glyphicon-home iconColor"></i></td>' +
+		 	        	         '<td>' +serviceStationNameCheck+'<br/>'+ serviceStationAddr1Check + '<br/>' + serviceStationAddr2Check + '<br/>' + serviceStationAddr3Check + '<br/>' + cityPin + '</td></tr>' +
+		 	        	         '<tr>' + '<td><i class="glyphicon glyphicon-phone-alt iconColor"></i></td>' +
+		 	        	         '<td>' + '1860 233 1234' + '</td></tr></table>';
+		 	        	         
+		 	        	        dateTimeContent = '<table class="table table-bordered">'+'<tr>' + '<td><i class="glyphicon glyphicon-calendar iconColor"></i></td>' +
+		 	        	         '<td>' +locationsArrayNoInscan[0].serviceDate+ '</td></tr>' +
+		 	        	         '<tr>' + '<td><i class="glyphicon glyphicon-time iconColor"></i></td>' +
+		 	        	         '<td>' +locationsArrayNoInscan[0].serviceTime+ '</td></tr></table>';
+		 	        	    	 createOutScanToNetworkMarker(map,new google.maps.LatLng(locationsArrayNoInscan[0].lat,locationsArrayNoInscan[0].lng),dateTimeContent,content,fullAddressEmptyCheck);
+		 	        	    	 if(locationsArrayNoInscan[0].lat == locationsArrayNoOutscan[0].lat && locationsArrayNoInscan[0].lng == locationsArrayNoOutscan[0].lng){
+		 	        	    		 var latlngbounds = new google.maps.LatLngBounds();	
+		 	        	    		 latlngbounds.extend( new google.maps.LatLng(locationsArrayNoInscan[0].lat, locationsArrayNoInscan[0].lng) );
+		 	        	    		 map.setCenter(latlngbounds.getCenter());
+		 	        	    		 map.fitBounds(latlngbounds);
+		 	        	    	 }else{
+		 	        	    		displayNetworkMap(map,locationsArrayNoOutscan,locationsArrayNoInscan,outScanToNetworkFlag);
+		 	        	    	 }
+		        			}
+		        			
+		        		}
+	  	        	}else if(data[0][0].mapType == trackOnMapLbl.lastmileMap){
+	  	        		locationsArray = data[1];
+		         		lastMileMarkerLoc = data[2];
+				        displayLastMileMap(map,locationsArray,lastMileMarkerLoc);
+		    	        dateTimeContent = '<table class="table table-bordered">'+'<tr>' + '<td><i class="glyphicon glyphicon-calendar iconColor"></i></td>' +
+		        	         '<td>' +lastMileMarkerLoc[0].serviceDate+ '</td></tr>' +
+		        	         '<tr>' + '<td><i class="glyphicon glyphicon-time iconColor"></i></td>' +
+		        	         '<td>' +lastMileMarkerLoc[0].serviceTime+ '</td></tr></table>';
+				       
+		          		createLastMarker(map,new google.maps.LatLng(lastMileMarkerLoc[0].lat,lastMileMarkerLoc[0].lng),dateTimeContent,content,fullAddressEmptyCheck);
+		         	}
+  	        	}
+  	        },
+  	        error: function(status, error) {
+  	        	$('#statusAndScansTable_'+awbNo).hide();
+	        	$('#mapBtnDiv_'+awbNo).html('');
+	  	      	$('#mapBtnDiv_'+awbNo).show();
+	  	      	$('#trackOnMapBtn_'+awbNo).hide();
+	  	        $('#mapBtnDiv_'+awbNo).append('<div class="row mg-btm15">'+'<div class="col-lg-12">'+'<button type="button" class="btn btn-primary pull-right" id="backBtn_'+awbNo+'" onclick="back('+awbNo+')">'+'<i class="fa fa-map-marker" aria-hidden="true"></i><span> </span>'+trackOnMapLbl.backBtn+'</button></div></div>');
+	        	$('#mapBtnDiv_'+awbNo).append('<div id="panelDiv_'+awbNo+'"></div>');
+	        	$('#panelDiv_'+awbNo).html('');
+	  	      	$('#panelDiv_'+awbNo).append('<div class="alert alert-danger">' + trackDart_errorLbl.podException +'</div>');
+  	        }
+  	    });  
+  }
+
+  function displayNetworkMap(map,locationsArray,locationsArrayNoInscan,outScanToNetworkFlag) {
+  		var content='';
+  		var dateTimeContent='';
+  		
+  		for (var i = 0; i < locationsArray.length; i++) {
+  			var serviceStationNameCheck = (locationsArray[i].serviceStationDesc == '')?locationsArray[i].serviceStationDesc:(locationsArray[i].serviceStationDesc+'<br/>') ;
+ 			var serviceStationAddr1Check = (locationsArray[i].serviceStationAddr1 == '')?locationsArray[i].serviceStationAddr1:(locationsArray[i].serviceStationAddr1+'<br/>') ;
+ 			var serviceStationAddr2Check = (locationsArray[i].serviceStationAddr2 == '')?locationsArray[i].serviceStationAddr2:(locationsArray[i].serviceStationAddr2+'<br/>') ;
+ 			var serviceStationAddr3Check = (locationsArray[i].serviceStationAddr3 == '')?locationsArray[i].serviceStationAddr3:(locationsArray[i].serviceStationAddr3+'<br/>') ;
+ 			var serviceStationCityCheck = (locationsArray[i].serviceStationCity == '')?locationsArray[i].serviceStationCity:(locationsArray[i].serviceStationCity) ;
+ 			var serviceStationStateCheck = (locationsArray[i].serviceStationState == '')?locationsArray[i].serviceStationState:(locationsArray[i].serviceStationState+'<br/>') ;
+ 			var serviceStationPincodeCheck = (locationsArray[i].serviceStationPincode == '')?locationsArray[i].serviceStationPincode:(locationsArray[i].serviceStationPincode+'<br/>') ;
+ 			var cityPin = serviceStationCityCheck+'-'+serviceStationPincodeCheck;
+ 			var fullAddressEmptyCheck = serviceStationNameCheck+serviceStationAddr1Check+serviceStationAddr2Check+serviceStationAddr3Check+serviceStationCityCheck+serviceStationStateCheck+serviceStationPincodeCheck;
+  			
+ 			content = '<table class="table table-bordered">'+'<tr>' + '<td><i class="glyphicon glyphicon-home iconColor"></i></td>' +
+	         '<td>' +serviceStationNameCheck+'<br/>'+ serviceStationAddr1Check + '<br/>' + serviceStationAddr2Check + '<br/>' + serviceStationAddr3Check + '<br/>' + cityPin + '</td></tr>' +
+	         '<tr>' + '<td><i class="glyphicon glyphicon-phone-alt iconColor"></i></td>' +
+	         '<td>' + '1860 233 1234' + '</td></tr></table>';
+	        
+	         dateTimeContent = '<table class="table table-bordered">'+'<tr>' + '<td><i class="glyphicon glyphicon-calendar iconColor"></i></td>' +
+ 	         '<td>' +locationsArray[i].serviceDate+ '</td></tr>' +
+ 	         '<tr>' + '<td><i class="glyphicon glyphicon-time iconColor"></i></td>' +
+ 	         '<td>' +locationsArray[i].serviceTime+ '</td></tr></table>';
+	         createMarkers(map,new google.maps.LatLng(locationsArray[i].lat,locationsArray[i].lng),dateTimeContent,content,trackOnMapLbl.networkMap,fullAddressEmptyCheck);
+  		}
+		var latLngArray = [];
+		
+		for(var i = 0; i < locationsArray.length; i++){
+			latLngArray.push({
+				lat:locationsArray[i].lat,
+				lng:locationsArray[i].lng,
+				serviceDate:locationsArray[i].serviceDate,
+				serviceTime:locationsArray[i].serviceTime,
+				statCode:locationsArray[i].statCode,
+				serviceStationDesc:locationsArray[i].serviceStationDesc,
+				serviceStationAddr1:locationsArray[i].serviceStationAddr1,
+				serviceStationAddr2:locationsArray[i].serviceStationAddr2,
+				serviceStationAddr3:locationsArray[i].serviceStationAddr3,
+				serviceStationCity:locationsArray[i].serviceStationCity,
+				serviceStationState:locationsArray[i].serviceStationState,
+				serviceStationPincode:locationsArray[i].serviceStationPincode
+			});
+			
+			latLngArray[i].lat = parseFloat(latLngArray[i].lat);
+			latLngArray[i].lng = parseFloat(latLngArray[i].lng);
+			
+		}
+		var latlngbounds = new google.maps.LatLngBounds();	
+		if(outScanToNetworkFlag == false){
+			for(var i = 0; i < latLngArray.length; i++){
+				latlngbounds.extend( new google.maps.LatLng(latLngArray[i].lat, latLngArray[i].lng) );
+			}
+		}else{
+			for(var i = 0; i < locationsArrayNoInscan.length; i++){
+				latlngbounds.extend( new google.maps.LatLng(locationsArrayNoInscan[i].lat, locationsArrayNoInscan[i].lng) );
+			}
+		}
+		createFlightPath(map,latLngArray);
+		createFlightPath(map,locationsArrayNoInscan);
+		
+		map.setCenter(latlngbounds.getCenter());
+		map.fitBounds(latlngbounds);
+      }
+  
+  	  function displayLastMileMap(map,locationsArray,lastMileMarkerLoc){
+  		 var latlngboundsLast = new google.maps.LatLngBounds();
+  		 latlngboundsLast.extend( new google.maps.LatLng(lastMileMarkerLoc[0].lat, lastMileMarkerLoc[0].lng) );
+  		 var content='';
+  		 var dateTimeContent='';
+  		 for (var i = 0; i < locationsArray.length; i++) {
+  			 var fullAddressEmptyCheck = '';
+  			 if(locationsArray[i].statCode==trackOnMapLbl.deliveredStatcode){
+		         dateTimeContent = '<table class="table table-bordered">'+'<tr>' + '<td><i class="glyphicon glyphicon-calendar iconColor"></i></td>' +
+	 	         '<td>' +locationsArray[i].serviceDate+ '</td></tr>' +
+	 	         '<tr>' + '<td><i class="glyphicon glyphicon-time iconColor"></i></td>' +
+	 	         '<td>' +locationsArray[i].serviceTime+ '</td></tr></table>';
+  			}else{
+		    	 dateTimeContent = '<div style="max-width: 200px;"><div class="alert alert-success">' + trackOnMapLbl.packagePendingforDelivery +'</div></div>';
+		    }
+			createMarkers(map,new google.maps.LatLng(locationsArray[i].lat,locationsArray[i].lng),dateTimeContent,content,trackOnMapLbl.lastmileMap,fullAddressEmptyCheck);
+         }
+  		  
+  		var latLngArray = [];
+		var latLngWithLastArray = [];
+		for(var i = 0; i < locationsArray.length-1; i++){
+			latLngArray.push({
+				lat:locationsArray[i].lat,
+				lng:locationsArray[i].lng
+			});
+			
+			latLngArray[i].lat = parseFloat(latLngArray[i].lat);
+			latLngArray[i].lng = parseFloat(latLngArray[i].lng);
+			
+			latLngWithLastArray.push({
+				lat:locationsArray[i].lat,
+				lng:locationsArray[i].lng
+			});
+		}
+		
+		latLngWithLastArray.push({
+			lat:lastMileMarkerLoc[0].lat,
+			lng:lastMileMarkerLoc[0].lng
+		});
+	
+		var latlngbounds = new google.maps.LatLngBounds();	
+		for(var i = 0; i < latLngWithLastArray.length; i++){
+			latlngbounds.extend( new google.maps.LatLng(latLngWithLastArray[i].lat, latLngWithLastArray[i].lng) );
+		}
+		
+		createFlightPath(map,latLngArray);	
+		
+		map.setCenter(latlngbounds.getCenter());
+		map.fitBounds(latlngbounds);
+  	  }
+  
+  
+	  function createMarkers(map,latlng,dateTimeContent,content,mapType,fullAddressEmptyCheck){
+		  var marker = new google.maps.Marker({
+				position: latlng,
+				map: map
+			});
+			marker.addListener('mouseover', function() {
+				infowindow.close();
+				if(fullAddressEmptyCheck!='' && mapType == trackOnMapLbl.networkMap){
+					infowindow.setContent(dateTimeContent+'<div style="max-width: 200px;"><div class="alert alert-success">' + trackOnMapLbl.clickMarkerMsg + '</div></div>');
+				}else{
+					infowindow.setContent(dateTimeContent);
+				}
+				infowindow.open(map, marker);
+			});
+			if(mapType == trackOnMapLbl.networkMap){
+				if(fullAddressEmptyCheck!=''){
+					marker.addListener('click', function() {
+						infowindow.close();
+						infowindow.setContent(content);
+						infowindow.open(map, marker);
+					});
+				}
+			}
+	  }
+	  
+	  function createLastMarker(map,latlng,dateTimeContent,content,fullAddressEmptyCheck){
+		var image = {
+			url: bikeImage
+		};
+		var marker = new google.maps.Marker({
+			position: latlng,
+			icon: image,
+			map: map
+		});
+					
+		marker.addListener('mouseover', function() {
+			infowindow.setContent(dateTimeContent);
+			infowindow.open(map, marker);
+		});
+	  }
+	  
+	  function createOutScanToNetworkMarker(map,latlng,dateTimeContent,content,fullAddressEmptyCheck){
+		var image = {
+			url: arrowImage
+		};
+		var marker = new google.maps.Marker({
+			position: latlng,
+			icon: image,
+			map: map
+		});
+					
+		marker.addListener('mouseover', function() {
+			if(fullAddressEmptyCheck!=''){
+				infowindow.setContent(dateTimeContent+'<div style="max-width: 200px;"><div class="alert alert-success">' + trackOnMapLbl.clickMarkerMsg + '</div></div>');
+			}else{
+				infowindow.setContent(dateTimeContent);
+			}
+			infowindow.open(map, marker);
+		});
+		if(fullAddressEmptyCheck!=''){
+			marker.addListener('click', function() {
+				infowindow.setContent(content);
+				infowindow.open(map, marker);
+			});
+		}
+	  }
+	  
+	  function createFlightPath(map,latLngArray){
+ 		  var flightPath = new google.maps.Polyline({
+	          path: latLngArray,
+	          geodesic: true,
+	          strokeColor: '#00b3fd',
+	          strokeOpacity: 1.0,
+	          strokeWeight: 4
+	        });
+	        flightPath.setMap(map);
+	  }
+    
+    function hideMap(awbNo){
+  	    $('#map_'+awbNo).hide();
+  	    $('#mapBtnDiv_'+awbNo).hide();
+        $('#trackOnMapBtn_'+awbNo).show();
+  	    $('#statusAndScansTable_'+awbNo).show();
+    }  	 
+    function back(awbNo){
+  	    $('#map_'+awbNo).hide();
+  	    $('#mapBtnDiv_'+awbNo).hide();
+        $('#trackOnMapBtn_'+awbNo).show();
+  	    $('#statusAndScansTable_'+awbNo).show();
+    }  	
+    function identical(array) {
+        for(var i = 0; i < array.length - 1; i++) {
+            if(array[i].lat !== array[i+1].lat && array[i].lng !== array[i+1].lng) {
+                return false;
+            }
+        }
+        return true;
+    }
+</script>
+
+</body>
+</html>

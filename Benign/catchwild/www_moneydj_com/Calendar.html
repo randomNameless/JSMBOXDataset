@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendar.html</title>
+</head>
+<body>
+
+<script>
+
+rowBegCurMonth = 0;
+colBegCurMonth = 0;
+rowEndCurMonth = 0;
+colEndCurMonth = 0;
+clrCurMonth = "black";
+clrOthMonth = "LightGrey";
+clrHighlight= "#FFFFFF";
+clrTodayBG  = "#bce4fe";
+clrNormalBG = "white";
+var today=new Date();
+theYear=today.getFullYear();
+theMonth=today.getMonth()+1;
+
+var NowDate = '';	//記錄目前日期
+var NowLink = '';	
+var NowMLink = '';	
+
+	
+function showMonth() {
+	var theDate=new Date();
+	var curMonth=false;
+
+	theDate.setTime(Date.parse(theYear+'/'+theMonth+'/1'));
+	theYear=theDate.getFullYear();				//算出年份
+	theMonth=theDate.getMonth()+1;	//算出月份
+//	if (theYear<2000) theYear+=1900;	
+	document.getElementById('CELLYEAR').innerHTML=theYear;
+	document.getElementById('CELLMONTH').innerHTML=theMonth;
+	theDate.setDate(1-theDate.getDay());	
+	for(var row=0;row<=5;row++) {
+		for(var col=1;col<=7;col++) {
+			document.getElementById('CELL'+row+col).innerHTML=theDate.getDate();
+			if (theDate.getMonth()+1==theMonth) {
+				document.getElementById('CELL'+row+col).style.color=clrCurMonth;
+				if (curMonth==false) {
+					rowBegCurMonth=row;
+					colBegCurMonth=col;
+					curMonth=true;
+				}
+			}
+			else {
+				document.getElementById('CELL'+row+col).style.color=clrOthMonth;
+				if (curMonth==true) {
+					rowEndCurMonth=row;
+					colEndCurMonth=col-1;
+					if (colEndCurMonth<=0) {
+						colEndCurMonth=7;
+						rowEndCurMonth--;
+					}
+					curMonth=false;
+				}
+			}
+			if ((theDate.getFullYear()==today.getFullYear()) && (theDate.getMonth()==today.getMonth()) && (theDate.getDate()==today.getDate())) {
+				document.getElementById('CELL' + row + col).style.backgroundColor=clrTodayBG;
+				document.getElementById('CELL' + row + col).style.fontWeight="bold";	
+				getMDDiv(theDate);
+			}
+			else {
+				document.getElementById('CELL'+row+col).style.backgroundColor=clrNormalBG;
+				document.getElementById('CELL' + row + col).style.fontWeight="normal";	
+			}
+			theDate.setDate(theDate.getDate()+1);
+
+		}
+	}
+}
+
+function mseOver(ev) {
+    //el = window.event.srcElement;
+    var el = ev.target || window.event.srcElement;
+    if(IsValidCurMonthElement(el)) {
+		el.style.color = clrHighlight;
+		el.style.cursor = "pointer";
+		el.style.background = "#f46b75";
+		el.style.fontWeight = "bold";
+
+	}
+}
+
+function mseOut(ev) {
+    //el = window.event.srcElement;
+    var el = ev.target || window.event.srcElement;
+    if(IsValidCurMonthElement(el)) {
+		var objY = document.getElementById('CELLYEAR');
+		var objM = document.getElementById('CELLMONTH');
+		if ( objY.innerHTML == today.getFullYear() && objM.innerHTML == today.getMonth() + 1 && el.innerHTML == today.getDate() ) {
+			el.style.color = clrCurMonth;
+			el.style.background = clrTodayBG;
+			el.style.fontWeight = "bold";
+		}
+		else {
+			el.style.color = clrCurMonth;
+			el.style.background = "#FFFFFF";
+			el.style.fontWeight = "";
+		}
+	}
+}
+
+function IsValidCurMonthElement(el) {
+	var fRet=false;
+    // make sure it's one of the day elements...
+    if(el.id.substring(0, 4) == "CELL") {
+	    iRow = el.id.substring(4, 5);
+	    iCol = el.id.substring(5, 6);
+
+		if ((iRow>rowBegCurMonth) && (iRow<rowEndCurMonth))
+		    fRet=true;
+		if ((iRow==rowBegCurMonth) && (iCol>=colBegCurMonth)) 
+			fRet=true;
+		if ((iRow==rowEndCurMonth) && (iCol<=colEndCurMonth))
+			fRet=true;
+	}
+	return fRet;
+}
+
+function CalendarClick(ev) {
+	var mDate=new Date();
+    //current = window.event.srcElement;
+    current = ev.target || window.event.srcElement;
+    
+    if (IsValidCurMonthElement(current)) {
+        clickedDay = current.innerHTML;
+        mDate.setYear(theYear);
+        mDate.setMonth(theMonth-1);
+        mDate.setDate(clickedDay);
+
+		getMDDiv(mDate);
+        getSDiv();
+
+    }
+}
+
+function setShowYear(incNum) {
+	theYear+=incNum;
+	showMonth();
+}
+
+function setShowMonth(incNum) {
+	theMonth+=incNum;
+	showMonth();
+}
+
+function CalendarInit() {
+	showMonth();
+	getSDiv();
+}
+
+
+function getMDDiv(mDate)
+{
+	var oDiv = document.getElementById('getMD');
+	if (oDiv == null) {
+		return;
+	}
+	
+	NowDate = mDate.getFullYear() + "-" + (mDate.getMonth()+1) + "-" + mDate.getDate();
+	var dm = (mDate.getMonth()+1) + " - " + mDate.getDate();
+    //oDiv.innerHTML = '<font face="Georgia" style="font-size: 15pt">' + dm + '</font>';
+    oDiv.innerHTML = '<font face="Times New Roman" style="font-size: 14pt" color="#768c98">' + dm + '</font>';
+
+}
+
+function getSDiv()
+{
+	var sLink = NowLink.replace('%sDate%',NowDate);
+	var sMLink = NowMLink.replace('%sDate%',NowDate);
+	genDivSM(sMLink);
+
+	var oDivS = document.getElementById('DivSD');
+	if (oDivS != null) {
+		oDivS.innerHTML = '資料讀取中...';
+	}
+
+	var xmlDom = new XmlLoader();
+	try
+	{
+		xmlDom.async=true;
+		xmlDom.URL = sLink;
+		xmlDom.callbackfunc = getCallbackDivSD;
+		xmlDom.LoadXML();
+
+		if ( xmlDom.bDoFail)
+		{
+//			window.setTimeout("getSDiv()");
+			oDivS.innerHTML = "資料讀取失敗!!";
+		}
+	}
+	catch(e)
+	{
+//		window.setTimeout("getSDiv()");
+		oDivS.innerHTML = "資料讀取失敗!!";
+	}
+
+}
+
+function getCallbackDivSD(xml,p1,p5,p2,p3,p4,p6,p7,bRec)
+{
+	var oDivS = document.getElementById('DivSD');
+	if (oDivS == null) {
+		return;
+	}
+
+	if ( !bRec)
+	{
+//		window.setTimeout("getSDiv()");
+		oDivS.innerHTML = "資料讀取失敗!!";
+		return;
+	}
+
+	try
+	{
+		if(xml.responseText != "")
+		{
+			var xmlResult = xml.responseXML;
+			var sReturnString = '';
+
+			//var rows = xmlResult.selectNodes("//item/data");
+			var rows = SelectNodes(xmlResult, "//item/data");
+			var nDataLen = rows.length;
+			if (nDataLen < 1) {
+				return;
+			}
+
+			sReturnString = sReturnString + '<table border="0" >';
+			for (var i=0;i<nDataLen;i++)
+			{
+				var sData = rows[i].text;	//for ie
+				if (typeof(sData) == 'undefined') {	//for firefox
+					sData = rows[i].textContent;
+				}
+				sReturnString = sReturnString + '<tr><td>‧</td><td>';
+				sReturnString = sReturnString + sData;
+				sReturnString = sReturnString + '</td></tr>';
+			}
+			sReturnString = sReturnString + '</table>';
+
+			oDivS.innerHTML = sReturnString;
+
+		}
+		else {
+//			window.setTimeout("getSDiv()");
+			oDivS.innerHTML = "無相關資料";
+		}
+		
+	}
+	catch(e)
+	{
+//		window.setTimeout("getSDiv()");
+		oDivS.innerHTML = "無相關資料";
+	}
+	finally {
+			
+	}
+}
+
+function genDivSM(sLink) 
+{
+	var oDivSM = document.getElementById('DivSMore');
+	if (oDivSM == null) {
+		return;
+	}
+
+	var sM = '';
+	var sL = sLink.toUpperCase()
+	if (sL.indexOf('/Y/') != -1) {
+		//sM = '<a href="/y/yFund.asp?a=' + DJEnCode(sLink) + '" target=' + sDefaultTarget + '>';
+		sM = '<a href="javascript:goFund(\'' + sLink + '\',\'' + sMoreDefaultTarget + '\',true);">';
+	}
+	else {
+		//sM = '<a href="/z/z00.htm?a=' + DJEnCode(sLink) + '" target=' + sMoreDefaultTarget + '>';
+		sM = '<a href="javascript:goStock(\'' + sLink + '\',\'' + sMoreDefaultTarget + '\');">';
+	}
+	sM = sM + '<img border="0" src="images/More_Blue.gif" width="54" height="15">';
+	sM = sM + '</a>';
+
+	oDivSM.innerHTML = sM;
+
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>MetadataSection.html</title>
+</head>
+<body>
+<script>import {
+  resultContext,
+} from "https://static.cloud.coveo.com/atomic/v2/index.esm.js";
+import {
+  cleanAuthorDelimiters,
+  dateFormatUnixTimestamp,
+} from '../utility-functions.js';
+import dayjs from 'https://cdn.jsdelivr.net/npm/dayjs@1/+esm'
+import utc from 'https://cdn.jsdelivr.net/npm/dayjs/plugin/utc/+esm'
+import timezone from 'https://cdn.jsdelivr.net/npm/dayjs/plugin/timezone/+esm'
+import advancedFormat from 'https://cdn.jsdelivr.net/npm/dayjs/plugin/advancedFormat/+esm'
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+dayjs.extend(advancedFormat);
+
+//Metadata
+export class MetadataSection extends HTMLElement {
+  shadow;
+  result;
+  initialized = false;
+  timezone = 'America/New_York';
+
+  async connectedCallback() {
+    if (this.initialized) {
+      return;
+    }
+
+    this.initialized = true;
+    this.shadow = this.attachShadow({ mode: "open" });
+
+    try {
+      this.result = await resultContext(this);
+
+      if (this.result.raw.field_event_timezone) {
+        this.timezone = this.result.raw.field_event_timezone;
+      }
+
+      this.render();
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  render() {
+    const officialDisplayDate = this.result.raw.officialdisplaydate;
+    const officialz32xdate = this.result.raw.officialz32xdate;
+    const bgAuthors = this.result.raw.bgauthors;
+    const author = cleanAuthorDelimiters(this.result.raw.author);
+    const plCredit = this.result.raw.field_pl_credits || '';
+    const serCredit = this.result.raw.field_ser_credits || '';
+    const isTopResult = this.result.isTopResult;
+    const startDateRaw = this.result.raw.field_event_start_date
+    const startDate = startDateRaw ? dayjs.tz(startDateRaw).tz(this.timezone) : null;
+    const endDateRaw = this.result.raw.field_event_end_date;
+    const endDate = endDateRaw ? dayjs.tz(endDateRaw).tz(this.timezone) : null;
+    const location = this.result.raw.locations_city_and_country;
+
+    if (isTopResult) {
+      this.shadow.innerHTML = "";
+      return;
+    }
+
+    let metadataHtml = [];
+    let showOfficial = true;
+
+    if (officialDisplayDate || officialz32xdate || bgAuthors || author || startDate || endDate) {
+      metadataHtml.push('<div class="result-meta">');
+
+      if (startDate) {
+        showOfficial = false;
+        const isSameDay = endDate ? startDate.isSame(endDate, 'day') : true;
+
+        if (endDate && !isSameDay) {
+          const isSameYear = startDate.isSame(endDate, 'year');
+
+          // Dates
+          if (isSameYear) {
+            metadataHtml.push(
+              `<span class="result-meta-item"><span class="date">${startDate.format('D MMM')} – ${endDate.format('D MMM YYYY')}</span></span>`
+            );
+          } else {
+            metadataHtml.push(
+              `<span class="result-meta-item"><span class="date">${startDate.format('D MMM YYYY')} – ${endDate.format('D MMM YYYY')}</span></span>`
+            );
+          }
+
+          // Times
+          metadataHtml.push(
+            `<span class="result-meta-item"><span class="date">${startDate.format('h:mm A')} – ${endDate.format('h:mm A z')}</span></span>`
+          );
+
+
+        } else {
+          const isSameTime = endDate ? startDate.isSame(endDate, 'time') : true;
+
+          // Date
+          metadataHtml.push(
+            `<span class="result-meta-item"><span class="date">${startDate.format('D MMM YYYY')}</span></span>`
+          );
+
+          // Time
+          if (isSameTime) {
+            metadataHtml.push(
+              `<span class="result-meta-item"><span class="date">${startDate.format('h:mm A z')}</span></span>`
+            );
+          } else {
+            metadataHtml.push(
+              `<span class="result-meta-item"><span class="date">${startDate.format('h:mm A')} – ${endDate.format('h:mm A z')}</span></span>`
+            );
+          }
+
+        }
+      }
+
+      if ((officialDisplayDate || officialz32xdate) && showOfficial) {
+        if (officialDisplayDate) {
+          metadataHtml.push(
+            `<span class="result-meta-item"><span class="date">${officialDisplayDate.replace(/^0/, '')}</span></span>`
+          );
+        } else if (officialz32xdate) {
+          metadataHtml.push(
+            `<span class="result-meta-item"><span class="date">${dateFormatUnixTimestamp(officialz32xdate)}</span></span>`
+          );
+        }
+      }
+
+      if (location) {
+        metadataHtml.push(
+          `<span class="result-meta-item"><span class="location">${location}</span></span>`
+        );
+      }
+
+      if (bgAuthors) {
+        metadataHtml.push(
+          `<span class="result-meta-item"><span class="author">${bgAuthors}</span></span>`
+        );
+      } else if (author) {
+        metadataHtml.push(
+          `<span class="result-meta-item"><span class="author">${author}</span></span>`
+        );
+      }
+
+      metadataHtml.push('</div>');
+    }
+
+    if (plCredit && plCredit != 0) {
+      metadataHtml.push(`
+        <div class="result-meta">
+          <span class="tag">
+            <span class="ce-credit">${plCredit} PL</span>
+            ${
+              serCredit && serCredit != 0 ? `
+                <span class="ser-credit">(${serCredit} SER)</span>` :
+                ''
+            }
+          </span>
+        </div>
+      `);
+    }
+
+    this.shadow.innerHTML = `
+      <style>
+        .result-meta {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          margin-top: var(--cfa--spacing--md);
+        }
+        .result-meta + .result-meta {
+          margin-top: var(--cfa--spacing--sm);
+        }
+        .result-meta-item {
+          padding: 0 .75rem;
+          font-size: 1rem;
+          font-style: normal;
+          font-weight: 400;
+          line-height: 1.5;
+          border-right: .0625rem solid var(--ssa-color-palette-gray-900);
+        }
+        .result-meta-item:first-of-type {
+          padding-left: 0;
+        }
+        .result-meta-item:last-of-type {
+          padding-right: 0;
+          border-right: none;
+        }
+        .tag {
+          padding: var(--cfa--spacing--sm) var(--cfa--spacing--md);
+          font-size: 1.125rem;
+          font-style: normal;
+          font-weight: 500;
+          line-height: 1;
+          text-transform: uppercase;
+          background-color: var(--ssa-color-palette-blue-100);
+          border-radius: .5rem;
+        }
+        .ser-credit {
+          margin-left: .125ch;
+        }
+      </style>
+      ${metadataHtml.join('')}
+    `;
+  }
+}</script>
+</body>
+</html>

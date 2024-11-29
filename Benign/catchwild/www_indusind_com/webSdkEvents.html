@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>webSdkEvents.html</title>
+</head>
+<body>
+
+<script>
+/*
+ * (C) Copyright 2019 Active Intelligence Pte Ltd (http://active.ai/).
+ *
+ * @author Active.ai
+ * 
+ * This software is the confidential and proprietary information of Active Intelligence.
+ * ("Confidential Information"). You shall not disclose such Confidential Information and shall use
+ * it only in accordance with the terms of the license agreement you entered into with Active
+ * Intelligence
+ *
+ */
+
+(function(window, document){
+    function showChatBoxAction(){
+        showChatbox();
+    }
+
+    function hideChatBoxAction(defaultChatBoxHeight){
+        try{
+            var chatBoxHeight = ""+window.options.desktop.chatWindowHeight;
+        }catch(error){
+             chatBoxHeight = defaultChatBoxHeight;
+        }
+        $('#chatBoxFrame').animate({height:'5%',minHeight:'5%',maxHeight: chatBoxHeight},200,'linear');
+        hideChatBox();
+        chatButtonFrame.style.display = "block";
+        chatBoxFrame.style.display = "none";
+        setTimeout(function(){
+        if(window.options.minimizedState){
+            chatBoxWindow.postMessage({ type: "hideMinimizedstate"}, webSdkEventData.domain); 
+        }
+    
+            },200);
+    }
+    function backButton(){
+        backButtonAction();
+    }
+
+    function destroyOnClose(){
+        if(window.options.destroyOnClose === true){
+            reinitiateChatBot(webSdkEventData.reinitialize)
+        }
+    }
+
+    function setCustomerInfo() {
+        var result = webSdkEventData.data;
+        options.customerInfo = result.customerInfo;
+        options.appSessionToken = result.appSessionToken;
+        options.retryBot =  options.retryBot - 1;
+        if(options.postLoginConfig && options.postLoginConfig.refreshToken) {
+            chatBoxWindow.postMessage({
+                type : "retryInit",
+                data: result 
+            }, webSdkEventData.domain);
+        }
+    }
+
+    function chatButtonClosedState(){
+        return;
+    }
+
+    function logoutChat(){
+        $('#logout').modal("show");
+    }
+
+    function websdkOutData(data){
+        var outData = webSdkEventData.outData ? JSON.stringify(webSdkEventData.outData) : {};
+        websdk.dispatchEvent("websdkdata", {"outData" : outData });
+    }
+    function receiveOptionsReq(){
+        chatBoxWindow.postMessage({ type: "receiveOptions", "data" : window.receiveOptions}, webSdkEventData.domain);
+        window.receiveOptions = {};
+    }
+    function sslHandshake(data){
+        doSslHandshake(webSdkEventData.data);
+    }
+
+    function pushNotificationInitialization(){
+        var script = document.createElement('script');
+        script.src = webSdkEventData.data.firebaseConfig.firebaseUrl;
+        document.getElementsByTagName('head')[0].appendChild(script);
+        script.onload = function(){
+            initializePushService(webSdkEventData.data.firebaseConfig);
+        }
+    }
+
+    function getErrDetails(data){
+        handleErrorResponse(JSON.parse(webSdkEventData.errData));
+    }
+
+    function voiceSdkInit(data){
+        var options = webSdkEventData.data;
+        if(isHybrid()){
+            MFJSInterface.voiceSdkInitialise(JSON.stringify(options));
+        }
+    }
+
+    function voiceSdkMessage(){
+        if(isHybrid()){
+            MFJSInterface.voiceSdkStartSpeechRecognition();
+        }
+    }
+
+    function voiceSdkCancelRequest(){
+        if(isHybrid()){
+            MFJSInterface.voiceSdkStopSpeechRecognition();
+        }
+    }
+
+    function voiceSdkStartTTS(){
+        var messages = webSdkEventData.data;
+        if(isHybrid()){
+            MFJSInterface.voiceSdkStartTTS(messages);
+        }
+    }
+
+    function voiceSdkStopTTS(){
+        if(isHybrid()){
+            MFJSInterface.voiceSdkStopTTS();
+        }
+    }
+
+    function notifyOnLogout(){
+        var code = webSdkEventData.data;
+        if(isHybrid()){
+            MFJSInterface.onLogout(code);
+        }
+    }
+
+    function notifyOnLogin () {
+        if(typeof window.options.showCrossOnPostLogin !== 'undefined' || window.options.showCrossOnPostLogin && window.options.showCrossOnPostLogin == true){
+            MFJSInterface.onLogin();
+        }
+    }
+
+    function hybridMenuAction() {
+        var eventType = webSdkEventData.data.eventType;
+        var payload = webSdkEventData.data.payload;
+        
+        MFJSInterface.postEvent(eventType, payload);
+    }
+
+    function preWebsdkRenderSuccess(){
+        var success = webSdkEventData.data;
+        MFJSInterface.notifyWebSdkRender(success);
+    }
+
+    function setAppId(){
+        var id = webSdkEventData.data;
+        if(MFJSInterface.storeNative){
+            MFJSInterface.storeNative("applicationId", id);
+        }
+    }
+
+    function webviewAction(){ 
+        if(!window.options.notNotifyWebViewOpenClose) {
+            var webviewActionType = webSdkEventData.data;
+            if(isHybrid() && webviewActionType === "webviewOpen" && MFJSInterface.onWebViewOpen){
+                MFJSInterface.onWebViewOpen();
+            } else if (isHybrid() && webviewActionType === "webviewClose" && MFJSInterface.onWebViewClose){
+                MFJSInterface.onWebViewClose();
+            } else {
+                console.log("webview action unknow or method not found on MFJSInterface")
+            }
+        }
+    }
+
+    function getDataFromNative(key) {
+         key = webSdkEventData.data;
+        if (isHybrid() && MFJSInterface.getFromNativeWithCallBack && typeof MFJSInterface.getFromNativeWithCallBack === 'function') {
+            MFJSInterface.getFromNativeWithCallBack(key);
+        }
+    }
+
+    function initSuccess(){
+        MFJSInterface.onWebSdkInitialised(webSdkEventData.data)
+    }
+    function voiceSdkRequest(){
+        var result=webSdkEventData.data
+        window.options.customMic.voiceSdkRequest=result
+    }
+
+    function setHybridSessionMessages() {
+        if(isHybrid() && window.options.hybridSessionMessages){
+            MFJSInterface.setHybridSessionMessages(webSdkEventData.data);
+        }
+        
+    }
+
+    function getHistoryMessages() {
+        if(isHybrid() && window.options.hybridSessionMessages){
+            MFJSInterface.getHistoryMessages()
+        }
+    }
+
+    /*
+     * To reload the chatBox & chatButton iframe
+     */
+    function refreshBot() {
+        chatBoxFrame.src += '';
+        chatButtonFrame.src += '';
+    }
+
+    window.webSdkEvent = {
+        showChatBox : showChatBoxAction,
+        hideChatBox : hideChatBoxAction,
+        backButtonAction : backButton,
+        destroyOnClose : destroyOnClose,
+        chatButtonClosedState : chatButtonClosedState,
+        logoutChat : logoutChat,
+        websdkOutData : websdkOutData,
+        receiveOptionsReq : receiveOptionsReq,
+        sslHandshake : sslHandshake,
+        pushNotificationInitialization : pushNotificationInitialization,
+        getErrDetails : getErrDetails,
+        voiceSdkInit : voiceSdkInit,
+        voiceSdkMessage : voiceSdkMessage,
+        voiceSdkCancelRequest : voiceSdkCancelRequest,
+        voiceSdkStartTTS : voiceSdkStartTTS,
+        voiceSdkStopTTS : voiceSdkStopTTS,
+        notifyOnLogout : notifyOnLogout,
+        notifyOnLogin: notifyOnLogin,
+        hybridMenuAction:hybridMenuAction,
+        preWebsdkRenderSuccess : preWebsdkRenderSuccess,
+        setAppId : setAppId,
+        webviewAction : webviewAction,
+        initSuccess : initSuccess,
+        getDataFromNative: getDataFromNative,
+        voiceSdkRequest:voiceSdkRequest,
+        refreshBot: refreshBot,
+        setCustomerInfo: setCustomerInfo,
+        setHybridSessionMessages: setHybridSessionMessages,
+        getHistoryMessages: getHistoryMessages
+    }
+})(window,document)
+
+</script>
+
+</body>
+</html>

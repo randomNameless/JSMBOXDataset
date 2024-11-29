@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PrepProvidersResultItem.html</title>
+</head>
+<body>
+
+<script>
+import {
+  resultContext,
+} from "https://static.cloud.coveo.com/atomic/v2/index.esm.js";
+
+//Title
+export class PrepProvidersResultItem extends HTMLElement {
+  shadow;
+  result;
+  initialized = false;
+  loggedIn;
+
+  async connectedCallback() {
+    if (this.initialized) {
+      return;
+    }
+
+    this.initialized = true;
+    this.shadow = this.attachShadow({ mode: "open" });
+
+    try {
+      this.result = await resultContext(this);
+      this.loggedIn = window.drupalSettings.user_roles.includes('authenticated');
+      this.render();
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  render() {
+    const title = this.result.title;
+    const description = this.result.raw.description;
+    const prep_program_level = this.result.raw.field_exam_levels_names;
+    const prep_course_format = this.result.raw.field_learning_products_names;
+    const url = this.result.raw.field_provider_url;
+    const isloginrequired = this.result.isloginrequired || this.result.raw.isloginrequired;
+    let itemContent = "";
+
+    itemContent = `
+      <style>
+        .CoveoResultLink {
+          color: var(--atomic-on-background);
+          text-decoration: none;
+        }
+
+        .CoveoResultLink:hover,
+        .CoveoResultLink:focus,
+        .CoveoResultLink:focus-visible,
+        .CoveoResultLink:active {
+          text-decoration: underline;
+        }
+
+        .CoveoResultLink[target=_blank]::after {
+          margin-left: var(--cfa--spacing--xs);
+          display: inline-block;
+          content: '\\e89e';
+          vertical-align: middle;
+          font-family: 'material';
+        }
+
+        .result__item {
+          position: relative;
+        }
+
+        .item__content {
+          font-size: 1rem;
+          font-style: normal;
+          font-weight: 400;
+          line-height: 1.5;
+          width: 100%;
+          padding: var(--cfa--spacing--lg) 0;
+          display: grid;
+          grid-template-columns: 2fr 1fr;
+          grid-template-rows: auto 1fr;
+          row-gap: var(--cfa--spacing--xs);
+          column-gap: var(--cfa--spacing--md);
+          grid-template-areas:
+            "title detail"
+            "description detail";
+          align-items: start;
+        }
+
+        .content__title {
+          font-size: 1.25rem;
+          font-style: normal;
+          font-weight: 700;
+          line-height: 1.5;
+          grid-area: title;
+        }
+
+        .content__description {
+          grid-area: description;
+        }
+
+        .content__details {
+          grid-area: detail;
+        }
+
+        ul {
+          list-style-type: none;
+          margin: 0;
+          padding: 0;
+        }
+
+        ul ul {
+          margin-top: var(--cfa--spacing--sm);
+        }
+
+        ul + ul {
+          margin-top: var(--cfa--spacing--lg);
+        }
+
+        .emphasize {
+          font-weight: 700;
+        }
+
+        @media (max-width: 37.5rem) {
+          .item__content {
+            grid-template-columns: 1fr;
+            grid-template-rows: repeat(auto, 3);
+            grid-template-areas:
+              "title"
+              "description"
+              "detail";
+          }
+
+          ul {
+            margin-top: var(--cfa--spacing--lg);
+          }
+        }
+      </style>
+      <div class="result">
+        <div class="result__item">
+          <div class="item__content">
+            <div class="content__title">
+              <a href="${url}" class='CoveoResultLink'>${title}</a>
+            </div>
+            <div class="content__description">
+              ${description ?? ''}
+            </div>
+            <div class="content__details">
+              ${prep_course_format.map((format) => {
+                return `
+                  <ul>
+                    <li>
+                      <span class="emphasize">${format}</span>
+                      <ul>
+                        ${
+                          Array.isArray(prep_program_level) ?
+                            prep_program_level.map((level) => {
+                              return `<li>${level}</li>`;
+                            }).join('') :
+                            `<li>${prep_program_level}</li>`
+                        }
+                      </ul>
+                    </li>
+                  </ul>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    this.shadow.innerHTML = itemContent;
+  }
+}
+
+</script>
+
+</body>
+</html>

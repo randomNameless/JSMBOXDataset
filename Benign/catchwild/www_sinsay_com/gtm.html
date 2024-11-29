@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>gtm.html</title>
+</head>
+<body>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+    const head = document.querySelector('head');
+    const body = document.querySelector('body');
+
+    // HTML ELEMENTS
+    const storeSelectorValue = document.querySelector('.store-selector-value-container');
+    const storeSelectorCountriesList = document.querySelector('.store-selector-list');
+    const storeSelectorCountriesListItems = document.querySelectorAll('.store-selector-item');
+    const storeSelectorSubmitButton = document.querySelector('.store-selector-button');
+    const storeSelectorChipsContainer = document.querySelector('.store-selector-chips');
+    const storeSelectorChipsList = document.querySelectorAll('.store-selector-chip');
+
+    const gtmId = 'GTM-MPDR46';
+    const countryCodes = Object.keys(countries);
+    const isDetected = countryCodes.includes(countryCode);
+
+    const handleGTMScript = () => {
+
+        const script = document.createElement('script');
+
+        script.innerHTML = `
+            (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+            new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+            j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+            'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+            })(window,document,'script','dataLayer','${gtmId}');   
+        `
+
+        head.appendChild(script);
+    }
+
+    const getCookieBotCookie = () => {
+        const match = document.cookie.match(RegExp('(?:^|;\\s*)CookieConsent=([^;]*)'));
+        return match ? match[1].toString() : '';
+    }
+
+    const handleGTMIframe = () => {
+
+        const noscript = document.createElement('noscript');
+        noscript.innerHTML = `<iframe src="//www.googletagmanager.com/ns.html?id=${gtmId}" height="0" width="0" style="display:none;visibility:hidden"></iframe>`
+
+        body.appendChild(noscript);
+    }
+
+    const handleGTMDataLayer = () => {
+        const script = document.createElement('script');
+        script.type = 'text/javascript';
+
+        script.innerHTML = `
+            dataLayer.push({"event":"gtmData","pageType":"special_store"});
+        `;
+
+        body.appendChild(script);
+    }
+
+    const handleStoreSelectorValue = () => {
+        if (storeSelectorCountriesList.classList.value.includes('store-selector-visible')) {
+            window.dataLayer.push({
+                'event': 'storeSelectorInteraction',
+                'storeSelectorAction': 'open_selection_list',
+                'storeSelectorPlace': isDetected ? 'autodetected_store' : 'global_store',
+                'storeSelectorLocation': 'special_store'
+            });
+        }
+    }
+
+    const handleCountryItemClick = (item) => {
+        window.dataLayer.push({
+            'event': 'storeSelectorInteraction',
+            'storeSelectorAction': 'selected_country',
+            'storeSelectorLabel': item.getAttribute('data-lang') === '/sq/en/' ?
+                'other' : item.getAttribute('data-lang'),
+            'storeSelectorPlace': isDetected ? 'autodetected_store' : 'global_store',
+            'storeSelectorLocation': 'special_store'
+        });
+    }
+
+    const handleCountryChipClick = (chip) =>  {
+        if (storeSelectorChipsContainer.childElementCount > 1) {
+            window.dataLayer.push({
+                'event': 'storeSelectorInteraction',
+                'storeSelectorAction': 'selected_language',
+                'storeSelectorLabel': chip.getAttribute('data-lang'),
+                'storeSelectorPlace': isDetected ? 'autodetected_store' : 'global_store',
+                'storeSelectorLocation': 'special_store'
+            });
+        }
+    };
+
+    const handleSelectorSubmitButton = () => {
+        window.dataLayer.push({
+            'event': 'storeSelectorInteraction',
+            'storeSelectorAction': 'go_to_store',
+            'storeSelectorLabel': storeSelectorSubmitButton.getAttribute('data-lang') === '/sq/en/' ?
+                'other' : storeSelectorSubmitButton.getAttribute('data-lang'),
+            'storeSelectorPlace': isDetected ? 'autodetected_store' : 'global_store',
+            'storeSelectorLocation': 'special_store'
+        });
+    }
+
+    // EVENTS
+    storeSelectorValue && storeSelectorValue.addEventListener('click', () => handleStoreSelectorValue());
+
+    storeSelectorCountriesListItems.forEach((item) => {
+        item.addEventListener('click', () => handleCountryItemClick(item));
+    });
+
+    storeSelectorChipsList.forEach((chip) =>  {
+        chip.addEventListener('click', () => handleCountryChipClick(chip));
+    });
+
+    storeSelectorSubmitButton.addEventListener('click', () => handleSelectorSubmitButton());
+
+    if (getCookieBotCookie() && getCookieBotCookie().includes('statistics:true')) {
+        handleGTMScript();
+        handleGTMIframe();
+        handleGTMDataLayer();
+    } else {
+        window.addEventListener('CookiebotOnAccept', () => {
+            if (Cookiebot && Cookiebot.consent.statistics) {
+                handleGTMScript();
+                handleGTMIframe();
+                handleGTMDataLayer();
+            }
+        });
+    }
+})
+
+
+
+</script>
+
+</body>
+</html>

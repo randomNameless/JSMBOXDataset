@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>news-reco-lrt.html</title>
+</head>
+<body>
+
+<script>
+function uuidv4() {
+  const pltCrypto = crypto || window.crypto || window.msCrypto;
+  if (pltCrypto.randomUUID) return pltCrypto.randomUUID();
+  return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+    (c ^ pltCrypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+  );
+}
+
+function NewsPilotReco() {
+  if (this.intervalId) { clearInterval(this.intervalId); }
+
+  this.id = 'news-reco-wrapper';
+  this.disableCache = false;
+  this.baseURL = "https://lrt.reco.ebu.io/index.html";
+  this.sourceName = "LRT";
+  this.consentValue = false;
+  this.isSubscribed = false;
+  this.consentGiven = () => {
+    if (!isSubscribed && typeof Cookiebot !== "undefined") {
+      this.isSubscribed = true;
+      window.addEventListener("CookiebotOnAccept", function (e) {
+        this.consentValue = !!(Cookiebot.consent.statistics);
+      }, false);
+    }
+    return this.consentValue;
+  }
+
+  this.recommendations = undefined;
+  this.position = 0;
+  this.session_id = uuidv4();
+
+  const parentLocation = window.location;
+  const urlParams = new URLSearchParams(parentLocation.search);
+  this.debugMode = urlParams.get('recobox_debug') || undefined;
+  this.customTheme = urlParams.get('erb_css_preview') || undefined;
+
+  this.sharedArticle = undefined;
+  const urlHash = parentLocation ? (parentLocation.hash || undefined) : undefined;
+  if (urlHash && urlHash.length && urlHash.substring(0,5) === "#reco") {
+    const urlHashParameters = urlHash.split("#").reverse();
+    if (urlHashParameters && urlHashParameters.length > 3) {
+      this.sharedArticle = {box_id: urlHashParameters[4].substring(5), organisation: urlHashParameters[3], article_id: urlHashParameters[2], version_id: urlHashParameters[1], origin: urlHashParameters[0]}
+    }
+  }
+
+  this.intervalId = setInterval(function () {
+    if (!this.boxes || !this.boxes.length) return;
+
+    this.boxes.forEach(id => {
+      const box = document.querySelector('#reco' + id);
+      if (!box || !window.innerHeight) return;
+      this.removeRecoBoxItem(id)
+      this.newsRecoObserver.observe(box)
+    });
+  }, 1000);
+
+  this.removeRecoBoxItem = function (e) {
+    const i = this.boxes ? this.boxes.indexOf(e) : -1;
+    if (i > -1) { this.boxes.splice(i, 1); }
+  }
+
+  this.getPageURI = function () {
+    if (this.sharedArticle) return btoa(encodeURIComponent(parentLocation.href.split('#reco')[0])); 
+    return btoa(encodeURIComponent(parentLocation.href));
+  }
+
+  this.newsRecoObserver = new IntersectionObserver(function (e, observer) {
+    if (e && e[0] && e[0].isIntersecting === true && e[0].target && e[0].target.contentWindow) {
+      e[0].target.contentWindow.postMessage({ type: 'box_displayed', id: e[0].target.id.substring(4) }, '*');
+      observer.unobserve(e[0].target);
+    }
+  }, { threshold: [0] });
+
+  this.createBox = function (box, organisation, id, container) {
+    if (!this.boxes) this.boxes = [];
+    this.boxes.push(box);
+    let iframe = document.createElement('iframe');
+    iframe.id = 'reco' + box;
+    iframe.name = 'reco' + box;
+    iframe.style.width = '100%';
+    iframe.style.height = '0px';
+    iframe.style.border = 'none';
+    let src = this.baseURL + '?page=reco&box=' + box + '&source=' + this.sourceName + '&host=' + parentLocation.hostname + '&page_uri=' + this.getPageURI() + '&consent=' + (this.consentGiven()?'true':'false');
+    if (this.debugMode && this.debugMode === 'true') src = src + '&recobox_debug=true';
+    if (this.disableCache) { src = src + '&nocache=1'; }
+    if (this.customTheme) { src= src + '&custom_theme=' + this.customTheme}
+    if (this.session_id) { src= src + '&session_id=' + this.session_id}
+    if (organisation.length > 0 && id.length > 0) { src = src + '&organisation=' + organisation + '&article_id=' + id; }
+    if (this.sharedArticle && this.sharedArticle.box_id === box) { src = src + '&social_origin=' + this.sharedArticle.origin; }
+    iframe.src = src;
+
+    this.observeConsent(iframe);
+    container.replaceWith(iframe);
+
+    if (this.sharedArticle && this.sharedArticle.box_id === box) {
+      iframe.scrollIntoView({behavior: "smooth", block: "center", inline: "nearest"});
+    }
+  };
+
+  this.observeConsent = (iframe) => {
+    let currentConsent = this.consentGiven();
+    let consentWasUpdatedFromDefault = false;
+
+    const check = () => {
+      let urlWithConsent = iframe.src.includes('consent=true');
+      let url = iframe.src.replace(urlWithConsent?'&consent=true':'&consent=false', this.consentGiven()?'&consent=true':'&consent=false');
+      if (this.consentGiven() === currentConsent && consentWasUpdatedFromDefault) { setTimeout(check, 60000);} 
+      else if (this.consentGiven() !== currentConsent) {
+        iframe.src = url;
+        consentWasUpdatedFromDefault = true;
+        setTimeout(check, 60000);
+      } else {
+        setTimeout(check, 1000);
+      }
+      currentConsent = this.consentGiven();
+    }
+    check();
+  }
+
+  this.createPopup = function (newId, organisation, versionID, box, box_org, box_article, social_trigger = false) {
+    let url = this.baseURL + '?page=article&organisation=' + organisation + '&article_id=' + newId + '&version=' + versionID + '&box=' + box + '&navigation=1';
+    url = url + '&source=' + this.sourceName + '&consent=' + (this.consentGiven() ? 'true' : 'false');
+    if (this.disableCache) { url = url + '&nocache=1'; }
+    if (box_org && box_article) { url = url + '&box_article_organisation=' + box_org + '&box_article_id=' + box_article; }
+    if (this.debugMode && this.debugMode === 'true') url = url + '&recobox_debug=true';
+    if (this.session_id) url = url + '&session_id=' + this.session_id;
+    if (this.sharedArticle && this.sharedArticle.box_id === box) { url = url + '&social_origin=' + this.sharedArticle.origin; }
+    if (social_trigger) { url = url + '&social_trigger=true'; }
+    url = url + '&host=' + parentLocation.hostname + '&page_uri=' + this.getPageURI()
+
+    let div = document.createElement('div');
+    div.setAttribute('id', this.id);
+    div.style.cssText = 'display:block;position:fixed;z-index:99999;left:0;top:0;width:100%;height:100%;overflow:none;'
+
+    let divInterior = document.createElement('div');
+    divInterior.style.cssText = 'margin:0px auto;overflow:hidden;width:100%;height:100vh';
+
+    let iframeNews = document.createElement('iframe');
+    iframeNews.style.cssText = 'width:100%;height:100%;border:none;'
+    iframeNews.style.frameBorder = 0;
+    iframeNews.style.colorScheme= 'light';
+    iframeNews.src = url;
+    iframeNews.id = newId + '_' + versionID;
+    iframeNews.setAttribute('allowtransparency', 'true');
+    iframeNews.setAttribute('webkitallowfullscreen', '');
+    iframeNews.setAttribute('mozallowfullscreen', '');
+    iframeNews.setAttribute('allowFullScreen', '');
+    iframeNews.setAttribute('allow', 'clipboard-write');
+    const recommendations = this.recommendations;
+    const position = this.position;
+    const session_id = this.session_id;
+    if (recommendations && position) iframeNews.addEventListener('load', () => {iframeNews.contentWindow.postMessage({ type: 'recobox', recommendations, position, session_id }, url);});
+
+    if (document.getElementById(this.id)) { document.getElementById(this.id).remove(); };
+    div.appendChild(divInterior);
+    divInterior.appendChild(iframeNews);
+    document.body.appendChild(div);
+
+    this.observeConsent(iframeNews);
+  }
+
+  while (document.getElementsByTagName('pilotreco').length > 0 || document.getElementsByClassName('pilotreco').length > 0) {
+    let recos = document.getElementsByTagName('pilotreco');
+    if (!recos || !recos.length) recos = document.getElementsByClassName('pilotreco');
+    let reco = recos[0];
+    let organisation = reco.getAttribute('organisation') || this.sourceName || '';
+    let articleID = reco.getAttribute('article') || '';
+    let boxID = reco.getAttribute('box') || false;
+    if (!boxID) return;
+
+    this.createBox(boxID, organisation, articleID, reco);
+    if (this.sharedArticle && this.sharedArticle.box_id === boxID) {
+      this.createPopup(this.sharedArticle.article_id, this.sharedArticle.organisation, this.sharedArticle.version_id, boxID, organisation, articleID, true)
+    }
+  }
+
+  window.onmessage = function (event) {
+    if (event.data === 'close') {
+      let element = document.getElementById(this.id);
+      if (element && element.parentNode) element.parentNode.removeChild(element);
+      return;
+    }
+
+    if (event.data.type && event.data.type === 'error') { // Remove iframe if box is empty
+      if (event.data.error) {
+        if (event.data.error === 'empty' && event.data.box) {
+          let element = document.getElementById('reco' + event.data.box);
+          if (element && element.parentNode) element.parentNode.removeChild(element);
+          return;
+        }
+      }
+    }
+
+    if (event.data.type && event.data.type === 'recobox') {
+      this.recommendations = event.data.recommendations;
+      this.position = event.data.position;
+    }
+
+    if (event.data.type && event.data.type === 'recobox_height') {
+      let elem = document.querySelectorAll('#reco' + event.data.value)
+      elem.forEach(function(item) {
+        item.style.height = ((event.data.height || event.data.height === 0) ? event.data.height : 0) + 'px';
+      })
+      return;
+    }
+
+    if (event.data.target && event.data.target === 'original_blank' && event.data.url) {
+      window.open(event.data.url, '_blank');
+    }
+    else if (event.data.target && event.data.target === 'original_same' && event.data.url) {
+      window.open(event.data.url, '');
+    }
+    else if (event.data.target && event.data.target === 'default') {
+      this.createPopup(event.data.id, event.data.organisation, event.data.version_id, event.data.box, event.data.box_article_organisation, event.data.box_article_id);
+    }
+
+    if (this.debugMode === 'true' && event.data.type === 'e2e')
+      window.recobox_e2e = {...event.data.recobox_e2e};
+  };
+
+}
+
+
+
+</script>
+
+</body>
+</html>

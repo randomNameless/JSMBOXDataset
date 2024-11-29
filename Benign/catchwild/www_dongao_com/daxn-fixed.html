@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>daxn-fixed.html</title>
+</head>
+<body>
+
+<script>
+/**
+ * @author fzm
+ * @date:           2023-12-6
+ * @modify:         方法扩展；
+ *                 1: 添加美恰html
+ *                 2: 根据规则显示美恰聊天按钮
+ * 
+ * @author fzm
+ * @date:           2021-1-8
+ * @modify:         方法扩展；
+ *              1: 修改daxn-gift跳转链接
+ *              2: 修改daxn-gift图片
+ *              3: 注释滑动时daxn-wechat添加is_border类名
+ * @version         4.4
+ * @author fzm
+ * @date:           2020-12-21
+ * @modify:         方法扩展；
+ *              1: 修改daxn-gift跳转链接
+ *              2: 修改daxn-gift图片
+ *              3: 增加滑动时daxn-wechat添加is_border类名
+ * @version         4.3
+ * @author zys
+ * @date:           2020-3-31
+ * @modify:         方法扩展；
+ *              1: 增加ready回调事件 daxnready
+ *              2: 支持动态配置小能跳转链接
+ *              3: 支持增加class样式
+ * @version         4.2
+ * 
+ * @author          wyx
+ * @date:           2020-2-19
+ * @modify:         去除电话   315 - 325
+ * @version         4.1
+ *
+ * @author          zys
+ * @date:           2019-8-20
+ * @modify:         新增对单个图片进行调整
+ * @version         4.1
+ *
+ * @author          zys
+ * @date:           2019-2-22
+ * @modify:         小奥logo调整；增加动态效果；增加点击事件；
+ * @version         4.0
+ *
+ * @author          zys
+ * @date:           2018-11-1
+ * @modify:         事件调整，新增点击客服icon直接弹框聊天窗口
+ * @version         3.0
+ *
+ * @author          zys
+ * @date:           2018-7-10
+ * @modify:         样式调整
+ * @version         2.0
+ *
+ * @description     小能客服右侧随屏js
+ * @author          zys
+ * @date:           2018-1-12
+ * @modify:
+ * @version         2.0
+ */
+ ;
+ !(function (win) {
+     var __host = 'dongao',__hostName = location.hostname.split('.'),__hostStr = __hostName[__hostName.length -2];
+     if(location.hostname.indexOf('.com') != -1 && __hostStr != 'test'){
+         __host = __hostStr;
+     }
+     var __fileUrl = '//files.'+__host +'.com',
+         __wwwUrl = '//www.'+__host +'.com',
+         __cartUrl = '//cart.'+__host +'.com'
+     /**
+      * 声明对象变量，保存document节点
+      * */
+     var doc = win.document,
+         _body = doc.body,
+         daxnfeView = {
+             /**
+              * 配置对象
+              * */
+             conf: {
+                 filename: 'daxn-fixed', //本 js 文件的名字; 也是 最外层 div 的 css 类，用作类选择器
+                 staticurl: __fileUrl + '/static/public/', // 静态文件地址
+                 jqueryurl: __fileUrl + '/static/public/js/jquery.min.js', // 确实 jquery 时，引用的 jquery 地址
+                 cssurl: 'css/daxn-fixed.css?v4', // 页面 css 地址
+                 wrap: 'wrap', // 默认查找的主页面宽度
+                 htype: 0 // html 的类别 0 ： 普通1类；1：普通带购物车
+             },
+             /**
+              * 页面数据对象
+              * */
+             data: {
+                 // 本 js dom 节点
+                 scrpt: null,
+                 // 客服接待组 id [继续教育,课程开通及使用,课程购买与咨询,图书与发票,投诉与建议]
+                //  ntfArr: ['kf_9517_1511427101769', 'kf_9517_1511427121452', 'kf_9517_1511427048108', 'kf_9517_1515381159396', 'kf_9517_1515381205133'],
+                ntfArr: [
+                    {
+                        'sourceid':'sub_source_23',
+                        'sourcename':'继续教育'
+                    },{
+                        'sourceid':'sub_source_22',
+                        'sourcename':'课程开通及使用'
+                    },{
+                        'sourceid':'sub_source_21',
+                        'sourcename':'课程购买与咨询'
+                    },{
+                        'sourceid':'sub_source_25',
+                        'sourcename':'图书与发票'
+                    },{
+                        'sourceid':'sub_source_26',
+                        'sourcename':'投诉与建议'
+                    },
+                ],
+                 // 是否点击客服icon直接弹出客服聊天窗口
+                 scflag: false,
+                 // daxngift 跳转链接
+                   // daxngifturl: 'https://www.dongao.com/hd/23zhounian/?ly=h_xn&hd=23zhounian&_p=2e53e97f41771eca'
+                 // daxngifturl: 'https://www.dongao.com/cjks/bmztc/?ly=cj_l&hd=cjbmztc2021&pty=3'
+                 // daxngifturl: 'https://www.dongao.com/hd/2020nzqd/?ly=h_lcdh&hd=nzqd2020'//daxn_20201221年终盛典
+                 // daxngifturl: 'https://www.dongao.com/hd/2019-xslb/'
+                 daxngifturl: __wwwUrl + '/hd/2022-xslb/',
+               // daxngifturl: 'https://www.dongao.com/hd/2021-dongao24/?_p=8880940f8e3c3db3&sac=CGHD210816101-0'
+                 mqIndex: '' //当没有默认客服id时，记录客服hover出来被点击的按钮，美恰触发该按钮事件
+             },
+             init: function () {
+                 var base = this, // 当前对象
+                     i, // 循环 key
+                     _cont = doc.createElement('div'), // 最外层 div
+                     mq_cont = doc.createElement('div'), // 美恰 div
+                     obj;
+ 
+                 // 设置 div 样式默认隐藏
+                 _cont.style.display = 'none';
+                 mq_cont.style.display = 'none';// 美恰 div隐藏
+ 
+                 // 加载 css 样式
+                 // css load 完成后，移除隐藏样式
+                 base.loadCSS(base.conf.staticurl + base.conf.cssurl, function () {
+                     _cont.style.display = 'block';
+                 });
+                 base.loadCSS('https://hdstatic.dongao.com/beforeexam/static/common/css/mq-index.css');// 美恰 load样式
+ 
+                 // 查找对应的 js dom节点
+                 base.data.scrpt = base.getJsPath(base.conf.filename);
+ 
+                 // 设置对象
+                 obj = {
+                     wrap: base.data.scrpt.getAttribute('cssname'),
+                     htype: base.data.scrpt.getAttribute('htype'),
+                     settingid: base.data.scrpt.getAttribute('settingid')
+                 };
+ 
+                 // 浅拷贝
+                 for (i in obj) {
+                     if (obj[i]) {
+                         base.conf[i] = obj[i];
+                     }
+                 }
+ 
+                 // 如果有自定义的 settingid 转换为对象；若无则转为 {} 空对象，防止点击事件判断报错
+                 base.conf.settingid = obj.settingid ? JSON.parse(obj.settingid) : {};
+ 
+                 // 判断是否设置了 点击客服icon直接弹出客服聊天窗口
+                 base.data.scflag = 'setclick' in base.conf.settingid;
+                 
+                 //判断不同考种小程序二维码不同
+                 var _url = window.location.href;
+                 var urlArr = _url.toString().split('/');
+                 var ustr = urlArr[3];
+                 if(ustr=='cjks') {
+                     base.conf.showWdIcon = 'block';
+                     base.conf.showWdIconUrl = 'images/daxnf-chuji-xcx.png';
+                 }else if(ustr=='zjzcgl') {
+                     base.conf.showWdIcon = 'block';
+                     base.conf.showWdIconUrl = 'images/daxnf-zhongji-xcx.png';
+                 }else if(ustr=='zckjs') {
+                     base.conf.showWdIcon = 'block';
+                     base.conf.showWdIconUrl = 'images/daxnf-cpa-xcx.png';
+                 }else{
+                     base.conf.showWdIcon = 'none';
+                     base.conf.showWdIconUrl = 'images/daxnf-cpa-xcx.png';
+                 } 
+                 // 加载美恰html 结构 
+                 base.loadMqHtml(mq_cont);
+                 // 加载 html 结构
+                 base.loadHtml(_cont);
+ 
+                 // 检查是否有引入jquery
+                 // 检查 $ 关键字，检查 $.each 方法
+                 // 若无 jquery 手动加载
+                 if ('$' in win && !!$.each) {
+                     base.addEven();
+                 } else {
+                     // 使用匿名函数，防止 addEven this 变量修改
+                     base.loadJS(base.conf.jqueryurl, function () {
+                         base.addEven();
+                     });
+                 }
+             },
+             /**
+              * 绑定事件方法
+              * */
+             addEven: function () {
+                 var base = this,
+                     settingstr,
+                     _doc = $(doc), // 文档对象，用于绑定点击事件
+                     _win = $(win), // window 对象，用于绑定 resize scroll 事件
+                     _wrap = _doc.find('.' + base.conf.wrap), // 查到到住页面的 dom 节点
+                     wrapw = +_wrap.width() + 14 + 64, //获取主页面的宽度，并且设置偏移量； 默认边距 14px ； 加上 元素的宽度
+                     _fixed = _doc.find('.' + base.conf.filename), // 随屏最外层 div
+                     winh = Math.min(doc.body.clientHeight, doc.documentElement.clientHeight), //第一屏高度 可视区域高度
+                     _mq = _doc.find('.mq-container'); // 美恰圆圈按钮; 
+                 // 元素节点判断
+                 if (_fixed.length > 0) {
+                     // 设置垂直居中
+                     //_fixed.css('marginTop', (0 - _fixed.outerHeight() / 2) + 'px');
+                     // window 事件 绑定resize 事件 监听右侧随屏
+                     _win.on({
+                         //窗口监听
+                         resize: function () {
+                             if (_wrap.length !== 0) {
+                                 /**
+                                  * 如果 第一个节点 在 dom 中后续被覆盖掉了，那么重新查找一次
+                                  */
+                                 if (!_wrap[0].parentNode) {
+                                     _wrap = _doc.find('.' + base.conf.wrap); // 查到到住页面的 dom 节点
+                                 }
+                                 /**
+                                  * 设置 位置
+                                  */
+                                 _fixed.css({
+                                     right: Math.max(_win.width() - wrapw - _wrap.offset().left, 10) + 'px'
+                                 });
+                                 // 美恰位置
+                                 _mq.css({
+                                    right: Math.max(_win.width() - wrapw - _wrap.offset().left-7, 10) + 'px'
+                                 });
+                             }
+                         },
+                         //页面滚动事件监听//daxn_20201221
+                         scroll: function () {
+                             _fixed.find('.daxn-item-top').toggleClass('hidden', _doc.scrollTop() <= winh);
+                         //   _fixed.find('.daxn-item-wechat').toggleClass('is_border', _doc.scrollTop() <= winh);
+                         }
+                     }).trigger('resize').trigger('scroll');
+ 
+                     // 二次替换接待组 id； 判断 settingdom 节点
+                     if (base.conf.settingid) {
+ 
+                         // 判断 settingdom 节点
+                         if (base.conf.settingid.settingdom) {
+                             settingstr = $('.' + base.conf.settingid.settingdom).attr('settingid');
+                             $.extend(base.conf.settingid, settingstr ? JSON.parse(settingstr) : {});
+                         }
+ 
+                         // 更新图片自定义属性
+                         $.each(base.conf.settingid, function (i, n) {
+                             var j = i.split('img.'),
+                                 c = i.split('cla.');
+ 
+                             if (j && j[1]) {
+                                 _fixed.find('.' + j[1] + ' img').attr('src', n);
+                             }
+                             if (c && c[1]) {
+                                 _fixed.find('.' + c[1]).addClass(n);
+                             }
+                         });
+                     }
+ 
+                     // 随屏点击事件
+                     _fixed
+                         //返回顶部
+                         .on({
+                             click: function () {
+                                 _doc.scrollTop(0);
+                             }
+                         }, '.daxn-item-top')
+                         //跳转购物车
+                         .on({
+                             click: function () {
+                                 location.href = __cartUrl + '/cart';
+                             }
+                         }, '.daxn-item-spcart')
+                         .on({
+                             click: function () {
+                                 // 跳转链接支持配置
+                                 location.href = base.conf.settingid.daxngifturl || base.data.daxngifturl;
+                             }
+                         }, '.daxn-gift')
+                         // 点击客服icon
+                         .on({
+                             click: function () {
+                                 /**
+                                  * 如果有点击的属性
+                                  */
+                                 if (base.data.scflag) {
+                                     base.openChat(base.conf.settingid.setclick);
+                                 }
+                             }
+                         }, '.daxn-item-kefu')
+                         // 客服点击事件
+                         .on({
+                             click: function (e) {
+                                 // 打开客服
+                                 base.data.mqIndex = $(this).index() - 1;
+                                 base.openChat($(this).index() - 1);
+                                 if (e && e.stopPropagation) {
+                                     e.stopPropagation();
+                                 } else {
+                                     window.event.cancelBubble = true;
+                                 }
+                             }
+                         }, '.daxn-item-kefu dd');
+ 
+                     /**
+                      * 支持增加js daxnready
+                      */
+                     $(function () {
+                         $(base.data.scrpt).trigger('daxnready');
+                     });
+                 }
+                 // 判断美恰元素节点
+                 if (_mq.length > 0) {
+                    // 美恰圆圈按钮点击事件
+                    _mq
+                    .on({
+                        click: function () {
+                            /**
+                             * 如果有点击的属性
+                             */
+                            if (base.data.scflag) {
+                                base.openChat(base.conf.settingid.setclick);
+                            }else{
+                                // 打开客服
+                                base.openChat(base.data.mqIndex);
+                            }
+                        }
+                    }, '.mq-chat,.mq-circle-btn')
+                 }
+             },
+             /**
+              * 打开客服
+              *
+              * @param key 接待组id索引
+              */
+             openChat: function (key) {
+                 var base = this,
+                     setting = base.conf.settingid[key] || base.data.ntfArr[key];
+                 if ('_MEIQIA' in win && setting) {
+                    // 美恰按钮根据规则显示
+                    base.trigUnread();
+                    zixunChat(setting.sourceid, setting.sourcename);
+                 }
+             },
+             /* 美恰触发未读 */
+             trigUnread:function (){
+                // 首页/中级，注会，税务师频道页和详情页显示
+                var _url = window.location.href;
+                var urlArr = _url.toString().split('/');
+                var detailArr;
+                if(!!urlArr[5]){
+                    //判断是否是详情页
+                    detailArr = urlArr[5].toString().split('.');
+                }
+                if((urlArr.length == 4 && urlArr[2] =='www.dongao.com') || //官网首页地址length为3，包含www.dongao.com
+                   (urlArr.length == 5 && (urlArr[3] =='zjzcgl' || urlArr[3] =='zckjs' || urlArr[3] =='shuiwushi')) ||//中注税频道页length为5，包含各考种名
+                   (urlArr.length == 6 && ((urlArr[3] =='zjzcgl' || urlArr[3] =='zckjs' || urlArr[3] =='shuiwushi') &&!isNaN(detailArr[0])))){//中注税详情页length为6，包含各考种名且最后一个以“.”分割的第一个字符串为数字
+                    showUnread(true);
+                }
+             },
+             /**
+              * 加载 js 文件
+              * @param {String} src 文件地址
+              * @param {Object | function} callback 回调函数
+              * */
+             loadJS: function (src, callback) {
+                 var base = this,
+                     scr = doc.createElement('script');
+                 scr.src = src;
+                 scr.async = true;
+                 scr.charset = 'utf-8';
+                 base.addLoad(scr, callback);
+                 _body.insertBefore(scr, _body.firstChild);
+             },
+             /**
+              * 加载随屏使用的 css 文件
+              * @param {String} src 文件地址
+              * */
+             /**
+              * 加载随屏使用的 css 文件
+              * @param src   文件地址
+              * @param fn    回调函数
+              */
+             loadCSS: function (src, fn) {
+                 var base = this,
+                     link = doc.createElement('link');
+                 base.addLoad(link, fn);
+                 link.rel = 'stylesheet';
+                 link.href = src;
+                 _body.insertBefore(link, _body.firstChild);
+             },
+             /**
+              * 生成页面 html 代码
+              *  htmltype html 的类别 0 ： 普通1类；1：普通带购物车
+              * @param _div  最外层主 div 元素
+              */
+             loadHtml: function (_div) {
+                 var base = this,
+                     htmltype = [
+                         ['<div class="daxn-item daxn-item-wechat"><s class="icon-daxnfe icon-daxnfe-wechat"></s>',
+                             '    <p class="daxn-msg">公众号</p>',
+                             '    <div class="daxn-i-more">',
+                             '        <div class="daxni-box daxni-box1 daxni-box2"><img src="' + base.conf.staticurl + 'images/daxnf-wechat.png?23" alt="关注微信"></div>',
+                             '        <i class="icon-daxnfe icon-daxnfe-arr"></i>',
+                             '    </div>',
+                             '</div>',
+                             '<div class="daxn-item daxn-item-wechat" style="display:'+ base.conf.showWdIcon +'"><s class="icon-daxnfe icon-daxnfe-wechat icon-daxnfe-xcx"></s>',
+                             '    <p class="daxn-msg">题库',
+                             '<br>小程序</p>',
+                             '    <div class="daxn-i-more">',
+                             '        <div class="daxni-box daxni-box1 daxni-box2"><img src="' + base.conf.staticurl + base.conf.showWdIconUrl+'" alt="题库小程序"></div>',
+                             '        <i class="icon-daxnfe icon-daxnfe-arr"></i>',
+                             '    </div>',
+                             '</div>'
+                         ].join(""), ['<div class="daxn-item daxn-item-spcart menu_aft_shop">',
+                             '    <span class="icon-daxnfe icon-daxnfe-spnum menu_aft_shop_num"></span>',
+                             '    <i class="icon-daxnfe icon-daxnfe-spcart"></i>',
+                             '    <p class="daxn-msg">购物车</p>',
+                             '</div>'
+                         ].join("")
+                     ]; //创建 div
+ 
+                 // 添加 class 控制样式
+                 _div.className = 'daxn-fixed';
+                 // 覆盖 innerHTML daxn_2020815gift
+                 _div.innerHTML = ['    <!-- 笑脸 -->',
+                     '   <div class="daxn-gift">',
+                     // //daxn_20201221年终盛典
+                                 //   '    <img src="' + (base.conf.staticurl + 'images/daxn_index_sd.png') + '" class="img-daxnfe-smil" style="width: 90px;top: 43px;left: -14px"/>',
+                                   // '    <img src="' + (base.conf.staticurl + 'images/daxn_noao2.gif') + '" class="img-daxnfe-smil" style="width: 82px;top: 60px;left: -9px"/>',
+                                   '    <img src="' + (base.conf.staticurl + 'images/daxn_noao.gif') + '" class="img-daxnfe-smil"/>',
+                     '    <!-- 笑脸 end-->',
+                     '   </div>',
+                     (base.data.scflag ? '<a>' : ''),
+                     '    <div class="daxn-item daxn-item-kefu">',
+                     '        <i class="icon-daxnfe icon-daxnfe-online"></i>',
+                     '        <p>在线<br />咨询</p>',
+                     (base.data.scflag ? '' : [
+                         '        <div class="daxn-i-more">',
+                         '            <dl class="daxni-box">',
+                         '                <dt>请选择咨询问题类型:</dt>',
+                         '                <dd>继续教育</dd>',
+                         '                <dd>课程开通及使用</dd>',
+                         '                <dd>课程购买与咨询</dd>',
+                         '                <dd>图书与发票</dd>',
+                         '                <dd class="nobor">投诉与建议</dd>',
+                         '            </dl>',
+                         '            <i class="icon-daxnfe icon-daxnfe-arr"></i>',
+                         '        </div>'
+                     ].join('')),
+                     '    </div>',
+                     (base.data.scflag ? '</a>' : ''),
+                     '    <div class="daxn-item daxn-item-tel">',
+                     '        <s class="icon-daxnfe icon-daxnfe-tel"></s>',
+                     '        <p class="daxn-msg">电话</p>',
+                     '        <div class="daxn-i-more">',
+                     '            <dl class="daxni-box daxni-box3">',
+                     '                <dt class="nobor"></dt>',
+                     '                <dd class="nobor"><i class="icon-daxnfe-comptel"></i></dd>',
+                     '            </dl>',
+                     '            <i class="icon-daxnfe icon-daxnfe-arr"></i>',
+                     '        </div>',
+                     '    </div>',
+                     '    <div class="daxn-item daxn-item-app">',
+                     '        <s class="icon-daxnfe icon-daxnfe-app"></s>',
+                     '        <p class="daxn-msg">APP</p>',
+                     '        <div class="daxn-i-more">',
+                     '            <div class="daxni-box daxni-box1">',
+                     '                <img src="' + base.conf.staticurl + 'images/daxnf-app.png?23" alt="APP">',
+                     '            </div>',
+                     '            <i class="icon-daxnfe icon-daxnfe-arr"></i>',
+                     '        </div>',
+                     '    </div>',
+                     (htmltype[base.conf.htype] || ''),
+                     '    <div class="daxn-item daxn-item-top hidden">',
+                     '        <s class="icon-daxnfe icon-daxnfe-top"></s>',
+                     '        <p class="daxn-msg"></p>',
+                     '    </div>'
+                 ].join("");
+                 // 插入节点
+                 _body.appendChild(_div);
+             },
+             /**
+             * 生成页面 mq html 代码
+             * @param mq_div  最外层主 div 元素
+             */
+             loadMqHtml: function (mq_div) {
+                // 美恰圆圈按钮
+                mq_div.className = 'mq-container clearfix';
+                mq_div.innerHTML =
+                        '<div class="mq-circle-btn fr">'
+                            +'<b class="unread-mes" id="unreadNum">0</b>'
+                        +'</div>'
+                        +'<div class="mq-chat fr">'
+                            +'<p class="mq-tit"><img src="https://hdstatic.dongao.com/beforeexam/static/common/images/mq_head.png"><span class="mq-close fr">关闭</span></p>'
+                            +'<div class="mq-cont" id="unreadMsg"></div>'
+                        +'</div>';
+                // 插入节点
+                _body.appendChild(mq_div);
+             },
+             /**
+              * 根据文件名称 获取当前的js文件的路径，返回 string 字符串
+              * @param  {String} jsname 文件名称
+              * @return {Object}        script dom节点
+              */
+             getJsPath: function (jsname) {
+                 var js = document.scripts,
+                     i = js.length;
+                 // 循环 js 列表
+                 for (; i > 0; i--) {
+                     // 根据文件名称去匹配
+                     if (js[i - 1].src.indexOf(jsname) > -1) {
+                         // 找到对应的 js
+                         return js[i - 1];
+                     }
+                 }
+                 return '';
+             },
+             /**
+              * 监听回调方法，仅执行一次回调方法
+              *
+              * @param tag
+              * @param callback
+              */
+             addLoad: function (tag, callback) {
+                 tag.onload = tag.onreadystatechange = function () {
+                     if (!tag.loadFlag && (!tag.readyState || /loaded|complete/.test(tag.readyState))) {
+                         // 设置加载成功标识
+                         tag.loadFlag = true;
+                         // 执行回调函数
+                         callback && callback();
+                     }
+                 };
+             }
+         };
+     daxnfeView.init();
+ })(window);
+
+</script>
+
+</body>
+</html>

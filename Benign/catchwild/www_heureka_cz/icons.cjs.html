@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>icons.cjs.html</title>
+</head>
+<body>
+
+<script>
+'use strict';
+
+/* eslint-disable no-undef */
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+(function () {
+  var _a;
+  const getVersionFromUrl = url => url.match(versionRegEx).shift().split('.').map(Number);
+  let requiredSpriteTypes = ['clips', 'icons'];
+  const userRequiredSpriteTypes = (_a = document.currentScript) === null || _a === void 0 ? void 0 : _a.getAttribute('data-sprite-types');
+  const scriptPathSuffix = 'icons.cjs.js';
+  const libName = 'hasty-icons';
+  const versionRegEx = /\d+\.\d+\.\d+/;
+  const scriptUrlsArr = [];
+  const scriptUrls = document.querySelectorAll(`script[src$="${scriptPathSuffix}"][src*="${libName}"]`);
+  for (let i = 0; i < scriptUrls.length; i++) {
+    scriptUrlsArr.push(scriptUrls.item(i));
+  }
+  const baseUrl = scriptUrlsArr.map(el => el.getAttribute('src')).sort((urlA, urlB) => {
+    const versionA = getVersionFromUrl(urlA);
+    const versionB = getVersionFromUrl(urlB);
+    for (let i = 0; i < versionA.length; i++) {
+      if (versionA[i] === versionB[i]) continue;
+      return versionB[i] - versionA[i];
+    }
+  }).shift().slice(0, -scriptPathSuffix.length);
+  if (userRequiredSpriteTypes) {
+    requiredSpriteTypes = userRequiredSpriteTypes.split(',');
+  }
+  requiredSpriteTypes.forEach(spriteType => {
+    const spritePathSuffix = `${spriteType}.svg`;
+    const spriteUrl = baseUrl + spritePathSuffix;
+    loadSprite(spriteUrl, spriteType);
+  });
+  function loadSprite(url, spriteType) {
+    const xhr = new XMLHttpRequest();
+    xhr.addEventListener('load', function () {
+      function injectSprite() {
+        if (!document.querySelector(`#sprite-ou-${spriteType}`)) {
+          document.body.insertAdjacentHTML('beforeend', xhr.responseText);
+        }
+      }
+      if (document.body) {
+        injectSprite();
+      } else {
+        document.addEventListener('DOMContentLoaded', injectSprite);
+      }
+    });
+    xhr.open('GET', url);
+    xhr.send();
+  }
+})();
+
+</script>
+
+</body>
+</html>

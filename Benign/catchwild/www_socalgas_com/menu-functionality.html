@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>menu-functionality.html</title>
+</head>
+<body>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  /**
+   * Poll for navigation element to load;
+   * Once loaded, dispatch event to signal that we can wire up events
+   */
+  let navigation = document.querySelector("scg-navigation-global");
+  const navigationPoll = setInterval(() => {
+    if (!navigation) {
+      navigation = document.querySelector("scg-navigation-global");
+    } else {
+      clearInterval(navigationPoll);
+      document.dispatchEvent(new CustomEvent("navigationLoaded"));
+    }
+  }, 100);
+
+  /**
+   * Event listener to wire up events to navigation once it has loaded
+   */
+  document.addEventListener("navigationLoaded", () => {
+    /**
+     * Event listener for the toggle language button
+     * Toggles between English and Spanish based on the current path
+     * and redirects to the opposite language version of the page
+     */
+    navigation.addEventListener("toggleLanguage", () => {
+      const url = new URL(window.location.href);
+      const urlArray = url.pathname.split("/");
+      if (urlArray[1] === "es") {
+        window.location.href = `${window.location.origin}/${urlArray.slice(2).join("/")}`;
+      } else {
+        window.location.href = `${window.location.origin}/es/${urlArray.join("/")}`;
+      }
+    });
+
+    /**
+     * Event listers for the mobile menu hamburger button
+     * When the mobile menu is opened, prevent vertical scrolling
+     * When the mobile menu is closed, allow vertical scrolling
+     */
+    navigation.addEventListener("openMobileMenu", () => {
+      document.querySelector("body").style.overflowY = "hidden";
+      return true;
+    });
+    navigation.addEventListener("closeMobileMenu", () => {
+      document.querySelector("body").style.overflowY = "scroll";
+      return true;
+    });
+  });
+
+  // Closes Cookie Notification When X is Clicked
+  const cookieDisclaimerCloseButton = document.querySelector(
+    ".card__homepage-disclaimer .button-close",
+  );
+  const cookieDisclaimer = document.querySelector(".card__homepage-disclaimer");
+  cookieDisclaimerCloseButton.onclick = () => {
+    cookieDisclaimer.remove();
+  };
+});
+
+</script>
+
+</body>
+</html>

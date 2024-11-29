@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>UniversityAffiliationResultItem.html</title>
+</head>
+<body>
+<script>import {
+  resultContext,
+} from "https://static.cloud.coveo.com/atomic/v2/index.esm.js";
+import {convertHttpToHttps,combineField} from "./utility-functions.js";
+
+//Title
+export class UniversityAffiliationResultItem extends HTMLElement {
+  shadow;
+  result;
+  initialized = false;
+  loggedIn;
+
+  async connectedCallback() {
+    if (this.initialized) {
+      return;
+    }
+
+    this.initialized = true;
+    this.shadow = this.attachShadow({ mode: "open" });
+
+    try {
+      this.result = await resultContext(this);
+      this.loggedIn = window.drupalSettings.user_roles.includes('authenticated');
+      this.render();
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  render() {
+    const title_display = combineField(this.result.raw.field_university_school,this.result.raw.field_university_name) || '';
+    const link_url = this.result.raw.clickableuri;
+    const logo_url = convertHttpToHttps(this.result.raw.field_logo_url) || '';
+    const country = this.result.raw.locations_country_names || '';
+    const city = this.result.raw.field_university_location_city || '';
+    const degree_and_program = decodeURI(this.result.raw.field_degree_programs).split(';').join('<br />');
+    let itemContent = "";
+
+    itemContent = `
+      <style>
+        .result {
+          font-size: 1rem;
+          font-style: normal;
+          line-height: 1.5;
+          display: flex;
+          flex-direction: column;
+          gap: var(--cfa--spacing--xs);
+        }
+        .result__body {
+          display: flex;
+          gap: var(--cfa--spacing--sm);
+          align-items: start;
+        }
+        .emphasize {
+          font-weight: 700;
+        }
+        .logo {
+          width: 5.5rem;
+          max-height: 5.5rem;
+          object-fit: contain;
+        }
+        .result__title {
+          font-size: 1.25rem;
+        }
+        .CoveoResultLink {
+          color: inherit;
+          text-decoration: none;
+        }
+        .CoveoResultLink:hover,
+        .CoveoResultLink:focus,
+        .CoveoResultLink:focus-visible,
+        .CoveoResultLink:active {
+          text-decoration: underline;
+        }
+
+        .CoveoResultLink[target=_blank]::after {
+          margin-left: var(--cfa--spacing--xs);
+          display: inline-block;
+          content: '\\e89e';
+          vertical-align: middle;
+          font-family: 'material';
+        }
+
+        .result__meta {
+          display: flex;
+          align-items: center;
+          margin-top: var(--cfa--spacing--sm);
+        }
+        .result__meta-item {
+          padding: 0 .75rem;
+          border-right: .0625rem solid var(--ssa-color-palette-gray-900);
+        }
+        .result__meta-item:first-of-type {
+          padding-left: 0;
+        }
+        .result__meta-item:last-of-type {
+          padding-right: 0;
+          border-right: none;
+        }
+      </style>
+      <div class='result'>
+        <div class='result__title emphasize'>
+          <a href='${link_url}' target='_blank' class='CoveoResultLink'>${title_display}</a>
+        </div>
+        <div class='result__body'>
+          ${logo_url ? `
+            <div>
+              <img loading='lazy' src='${logo_url}' alt='${title_display}' class='logo' />
+            </div>
+          ` : ''}
+          <div>
+            <div class='emphasize'>
+              Degree Programs:
+            </div>
+            ${degree_and_program}
+          </div>
+        </div>
+        ${city || country ? `
+          <div class='result__meta'>
+            ${city ? `
+              <span class='result__meta-item'>
+                ${city}
+              </span>
+            ` : ''}
+            ${country ? `
+              <span class='result__meta-item'>
+                ${country}
+              </span>
+            ` : ''}
+          </div>
+        ` : ''}
+      </div>
+    `;
+    this.shadow.innerHTML = itemContent;
+  }
+}</script>
+</body>
+</html>

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>scriptHelpers.html</title>
+</head>
+<body>
+
+<script>
+export default {
+  async makeRequest(uri, method, isString) {
+    try {
+      const request = new Request(uri, { 
+        method: method,
+        headers: {
+          'X-Extra-UA':'Saooti Player'
+        },
+      });
+      const response = await fetch(request);
+      if (isString) {
+        return await response.text();
+      }
+      return await response.json();
+    } catch {
+      return undefined;
+    }
+  },
+  relativeTimeFormat(timestamp) {
+    timestamp = timestamp / 1000;
+    let base = Math.floor(this.modulo(this.modulo(timestamp, 31536000), 86400));
+    let hours = Math.floor(base / 3600);
+    let minutes =
+      hours !== 0
+        ? "0" + Math.floor(this.modulo(base, 3600) / 60)
+        : "" + Math.floor(this.modulo(base, 3600) / 60);
+    let seconds = "0" + this.modulo(this.modulo(base, 3600), 60);
+    return (
+      (hours !== 0 ? hours + ":" : "") +
+      minutes.substring(minutes.length - 2) +
+      ":" +
+      seconds.substring(seconds.length - 2)
+    );
+  },
+  modulo(num1, num2) {
+    const dividend = Math.abs(num1);
+    const divisor = Math.abs(num2);
+    if (0 === dividend || isNaN(dividend) || isNaN(divisor)) {
+      return 0;
+    }
+    if (dividend < divisor) {
+      return (num1 < 0 ? -1 : 1) * dividend;
+    }
+    let counter = dividend;
+    while (counter >= divisor) {
+      counter = counter - divisor;
+    }
+    return (num1 < 0 ? -1 : 1) * counter;
+  },
+  getUriSearchParams(parameters) {
+    const _return = new URLSearchParams();
+    for (const [key, value] of Object.entries(parameters)) {
+      if (undefined !== value && '' !== value && (!Array.isArray(value) || (Array.isArray(value) && value.length) )) {
+        _return.append(key, value.toString());
+      }
+    }
+    return _return;
+  },
+}
+</script>
+
+</body>
+</html>

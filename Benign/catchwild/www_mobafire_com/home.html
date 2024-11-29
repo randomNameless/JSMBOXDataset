@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>home.html</title>
+</head>
+<body>
+
+<script>
+var mobile = false;
+if( /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ) {
+	mobile = true;
+}
+
+function mobileCheck() {
+	mobile = false;
+	if( /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ) {
+		mobile = true;
+	}
+}
+
+$(document).ready(function(){
+	var weeklyFreeShift = 0;
+	var weeklyFreeMax = parseInt($('.r-home__banner__weekly__champs__slide').data('mobile')) - parseInt($('.r-home__banner__weekly__champs').css('width'));
+	window.addEventListener("resize", mobileCheck);
+	if ($('.r-home').length) {
+		// rotate promotion banners
+		promoRotate();		
+		// click hooks for Mobile switcher
+		const tab1items = $('.r-home__banner, .r-home__guides__section:nth-of-type(1), .r-home__news');
+		const tab2items = $('.r-home__promos, .r-home__guides__section:nth-of-type(2), .r-home__discussion');
+		$('.r-home__switcher__button').on('click',function(){
+			$(this).addClass('active').siblings().removeClass('active');
+			const index = $(this).prevAll().length;
+			if (index == 0) { // Mobafire Home tab
+				tab1items.show();
+				tab2items.hide();
+			} else { // Activity tab
+				tab1items.hide();
+				tab2items.show();
+			}
+			store.set('homepage_tab', index );
+		});
+		// determine if Mobile switcher has stored value
+		if( store.get('homepage_tab') ) {			
+			var showTab = store.get('homepage_tab');
+			$('.r-home__switcher__button').eq(showTab).click();
+		}
+		// click hooks for Home Banner Champ Rotator
+		homeBanner();
+
+		if( $('.r-home__banner__weekly__champs__slide').data('width') < parseInt( $('.r-home__banner__weekly__champs').css('width') ) ) {
+			$('.r-home__banner__weekly__arrow').hide();
+			$('.r-home__banner__weekly__champs').css('margin', 0);
+		}
+	}	
+
+	$('.r-home__banner__weekly__arrow').on('click', function(){
+		if( $(this).hasClass('active') ) {
+			if( $(this).hasClass('left') ) {
+				$('.r-home__banner__weekly__arrow.left').removeClass('active');
+				$('.r-home__banner__weekly__arrow.right').addClass('active');
+				$('.r-home__banner__weekly__champs__slide').animate( { left: 0 }, 500 );
+				weeklyFreeShift = 0;
+			}
+			if( $(this).hasClass('right') ) {
+				$('.r-home__banner__weekly__arrow.left').addClass('active');
+				$('.r-home__banner__weekly__arrow.right').removeClass('active');
+				if( parseInt($('.r-home__banner__weekly__champs').css('width')) * 2 < parseInt($('.r-home__banner__weekly__champs__slide').data('mobile')) ) {
+					console.log(parseInt($('.r-home__banner__weekly__champs').css('width')) * -1 + weeklyFreeShift);
+					if( parseInt($('.r-home__banner__weekly__champs').css('width')) * -1 + weeklyFreeShift < weeklyFreeMax * -1 ) {							
+						var len = weeklyFreeMax * -1;
+						$('.r-home__banner__weekly__arrow.right').removeClass('active');
+					} else {
+						var len = parseInt($('.r-home__banner__weekly__champs').css('width')) * -1 + weeklyFreeShift;
+						weeklyFreeShift = len;
+						$('.r-home__banner__weekly__arrow.right').addClass('active');
+					}
+				}
+				else {
+					var len = parseInt($('.r-home__banner__weekly__champs').css('width')) - parseInt($('.r-home__banner__weekly__champs__slide').data('mobile'));
+				}
+				$('.r-home__banner__weekly__champs__slide').animate( { left: len }, 500 );
+			}
+		}
+	});
+});
+
+function promoRotate() {
+	const banners = $('#rotator > a');
+	// auto rotate banners
+	if (banners.length > 1) {
+		$('#rotator').data('index',0);
+		const maxIndex = banners.length - 1;
+		const promoRotate = setInterval(function(){
+			const currIndex = $('#rotator').data('index');	
+			let newIndex = currIndex + 1;
+			if (newIndex > maxIndex) { newIndex = 0; }		
+			bannerGoTo(newIndex);
+		},5000);
+		banners.each(function(){
+			$('#home-feature .pager').append('<button></button>');
+		});		
+		$('#home-feature .pager button:first-child').addClass('active');
+		$('#home-feature .pager button').on('click',function(){
+			const thisIndex = $(this).prevAll().length;
+			bannerGoTo(thisIndex);
+			clearInterval(promoRotate);
+		});
+		// hooks for swiping
+		let moved, initialX, currentX;
+		const cont = $('#rotator');
+		cont.on('touchstart', function(e){
+			// e.preventDefault();
+			moved = false;
+	    	initialX = e.originalEvent.touches[0].clientX;
+		});
+		cont.on('touchmove', function(e){
+			e.preventDefault();
+			moved = true;
+	    	currentX = e.originalEvent.touches[0].clientX;
+		});
+		cont.on('touchend', function(){
+			if (moved) {
+				const diffX = currentX - initialX;
+				if (Math.abs(diffX) > 30) {
+					const thisIndex = $('#home-feature .pager button.active').prevAll().length;
+					let dir = -1;
+					if (diffX < 0) {
+						dir = 1;
+					}
+					let newIndex = thisIndex + dir;
+					if (newIndex > maxIndex) { newIndex = 0; }		
+					if (newIndex < 0) { newIndex = maxIndex; }
+					bannerGoTo(newIndex);
+					clearInterval(promoRotate);
+				}
+			}			
+		});
+	}
+}
+
+function bannerGoTo(index) {
+	$('#rotator > a').css('left','-'+index+'00%');
+	$('#rotator').data('index',index);
+	$('#home-feature .pager button').removeClass('active').eq(index).addClass('active');
+}
+
+function homeBanner() {
+	$('.r-home__banner__weekly').data('index',0);
+	$('.r-home__banner__weekly__controls > *').on('click',function(){
+		if (!$(this).hasClass('disabled')) {
+			const dir = $(this).hasClass('r-home__banner__weekly__controls__left') ? -3 : 3;
+			const cont = $(this).closest('.r-home__banner__weekly');
+			const currIndex = cont.data('index');
+			let newIndex = currIndex + dir;
+			let newOffset = newIndex * 42;
+			$('.r-home__banner__weekly__champs > a').css('left','-'+newOffset+'px');
+			cont.data('index',newIndex);
+			$('.r-home__banner__weekly__controls__left').toggleClass('disabled', newIndex == 0);
+			$('.r-home__banner__weekly__controls__right').toggleClass('disabled', newIndex >= 9);				
+		}
+	});
+	// hooks for swiping
+	let moved, initialX, currentX;
+	const cont = $('.r-home__banner__weekly__champs');
+	cont.on('touchstart', function(e){
+		// e.preventDefault();
+		moved = false;
+    	initialX = e.originalEvent.touches[0].clientX;
+	});
+	cont.on('touchmove', function(e){
+		e.preventDefault();
+		moved = true;
+    	currentX = e.originalEvent.touches[0].clientX;
+	});
+	cont.on('touchend', function(){
+		if (moved) {
+			const diffX = currentX - initialX;
+			if (Math.abs(diffX) > 30) {
+				if (diffX < 0) {
+					$('.r-home__banner__weekly__controls__right').trigger('click');
+				} else {
+					$('.r-home__banner__weekly__controls__left').trigger('click');
+				}
+			}
+		}			
+	});
+}
+</script>
+
+</body>
+</html>

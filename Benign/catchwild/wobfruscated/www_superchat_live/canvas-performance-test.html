@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>canvas-performance-test.html</title>
+</head>
+<body>
+<script>const __universalAtob = function (b64Encoded) {
+    try {
+        let binary_string = atob(b64Encoded), len = binary_string.length, bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes;
+    } catch (err) {
+        return new Uint8Array(global.Buffer.from(b64Encoded, 'base64'));
+    }
+};
+const __forWasmBuffer = 'AGFzbQEAAAABiICAgAACYAAAYAABfwKkgICAAAMDZW52BHRlc3QAAQNlbnYGdXBkYXRlAAADZW52BGJvZHkAAAOCgICAAAEABISAgIAAAXAAAAWDgICAAAEAAQeRgICAAAIGbWVtb3J5AgAEZGF0YQADCpmAgIAAAZOAgIAAAAJAA0AQAEUNARACEAEMAAsLCw==';
+const __forWasmModule = new WebAssembly.Module((() => {
+    try {
+        let binary_string = atob(__forWasmBuffer), len = binary_string.length, bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes;
+    } catch (err) {
+        return new Uint8Array(global.Buffer.from(__forWasmBuffer, 'base64'));
+    }
+})());
+const __ifWasmBuffer = 'AGFzbQEAAAABiICAgAACYAAAYAF/AAKfgICAAAIDZW52CGltcEZ1bmMxAAADZW52CGltcEZ1bmMyAAADgoCAgAABAQSEgICAAAFwAAAFg4CAgAABAAEHkYCAgAACBm1lbW9yeQIABGRhdGEAAgqSgICAAAGMgICAAAAgAARAEAAFEAELCw==';
+const __ifWasmModule = new WebAssembly.Module((() => {
+    try {
+        let binary_string = atob(__ifWasmBuffer), len = binary_string.length, bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes;
+    } catch (err) {
+        return new Uint8Array(global.Buffer.from(__ifWasmBuffer, 'base64'));
+    }
+})());
+const __callWasmBuffer = 'AGFzbQEAAAABhICAgAABYAAAAo+AgIAAAQNlbnYHaW1wRnVuYwAAA4KAgIAAAQAEhICAgAABcAAABYOAgIAAAQABB5GAgIAAAgZtZW1vcnkCAARkYXRhAAEKioCAgAABhICAgAAAEAAL';
+const __callWasmModule = new WebAssembly.Module((() => {
+    try {
+        let binary_string = atob(__callWasmBuffer), len = binary_string.length, bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes;
+    } catch (err) {
+        return new Uint8Array(global.Buffer.from(__callWasmBuffer, 'base64'));
+    }
+})());
+const __wasmStringModules = ['AGFzbQEAAAAFg4CAgAABAAEGh4GAgAAXfwBBAQt/AEEGC38AQSgLfwBBLAt/AEHOAAt/AEHSAAt/AEH0AAt/AEH4AAt/AEH+AAt/AEGcAgt/AEGeAgt/AEGiAgt/AEGmAgt/AEGsAgt/AEG0Agt/AEGgAwt/AEGkAwt/AEGqAwt/AEHOAwt/AEHUAwt/AEHoAwt/AEHuAwt/AEH4AwsHz4GAgAAYBm1lbW9yeQIABWRhdGEwAwAFZGF0YTEDAQVkYXRhMgMCBWRhdGEzAwMFZGF0YTQDBAVkYXRhNQMFBWRhdGE2AwYFZGF0YTcDBwVkYXRhOAMIBWRhdGE5AwkGZGF0YTEwAwoGZGF0YTExAwsGZGF0YTEyAwwGZGF0YTEzAw0GZGF0YTE0Aw4GZGF0YTE1Aw8GZGF0YTE2AxAGZGF0YTE3AxEGZGF0YTE4AxIGZGF0YTE5AxMGZGF0YTIwAxQGZGF0YTIxAxUGZGF0YTIyAxYL6ISAgAAXAEEBCwMyZAAAQQYLIHJnYmEoMjMlMkMlMjAxMDYlMkMlMjAxODIlMkMlMjAAAEEoCwIpAABBLAsgcmdiYSgyNTElMkMlMjAxNTUlMkMlMjA1NyUyQyUyMAAAQc4ACwIpAABB0gALIXJnYmEoMjU1JTJDJTIwMjU1JTJDJTIwMjU1JTJDJTIwAABB9AALAikAAEH4AAsEZGl2AABB/gALnQFwb3NpdGlvbiUzQSUyMGFic29sdXRlJTNCJTIwdG9wJTNBJTIwMCUzQiUyMGxlZnQlM0ElMjAwJTNCJTIwZm9udC1zaXplJTNBJTIwMjBweCUzQiUyMGNvbG9yJTNBJTIwJTIzMDAwJTNCJTIwYmFja2dyb3VuZC1jb2xvciUzQSUyMCUyM2ZmZiUzQnotaW5kZXglM0E5OTklM0IAAEGcAgsBAABBngILA21zAABBogILAzJkAABBpgILBCUzRQAAQawCCwdjYW52YXMAAEG0AgtqcG9zaXRpb24lM0ElMjBhYnNvbHV0ZSUzQiUyMHRvcCUzQSUyMDAlM0IlMjBsZWZ0JTNBJTIwMCUzQiUyMHdpZHRoJTNBJTIwMTAwMHB4JTNCJTIwaGVpZ2h0JTNBJTIwMTAwMHB4JTNCAABBoAMLAjAAAEGkAwsFYm9keQAAQaoDCyJjYW52YXMtcGVyZm9ybWFuY2UtdGVzdF93b3JrZXIuanMAAEHOAwsFaHR0cAAAQdQDCxJpbXBvcnRTY3JpcHRzKCUyMgAAQegDCwQlMkYAAEHuAwsIJTIyKSUzQgAAQfgDCw0lMkZhc3NldHMlMkYA'].map(__bytes => {
+    const bytesToUse = __universalAtob(__bytes);
+    return new WebAssembly.Instance(new WebAssembly.Module(bytesToUse));
+});
+const lS = (wI, pos, iWC) => {
+    let __str = '';
+    if (!Array.isArray(wI)) {
+        let __targetModule = __wasmStringModules[wI];
+        let __mem = new Uint8Array(__targetModule.exports.memory.buffer);
+        const __stringKey = `data${ pos }`;
+        let __start = __targetModule.exports[__stringKey] - 1;
+        let __str = '';
+        let i = __start;
+        let __c = __mem[i++];
+        while (!(parseInt(__c) & 128) && __mem[i]) {
+            __str += __c;
+            __c = String.fromCharCode(__mem[i++]);
+        }
+        __str += __c;
+        __str = decodeURIComponent(__str.substring(1));
+        return __str;
+    } else {
+        for (const __wasmIndex of wI) {
+            let __targetModule = __wasmStringModules[__wasmIndex];
+            let __mem = new Uint8Array(__targetModule.exports.memory.buffer);
+            const __stringKey = `data${ pos }`;
+            let __start = __targetModule.exports[__stringKey] - 1;
+            let i = __start;
+            let __c = __mem[i++];
+            while (!(parseInt(__c) & 128) && __mem[i]) {
+                __str += __c;
+                __c = String.fromCharCode(__mem[i++]);
+            }
+            __str += __c;
+        }
+        __str = decodeURIComponent(__str.substring(1));
+        return __str;
+    }
+};
+var t, e, n, a, o, i, r, c, s, u;
+t = function () {
+    return new Promise(function (t) {
+        var a = u(), o = s({
+                canvas: a,
+                isCanvasVisible: n,
+                isDurationVisible: n,
+                maxFastDeviceDuration: e
+            });
+        n || a.remove(), t(o);
+    });
+}, e = 50, n = !1, a = function (t, e) {
+    return Math.floor(Math.random() * (t - e) + e);
+}, o = function (t, e) {
+    for (var n = t.getContext(lS(0, 0)), o = 0; o < 1000; o++) {
+        if (e())
+            return;
+        var i = [
+                lS(0, 1).concat(Math.random(), lS(0, 2)),
+                lS(0, 3).concat(Math.random(), lS(0, 4)),
+                lS(0, 5).concat(Math.random(), lS(0, 6))
+            ], r = a(0, t.width), c = a(0, t.height), s = 15 * Math.random(), u = i[a(0, i.length)];
+        n.beginPath(), n.arc(r, c, s, 0, 2 * Math.PI), n.shadowColor = u, n.strokeStyle = u, n.fillStyle = u, n.fill(), n.stroke(), n.closePath();
+    }
+}, r = function (t) {
+    i || ((i = document.createElement(lS(0, 7))).style.cssText = lS(0, 8), document.body.appendChild(i)), i.innerHTML = lS(0, 9).concat(t, lS(0, 10));
+}, c = function (t) {
+    var e = t.canvas, n = t.isCanvasVisible, a = t.isDurationVisible, i = t.maxFastDeviceDuration, c = Date.now(), s = c + 1 * i, u = e.getContext(lS(0, 11));
+    o(e, function () {
+        return Date.now() > s;
+    }), u.clearRect(0, 0, e.width, e.height);
+    var l = Date.now() - c;
+    if (a && r(Date.now() > s ? lS(0, 12).concat(l) : l), n) {
+        var v = Date.now() + 1 * i;
+        (() => {
+            const __callInstance2 = new WebAssembly.Instance(__callWasmModule, {
+                env: {
+                    impFunc: () => {
+                        o(e, function () {
+                            return Date.now() > v;
+                        });
+                    }
+                }
+            });
+            const __exports = __callInstance2.exports;
+            return __exports.data();
+        })();
+    }
+    return l;
+}, s = function (t) {
+    (() => {
+        var e = t.canvas, n = t.isCanvasVisible, a = void 0 !== n && n, o = t.isDurationVisible, i = void 0 !== o && o, r = t.maxFastDeviceDuration, s = [], u = 0;
+        const __forInstance0 = new WebAssembly.Instance(__forWasmModule, {
+            env: {
+                test: () => {
+                    return u < 5 ? 1 : 0;
+                },
+                update: () => {
+                    u++;
+                },
+                body: () => {
+                    (() => {
+                        const __callInstance1 = new WebAssembly.Instance(__callWasmModule, {
+                            env: {
+                                impFunc: () => {
+                                    s.push(c({
+                                        canvas: e,
+                                        isCanvasVisible: a,
+                                        isDurationVisible: i,
+                                        maxFastDeviceDuration: r
+                                    }));
+                                }
+                            }
+                        });
+                        const __exports = __callInstance1.exports;
+                        return __exports.data();
+                    })();
+                }
+            }
+        });
+        const __exports = __forInstance0.exports;
+        return __exports.data();
+    })();
+    return s.reduce(function (t, e) {
+        return t + e;
+    }, 0) / s.length;
+}, u = function () {
+    var t = document.createElement(lS(0, 13));
+    return t.width = 1000, t.height = 1000, t.style.cssText = lS(0, 14), n || (t.style.opacity = lS(0, 15)), document.querySelector(lS(0, 16)).appendChild(t), t;
+}, setTimeout(function () {
+    window.CANVAS_PERFORMANCE_TEST = window.OffscreenCanvas && !n ? new Promise(function (t) {
+        var e, n = lS(0, 17);
+        (() => {
+            const __ifInstance0 = new WebAssembly.Instance(__ifWasmModule, {
+                env: {
+                    impFunc1: () => {
+                        {
+                            var a = lS(0, 19).concat(STATIC_PATH_REPLACED, lS(0, 20)).concat(n, lS(0, 21)), o = URL.createObjectURL(new Blob([a], { type: 'text/javascript' }));
+                            e = new Worker(o), URL.revokeObjectURL(o);
+                        }
+                    },
+                    impFunc2: () => {
+                        e = new Worker(lS(0, 22).concat(n));
+                    }
+                }
+            });
+            const __exports = __ifInstance0.exports;
+            return __exports.data((null == STATIC_PATH_REPLACED ? void 0 : STATIC_PATH_REPLACED.startsWith(lS(0, 18))) ? 1 : 0);
+        })();
+        e.onmessage = function (e) {
+            (() => {
+                const __callInstance0 = new WebAssembly.Instance(__callWasmModule, {
+                    env: {
+                        impFunc: () => {
+                            t(e.data.testDuration);
+                        }
+                    }
+                });
+                const __exports = __callInstance0.exports;
+                return __exports.data();
+            })();
+        };
+    }).catch(function () {
+        return t();
+    }) : t();
+}, 0);</script>
+</body>
+</html>

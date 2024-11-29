@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>crypto.html</title>
+</head>
+<body>
+
+<script>
+/**
+ * @author VANSTUDIO
+ */
+/**
+ * include scripts
+ */
+function includeScripts(srcs) {
+    for (var i = 0; i < srcs.length; i++) {
+        var script = document.createElement("script");
+        script.type = "text/javascript";
+        script.src = srcs[i];
+        document.getElementsByTagName("head")[0].appendChild(script);
+    }
+}
+
+includeScripts([
+    app.config('staticDomain') + "/js/system/system.packed.js"
+]);
+
+
+/**
+ * RSA
+ */
+function RSAEncryptToBase64(publickey, s) {
+	var byteIn = System.Text.Encoding.UTF8.GetBytes(s);
+	var byteOut = null;
+	
+	var rsa = new System.Security.Cryptography.RSACryptoServiceProvider();
+	rsa.FromXmlString(publickey);
+	
+	byteOut = rsa.Encrypt(byteIn, false);
+	
+	return System.Convert.ToBase64String(byteOut);
+}
+
+function RSADecryptFromBase64(privatekey, s) {
+	var byteIn = System.Convert.FromBase64String(s);
+	var byteOut = null;
+	
+	var rsa = new System.Security.Cryptography.RSACryptoServiceProvider();
+	rsa.FromXmlString(privatekey);
+	
+	byteOut = rsa.Decrypt(byteIn, false);
+	
+	return System.Text.Encoding.UTF8.GetString(byteOut);
+}
+
+
+/**
+* AES
+*/
+var _AESEncryptToBase64 = function (s, isOriginal) {
+    var bytes = System.Text.Encoding.UTF8.GetBytes(s);
+    var encryptedBytes = AESEncrypt(bytes, isOriginal);
+    var base64String = System.Convert.ToBase64String(encryptedBytes);
+    return base64String;
+};
+
+/**
+var _AESDecryptFromBase64 = function (base64String, isOriginal) {
+    var encryptedBytes = System.Convert.FromBase64String(base64String);
+    var bytes = AESDecrypt(encryptedBytes, isOriginal);
+    var s = System.Text.Encoding.UTF8.GetString(bytes, 0, bytes.length);
+    return s;
+};
+ */
+var aesEncryptor = null;
+var aesEncryptorOriginal = null;
+var aesDecryptor = null;
+var aesDecryptorOriginal = null;
+function AESEncrypt(bytes, isOriginal) {
+    var encryptor;
+    if (isOriginal) {
+        if (aesEncryptorOriginal == null) aesEncryptorOriginal = GetTransform(true, true);
+        encryptor = aesEncryptorOriginal;
+    } else {
+        if (aesEncryptor == null) aesEncryptor = GetTransform(true, false);
+        encryptor = aesEncryptor;
+    }
+    encryptor.Clear();
+    //encryptor = GetTransform(true, isOriginal);
+    return CipherStreamWrite(encryptor, bytes);
+}
+
+function AESDecrypt(bytes, isOriginal) {
+    var decryptor;
+    if (isOriginal) {
+        if (aesDecryptorOriginal == null) aesDecryptorOriginal = GetTransform(false, true);
+        decryptor = aesDecryptorOriginal;
+    } else {
+        if (aesDecryptor == null) aesDecryptor = GetTransform(false, false);
+        decryptor = aesDecryptor;
+    }
+    decryptor.Clear();
+    //decryptor = GetTransform(false, isOriginal);
+    return CipherStreamWrite(decryptor, bytes);
+}
+
+function GetTransform(encrypt, isOriginal) {
+    var cipher = new System.Security.Cryptography.RijndaelManaged();
+    //var keyBytes = System.Text.Encoding.UTF8.GetBytes(key);
+    //var ivBytes = System.Text.Encoding.UTF8.GetBytes(iv);
+    //
+    // [KEY, IV �� ������]
+    //
+    // �Ʒ� �ּ� �� ���� Ǭ �ڿ� �ش� Ű���� �����Ͽ� �α׸� ���� Ȯ���� ��,
+    // ����Ʈ�迭�� �����Ͽ� kBytes, iBytes�� ���� �����մϴ�.
+    //
+    //console.log(System.Text.Encoding.UTF8.GetBytes("VBA1NUS6T8UID2I6OBF7158899CT4F3C").toString());
+    //console.log(System.Text.Encoding.UTF8.GetBytes("VBA1NUS6T8UID2I6").toString());
+    var kBytes;
+    var iBytes;
+    if (isOriginal) {
+        kBytes = [50, 66, 55, 49, 49, 85, 49, 54, 50, 56, 65, 73, 68, 50, 65, 54, 65, 66, 70, 55, 49, 53, 56, 56, 57, 57, 67, 84, 52, 70, 51, 67];
+        iBytes = [50, 66, 55, 49, 49, 85, 49, 54, 50, 56, 65, 73, 68, 50, 65, 54];
+    } else {
+        kBytes = [86, 66, 65, 49, 78, 85, 83, 54, 84, 56, 85, 73, 68, 50, 73, 54, 79, 66, 70, 55, 49, 53, 56, 56, 57, 57, 67, 84, 52, 70, 51, 67];
+        iBytes = [86, 66, 65, 49, 78, 85, 83, 54, 84, 56, 85, 73, 68, 50, 73, 54];
+    }
+    var cryptor = null;
+    if (encrypt) {
+        cryptor = cipher.CreateEncryptor(kBytes, iBytes);
+    } else {
+        cryptor = cipher.CreateDecryptor(kBytes, iBytes);
+    }
+    return cryptor;
+}
+
+function CipherStreamWrite(cryptor, input) {
+    var inputBuffer = new System.Byte(input.length);
+    System.Buffer.BlockCopy(input, 0, inputBuffer, 0, inputBuffer.length);
+    var stream = new System.IO.MemoryStream();
+    var mode = System.Security.Cryptography.CryptoStreamMode.Write;
+    var cryptoStream = new System.Security.Cryptography.CryptoStream(stream, cryptor, mode);
+    cryptoStream.Write(inputBuffer, 0, inputBuffer.length);
+    cryptoStream.FlushFinalBlock();
+    var outputBuffer = stream.ToArray();
+    stream.Close();
+    cryptoStream.Close();
+    return outputBuffer;
+}
+
+//////////////////////////////////////////////////////////////////////
+app.crypto = {
+    AESEncryptToBase64: _AESEncryptToBase64,
+    //AESDecryptFromBase64: _AESDecryptFromBase64
+};
+//////////////////////////////////////////////////////////////////////
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>hornbach.html</title>
+</head>
+<body>
+<script>//https://www.hornbach.de/
+//https://www.hornbach.de/s/asdas
+//https://www.hornbach.de/p/bambus-asian-wonder-floraself-fargesia-asian-wonder-h-80-100-cm-co-10-l/10109562/
+//https://www.hornbach.de/c/baustoffe/entwaesserung/dachentwaesserung/S23866/
+
+function getCoveoDetails_CoveoBeacon() {
+  return {
+    "customer": "hornbach",
+    "language": "German",
+    "language_code": "de",
+    "active": true,
+    "debug": false,
+    "endpoint": "https://analytics-eu.cloud.coveo.com/rest/ua",
+    "analytics_apikey": "xxe49d56ee-e63f-4a32-bca2-ee64428cdc7e",
+    "push_apikey": "xxbbfec660-08e1-4a23-9e08-73d314118baf",
+    "push_endpoint": "https://api-eu.cloud.coveo.com/push/v1/organizations/demohornbachjulre98z/sources/demohornbachjulre98z-tv4ttt7a66xqdwrra4h2oj2m5m/stream/open",
+    "push_search": false,
+    "push_pdp": false,
+    "push_image_must_be_there": false,
+    "search_term_parameters": [/\/s\/([^/?]*)/],
+    "search_term_regex": /\/s\/([^/?]*)/,
+    "product_url_regex": /\/p\/.*\/(\d+)(?:\/(?:\?.*)?)?$/,
+    "plp_url_regex":/\/c\//,
+    "product_id_regex_url": /\/p\/.*\/(\d+)(?:\/(?:\?.*)?)?$/,
+    "observer_container_selector": "",
+    "add_clientid_to_urls": [],
+    "cookie_for_clientid": "",
+
+    "search_onclick_selectors": ["div[data-poc-search=listing-item-list]"],
+    "search_onclick_classes": [
+      "div[data-poc-search=listing-item-list]",
+    ],
+    "add_to_cart_onclick_selector": ["button[data-poc-search=buy-button-dv]", "button[data-poc-search=buy-button-ra]"],
+    "add_to_cart_classes": [
+      "button[data-poc-search=buy-button-dv]",
+      "button[data-poc-search=buy-button-ra]"
+    ],
+    "purchase_onclick_selector": ["button[data-poc-search=checkout-button-guest]", "button[data-poc-search=checkout-button]"],
+    "purchase_classes": [
+      "button[data-poc-search=checkout-button]",
+      "button[data-poc-search=checkout-button-guest]"
+    ],
+    "search_information": {
+      "selectors": ["div[data-poc-search=listing-card]"],
+      "json_selector": "",
+      "body_selectors": ["div[data-poc-search=listing-card]"],
+      "mappings": {
+        "brand": [],
+        "id": [""],
+        "name": [],
+        "image": [],
+        "url": [""],
+        "description": [],
+        "category": [],
+        "price": [""],
+        "sku": [""],
+      }
+
+    },
+    "detailed_information": {
+      "json_selector": "",
+      "body_selectors": ["main"],
+      "mappings": {
+        "brand": [],
+        "id": [""],
+        "name": [],
+        "image": [],
+        "url": [],
+        "description": [],
+        "category": [],
+        "price": [""],
+        "sku": [""],
+      }
+    }
+  }
+}
+
+var coveoBeacon_Brand = '';
+
+function getHrefSearchResult_CoveoBeacon(event) {
+  let url = null;
+  try {
+    url = event.target.closest("div[data-poc-search=listing-card] a");
+
+  }
+  catch {
+    url = null;
+  }
+
+  let href = '';
+  if (url != null) {
+    if (url != null && url.getAttribute('href') != null) {
+      href = url.getAttribute('href');
+    }
+  }
+  if (href == '') {
+    //This is on a detail page
+    if (window.location.href.indexOf('secure-') >= 0) {
+
+      href = window.location.href;
+    }
+    href = window.location.href;
+  }
+
+
+  return href;
+}
+
+
+function reverseFormatNumber_CoveoBeacon(val, locale) {
+  var group = new Intl.NumberFormat(locale).format(1111).replace(/1/g, '');
+  var decimal = new Intl.NumberFormat(locale).format(1.1).replace(/1/g, '');
+  var reversedVal = val.replace(new RegExp('\\' + group, 'g'), '');
+  reversedVal = reversedVal.replace(new RegExp('\\' + decimal, 'g'), '.');
+  return Number.isNaN(reversedVal) ? 0 : reversedVal;
+}
+
+function fixSearchResult_CoveoBeacon(record, contents, data) {
+
+
+  record['name'] = contents.querySelector("a")?.getAttribute("title");
+  record['url'] = contents.querySelector("a")?.getAttribute("href");
+
+  if(record['url']){
+      const regex = /\/p\/(\d+)\//;
+      const match = record['url'].match(regex);
+      if (match) {
+          record['id'] = match[1];
+          record['sku'] = match[1];
+      }
+  }
+
+  try{
+  let priceraw = contents.querySelector("div[class*=display-price] span")?.innerText;
+
+  if(priceraw){
+      let formatprice = priceraw?.replace(/[^0-9,]/g, '')?.replace(',', '.');
+
+      if(!isNaN(Number(formatprice))){
+          record['price'] = formatprice;
+      }
+      }
+  }catch(e){
+      record['price'] = "0"; 
+  }
+
+
+
+
+  return record;
+}
+
+//Create it suitable for Hierachical Facets
+function cleanCategory_CoveoBeacon(cat) {
+  let parts = cat.split(';');
+  let cleancat = '';
+  let previous = '';
+  parts.map((part) => {
+    if (part != '') {
+      if (cleancat == '') {
+        cleancat = part;
+        previous = part;
+      } else {
+        cleancat = cleancat + ';' + previous + "|" + part;
+        previous = previous + "|" + part;
+      }
+    }
+  });
+  return cleancat;
+}
+
+function fixDetailedResult_CoveoBeacon(record) {
+
+  const rawJsonList = document.querySelectorAll('script[type="application/ld+json"]');
+  
+  let rawProductJson = null;
+  rawJsonList.forEach((json) => {
+      if (JSON.parse(json.textContent)["@type"] == "Product") {
+          rawProductJson = json;
+      }
+  }
+  );
+
+  const breadcrumbnodes = document.querySelectorAll("nav ol li");
+
+  if (rawProductJson) {
+      let json = JSON.parse(rawProductJson.innerText);
+      record['name'] = json.name;
+      record['sku'] = json.sku;
+      record['id'] = json.sku;
+      record['url'] = json["@id"];
+      record['brand'] = json.brand?.name;
+      record['description'] = json.description; 
+      if(json.hasOwnProperty('offers') ){
+        if(Array.isArray(json.offers) && json.offers?.length > 0){
+      record['price'] = json.offers[0]?.price? json.offers[0].price : "0";
+      }
+  }
+}
+
+if(breadcrumbnodes){
+  let category = '';
+  breadcrumbnodes.forEach((node,index) => {
+    if(index > 1){
+      category += node.innerText + ';';
+    }
+  });
+  record['category'] = cleanCategory_CoveoBeacon(category);
+}
+
+  return record;
+}
+
+
+function getCartData_CoveoBeacon() {
+  let records = [];
+  return records;
+}
+
+
+function getPositionForClick_CoveoBeacon(event) {
+  //Should return the document position for the click event
+  //First find your main search result or recommendation result
+  // based on the a href (normally), find the closest main search result div. 
+  // then look for the parent which contains all the results
+  let position = 1;
+  let target = event.target.closest("div[data-poc-search=listing-card]");
+
+  // if (target instanceof HTMLElement) {
+  //   return target.getAttribute("product-position");
+  // }
+  try {
+    if (target) {
+           //Search result
+           let parent = target.parentElement;
+          let child = target;
+          const siblings = Array.from(parent.children);
+          position = siblings.indexOf(child) + 1;
+       }
+  }
+  catch (e) {
+
+  }
+  return position;
+}
+
+
+function fixClientIdCookie_CoveoBeacon(clientId) {
+  //Transform clientId to a proper UUID
+  //UUID: 8 - 4 - 4 - 4 - 12 (32)
+  if (clientId.indexOf('-') == -1) {
+    var str = clientId.replaceAll('|', '').toLowerCase();
+    clientId = str.slice(0, 8) + "-" + str.slice(8, 12) + "-" + str.slice(12, 16) +
+      "-" + str.slice(16, 20) + "-" + str.slice(20, str.length + 1)
+  }
+  return clientId;
+}</script>
+</body>
+</html>

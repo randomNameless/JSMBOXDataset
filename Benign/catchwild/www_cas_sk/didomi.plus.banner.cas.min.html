@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>didomi.plus.banner.cas.min.html</title>
+</head>
+<body>
+
+<script>
+/**
+ * @prettier
+ */
+
+"use strict";
+
+(function () {
+	/*
+	 * window.zCanUseCookies: (vendor: string) => null | undefined | boolean;
+	 *
+	 * null - didomi nie je naloadovane
+	 * undefined - nemam suhlas ani nesuhlas
+	 * false - nesuhlas
+	 * true - suhlas
+	 */
+
+	window.zCanUseCookies = function () { return null; };
+	window.didomiOnReady = window.didomiOnReady || [];
+	window.didomiOnReady.push(function () { window.zCanUseCookies = function (vendor = "c:zoznam") { return Didomi.getUserConsentStatus(Didomi.Purposes.Cookies, vendor); }; });
+})();
+
+(function () {
+	window.document.write = function(content) {
+		console.log("document.write() called from:", document.currentScript);
+		(document.currentScript || document.body).insertAdjacentHTML("afterend", content);
+	};
+
+	window.document.writeln = function(content) {
+		console.log("document.writeln() called from:", document.currentScript);
+		(document.currentScript || document.body).insertAdjacentHTML("afterend", content);
+	};
+})();
+
+window.didomiOnReady = window.didomiOnReady || [];
+window.didomiOnReady.push(function (Didomi) {
+	const parser = new DOMParser();
+	const didomiSelector = `script[type^="didomi/"][data-vendor][data-banner]`;
+	const articleSelector =
+		document.querySelector('.article-content') ?
+			'.article-content' :
+			document.querySelector('.article-wrapper') ?
+				'.article-wrapper' :
+				'article';
+
+	let injectBannerStyles = false;
+	const getUrlBaseDomain = (url) => new URL(url).hostname.split('.').slice(-2).join('.');
+
+	const hideBlockquote = (element) => {
+		const domain = element.src ? getUrlBaseDomain(element.src) : null;
+		if(!domain) return;
+
+		let bqEl = element.previousElementSibling;
+		bqEl = bqEl.matches('blockquote') ? bqEl : element.parentNode.querySelector('blockquote');
+
+		if(!bqEl) return;
+		bqEl.style.display = 'none';
+	};
+
+	const extractDomain = (string) => {
+		if(!string) return;
+
+		const contentDOM = parser.parseFromString(string, 'text/html');
+
+		const iframe = contentDOM.querySelector('iframe');
+		if(!(iframe && iframe.src)) return;
+
+		return getUrlBaseDomain(iframe.src);
+	};
+
+	document.querySelectorAll(`${articleSelector} ${didomiSelector}`).forEach(scriptEl => {
+		if(scriptEl.matches('[data-processed="true"]')) {
+			console.log(scriptEl.dataset.vendor, 'processed =', scriptEl.dataset.processed, ', src =', scriptEl.src);
+			return;
+		}
+		injectBannerStyles = true;
+		let domain = scriptEl.src ? getUrlBaseDomain(scriptEl.src) : extractDomain(scriptEl.innerHTML);
+		if (scriptEl.dataset.banner) domain = scriptEl.dataset.banner;
+		if (!domain) return console.error('no domain, skipping ...');
+
+		const aEl = document.createElement("a");
+		aEl.className = "didomi-custom-banner";
+		aEl.href = "";
+		aEl.title = "";
+		aEl.innerHTML = `
+			<span class="didomi-custom-banner-text">
+				Obsah zo stránky <strong>${domain}</strong> nie je možné zobraziť bez súhlasu s ukladaním príslušných súborov cookies.
+				Pre zobrazenie zablokovaného obsahu je potrebné upraviť vaše cookies preferencie.
+			</span><br>
+			<span class="didomi-custom-banner-button">Upraviť cookies preferencie</span>
+		`;
+		aEl.dataset.cbid = scriptEl.dataset.cbid = Math.random().toString(36).substring(2);
+		aEl.onclick = event => {
+			event.preventDefault();
+			Didomi.notice.show(); // eslint-disable-line no-undef
+		};
+		hideBlockquote(scriptEl);
+		scriptEl.after(aEl);
+	});
+
+	if(!injectBannerStyles) return;
+
+	const style = document.createElement("style");
+	style.innerHTML = `
+		${articleSelector} ${didomiSelector} + .didomi-custom-banner {
+			display: block;
+			background: rgba(0, 0, 0, .6);
+			color: #f5f5f5 !important;
+			margin: 0 0 8px 0;
+			padding: 15px;
+			cursor: pointer;
+			text-decoration: none;
+			text-align: left;
+		}
+		${articleSelector} ${didomiSelector} + .didomi-custom-banner .didomi-custom-banner-button {
+			font-weight: bold;
+			display: inline-block;
+			background: #ed1c24;
+			color: #fff;
+			padding: 3px 12px;
+			margin-top: 8px;
+		}
+
+		${didomiSelector}[data-processed="true"] + .didomi-custom-banner {
+			display: none !important;
+		}
+	`;
+	document.head.appendChild(style);
+});
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,5017 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>custom.html</title>
+</head>
+<body>
+
+<script>
+/////////////////////// Start mobiMenu.min.js ///////////////////////////////
+
+(function (e) {
+    e.fn.mobiMenu = function () {
+        e(".cssmenu ul").hide();
+        e("a.menu-toggle").hover(function () {
+            var t = e(e(this).attr("href")).children("ul");
+            console.log(t.get());
+            clearTimeout(t.data("hoverTimer"));
+            t.stop(true, true).slideDown(500)
+            //cssmenu
+            //console.log('here1');
+        }, function () {
+            var t = e(e(this).attr("href")).children("ul");
+            var n = setTimeout(function () {
+                t.stop(true, true).slideUp()
+            }, 200);
+            //console.log('here2');
+            t.data("hoverTimer", n)
+        });
+        e(".cssmenu > ul").hover(function () {
+            clearTimeout(e(this).data("hoverTimer"))
+        }, function () {
+            e(this).stop(true, true).slideUp()
+        });
+        e("#menu li.has-sub>a").on("click", function () {
+            e(this).removeAttr("href");
+            var t = e(this).parent("li");
+            if (t.hasClass("open")) {
+                t.removeClass("open");
+                t.find("li").removeClass("open");
+                t.find("ul").slideUp()
+            } else {
+                t.addClass("open");
+                t.children("ul").slideDown();
+                t.siblings("li").children("ul").slideUp();
+                t.siblings("li").removeClass("open");
+                t.siblings("li").find("li").removeClass("open");
+                t.siblings("li").find("ul").slideUp()
+            }
+        });
+        e("#social li.has-sub>a").on("click", function () {
+            e(this).removeAttr("href");
+            var t = e(this).parent("li");
+            if (t.hasClass("open")) {
+                t.removeClass("open");
+                t.find("li").removeClass("open");
+                t.find("ul").slideUp()
+            } else {
+                t.addClass("open");
+                t.children("ul").slideDown();
+                t.siblings("li").children("ul").slideUp();
+                t.siblings("li").removeClass("open");
+                t.siblings("li").find("li").removeClass("open");
+                t.siblings("li").find("ul").slideUp()
+            }
+        })
+    }
+})(jQuery);
+
+
+/////////////////////// End mobiMenu.js ///////////////////////////////
+
+
+/////////////////////// Start Common.js ///////////////////////////////
+
+//(function () {
+
+//    'use strict';
+
+//    // define variables
+//    var items = document.querySelectorAll(".timeline li");
+
+//    // check if an element is in viewport
+//    // http://stackoverflow.com/questions/123999/how-to-tell-if-a-dom-element-is-visible-in-the-current-viewport
+//    function isElementInViewport(el) {
+//        var rect = el.getBoundingClientRect();
+//        return (
+//          rect.top >= 0 &&
+//          rect.left >= 0 &&
+//          rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+//          rect.right <= (window.innerWidth || document.documentElement.clientWidth));
+
+//    }
+
+//    function callbackFunc() {
+//        for (var i = 0; i < items.length; i++) {
+//            if (window.CP.shouldStopExecution(0)) break;
+//            if (isElementInViewport(items[i])) {
+//                items[i].classList.add("in-view");
+//            }
+//        } window.CP.exitedLoop(0);
+//    }
+
+//    // listen for events
+//    window.addEventListener("load", callbackFunc);
+//    window.addEventListener("resize", callbackFunc);
+//    window.addEventListener("scroll", callbackFunc);
+
+//})();
+////# sourceURL=pen.js
+
+
+$('.collapse').on('shown.bs.collapse', function () {
+    $(this).parent().find(".glyphicon-plus").removeClass("glyphicon-plus").addClass("glyphicon-minus");
+}).on('hidden.bs.collapse', function () {
+    $(this).parent().find(".glyphicon-minus").removeClass("glyphicon-minus").addClass("glyphicon-plus");
+});
+
+
+
+
+/////////////////////// End  Common.js ///////////////////////////////
+
+/////////////////////// Start  elmenu.js ///////////////////////////////
+
+/*
+ * elmenu.js
+ *
+ * A lightweight jQuery script to auto-generate a responsive, mobile menu system.
+ * This project is licensed under the terms of the MIT license.
+ *
+ * Current Version: v1.1.0
+ * Release notes:
+ *
+ * v1.1.0
+ * Fixes a bug where multiple toggle icons where spinning on a single icon click,
+ * so individual elements needed to be targeted specifically.
+ *
+ */
+
+/*
+Quick description (see comments below for more info)
+1. The Base elmenu function
+   a) Takes all menus in the header and clones them into the mobile nav
+   b) Calls mobileClasses() function
+2. mobileClasses() function
+   a) Drops desktop classes and adds mobile classes
+   b) Calls addSubTriggers() function
+3. addSubTriggers() function
+   a) Adds open/close functionality to mobile nav sub-menus
+   b) Calls swapMobileMenus() function
+4. swapMobileMenus() function
+   a) Rearranges the mobile menus based on user setting (see index.html doc ready)
+5. Click events
+*/
+
+(function ($) {
+    $.fn.elmenu = function (menuOrder) {
+
+        // ----------- Variables
+
+        var theCanvas = $('#canvas');
+        var mainNav = $('#elmain');
+        var mobileNav = $('#elmobile');
+        var toggleOpen = $('#elmtoggle');
+        var toggleClose = $('#elmobiletoggle');
+
+        // ----------- Sub-functions
+
+
+        /*
+        Replace all the desktop classes with mobile classes:
+        We could use the parent container IDs ( #elmenu and #elmobile ),
+        and restyle the same classes based on nesting inside the IDs,
+        but that kind of dominant specificity is bad practice. We're just
+        removing all the desktop classes, and replacing them with mobile classes,
+        AFTER all the nodes have been thrown into the #elmobile holder.
+        */
+        function mobileClasses(e) {
+
+            $('#elmobile .elm__list').addClass('m-elm__list').removeClass('elm__list');
+            $('#elmobile .elm__item').addClass('m-elm__item').removeClass('elm__item');
+            $('#elmobile .elm__link').addClass('m-elm__link').removeClass('elm__link');
+            $('#elmobile .elm__list--sub').addClass('m-elm__list--sub').removeClass('elm__list--sub');
+            $('#elmobile .elm__item--sub').addClass('m-elm__item--sub').removeClass('elm__item--sub');
+            $('#elmobile .elm__link--sub').addClass('m-elm__link--sub').removeClass('elm__link--sub');
+            $('#elmobile .elm__list--subsub').addClass('m-elm__list--subsub').removeClass('elm__list--subsub');
+            $('#elmobile .elm__item--subsub').addClass('m-elm__item--subsub').removeClass('elm__item--subsub');
+            $('#elmobile .elm__link--subsub').addClass('m-elm__link--subsub').removeClass('elm__link--subsub');
+
+            // call the next function
+            addSubTriggers();
+
+        }
+
+
+        /*
+        Find any nav elements that have sub-navs, by looking for the .hassub class.
+        This will give us the location to inject the accordion triggers
+        */
+        function addSubTriggers() {
+
+            // The Level 2 menus
+
+            // Find each instance of a child menu, and target the link
+            // Now we have a position to inject the spans (the sub-menu toggle triggers)
+            var elmtarget = $('#elmobile .hassub > .m-elm__link');
+
+            // Create a unique node (a span element containing a chevron image) for each one that exists
+            $(elmtarget).each(function (i) {
+                var addTrigger = '<span class="elmtriggerchild-' + i + '"><img src="images/arrow-down.png" alt="Open Sub Menu"></span>';
+                $(this).after(addTrigger);
+            });
+
+            // The Level 3 menus
+
+            // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! //
+            // THESE ARE NOT ACCOUNTED FOR YET //
+            // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! //
+
+            // Find each instance of a grandchild menu, and target the link
+            // Now we have a position to inject the spans (the sub-menu toggle triggers)
+            var elmtargetSub = $('#elmobile .hassubsub > .m-elm__link--sub');
+
+            // Create a unique node (a span element containing a down chevron) for each one that exists
+            $(elmtargetSub).each(function (i) {
+                var addSubTrigger = '<span class="elmtriggergrandchild-' + i + '"><img src="images/arrow-down.png" alt="Open Sub Menu"></span>';
+                $(this).after(addSubTrigger);
+            });
+
+            // call the next function
+            swapMobileMenus();
+
+        }
+
+
+        /*
+        Rearrange the ULs in the mobile nav, based on the init setting in the footer
+        */
+        function swapMobileMenus() {
+
+            // Create a new object for the mobile nav elements
+            var $modules = $('#elmobile > ul');
+
+            // The array passed from the doc ready gets used here:
+            // Give the user the option to rearrange individual ULs when they get appended to the mobile nav.
+            // ex: var menuOrder = [2, 0, 1];
+
+            for (var i = 0, l = menuOrder.length; i < l; i++) {
+                $($modules.get(menuOrder[i])).appendTo(mobileNav);
+            }
+
+            // call the next function
+            findTriggers();
+
+        }
+
+
+        /*
+        Now we need to grab the spans we already attached (for our toggle triggers),
+        and attach unique click events to each one (no matter how many there are).
+        */
+        function findTriggers() {
+
+            // The child toggle triggers
+            var elmChildTriggers = $('*[class^="elmtriggerchild-"]');
+            $(elmChildTriggers).each(function (i) {
+                // Add a click event for each one
+                $(elmChildTriggers[i]).click(function (e) {
+                    // Call the function to toggle the sub-menu
+                    toggleSubs(this);
+                    // Call the function to toggle the sub-menu arrow
+                    toggleArrow(this);
+                });
+            });
+
+            // The grandchild toggle triggers
+            var elmGrandchildTriggers = $('*[class^="elmtriggergrandchild-"]');
+            $(elmGrandchildTriggers).each(function (i) {
+                // Add a click event for each one
+                $(elmGrandchildTriggers[i]).click(function (e) {
+                    // Call the function to toggle the sub-menu
+                    toggleSubs(this);
+                    // Call the function to toggle the sub-menu arrow
+                    // REMOVE THE SPIN
+                    toggleArrow(this);
+                });
+            });
+
+        }
+
+        /*
+        BOOM
+        Now we're just waiting for click events.
+        */
+
+
+        // Show / Hide the mobile nav
+        function toggleNav() {
+            $('body').toggleClass('show-nav');
+
+            /*
+            To do anything specific on open/close, use the conditional method (below).
+            Otherwise, just toggle it. We could apply the toggle class more specifically,
+            on the #page element, for instance, but applying it to the body lets us
+            affect much more of the DOM, if we want, when we toggle.
+   
+            if ($( 'body' ).hasClass( 'show-nav' )) {
+              // Do things on Nav Close
+              $( 'body' ).removeClass( 'show-nav' );
+            } else {
+              // Do things on Nav Open
+              $( 'body' ).addClass( 'show-nav' );
+            }
+            */
+        }//toggleNav
+
+        // Slide down the mobile sub-navs
+        function toggleSubs(e) {
+            if (!$(e).hasClass('open')) {
+                $(e).addClass('open');
+                $(e).next('ul').slideDown(250);
+            } else {
+                $(e).removeClass('open');
+                $(e).next('ul').slideUp(250);
+            }
+        }//toggleSubs
+
+        // Spin the chevron on the mobile sub-nav trigger
+        function toggleArrow(e) {
+
+            // Target the img inside the span object we're passing
+            var theicon = $(e).children();
+
+            // Add / Remove the rotate class (to achieve the spin effect)
+            if ($(e).hasClass('open')) {
+                $(theicon).addClass('rotate');
+            } else {
+                $(theicon).removeClass('rotate');
+            }
+
+        }//toggleArrow
+
+        // Spin the chevron on the mobile sub-nav trigger
+        function toggleArrowSub(e) {
+
+            /*
+            var theicon = $( '.elmtrigger--sub img' );
+            if( $(e).hasClass( 'open' ) ) {
+               $( theicon ).addClass( 'rotate' );
+            } else {
+               $( theicon ).removeClass( 'rotate' );
+            }
+            */
+
+        }//toggleArrow
+
+        // ----------- 1) The Base elmenu function
+
+        /*
+        * Create an array of all nav modules in the header menu (inside #elmain) by targeting the .nav--* class.
+        * They MUST all have this .nav--* class, whether it's a <nav> tag or a <div>.
+        * We're going to return their child ULs, and place & re-style them in the mobile nav module.
+        * Note: We're using this .nav--* class, and not targeting the <nav> tags directly,
+        * because some links may or may not semantically belong in <nav> tags.
+        * We just want to get the ULs that contain the links.
+        */
+        var hdnav = []
+        hdnav = mainNav.find('*[class^="nav--"]');
+
+        // Clone & append them to the #elmobile nav element.
+        for (var i = 0, l = hdnav.length; i < l; i++) {
+            $(hdnav[i]).clone().appendTo(mobileNav);
+            mobileClasses();
+        }
+
+        // ----------- Click events
+
+        // Open the menu
+        toggleOpen.click(function (e) {
+            toggleNav();
+
+            // hide the hamburger icon
+            // $( this ).fadeTo( 'fast', 0 );
+
+        });
+
+        // Close the menu
+        toggleClose.click(function (e) {
+            toggleNav();
+
+            // show the hamburger icon
+            // toggleOpen.fadeTo( 'fast', 1 );
+
+        });
+
+
+
+        /*
+        2) Renamed elmtrigger classes
+        */
+
+        /*
+        // Click event for all Level 1 mobile nav items with Level 2 subs
+        // var goClick = $( '*[class^="elmtrigger-"]' );
+  
+        var theSpans = $( '*[class^="elmtriggerchild-"]' ).each(function( i ) {
+        console.log(theSpans);
+  
+        $( theSpans[i] ).click(function(e) {
+  
+           // Call the function to toggle the sub-menu
+           toggleSubs( this );
+  
+           // Call the function to toggle the sub-menu arrow
+           // toggleArrow( this );
+  
+           if( $( this + ' img' ).hasClass( 'open' ) ) {
+              $( this + ' img' ).addClass( 'rotate' );
+           } else {
+              $( this + ' img' ).removeClass( 'rotate' );
+           }
+  
+        });
+        */
+
+        /*
+        //$( goClick ).click(function(e) {
+           // Call the function to toggle the sub-menu
+           toggleSubs( this );
+           // Call the function to toggle the sub-menu arrow
+  
+           // REMOVE THE SPIN
+           // toggleArrow( this );
+  
+           if( $( '.elmtrigger-0 img' ).hasClass( 'open' ) ) {
+              $( '.elmtrigger-0 img' ).addClass( 'rotate' );
+           } else {
+              $( '.elmtrigger-0 img' ).removeClass( 'rotate' );
+           }
+  
+        });
+        */
+
+
+
+        /*
+        $( '.elmtriggerchild-1' ).click(function(e) {
+           // Call the function to toggle the sub-menu
+           toggleSubs( this );
+           // Call the function to toggle the sub-menu arrow
+           // REMOVE THE SPIN
+           toggleArrow( this );
+        });
+        */
+
+        /*
+        // Click event for all Level 2 mobile nav items with Level 3 subs
+        $( '.elmtrigger--sub' ).click(function(e) {
+           // Call the function to toggle the sub-menu
+           toggleSubs( this );
+           // Call the function to toggle the sub-menu arrow
+           // REMOVE THE SPIN
+           toggleArrowSub( this );
+        });
+        */
+
+        return this;
+
+    };
+})(jQuery);
+
+
+/////////////////////// End  elmenu.js ///////////////////////////////
+
+/////////////////////// Start  mobiMenu.min.js ///////////////////////////////
+(function (e) {
+    e.fn.mobiMenu = function () {
+        e(".cssmenu ul").hide();
+        e("a.menu-toggle").hover(function () {
+            var t = e(e(this).attr("href")).children("ul");
+            //console.log(t.get());
+            clearTimeout(t.data("hoverTimer"));
+            t.stop(true, true).slideDown(500)
+            //cssmenu
+            //console.log('here1');
+        }, function () {
+            var t = e(e(this).attr("href")).children("ul");
+            var n = setTimeout(function () {
+                t.stop(true, true).slideUp()
+            }, 200);
+            //console.log('here2');
+            t.data("hoverTimer", n)
+        });
+        e(".cssmenu > ul").hover(function () {
+            clearTimeout(e(this).data("hoverTimer"))
+        }, function () {
+            e(this).stop(true, true).slideUp()
+        });
+        e("#menu li.has-sub>a").on("click", function () {
+            e(this).removeAttr("href");
+            var t = e(this).parent("li");
+            if (t.hasClass("open")) {
+                t.removeClass("open");
+                t.find("li").removeClass("open");
+                t.find("ul").slideUp()
+            } else {
+                t.addClass("open");
+                t.children("ul").slideDown();
+                t.siblings("li").children("ul").slideUp();
+                t.siblings("li").removeClass("open");
+                t.siblings("li").find("li").removeClass("open");
+                t.siblings("li").find("ul").slideUp()
+            }
+        });
+        e("#social li.has-sub>a").on("click", function () {
+            e(this).removeAttr("href");
+            var t = e(this).parent("li");
+            if (t.hasClass("open")) {
+                t.removeClass("open");
+                t.find("li").removeClass("open");
+                t.find("ul").slideUp()
+            } else {
+                t.addClass("open");
+                t.children("ul").slideDown();
+                t.siblings("li").children("ul").slideUp();
+                t.siblings("li").removeClass("open");
+                t.siblings("li").find("li").removeClass("open");
+                t.siblings("li").find("ul").slideUp()
+            }
+        })
+    }
+})(jQuery);
+
+/////////////////////// end  mobiMenu.min.js ///////////////////////////////
+
+
+/////////////////////// start  script-code.js ///////////////////////////////
+
+$('ul.nav li.dropdown').hover(function () {
+    $(this).find('.dropdown-menu').stop(true, true).delay(200).fadeIn(500);
+}, function () {
+    $(this).find('.dropdown-menu').stop(true, true).delay(200).fadeOut(500);
+});
+
+
+
+
+$(document).ready(function () {
+
+    $('#parentHorizontalTab').easyResponsiveTabs({
+        type: 'default',
+        width: 'auto',
+        fit: true,
+        closed: 'accordion',
+        tabidentify: 'hor_1',
+        activate: function (event) {
+            var $tab = $(this);
+            var $info = $('#nested-tabInfo');
+            var $name = $('span', $info);
+            $name.text($tab.text());
+            $info.show();
+        }
+    });
+
+
+    $('.childhorizontalTab').easyResponsiveTabs({
+        type: 'default',
+        width: 'auto',
+        fit: true,
+
+        tabidentify: 'ver_1'
+    });
+    $('.resp-tab-content-active').css('display', 'none');
+
+    $('.owl-carousel').owlCarousel({
+        loop: true,
+        autoplay: true,
+        margin: 10,
+        responsiveClass: true,
+        responsive: {
+            0: {
+                items: 1,
+                nav: true
+            },
+            600: {
+                items: 2,
+                nav: false
+            },
+            1000: {
+                items: 3,
+                nav: true,
+                loop: false,
+                margin: 30
+            }
+        }
+    })
+})
+$(document).ready(function () {
+    //$('.owl-carousel-2').owlCarousel({
+    //  loop: true,
+    //  autoplay:true,
+    //  margin: 10,
+    //  responsiveClass: true,
+    //  interval:5000,
+    //  responsive: {
+    //    0: {
+    //  	items: 1,
+    //  	nav: true
+    //    },
+    //    600: {
+    //  	items:1,
+    //  	nav: false
+    //    },
+    //    1000: {
+    //  	items:1,		 
+    //    }
+    //  }
+    //})
+})
+
+$(document).ready(function () {
+    //Horizontal Tab
+    $('#parentHorizontalTab-2').easyResponsiveTabs({
+        type: 'default', //Types: default, vertical, accordion
+        width: 'auto', //auto or any width like 600px
+        fit: true, // 100% fit in a container
+        tabidentify: 'hor_1', // The tab groups identifier
+        activate: function (event) { // Callback function if tab is switched
+            var $tab = $(this);
+            var $info = $('#nested-tabInfo');
+            var $name = $('span', $info);
+            $name.text($tab.text());
+            $info.show();
+        }
+    });
+});
+
+$(document).ready(function () {
+    //Horizontal Tab
+    $('#parentHorizontalTab3').easyResponsiveTabs({
+        type: 'default', //Types: default, vertical, accordion
+        width: 'auto', //auto or any width like 600px
+        fit: true, // 100% fit in a container
+        tabidentify: 'hor_1', // The tab groups identifier
+        activate: function (event) { // Callback function if tab is switched
+            var $tab = $(this);
+            var $info = $('#nested-tabInfo');
+            var $name = $('span', $info);
+            $name.text($tab.text());
+            $info.show();
+        }
+    });
+});
+
+$('a.links').click(function () {
+    $('html, body').animate({
+        scrollTop: $($(this).attr('href')).offset().top
+    }, 500);
+    return false;
+});
+
+
+$('#openBtn').click(function () {
+    $('#myModal').on('show', function () {
+
+        $('iframe').attr("src", frameSrc);
+
+    });
+    $('#myModal').modal({ show: true })
+});
+
+
+
+
+//login page on click event (albila net button)
+
+function myFunction() {
+    document.getElementById("login-form-wrapper").style.right = "0px";
+    // $("#login-form-wrapper").css({ 'display': "block" });   
+    document.getElementById("overlay").style.visibility = "visible";
+}
+
+function myFunction2() {
+    document.getElementById("login-form-wrapper").style.right = "-430px";
+
+    document.getElementById("overlay").style.visibility = "Hidden";
+    // $("#login-form-wrapper").css({ 'display': "none" }); 
+}
+function myFunction3() {
+    document.getElementById("login-form-wrapper").style.right = "-430px";
+    // $("#login-form-wrapper").css({ 'display': "None" });  
+    document.getElementById("overlay").style.visibility = "Hidden";
+}
+
+
+
+//menu first child active class add 
+
+$('.submenu ul > li').hover(function () {
+    $(this).toggleClass('active').siblings().removeClass('active');
+});
+
+
+
+$('.menu-wrap ul > li').hover(function () {
+    $(this).toggleClass('selected').siblings().removeClass('selected');
+});
+
+
+
+$(function () {
+    $('.menu-1').hover(function () {
+        $('.submenu ul > li:first-child').addClass('active');
+    }, function () {
+        // on mouseout, reset the background colour
+        $('.submenu ul > li:first-child').removeClass('active');
+    });
+});
+
+$(window).load(function () {
+    // The slider being synced must be initialized first
+    $('#carousel').flexslider({
+        animation: "slide",
+        controlNav: false,
+        animationLoop: false,
+        slideshow: false,
+        itemWidth: 210,
+        itemMargin: 5,
+        asNavFor: '#slider'
+    });
+
+    $('#slider').flexslider({
+        animation: "slide",
+        controlNav: false,
+        animationLoop: false,
+        slideshow: false,
+        sync: "#carousel"
+    });
+});
+
+$(document).ready(function () {
+    $('.menu-toggle').on('click', function () {
+        if ($(this).hasClass('open')) {
+            $(this).removeClass('open');
+            var t = $($("a.menu-toggle").attr("href")).children("ul");
+            var n = setTimeout(function () {
+                t.stop(true, true).slideUp()
+            }, 200);
+            //console.log('here2');
+            t.data("hoverTimer", n)
+        }
+        else {
+            $(this).addClass('open');
+            var t = $($("a.menu-toggle").attr("href")).children("ul");
+            //console.log(t.get());
+            clearTimeout(t.data("hoverTimer"));
+            t.stop(true, true).slideDown(500)
+        }
+    });
+    /* $("body not:(.menu-toggle)").click(function(){
+    if($('.menu-toggle').hasClass('open'))
+    {
+    $('.menu-toggle').removeClass('open');
+    } 
+    });*/
+});
+
+
+$(window).scroll(function () {
+
+    if ($(window).scrollTop() >= 100) {
+        $('.top-strip').addClass('sticky');
+        $('.header-panel').addClass('sticky2');
+    }
+    else {
+        $('.top-strip').removeClass('sticky');
+        $('.header-panel').removeClass('sticky2');
+    }
+});
+
+
+
+$("ul.exo-menu > li.mega-drop-down").click(function () {
+    $("ul.exo-menu > li.mega-drop-down").removeClass("active-1");
+    $(this).addClass("active-1");
+});
+
+
+
+$('.mega-menu li').hover(
+    function () { $(".black-bg").addClass('hover') },
+    function () { $(".black-bg").removeClass('hover') }
+)
+$('.group-sites-wrap .btn-primary').click(
+    function () { $(".black-bg").addClass('hover') },
+    function () { $(".black-bg").removeClass('hover') }
+)
+
+
+$(".tab-content-wrap .calculate-btn .calculate").click(
+    function () { $(".tab-content-wrap .calculate-div").removeClass('show') },
+    function () { $(".tab-content-wrap .calculate-div").addClass('show') });
+
+$(".tab-content-wrap .calculate-btn .calculate.back").click(
+    function () { $(".tab-content-wrap .calculate-div").removeClass('show') });
+
+
+/////////////////////// end  script-code.js ///////////////////////////////
+
+/////////////////////// start  price-index.js ///////////////////////////////
+
+$(function () {
+    $(".slider-range-min").slider({
+        range: "min",
+        value: 0,
+        min: 0,
+        max: 100,
+        slide: function (event, ui) {
+
+            var elmid = $(this).attr('id');
+            $("#amount-" + elmid).val("$" + ui.value + ",000");
+            $(".a, .b, .c, .d").width(ui.value + "%");
+        }
+    });
+    $(".ui-slider-handle").text(".");
+
+    $("#amount-elm-1").val("$" + $("#elm-1").slider("value") + ",000");
+    $("#amount-elm-2").val("$" + $("#elm-2").slider("value") + ",000");
+    $("#amount-elm-3").val("$" + $("#elm-3").slider("value") + ",000");
+    $("#amount-elm-4").val("$" + $("#elm-4").slider("value") + ",000");
+    $("#amount-elm-5").val("$" + $("#elm-5").slider("value") + ",000");
+    $("#amount-elm-6").val("$" + $("#elm-6").slider("value") + ",000");
+    $("#amount-elm-7").val("$" + $("#elm-7").slider("value") + ",000");
+    $("#amount-elm-8").val("$" + $("#elm-8").slider("value") + ",000");
+
+
+});
+
+/////////////////////// end  price-index.js ///////////////////////////////
+
+/////////////////////// Start Timeline-main.js ///////////////////////////////
+
+(function () {
+    // Vertical Timeline - by CodyHouse.co
+    function VerticalTimeline(element) {
+        this.element = element;
+        this.blocks = this.element.getElementsByClassName("js-cd-block");
+        this.images = this.element.getElementsByClassName("js-cd-img");
+        this.contents = this.element.getElementsByClassName("js-cd-content");
+        this.offset = 0.8;
+        this.hideBlocks();
+    };
+
+    VerticalTimeline.prototype.hideBlocks = function () {
+        //hide timeline blocks which are outside the viewport
+        if (!"classList" in document.documentElement) {
+            return;
+        }
+        var self = this;
+        for (var i = 0; i < this.blocks.length; i++) {
+            (function (i) {
+                if (self.blocks[i].getBoundingClientRect().top > window.innerHeight * self.offset) {
+                    self.images[i].classList.add("cd-is-hidden");
+                    self.contents[i].classList.add("cd-is-hidden");
+                }
+            })(i);
+        }
+    };
+
+    VerticalTimeline.prototype.showBlocks = function () {
+        if (! "classList" in document.documentElement) {
+            return;
+        }
+        var self = this;
+        for (var i = 0; i < this.blocks.length; i++) {
+            (function (i) {
+                if (self.contents[i].classList.contains("cd-is-hidden") && self.blocks[i].getBoundingClientRect().top <= window.innerHeight * self.offset) {
+                    // add bounce-in animation
+                    self.images[i].classList.add("cd-timeline__img--bounce-in");
+                    self.contents[i].classList.add("cd-timeline__content--bounce-in");
+                    self.images[i].classList.remove("cd-is-hidden");
+                    self.contents[i].classList.remove("cd-is-hidden");
+                }
+            })(i);
+        }
+    };
+
+    var verticalTimelines = document.getElementsByClassName("js-cd-timeline"),
+        verticalTimelinesArray = [],
+        scrolling = false;
+    if (verticalTimelines.length > 0) {
+        for (var i = 0; i < verticalTimelines.length; i++) {
+            (function (i) {
+                verticalTimelinesArray.push(new VerticalTimeline(verticalTimelines[i]));
+            })(i);
+        }
+
+        //show timeline blocks on scrolling
+        window.addEventListener("scroll", function (event) {
+            if (!scrolling) {
+                scrolling = true;
+                (!window.requestAnimationFrame) ? setTimeout(checkTimelineScroll, 250) : window.requestAnimationFrame(checkTimelineScroll);
+            }
+        });
+    }
+
+    function checkTimelineScroll() {
+        verticalTimelinesArray.forEach(function (timeline) {
+            timeline.showBlocks();
+        });
+        scrolling = false;
+    };
+})();
+
+/////////////////////// end   Timeline-main.js ///////////////////////////////
+
+//if (Lang == 'en')
+//{
+//    document.body.setAttribute('dir', 'ltr');
+//}
+//else if (Lang == 'ar') {
+//    document.body.setAttribute('dir', 'rtl');
+//}
+
+
+
+//................. static variables ..............//
+var raiseError = false;
+var BannersListName = 'Banners';
+var InteractiveBoxListName = 'InteractiveBoxes';
+var BlogsListName = 'Blogs';
+var BankAccountsBlogsTypeName = "الحسابات البنكية";
+var LeaseBlogsTypeName = "منتجات التمويل";
+var CardsBlogsTypeName = "البطاقات البنكية";
+
+var BankAccountsBlogsTypeNameEn = "Bank Accounts";
+var LeaseBlogsTypeNameEn = "Financing";
+var CardsBlogsTypeNameEn = "Bank Cards";
+
+var NewsListName = "getnews";
+var RelatedLinksListName = "getrelatedlinks";
+var changeLanguageOperation = "changelanguage";
+var IgnoreCache = "ignorecache";
+var CorpSmeBlogType = '';
+var IgnoreCache = false;
+var idRegexPattern = /^\d+$/;
+
+var wslang = "SA-ar";
+
+var Site = window.location.href.toLowerCase().indexOf('home') > 0 ? 'individual' : (window.location.href.toLowerCase().indexOf('corp') > 0 ? 'corporate' :
+    (window.location.href.toLowerCase().indexOf('sme') > 0 ? 'sme' : (window.location.href.toLowerCase().indexOf('about') > 0 ? 'AboutUs' : '')));
+
+//................. end of static variables .......//
+
+// load the Banners items
+
+$(window).load(function () {
+
+
+    GetLanguage();
+
+    if ((Site != null && Site != undefined) && Site != '') {
+
+        LoadBanners();
+
+    }
+
+    if ((Site != null && Site != undefined) && Site != '' && Site != 'AboutUs') {
+
+        LoadInteractive();
+        if (Site == 'individual') {
+            LoadBlogs();
+            if (window.location.href.toLowerCase().indexOf('/personal/pages/home.aspx') > 0) {
+                LoadNews();
+            }
+
+            LoadLoanCalcTitleArEn();
+            LoadWhatIsNewTitleArEn();
+        }
+        else if (Site == 'sme' || Site == 'corporate') {
+            LoadCorpSmeBlogs();
+        }
+
+
+
+        LoadRelatedLinks();
+    }
+    else {
+        LoadAboutUsRelatedLinks();
+        if (window.location.href.toLowerCase().indexOf('/about/news/pages/default.aspx') > 0) {
+            LoadNews2();
+        }
+
+    }
+
+    GetDate();
+    GetIgnoreCache();
+
+});
+
+$(document).ready(function () {
+
+
+    $('.panel-collapse-close').click(function () {
+        $(".panel-collapse").collapse('hide');
+        $(".arrowBOD").hide();
+        $(".view").removeClass('selected');
+    });
+
+    $('a.info').click(function () {
+
+
+        var arrowid = $(this).attr('href').replace("#myModal", 'arrowBOD');
+        var divid = $(this).attr('href').replace("#myModal", 'divBOD');
+
+
+        if ($("#" + arrowid).attr('style').indexOf('none') > -1) {
+
+            $(".arrowBOD").hide();
+            $(".view").removeClass('selected');
+            $("#" + divid).addClass('selected');
+            $("#" + arrowid).attr('style', 'display:block;');
+        }
+        else {
+            $("#" + arrowid).attr('style', 'display:none;');
+            $("#" + divid).removeClass('selected');
+        }
+
+
+    });
+
+    $('.ver_1').click(function () {
+        $(this).next(".resp-tab-content").toggle();
+        //if($(this).next(".resp-tab-content").css('display') == 'none')
+        //{
+        //    //  $(this).parent().parent().hide();
+        //    if ($(this).parent().parent().is(":visible")) {
+        //        $(this).parent().parent().hide();
+        //    }
+        //    else
+        //    {
+        //        $(this).parent().parent().show();
+        //    }
+        //}
+        //else
+        //{
+        //    if ($(this).parent().parent().is(":visible")) {
+        //        // nothing it should be visible 
+        //    }
+        //    else {
+        //        $(this).parent().parent().show();
+        //    }
+        //}
+
+
+    });
+
+    $('.hor_1').click(function () {
+
+        //if ($(this).next().children(1).is(":visible")) 
+        //{
+        //    $(this).next().children(1).hide();
+        //}
+        //else {
+        //    if($(this).next(".resp-tab-content").css('display') == 'none')
+        //    {
+        //        $(this).next().children(1).show();
+        //    }
+
+        //    $(this).next().children(1).show();
+        //}
+
+
+    });
+
+
+    if (Lang == "en") {
+        $("a.s4-breadcrumbRootNode").html('Bank AlBilad');
+    }
+    else {
+        $("a.s4-breadcrumbRootNode").html('بنك البلاد');
+    }
+
+
+    SetLoanCalculatorLanguage();
+    PreparePersonalLoanFunctions();
+    PrepareRealestateLoanFunctions();
+    PrepareAutoLeaseFunctions();
+    clearSpaces();
+
+
+
+});
+
+function GetIgnoreCache() {
+    var url = "/_LAYOUTS/15/BAB.V2.Internet.Web/web/api.aspx?Operation=" + encodeURI(IgnoreCache);
+
+    $.ajax({
+        type: "GET",
+        contentType: "text/xml",
+        url: url,
+        dataType: 'xml',
+        async: false,
+        success: function (xml) {
+
+
+            var ignore = $(xml).find("IgnoreCache").text();
+            if (ignore == true || ignore === "True" || ignore === "true") {
+                IgnoreCach = true;
+            }
+
+        },
+
+        Error: function (XMLHttpRequest, textStatus, errorThrown) {
+            if (raiseError)
+                alert(textStatus + ": (" + XMLHttpRequest.statusText + ")");
+        }
+
+    });
+}
+
+function clearSpaces() {
+    $(".content-head").each(function () { $(this).html($(this).html().replace(/&nbsp;/gi, '')); $(this).html($(this).html().replace(/\u200B/g, '')); });
+}
+
+function GetLanguage() {
+    var url = "/_LAYOUTS/15/BAB.V2.Internet.Web/web/api.aspx?Operation=" + encodeURI(changeLanguageOperation) + "&lang=" + Lang;
+
+    $.ajax({
+        type: "GET",
+        contentType: "text/xml",
+        url: url,
+        dataType: 'xml',
+        async: false,
+        success: function (xml) {
+
+
+            var sitelang = $(xml).find("language").text();
+            setCookie("Lang", sitelang.split("-")[1], 365);
+
+        },
+
+        Error: function (XMLHttpRequest, textStatus, errorThrown) {
+            if (raiseError)
+                alert(textStatus + ": (" + XMLHttpRequest.statusText + ")");
+        }
+
+
+    });
+}
+
+
+function LoadBanners() {
+
+    var content_html = '';
+    var content_html2 = '';
+
+    var url = "/_LAYOUTS/15/BAB.V2.Internet.Web/web/api.aspx?Operation=" + encodeURI(BannersListName) + "&menu=" + Site + "&lang=" + Lang + "&IgnoreCache=" + IgnoreCache;
+
+    //for(var i=1; i <6; i++){
+
+
+    $.ajax({
+        type: "GET",
+        contentType: "text/xml",
+        url: url,
+        dataType: 'xml',
+        async: true,
+        success: function (xml) {
+            // if (xml != null && $(xml).find('Items').length > 0) {
+            //   var Count = 0;
+            //	var itemCSSClass='owl-item cloned';
+
+
+
+            content_html += '<div id="myCarousel" class="carousel slide" data-ride="carousel"><ol class="carousel-indicators">[DOTS]</ol>';
+            content_html += '<div class="carousel-inner">';
+
+
+
+
+
+            var Count = 1;
+            $(xml).find('Item').each(function () {
+
+                if (Count == 1) {
+                    content_html += '<div id="banner-' + Count + '" class="item  banner-2  active" >';
+                    content_html2 += '<li data-target="#myCarousel" data-slide-to="' + (Count - 1) + '" class="active"></li>';
+
+                }
+                else {
+                    content_html += '<div id="banner-' + Count + '" class="item banner-2" >';
+                    content_html2 += '<li data-target="#myCarousel" data-slide-to="' + (Count - 1) + '"></li>';
+                }
+                //if ($(this).find("PublishingRollupImage").text() != '' )
+                //{
+                //   $(".banner-" + Count).css("background-image", "url('" + $($(this).find("PublishingRollupImage").text()).attr('src') + "'!important)");
+
+                //}
+                content_html += '<div class="container">';
+                content_html += '<div class="banner-img animating fade-in-up-large"  style="animation-delay: 0.2s;">';
+                content_html += $(this).find("BabImage").text();
+                content_html += '</div>';
+                content_html += '<div class="banner-text animating fade-in-up-large " style="animation-delay: 0.4s;">';
+                if ($(this).find('ColorCode').text().indexOf("#") > -1) {
+                    content_html += '<p><a style="color:' + $(this).find('ColorCode').text() + '">';
+                    content_html += $(this).find('Title').text();
+                    content_html += '</a>';
+                }
+                else {
+                    content_html += '<p><a>';
+                    content_html += $(this).find('Title').text();
+                    content_html += '</a>';
+                }
+
+                if ($(this).find('URL').text() != null && $(this).find('URL').text() != '') {
+                    content_html += '<a href="' + $(this).find('URL').text() + '" class="banner-read-more">' + $(this).find('URLTitle').text() + '</a>';
+                }
+                content_html += '</p>';
+                content_html += '</div>';
+                content_html += '</div>';
+                content_html += '</div>';
+                Count++;
+
+            });
+
+            if (Count > 2) {
+                content_html += '<a class="left carousel-control" href="#myCarousel" role="button" data-slide="prev"><span class="glyphicon glyphicon-chevron-left" aria-hidden="true"></span><span class="sr-only">Previous</span></a>';
+                content_html += '<a class="right carousel-control" href="#myCarousel" role="button" data-slide="next"><span class="glyphicon glyphicon-chevron-right" aria-hidden="true"></span><span class="sr-only">Next</span></a>';
+            }
+
+            content_html = content_html.replace("[DOTS]", content_html2);
+            $('div#home-banner').html(content_html);
+            $(".carousel").carousel({
+                swipe: 30
+            });
+            $('.owl-carousel-new .item.active').length
+
+            Count = 1;
+            $(xml).find('Item').each(function () {
+
+                if ($(this).find("PublishingRollupImage").text() != '') {
+                    $("#banner-" + Count).css("background-image", "url('" + $($(this).find("PublishingRollupImage").text()).attr('src') + "')");
+
+                }
+                Count++;
+            });
+
+        },
+
+        Error: function (XMLHttpRequest, textStatus, errorThrown) {
+            if (raiseError)
+                alert(textStatus + ": (" + XMLHttpRequest.statusText + ")");
+        }
+
+
+    });
+
+
+
+}
+
+function LoadInteractive() {
+
+    var content_html = '';
+    var link = "";
+
+    var url = "/_LAYOUTS/15/BAB.V2.Internet.Web/web/api.aspx?Operation=" + encodeURI(InteractiveBoxListName) + "&menu=" + Site + "&lang=" + Lang + "&IgnoreCache=" + IgnoreCache;
+    if (Lang == "en") {
+        content_html += "<h1 class='content-head'>How can we help you today</h1>";
+    }
+    else {
+        content_html += "<h1 class='content-head'>كيف يمكننا مساعدتك اليوم</h1>";
+    }
+    //for(var i=1; i <6; i++){
+
+
+    $.ajax({
+        type: "GET",
+        contentType: "text/xml",
+        url: url,
+        dataType: 'xml',
+        async: true,
+        success: function (xml) {
+            // if (xml != null && $(xml).find('Items').length > 0) {
+            //   var Count = 0;
+            //	var itemCSSClass='owl-item cloned';
+
+
+            content_html += '<div class="fl-wdth financial-products-wrap ">';
+            content_html += '<ul>';
+
+
+
+
+
+
+            //var Count = 0;
+            $(xml).find('Item').each(function () {
+
+                link = $(this).find("URL").text();
+                if ($(this).find("URL").text().indexOf("#") > -1) {
+                    link = "#" + $(this).find("URL").text().split("#")[1];
+                }
+                content_html += '<li>';
+
+
+                content_html += '<a href=' + link + '>';
+                content_html += $(this).find("BabImage").text();
+                content_html += '<p>';
+                content_html += $(this).find('Title').text();
+                content_html += '</p>';
+                content_html += '</a> </li>';
+
+
+            });
+
+            content_html += '</ul>';
+            content_html += '</div>';
+
+
+
+            $('div#Home-Interactive-Box').html(content_html);
+
+
+
+
+        },
+
+        Error: function (XMLHttpRequest, textStatus, errorThrown) {
+            if (raiseError)
+                alert(textStatus + ": (" + XMLHttpRequest.statusText + ")");
+        }
+
+
+    });
+
+
+
+}
+
+function LoadBlogs() {
+
+    var content_html_1 = '';
+    var content_html_2 = '';
+    var content_html_3 = '';
+
+
+    var url = "/_LAYOUTS/15/BAB.V2.Internet.Web/web/api.aspx?Operation=" + encodeURI(BlogsListName) + "&menu=" + Site + "&lang=" + Lang + "&IgnoreCache=" + IgnoreCache;
+
+    //for(var i=1; i <6; i++){
+
+
+    $.ajax({
+        type: "GET",
+        contentType: "text/xml",
+        url: url,
+        dataType: 'xml',
+        async: true,
+        success: function (xml) {
+            // if (xml != null && $(xml).find('Items').length > 0) {
+            //   var Count = 0;
+            //	var itemCSSClass='owl-item cloned';
+
+
+
+            // content_html_1 += '<div class="container"><h1 class="content-head">الحسابات البنكية </h1><div class="fl-wdth financial-products-content-wrap"><div  title="الحسابات البنكية" ><div  class="owl-carousel owl-carousel-new owl-theme">';
+
+
+            var Count = 0;
+            var Count2 = 0;
+            var Count3 = 0;
+            $(xml).find('Item').each(function () {
+
+
+
+
+                if ($(this).find("BlogType").text().indexOf(BankAccountsBlogsTypeName) > -1 || $(this).find("BlogType").text().indexOf(BankAccountsBlogsTypeNameEn) > -1) {
+
+                    if (Count == 0) {
+                        content_html_1 += '<h1 class="content-head">' + $(this).find("BlogType").text() + '</h1><div class="fl-wdth financial-products-content-wrap"><div id="accounts-carousel" class="owl-carousel1 owl-carousel-new owl-theme">';
+
+
+                        $('div#Home-Bank-Accounts-Blogs').attr('title', $(this).find("BlogType").text());
+                    }
+                    Count++;
+
+
+                    content_html_1 += '<div class="item"><div class="item-wrap">';
+
+
+                    content_html_1 += '<div class="image-wrap">';
+                    content_html_1 += $(this).find("BabImage").text();
+                    content_html_1 += '</div>';
+                    content_html_1 += '<div class="description-wrap">';
+                    content_html_1 += '<p class="slider-head">';
+                    content_html_1 += $(this).find('Title').text();
+                    content_html_1 += '</p>';
+                    content_html_1 += '<p class="slider-content">';
+                    content_html_1 += $(this).find("Summary").text();
+
+                    content_html_1 += '</p>';
+                    content_html_1 += GetBlogLinks($(this).find("BlogLinks"));
+                    content_html_1 += '</div>';
+                    content_html_1 += '</div>';
+                    content_html_1 += '</div>';
+
+
+                }
+
+
+
+                else if ($(this).find("BlogType").text().indexOf(LeaseBlogsTypeName) > -1 || $(this).find("BlogType").text().indexOf(LeaseBlogsTypeNameEn) > -1) {
+
+
+                    if (Count2 == 0) {
+
+                        content_html_2 += '<h1 class="content-head">' + $(this).find("BlogType").text() + '</h><div class="fl-wdth financial-products-content-wrap"><div id="lease-carousel" class="owl-carousel22 owl-carousel-new owl-theme">';
+
+
+
+                        $('div#Home-Bank-Lease-Blogs').attr('title', $(this).find("BlogType").text());
+                    }
+                    Count2++;
+
+                    content_html_2 += '<div class="item"><div class="item-wrap">';
+
+
+                    content_html_2 += '<div class="image-wrap">';
+                    content_html_2 += $(this).find("BabImage").text();
+                    content_html_2 += '</div>';
+                    content_html_2 += '<div class="description-wrap">';
+                    content_html_2 += '<p class="slider-head">';
+                    content_html_2 += $(this).find('Title').text();
+                    content_html_2 += '</p>';
+                    content_html_2 += '<p class="slider-content">';
+                    content_html_2 += $(this).find("Summary").text();
+
+                    content_html_2 += '</p>';
+                    content_html_2 += GetBlogLinks($(this).find("BlogLinks"));
+                    content_html_2 += '</div>';
+                    content_html_2 += '</div>';
+                    content_html_2 += '</div>';
+
+
+                }
+
+
+                else if ($(this).find("BlogType").text().indexOf(CardsBlogsTypeName) > -1 || $(this).find("BlogType").text().indexOf(CardsBlogsTypeNameEn) > -1) {
+
+
+                    if (Count3 == 0) {
+
+                        content_html_3 += '<h1 class="content-head">' + $(this).find("BlogType").text() + '</h><div class="fl-wdth financial-products-content-wrap"><div id="Cards-carousel" class="owl-carousel3 owl-carousel-new owl-theme">';
+
+
+
+                        $('div#demos').attr('title', $(this).find("BlogType").text());
+                    }
+                    Count3++;
+
+                    content_html_3 += '<div class="item"><div class="item-wrap rounded-corners">';
+
+
+                    content_html_3 += '<div class="image-wrap rounded-corners">';
+                    content_html_3 += $(this).find("BabImage").text();
+                    content_html_3 += '</div>';
+                    content_html_3 += '<div class="description-wrap">';
+                    content_html_3 += '<p class="slider-head">';
+                    content_html_3 += $(this).find('Title').text();
+                    content_html_3 += '</p>';
+                    content_html_3 += '<p class="slider-content">';
+                    content_html_3 += $(this).find("Summary").text();
+
+                    content_html_3 += '</p>';
+                    content_html_3 += GetBlogLinks($(this).find("BlogLinks"));
+                    content_html_3 += '</div>';
+                    content_html_3 += '</div>';
+                    content_html_3 += '</div>';
+
+
+                }
+
+
+
+
+            });
+
+
+            //content_html_1 += '</div>';
+            content_html_1 += '</div></div>';
+            //content_html_1 += '</div>';
+            //content_html_1 += '</div>';
+
+            //content_html_1 += '</div>';
+            content_html_2 += '</div></div>';
+            //content_html_2 += '</div>';
+            //content_html_2 += '</div>';
+
+            content_html_3 += '</div></div>';
+            //content_html_3 += '</div>';
+            //content_html_3 += '</div>';
+
+
+            $('div#Home-Bank-Accounts-Blogs').html(content_html_1);
+            $('div#Home-Bank-Lease-Blogs').html(content_html_2);
+            $('div#demos').html(content_html_3);
+
+            //$("#Cards-carousel").carousel({
+            //    swipe: 30
+            //});
+            //$('.owl-carousel-new .item.active').length
+            $('.owl-carousel1').owlCarousel({
+                loop: true,
+                autoplay: true,
+                margin: 10,
+                responsiveClass: true,
+                responsive: {
+                    0: {
+                        items: 1,
+                        nav: true
+                    },
+                    600: {
+                        items: 2,
+                        nav: false
+                    },
+                    1000: {
+                        items: 3,
+                        nav: true,
+                        loop: false,
+                        margin: 30
+                    }
+                }
+            })
+            $('.owl-carousel22').owlCarousel({
+                loop: true,
+                autoplay: true,
+                margin: 10,
+                responsiveClass: true,
+                responsive: {
+                    0: {
+                        items: 1,
+                        nav: true
+                    },
+                    600: {
+                        items: 2,
+                        nav: false
+                    },
+                    1000: {
+                        items: 3,
+                        nav: true,
+                        loop: false,
+                        margin: 30
+                    }
+                }
+            })
+            $('.owl-carousel3').owlCarousel({
+                loop: true,
+                autoplay: true,
+                margin: 10,
+                responsiveClass: true,
+                responsive: {
+                    0: {
+                        items: 1,
+                        nav: true
+                    },
+                    600: {
+                        items: 2,
+                        nav: false
+                    },
+                    1000: {
+                        items: 3,
+                        nav: true,
+                        loop: false,
+                        margin: 30
+                    }
+                }
+            })
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        },
+
+        Error: function (XMLHttpRequest, textStatus, errorThrown) {
+            if (raiseError)
+                alert(textStatus + ": (" + XMLHttpRequest.statusText + ")");
+        }
+
+
+    });
+
+
+
+}
+
+function LoadCorpSmeBlogs() {
+
+    var content_html_1 = '';
+    var content_html_2 = '';
+    var content_html_3 = '';
+
+
+    var url = "/_LAYOUTS/15/BAB.V2.Internet.Web/web/api.aspx?Operation=" + encodeURI(BlogsListName) + "&menu=" + Site + "&lang=" + Lang + "&IgnoreCache=" + IgnoreCache;
+
+    //for(var i=1; i <6; i++){
+
+
+    $.ajax({
+        type: "GET",
+        contentType: "text/xml",
+        url: url,
+        dataType: 'xml',
+        async: true,
+        success: function (xml) {
+
+
+            var Count = 0;
+            var bkground = false;
+            $(xml).find('Item').each(function () {
+
+                if (Count != 0 && CorpSmeBlogType != $(this).find("BlogType").text()) {
+                    content_html_1 += '</div>';
+                    content_html_1 += '</div>';
+                    content_html_1 += '</div>';
+                    content_html_1 += '</div>';
+                    content_html_1 += '</div>';
+
+                }
+
+                if (Count == 0 || CorpSmeBlogType == '' || CorpSmeBlogType != $(this).find("BlogType").text()) {
+
+                    CorpSmeBlogType = $(this).find("BlogType").text();
+                    if (bkground) {
+                        content_html_1 += '<div class="fl-wdth financial-products-wrap dark-bg"><div class="container"><h1 class="content-head">' + $(this).find("BlogType").text() + '</h1><div class="fl-wdth financial-products-content-wrap"><div><div class="owl-carousel owl-carousel-new owl-theme">';
+                    }
+                    else {
+                        content_html_1 += '<div class="fl-wdth financial-products-wrap"><div class="container"><h1 class="content-head">' + $(this).find("BlogType").text() + '</h1><div class="fl-wdth financial-products-content-wrap"><div><div class="owl-carousel owl-carousel-new owl-theme">';
+                    }
+
+                    bkground == true ? bkground = false : bkground = true;
+
+                }
+
+
+
+                content_html_1 += '<div class="item"><div class="item-wrap">';
+                content_html_1 += '<div class="image-wrap">';
+                content_html_1 += $(this).find("BabImage").text();
+                content_html_1 += '</div>';
+                content_html_1 += '<div class="description-wrap">';
+                content_html_1 += '<p class="slider-head">';
+                content_html_1 += $(this).find('Title').text();
+                content_html_1 += '</p>';
+                content_html_1 += '<p class="slider-content">';
+                content_html_1 += $(this).find("Summary").text();
+
+                content_html_1 += '</p>';
+                content_html_1 += GetBlogLinks($(this).find("BlogLinks"));
+                content_html_1 += '</div>';
+                content_html_1 += '</div>';
+                content_html_1 += '</div>';
+                Count++;
+
+            });
+
+            if (Count != 0) {
+                content_html_1 += '</div>';
+                content_html_1 += '</div>';
+                content_html_1 += '</div>';
+                content_html_1 += '</div>';
+                content_html_1 += '</div>';
+
+            }
+
+
+            $('div#Home-Company-Blogs').html(content_html_1);
+            $('div#Home-Sme-Blogs').html(content_html_1);
+            $('.owl-carousel').owlCarousel({
+                loop: true,
+                autoplay: true,
+                margin: 10,
+                responsiveClass: true,
+                responsive: {
+                    0: {
+                        items: 1,
+                        nav: true
+                    },
+                    600: {
+                        items: 2,
+                        nav: false
+                    },
+                    1000: {
+                        items: 3,
+                        nav: true,
+                        loop: false,
+                        margin: 30
+                    }
+                }
+            })
+
+        },
+
+        Error: function (XMLHttpRequest, textStatus, errorThrown) {
+            if (raiseError)
+                alert(textStatus + ": (" + XMLHttpRequest.statusText + ")");
+        }
+
+
+    });
+
+
+
+}
+
+function GetBlogLinks(item) {
+    var content_html = '';
+    var count = 0;
+    $(item).find('Link').each(function () {
+
+        if (count > 0) {
+            if ($(this).find("OpenInNewPage").text().toLowerCase() == 'true') {
+
+                content_html += '<a title="' + $(this).find("BLTitle").text() + '" href="' + $(this).find("URL").text() + '" target="_blank" class="slider-anchor last">';
+            }
+            else {
+
+                content_html += '<a title="' + $(this).find("BLTitle").text() + '" href="' + $(this).find("URL").text() + '" class="slider-anchor last">';
+            }
+
+        }
+        else {
+
+            if ($(this).find("OpenInNewPage").text().toLowerCase() == 'true') {
+
+                content_html += '<a  title="' + $(this).find("BLTitle").text() + '"href="' + $(this).find("URL").text() + '" target="_blank" class="slider-anchor">';
+            }
+            else {
+
+                content_html += '<a title="' + $(this).find("BLTitle").text() + '" href="' + $(this).find("URL").text() + '" class="slider-anchor">';
+            }
+        }
+
+        content_html += $(this).find("BLTitle").text();
+        content_html += '</a>';
+        count++;
+
+
+    });
+
+    return content_html;
+}
+
+
+function LoadNews() {
+
+    var content_html = '';
+
+
+    if (Lang == "en") {
+        content_html += '<h1 class="content-head">Recent News</h1>';
+        //NEWS ARCHIVE LINK 
+        $('div#News-Link').html('<a  class="" href="/en/about/News/">Show all Albilad news</a>');
+    }
+    else {
+        content_html += '<h1 class="content-head">آخر الآخبار</h1>';
+        //NEWS ARCHIVE LINK 
+        $('div#News-Link').html('<a  class="" href="/ar/about/News/">جميع أخبار البلاد</a>');
+
+    }
+
+
+
+
+
+
+    var url = "/_LAYOUTS/15/BAB.V2.Internet.Web/web/api.aspx?Operation=" + encodeURI(NewsListName) + "&lang=" + Lang + "&IgnoreCache=" + IgnoreCache;
+
+    //for(var i=1; i <6; i++){
+
+
+    $.ajax({
+        type: "GET",
+        contentType: "text/xml",
+        url: url,
+        dataType: 'xml',
+        async: true,
+        success: function (xml) {
+
+
+
+
+            content_html += '<div  class="owl-carousel-2 owl-theme owl-loaded owl-drag">';
+
+
+
+
+
+
+            $(xml).find('Item').slice(0, 5).each(function () {
+
+                content_html += '<div class="item">';
+
+
+                content_html += '<div class="news-img">';
+                content_html += $(this).find("BabImage").text();
+                content_html += '</div>';
+                content_html += '<div class="slider-head">';
+                content_html += $(this).find('Title').text().toString().substring(0, 110);
+                content_html += '</div>';
+                content_html += '<div class="date-wrap">';
+                content_html += $(this).find('Date').text().split("00")[0];
+                content_html += '</div>';
+
+
+                content_html += '<div class="slider-content">';
+                content_html += $(this).find("Summary").text().toString().substring(0, 200);
+
+                content_html += '</div>';
+                if (Lang == "en") {
+
+                    content_html += '<a class="slider-anchor" href="' + $(this).find("URL").text() + '" >Read more</a>';
+                }
+
+                else {
+
+                    content_html += '<a class="slider-anchor" href="' + $(this).find("URL").text() + '" >أقرأ المزيد</a>';
+
+                }
+                content_html += '</div>';
+
+
+            });
+
+            //content_html_1 += '</div>';
+
+            //content_html_1 += '</div>';
+            //content_html_1 += '</div>';
+            content_html += "</div>";
+
+
+
+            $('div#Home-News').html(content_html);
+
+            $('.owl-carousel-2').owlCarousel({
+                loop: true,
+                autoplay: true,
+                margin: 10,
+                responsiveClass: true,
+                interval: 5000,
+                responsive: {
+                    0: {
+                        items: 1,
+                        nav: true
+                    },
+                    600: {
+                        items: 1,
+                        nav: false
+                    },
+                    1000: {
+                        items: 1,
+                    }
+                }
+            })
+
+        },
+
+        Error: function (XMLHttpRequest, textStatus, errorThrown) {
+            if (raiseError)
+                alert(textStatus + ": (" + XMLHttpRequest.statusText + ")");
+        }
+
+
+
+
+    });
+
+
+
+}
+
+function LoadNews2() {
+
+    var content_html = '';
+
+
+    if (Lang == "en") {
+        //     content_html += '<h1 class="content-head">All News</h1>';
+        //NEWS ARCHIVE LINK 
+
+    }
+    else {
+        //    content_html += '<h1 class="content-head">جميع الأخبار</h1>';
+        //NEWS ARCHIVE LINK 
+
+
+    }
+
+
+
+
+
+
+    var url = "/_LAYOUTS/15/BAB.V2.Internet.Web/web/api.aspx?Operation=" + encodeURI(NewsListName) + "&lang=" + Lang + "&IgnoreCache=" + IgnoreCache;
+
+    //for(var i=1; i <6; i++){
+
+
+    $.ajax({
+        type: "GET",
+        contentType: "text/xml",
+        url: url,
+        dataType: 'xml',
+        async: true,
+        success: function (xml) {
+
+
+
+
+            content_html += '<div class="inside-page-wrap fl-wdth"><div class="our-card-wrap"><div class="container"><ul id="newsarchivelist" class="card-list fl-wdth">';
+
+
+
+
+
+
+            $(xml).find('Item').each(function () {
+
+                content_html += '<li style="width:100%;min-height: inherit;">';
+
+                content_html += Lang == "en" ? '<div class="card-name">' : '<div  class="card-name">';
+                content_html += $(this).find('Title').text().toString().substring(0, 110);
+                content_html += '</div>';
+                content_html += '<div  class="card-img">';
+                content_html += '<a  href="' + $(this).find("URL").text() + '" >';
+                content_html += $(this).find("BabImage").text();
+                content_html += '</a></div>';
+
+                content_html += Lang == "en" ? '<div style="margin-top: 5px;direction: ltr" class="date-wrap">' : '<div style="margin-top: 5px;direction: ltr" class="date-wrap">';
+                content_html += $(this).find('Date').text().split("00")[0];
+                content_html += '</div>';
+
+
+                content_html += Lang == "en" ? '<div style="min-height: inherit;width: 75%;" class="card-disc">' : '<div style="min-height: inherit;width: 75%;" class="card-disc">';
+                content_html += $(this).find("Summary").text().toString().substring(0, 200) + "...";
+                if (Lang == "en") {
+
+                    content_html += '<a class="card-apply2"  href="' + $(this).find("URL").text() + '" >Read more</a>';
+                }
+
+                else {
+
+                    content_html += '<a class="card-apply2"  href="' + $(this).find("URL").text() + '" >اقرأ المزيد</a>';
+
+                }
+                content_html += '</div>';
+
+                content_html += '</li>';
+
+
+            });
+
+            //content_html_1 += '</div>';
+
+            //content_html_1 += '</div>';
+            //content_html_1 += '</div>';
+            content_html += "</ul></div></div>";
+            if (Lang == "en") {
+                content_html += '<a id="loadMore"  class="apply-now login-btn" href="#"> Show More News </a>';
+
+            }
+            else {
+                content_html += '<a id="loadMore"  class="apply-now login-btn" href="#"> عرض المزيد من الأخبار </a>';
+
+            }
+
+
+            // $("body").on('DOMSubtreeModified', "#Home-News2", function () {
+            //$("#Home-News2").bind("DOMSubtreeModified", lazyLoadNewsArchive);
+
+	    lazyLoadObserver ();
+
+            $('div#Home-News2').html(content_html);
+
+
+
+
+
+
+        },
+
+        Error: function (XMLHttpRequest, textStatus, errorThrown) {
+            if (raiseError)
+                alert(textStatus + ": (" + XMLHttpRequest.statusText + ")");
+        }
+
+
+
+
+    });
+
+
+
+}
+
+
+
+function lazyLoadObserver () 
+{
+	
+	const targetNode = document.querySelector("#Home-News2"); 
+
+	const config = {
+		attributes: false,  // You can set to true if you want to observe changes to attributes
+		childList: true,    // To observe addition or removal of child nodes
+		subtree: true       // To observe any changes in the subtree
+	};
+
+	const callback = function(mutationsList, observer) {
+		for (let mutation of mutationsList) {
+			if (mutation.type === 'childList') {
+				lazyLoadNewsArchive();  // Your function to execute when DOM changes
+			}
+		}
+	};
+
+	// Create an instance of MutationObserver with the callback
+	const observer = new MutationObserver(callback);
+
+	// Start observing the target node with the specified configuration
+	observer.observe(targetNode, config);
+
+}
+
+function lazyLoadNewsArchive() {
+
+    size_li = $("#newsarchivelist li").length;
+    x = 3;
+    $('#newsarchivelist li:lt(' + x + ')').show();
+    $('#loadMore').click(function (e) {
+        e.preventDefault();
+        x = (x + 3 <= size_li) ? x + 3 : size_li;
+        $('#newsarchivelist li:lt(' + x + ')').show();
+        if (x == size_li) {
+            $('#loadMore').hide();
+        }
+    });
+
+
+}
+
+
+function LoadRelatedLinks() {
+
+    var url = "/_LAYOUTS/15/BAB.V2.Internet.Web/web/api.aspx?Operation=" + encodeURI(RelatedLinksListName) + "&menu=" + Site + "&lang=" + Lang + "&IgnoreCache=" + IgnoreCache;
+    var content_html = '';
+    var content_html2 = '';
+
+    $.ajax({
+        type: "GET",
+        contentType: "text/xml",
+        url: url,
+        dataType: 'xml',
+        async: true,
+        success: function (xml) {
+
+            var Count = 0;
+            $(xml).find('Item').each(function () {
+                if (Count == 0) {
+                    content_html += '<div class="row">';
+                    //right //first related link
+                    if ($(this).find("RightImage") != null && $(this).find("RightImage") != '' && $(this).find("RightImage").text().toLowerCase() == 'true') {
+                        content_html += '<div class="pb-0 auto-finance-text col-lg-6 " style="float: left!important">';
+                        content_html += '<h1>' + $(this).find('Title').text() + '</h1>';
+                        content_html += '<h2>' + $(this).find('Summary').text() + '</h2>';
+                        content_html += '<p>' + $(this).find('Description').text() + '</p>';
+                        if ($(this).find("OpenInNewPage").text().toLowerCase() == 'true') {
+                            content_html += '<div><a class="login-btn apply-now" href="' + $(this).find("URL").text() + '" target="_blank" >' + $(this).find("URLTitle").text() + '</a></div>';
+                        }
+                        else {
+                            content_html += '<div><a class="login-btn apply-now" href="' + $(this).find("URL").text() + '"  >' + $(this).find("URLTitle").text() + '</a></div>';
+                        }
+                        content_html += '</div>';
+                        content_html += '<div class="col-lg-6 " style="float: right!important">';
+                        content_html += $(this).find("BabImage").text();
+                        content_html += '</div>';
+
+
+
+                    }
+                    else //left //first related link
+                    {
+                        content_html += '<div class="col-lg-6">';
+                        content_html += $(this).find("BabImage").text();
+                        content_html += '</div>';
+                        content_html += '<div class="pb-0 auto-finance-text col-lg-6">';
+                        content_html += '<h1>' + $(this).find('Title').text() + '</h1>';
+
+                        content_html += '<h2>' + $(this).find('Summary').text() + '</h2>';
+                        content_html += '<p>' + $(this).find('Description').text() + '</p>';
+                        if ($(this).find("OpenInNewPage").text().toLowerCase() == 'true') {
+                            content_html += '<div><a class="login-btn apply-now" href="' + $(this).find("URL").text() + '" target="_blank" >' + $(this).find("URLTitle").text() + '</a></div>';
+                        }
+                        else {
+                            content_html += '<div><a class="login-btn apply-now" href="' + $(this).find("URL").text() + '"  >' + $(this).find("URLTitle").text() + '</a></div>';
+                        }
+                        content_html += '</div>';
+
+                    }
+                    content_html += '</div>';
+
+                }
+                else {
+
+                    content_html2 += '<div class="row">';
+                    //right //second related link
+                    if ($(this).find("RightImage") != null && $(this).find("RightImage") != '' && $(this).find("RightImage").text().toLowerCase() == 'true') {
+                        content_html2 += '<div class="pb-0 auto-finance-text col-lg-6 " style="float: left!important">';
+                        content_html2 += '<h1>' + $(this).find('Title').text() + '</h1>';
+                        content_html2 += '<h2>' + $(this).find('Summary').text() + '</h2>';
+                        content_html2 += '<p>' + $(this).find('Description').text() + '</p>';
+                        if ($(this).find("OpenInNewPage").text().toLowerCase() == 'true') {
+                            content_html2 += '<div><a class="login-btn apply-now" href="' + $(this).find("URL").text() + '" target="_blank" >' + $(this).find("URLTitle").text() + '</a></div>';
+                        }
+                        else {
+                            content_html2 += '<div><a class="login-btn apply-now" href="' + $(this).find("URL").text() + '"  >' + $(this).find("URLTitle").text() + '</a></div>';
+                        }
+                        content_html2 += '</div>';
+                        content_html2 += '<div class="col-lg-6 " style="float: right!important">';
+                        content_html2 += $(this).find("BabImage").text();
+                        content_html2 += '</div>';
+
+                    }
+                    else  //left //second related link
+                    {
+                        content_html2 += '<div class="col-lg-6">';
+                        content_html2 += $(this).find("BabImage").text();
+                        content_html2 += '</div>';
+                        content_html2 += '<div class="pb-0 auto-finance-text col-lg-6">';
+                        content_html2 += '<h1>' + $(this).find('Title').text() + '</h1>';
+
+                        content_html2 += '<h2>' + $(this).find('Summary').text() + '</h2>';
+                        content_html2 += '<p>' + $(this).find('Description').text() + '</p>';
+                        if ($(this).find("OpenInNewPage").text().toLowerCase() == 'true') {
+                            content_html2 += '<div><a class="login-btn apply-now" href="' + $(this).find("URL").text() + '" target="_blank" >' + $(this).find("URLTitle").text() + '</a></div>';
+                        }
+                        else {
+                            content_html2 += '<div><a class="login-btn apply-now" href="' + $(this).find("URL").text() + '"  >' + $(this).find("URLTitle").text() + '</a></div>';
+                        }
+                        content_html2 += '</div>';
+                    }
+                    content_html2 += '</div>';
+
+                }
+                Count++;
+
+
+            });
+
+            //content_html_1 += '</div>';
+
+            //content_html_1 += '</div>';
+            //content_html_1 += '</div>';
+
+
+
+
+            $('div#related-links-first').html(content_html);
+            $('div#related-links-second').html(content_html2);
+        },
+
+        Error: function (XMLHttpRequest, textStatus, errorThrown) {
+            if (raiseError)
+                alert(textStatus + ": (" + XMLHttpRequest.statusText + ")");
+        }
+
+
+
+
+    });
+
+
+
+}
+
+function LoadAboutUsRelatedLinks() {
+
+    var url = "/_LAYOUTS/15/BAB.V2.Internet.Web/web/api.aspx?Operation=" + encodeURI(RelatedLinksListName) + "&menu=" + Site + "&lang=" + Lang + "&IgnoreCache=" + IgnoreCache;
+    var content_html = '';
+    var content_html2 = '';
+
+    $.ajax({
+        type: "GET",
+        contentType: "text/xml",
+        url: url,
+        dataType: 'xml',
+        async: true,
+        success: function (xml) {
+
+            var Count = 0;
+            $(xml).find('Item').each(function () {
+                if (Count == 0) {
+                    content_html += '<div class="row">';
+                    //right //first related link
+                    if ($(this).find("RightImage") != null && $(this).find("RightImage") != '' && $(this).find("RightImage").text().toLowerCase() == 'true') {
+                        content_html += '<div class="pb-0 auto-finance-text col-lg-6 " style="float: left!important">';
+                        content_html += '<h1>' + $(this).find('Title').text() + '</h1>';
+                        content_html += '<h2>' + $(this).find('Summary').text() + '</h2>';
+                        content_html += '<p>' + $(this).find('Description').text() + '</p>';
+                        if ($(this).find("OpenInNewPage").text().toLowerCase() == 'true') {
+                            content_html += '<div><a class="login-btn apply-now" href="' + $(this).find("URL").text() + '" target="_blank" >' + $(this).find("URLTitle").text() + '</a></div>';
+                        }
+                        else {
+                            content_html += '<div><a class="login-btn apply-now" href="' + $(this).find("URL").text() + '"  >' + $(this).find("URLTitle").text() + '</a></div>';
+                        }
+                        content_html += '</div>';
+                        content_html += '<div class="col-lg-6 " style="float: right!important">';
+                        content_html += $(this).find("BabImage").text();
+                        content_html += '</div>';
+
+
+
+                    }
+                    else //left //first related link
+                    {
+                        content_html += '<div class="col-lg-6">';
+                        content_html += $(this).find("BabImage").text();
+                        content_html += '</div>';
+                        content_html += '<div class="pb-0 auto-finance-text col-lg-6">';
+                        content_html += '<h1>' + $(this).find('Title').text() + '</h1>';
+
+                        content_html += '<h2>' + $(this).find('Summary').text() + '</h2>';
+                        content_html += '<p>' + $(this).find('Description').text() + '</p>';
+                        if ($(this).find("OpenInNewPage").text().toLowerCase() == 'true') {
+                            content_html += '<div><a class="login-btn apply-now" href="' + $(this).find("URL").text() + '" target="_blank" >' + $(this).find("URLTitle").text() + '</a></div>';
+                        }
+                        else {
+                            content_html += '<div><a class="login-btn apply-now" href="' + $(this).find("URL").text() + '"  >' + $(this).find("URLTitle").text() + '</a></div>';
+                        }
+                        content_html += '</div>';
+
+                    }
+                    content_html += '</div>';
+
+                }
+                else {
+
+                    content_html2 += '<section class="corp-digi featured-ad"><div class="container"><div class="row">';
+                    //right //second related link
+                    if ($(this).find("RightImage") != null && $(this).find("RightImage") != '' && $(this).find("RightImage").text().toLowerCase() == 'true') {
+                        content_html2 += '<div class="pb-0 auto-finance-text col-lg-6 " style="float: left!important">';
+                        content_html2 += '<h1>' + $(this).find('Title').text() + '</h1>';
+                        content_html2 += '<h2>' + $(this).find('Summary').text() + '</h2>';
+                        content_html2 += '<p>' + $(this).find('Description').text() + '</p>';
+                        if ($(this).find("OpenInNewPage").text().toLowerCase() == 'true') {
+                            content_html2 += '<div><a class="login-btn apply-now" href="' + $(this).find("URL").text() + '" target="_blank" >' + $(this).find("URLTitle").text() + '</a></div>';
+                        }
+                        else {
+                            content_html2 += '<div><a class="login-btn apply-now" href="' + $(this).find("URL").text() + '"  >' + $(this).find("URLTitle").text() + '</a></div>';
+                        }
+                        content_html2 += '</div>';
+                        content_html2 += '<div class="col-lg-6 " style="float: right!important">';
+                        content_html2 += $(this).find("BabImage").text();
+                        content_html2 += '</div>';
+
+                    }
+                    else  //left //second related link
+                    {
+                        content_html2 += '<div class="col-lg-6">';
+                        content_html2 += $(this).find("BabImage").text();
+                        content_html2 += '</div>';
+                        content_html2 += '<div class="pb-0 auto-finance-text col-lg-6">';
+                        content_html2 += '<h1>' + $(this).find('Title').text() + '</h1>';
+
+                        content_html2 += '<h2>' + $(this).find('Summary').text() + '</h2>';
+                        content_html2 += '<p>' + $(this).find('Description').text() + '</p>';
+                        if ($(this).find("OpenInNewPage").text().toLowerCase() == 'true') {
+                            content_html2 += '<div><a class="login-btn apply-now" href="' + $(this).find("URL").text() + '" target="_blank" >' + $(this).find("URLTitle").text() + '</a></div>';
+                        }
+                        else {
+                            content_html2 += '<div><a class="login-btn apply-now" href="' + $(this).find("URL").text() + '"  >' + $(this).find("URLTitle").text() + '</a></div>';
+                        }
+                        content_html2 += '</div>';
+                    }
+                    content_html2 += '</div></div></section>';
+
+                }
+                Count++;
+
+
+            });
+
+            //content_html_1 += '</div>';
+
+            //content_html_1 += '</div>';
+            //content_html_1 += '</div>';
+
+
+
+
+            $('div#related-links-first').html(content_html);
+            $('div#related-links-second').html(content_html2);
+        },
+
+        Error: function (XMLHttpRequest, textStatus, errorThrown) {
+            if (raiseError)
+                alert(textStatus + ": (" + XMLHttpRequest.statusText + ")");
+        }
+
+
+
+
+    });
+
+
+
+}
+
+function LoadLoanCalcTitleArEn() {
+    if (Lang == "en") {
+        $('#loan-calc-title').text("Financing Calculator");
+    }
+    else {
+        $('#loan-calc-title').text("حاسبة التمويل");
+
+    }
+}
+
+function LoadWhatIsNewTitleArEn() {
+    if (Lang == "en") {
+        $('#hwhat-new').text("New at Bank Albilad");
+    }
+    else {
+        $('#hwhat-new').text("الجديد في بنك البلاد");
+
+    }
+}
+
+
+
+
+
+
+
+
+
+function GetDate() {
+    if (document.getElementById("year") != null) {
+        document.getElementById("year").innerHTML = new Date().getFullYear();
+    }
+    if (document.getElementById("year2") != null) {
+        document.getElementById("year2").innerHTML = new Date().getFullYear();
+    }
+}
+
+
+function PreparePersonalLoanFunctions() {
+
+    var personalSalaryValue = $('#personal-salary');
+    var personalperiodValue = $('#personal-period');
+    var personalextraValue = $('#personal-extra');
+    jQuery(personalSalaryValue).focusout(function () {
+        if ($('#personal-salary').val() == '' || $('#personal-salary').val() === '0') {
+
+            var div = personalSalaryValue.parent("div");
+            div.removeClass('has-success');
+            div.addClass('has-error');
+            if (Lang == 'en') {
+                $('#spnpersonal-salary').text('\n Mandatory field \n');
+            }
+            else {
+                $('#spnpersonal-salary').text('\n الحقل مطلوب\n');
+
+            }
+        }
+        else {
+            var isValid = idRegexPattern.test(personalSalaryValue.val());
+            if (!isValid) {
+
+                var div = personalSalaryValue.parent("div");
+                div.removeClass('has-success');
+                div.addClass('has-error');
+                if (Lang == 'en') {
+                    $('#spnpersonal-salary').text('Numbers Only');
+                }
+                else {
+                    $('#spnpersonal-salary').text('أرقام فقط');
+                }
+
+            }
+            else {
+                var div = personalSalaryValue.parent("div");
+                div.removeClass('has-error');
+                div.addClass('has-success');
+                $('#spnpersonal-salary').text('');
+            }
+
+        }
+    });
+
+    jQuery(personalperiodValue).focusout(function () {
+        if ($('#personal-period').val() == '-1') {
+
+            var div = personalperiodValue.parent("div");
+            div.removeClass('has-success');
+            div.addClass('has-error');
+            if (Lang == 'en') {
+                $('#spnpersonal-period').text('\n Mandatory field \n');
+            }
+            else {
+                $('#spnpersonal-period').text('\n الحقل مطلوب\n');
+
+            }
+
+        }
+        else {
+
+            var div = personalperiodValue.parent("div");
+            div.removeClass('has-error');
+            div.addClass('has-success');
+            $('#spnpersonal-period').text('');
+
+        }
+    });
+
+    jQuery(personalextraValue).focusout(function () {
+        if ($('#personal-extra').val() == '' || $('#personal-extra').val() === '0') {
+            var div = personalextraValue.parent("div");
+            div.removeClass('has-error');
+            div.addClass('has-success');
+            $('#spnpersonal-extra').text('');
+
+        }
+        else {
+            var isValid = idRegexPattern.test(personalextraValue.val());
+            if (!isValid) {
+
+                var div = personalextraValue.parent("div");
+                div.removeClass('has-success');
+                div.addClass('has-error');
+                if (Lang == 'en') {
+                    $('#spnpersonal-extra').text('Numbers Only');
+                }
+                else {
+                    $('#spnpersonal-extra').text('أرقام فقط');
+                }
+
+            }
+            else {
+                var div = personalextraValue.parent("div");
+                div.removeClass('has-error');
+                div.addClass('has-success');
+                $('#spnpersonal-extra').text('');
+            }
+
+        }
+    });
+
+
+    $('span#realestate-loan-header').click(function () {
+
+
+        $('#personal-loan-resp').hide();
+        $("#personal-loan-resp").css("display", "none");
+        $('#realestate-loan-resp').show();
+        $("#realestate-loan-resp").css("display", "block");
+        $('#autolease-loan-resp').hide();
+        $("#autolease-loan-resp").css("display", "none");
+
+    });
+
+
+
+
+    $('span#personal-loan-header').click(function () {
+
+
+        $('#personal-loan-resp').show();
+        $("#personal-loan-resp").css("display", "block");
+        $('#realestate-loan-resp').hide();
+        $("#realestate-loan-resp").css("display", "none");
+        $('#autolease-loan-resp').hide();
+        $("#autolease-loan-resp").css("display", "none");
+
+    });
+
+    $('span#autolease-loan-header').click(function () {
+
+
+        $('#personal-loan-resp').hide();
+        $("#personal-loan-resp").css("display", "none");
+        $('#realestate-loan-resp').hide();
+        $("#realestate-loan-resp").css("display", "none");
+        $('#autolease-loan-resp').show();
+        $("#autolease-loan-resp").css("display", "block");
+
+    });
+
+    $('.resp-tab-item').click(function () {
+
+        if ($(this).attr('aria-controls') == "hor_1_tab_item-0") {
+            $('#personal-loan-resp').show();
+            $("#personal-loan-resp").css("display", "block");
+            $('#realestate-loan-resp').hide();
+            $("#realestate-loan-resp").css("display", "none");
+            $('#autolease-loan-resp').hide();
+            $("#autolease-loan-resp").css("display", "none");
+        }
+        else if ($(this).attr('aria-controls') == "hor_1_tab_item-1") {
+            $('#personal-loan-resp').hide();
+            $("#personal-loan-resp").css("display", "none");
+            $('#realestate-loan-resp').show();
+            $("#realestate-loan-resp").css("display", "block");
+            $('#autolease-loan-resp').hide();
+            $("#autolease-loan-resp").css("display", "none");
+        }
+        else if ($(this).attr('aria-controls') == "hor_1_tab_item-2") {
+            $('#personal-loan-resp').hide();
+            $("#personal-loan-resp").css("display", "none");
+            $('#realestate-loan-resp').hide();
+            $("#realestate-loan-resp").css("display", "none");
+            $('#autolease-loan-resp').show();
+            $("#autolease-loan-resp").css("display", "block");
+        }
+    });
+
+
+    function GetAPRPersonal() {
+
+        var personalSalaryValue = $('#personal-salary').val();
+        var personalperiodValue = $('#personal-period').val() * 12;
+
+        var DBR = 33.33;
+        var iInstOther = 1;
+        var iNationailty = "Saudi";
+        var iSubSector = "Private-A";
+
+
+        var iFlatRate = "1.75";
+        iFlatRate = (isNaN(parseFloat(iFlatRate)) ? 0 : iFlatRate)
+        iFlatRate = (iFlatRate / 100);
+
+        var iTotalInstallment = personalperiodValue;
+        var iDBR = (isNaN(parseFloat(DBR)) ? 0 : parseFloat(DBR));
+        iDBR = (iDBR / 100);//
+        var iTotalToPayback = (((personalSalaryValue * iDBR) - iInstOther) * iTotalInstallment).toFixed(1);
+        var iMonthlInstallment = (iTotalToPayback / iTotalInstallment);
+        var iTotalPrincipal = ((iTotalToPayback) / (1 + (iFlatRate * (personalperiodValue / 12)))).toFixed(1);
+        var TempAdminFees = (0.01 * iTotalPrincipal).toFixed(0);
+        var TotalAdminFee = TempAdminFees <= 5000 ? TempAdminFees : 5000;
+        var iTradingFee = ((iTotalPrincipal - 70.0) * 0.0015).toFixed(1);
+        var iCustomerToReceieve = iTotalPrincipal - (70.0 + +iTradingFee)
+        var iFinancedForAPRAmt = (iCustomerToReceieve - TotalAdminFee);
+        var iAPRVal = GetPersonalIRR(iTotalInstallment, iFinancedForAPRAmt, iMonthlInstallment);
+
+
+        iAPRVal = iAPRVal / 100;
+
+        var APR = ((Math.pow(1 + (iAPRVal / 12), 12) - 1) * 100);
+
+        return APR;
+    }
+
+
+    function IRRCalc(arr, guest) {
+        inc = 0.000001;
+        do {
+            guest += inc;
+            NPV = 0;
+            for (var j = 0; j < arr.length; j++) {
+                NPV += arr[j] / Math.pow((1 + guest), j);
+            }
+        } while (NPV > 0);
+        return guest * 100;
+    }
+
+    function GetPersonalIRR(period, financed, installment) {
+        var IRRval = [];
+        IRRval.push(-financed);
+        for (i = 1; i <= period; i++) {
+            IRRval.push(installment);
+        }
+
+        var IRR = IRRCalc(IRRval, 0.001);   //.toFixed(2);//* 0.01;   //IRRCalc(IRRval, 0.001).toFixed(2); //* 0.01;
+        return IRR * 12;
+    }
+
+
+    $('#personal-submit').click(function (event) {
+
+        event.preventDefault();
+        var valid = true;
+        var personalSalaryValue = $('#personal-salary');
+        var personalperiodValue = $('#personal-period');
+        var personalextraValue = $('#personal-extra');
+        var personalextraValue = $('#personal-extra');
+        var personal_extraAmount = 0;
+
+        if ($('#personal-salary').val() == '' || $('#personal-salary').val() === '0') {
+
+            var div = personalSalaryValue.parent("div");
+            div.removeClass('has-success');
+            div.addClass('has-error');
+            if (Lang == 'en') {
+                $('#spnpersonal-salary').text('\n Mandatory field \n');
+            }
+            else {
+                $('#spnpersonal-salary').text('\n الحقل مطلوب\n');
+
+            }
+            valid = false;
+        }
+        else {
+            var isValid = idRegexPattern.test(personalSalaryValue.val());
+            if (!isValid) {
+
+                var div = personalSalaryValue.parent("div");
+                div.removeClass('has-success');
+                div.addClass('has-error');
+                if (Lang == 'en') {
+                    $('#spnpersonal-salary').text('Numbers Only');
+                }
+                else {
+                    $('#spnpersonal-salary').text('أرقام فقط');
+                }
+                valid = false;
+            }
+            else {
+                var div = personalSalaryValue.parent("div");
+                div.removeClass('has-error');
+                div.addClass('has-success');
+                $('#spnpersonal-salary').text('');
+                valid = true;
+            }
+
+
+        }
+
+        //if (valid) {
+
+        if ($('#personal-period').val() == '-1') {
+
+            var div = personalperiodValue.parent("div");
+            div.removeClass('has-success');
+            div.addClass('has-error');
+            if (Lang == 'en') {
+                $('#spnpersonal-period').text('\n Mandatory field \n');
+            }
+            else {
+                $('#spnpersonal-period').text('\n الحقل مطلوب\n');
+
+            }
+            valid = false;
+        }
+        else {
+            var div = personalperiodValue.parent("div");
+            div.removeClass('has-error');
+            div.addClass('has-success');
+            $('#spnpersonal-period').text('');
+            valid = valid;
+        }
+
+        //}
+        //  if (valid) {
+
+        if ($('#personal-extra').val() == '' || $($('#personal-extra').val() === '0')) {
+
+            // valid = true;
+            personal_extraAmount = 0;
+        }
+        else {
+            var isValid = idRegexPattern.test(personalextraValue.val());
+            if (!isValid) {
+
+                var div = personalextraValue.parent("div");
+                div.removeClass('has-success');
+                div.addClass('has-error');
+                valid = false;
+                if (Lang == 'en') {
+                    $('#spnpersonal-extra').text('Numbers Only');
+                }
+                else {
+                    $('#spnpersonal-extra').text('أرقام فقط');
+
+                }
+
+            }
+            else {
+                var div = personalextraValue.parent("div");
+                div.removeClass('has-error');
+                div.addClass('has-success');
+                $('#spnpersonal-extra').text('');
+                valid = valid;
+                personal_extraAmount = personalextraValue.val();
+            }
+
+        }
+        //}
+
+
+        if (valid) {
+            var personal_period = $('#personal-period').val();
+            var personal_dedcut_percent = 2.3;
+
+            var deduct1 = parseInt($('#personal-salary').val()) * 33.33 / 100;
+            var deduct2 = (parseInt($('#personal-salary').val()) + parseInt(personal_extraAmount)) * 45 / 100;
+            var installment = Math.min(deduct1, deduct2);
+
+            $('div#personal-loan').hide();
+            $('div#personal-loan-result').show();
+            $('#personal-installment').text(installment.toString());
+            $('#personal-total').text(installment * (personal_period * 12));// parseInt($('#personal-period').val()));
+            $('#personal-total-grand').text(parseInt($('#personal-total').text()) / (1 + ((personal_dedcut_percent / 100) * personal_period)));
+
+            $('#personal-apr').text(GetAPRPersonal().toFixed(2) + " % "); // personal_dedcut_percent / 100);
+            $('#personal-tenor-years').text(personal_period);
+
+            var installment_val = $('#personal-installment').text().split(".")[0];
+            var total = $('#personal-total').text().split(".")[0];
+            var total_grand = $('#personal-total-grand').text().split(".")[0];
+            $('#personal-installment').text(currencyFormat(installment_val));
+            $('#personal-total').text(currencyFormat(total));
+            $('#personal-total-grand').text(currencyFormat(total_grand));
+
+
+
+        }
+    });
+
+    $('#personal-back').click(function (event) {
+
+        event.preventDefault();
+
+
+        $('div#personal-loan').show();
+        $('div#personal-loan-result').hide();
+        $('#personal-installment').text("");
+        $('#personal-total').text("");
+        $('#personal-total-grand').text("");
+
+        $('#personal-apr').text("");
+        $('#personal-tenor-years').text("");
+
+        $('#personal-salary').val("");
+        $('#personal-period').val("-1");
+
+        $('#personal-loan').show();
+        $("#personal-loan").css("display", "block");
+
+    });
+    $('#personal-cancel').click(function (event) {
+
+        event.preventDefault();
+
+
+        $('div#personal-loan').show();
+        $('div#personal-loan-result').hide();
+        $('#personal-installment').text("");
+        $('#personal-total').text("");
+        $('#personal-total-grand').text("");
+        $('#personal-salary').val("");
+        $('#personal-period').val("-1");
+        $('#personal-extra').val("");
+
+        $('#personal-apr').text("");
+        $('#personal-tenor-years').text("");
+
+
+        $('#personal-loan').show();
+        $("#personal-loan").css("display", "block");
+
+    });
+
+    function currencyFormat(num) {
+        var parsed = parseFloat(num);
+        if (isNaN(parsed)) { return 0 }
+        var sar = "";
+        if (Lang == 'en')
+            sar = "SAR";
+        else
+            sar = "ر.س"
+        return parsed.toFixed(2).replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1,') + " " + sar;
+    }
+
+}
+
+function PrepareRealestateLoanFunctions() {
+    var realestateSalaryValue = $('#realestate-salary');
+    var realestateperiodValue = $('#realestate-period');
+    var realestateageValue = $('#realestate-age');
+    var realestatepriceValue = $('#realestate-price');
+    var realestateredfValue = $('#realestate-redf');
+    var realestatetypes = $('#realestate-types');
+    var realestateconstperiod = $('#realestate-constperiod');
+    var CaptchaValue = $('#txtCaptchaValue');
+    var imgCaptcha = $('[id*=imgCaptcha]');
+
+
+
+    var captchaMsg = 'رمز التحقق غير صحيح';
+
+    if (Lang == 'en') { captchaMsg = 'Incorrect Captcha'; }
+
+    jQuery(realestateSalaryValue).focusout(function () {
+        if (realestateSalaryValue.val() == '' || realestateSalaryValue.val() === '0') {
+
+            var div = realestateSalaryValue.parent("div");
+            div.removeClass('has-success');
+            div.addClass('has-error');
+            if (Lang == 'en') {
+                $('#spnrealestate-salary').text('\n Mandatory field \n');
+            }
+            else {
+                $('#spnrealestate-salary').text('\n الحقل مطلوب\n');
+
+            }
+
+        }
+        else {
+            var isValid = idRegexPattern.test(realestateSalaryValue.val());
+            if (!isValid) {
+
+                var div = realestateSalaryValue.parent("div");
+                div.removeClass('has-success');
+                div.addClass('has-error');
+                if (Lang == 'en') {
+                    $('#spnrealestate-salary').text('Numbers Only');
+                }
+                else {
+                    $('#spnrealestate-salary').text('أرقام فقط');
+                }
+
+            }
+            else {
+                var div = realestateSalaryValue.parent("div");
+                div.removeClass('has-error');
+                div.addClass('has-success');
+                $('#spnrealestate-salary').text('');
+
+            }
+        }
+    });
+
+
+    jQuery(realestateperiodValue).focusout(function () {
+        if (realestateperiodValue.val() == '' || realestateperiodValue.val() === '0') {
+
+            var div = realestateperiodValue.parent("div");
+            div.removeClass('has-success');
+            div.addClass('has-error');
+            if (Lang == 'en') {
+                $('#spnrealestate-period').text('\n Mandatory field \n');
+            }
+            else {
+                $('#spnrealestate-period').text('\n الحقل مطلوب\n');
+
+            }
+
+
+
+        } else {
+            var isValid = idRegexPattern.test(realestateperiodValue.val());
+            if (!isValid) {
+
+                var div = realestateperiodValue.parent("div");
+                div.removeClass('has-success');
+                div.addClass('has-error');
+                if (Lang == 'en') {
+                    $('#spnrealestate-period').text('Numbers Only');
+                }
+                else {
+                    $('#spnrealestate-period').text('أرقام فقط');
+                }
+
+
+            }
+            else {
+
+                if (parseInt(realestateperiodValue.val()) > 25) {
+
+                    var div = realestateperiodValue.parent("div");
+                    div.removeClass('has-success');
+                    div.addClass('has-error');
+                    if (Lang == 'en') {
+                        $('#spnrealestate-period').text('maximum Finance Period is 25 Years');
+                    }
+                    else {
+                        $('#spnrealestate-period').text('المدة المسموحة هي 25 سنة كحد أقصى');
+                    }
+
+                }
+                else {
+                    var div = realestateperiodValue.parent("div");
+                    div.removeClass('has-error');
+                    div.addClass('has-success');
+                    $('#spnrealestate-period').text('');
+
+                }
+            }
+
+        }
+    });
+
+
+    jQuery(realestateageValue).focusout(function () {
+        if (realestateageValue.val() == '' || realestateageValue.val() === '0') {
+
+            var div = realestateageValue.parent("div");
+            div.removeClass('has-success');
+            div.addClass('has-error');
+            if (Lang == 'en') {
+                $('#spnrealestate-age').text('\n Mandatory field \n');
+            }
+            else {
+                $('#spnrealestate-age').text('\n الحقل مطلوب\n');
+
+            }
+
+
+
+        }
+        else {
+            var isValid = idRegexPattern.test(realestateageValue.val());
+            if (!isValid) {
+
+                var div = realestateageValue.parent("div");
+                div.removeClass('has-success');
+                div.addClass('has-error');
+                if (Lang == 'en') {
+                    $('#spnrealestate-age').text('Numbers Only');
+                }
+                else {
+                    $('#spnrealestate-age').text('أرقام فقط');
+                }
+
+
+            }
+            else {
+
+                if (parseInt(realestateageValue.val()) > 69) {
+
+                    var div = realestateageValue.parent("div");
+                    div.removeClass('has-success');
+                    div.addClass('has-error');
+                    if (Lang == 'en') {
+                        $('#spnrealestate-age').text('maximum allowed age is 69 Year');
+                    }
+                    else {
+                        $('#spnrealestate-age').text('العمر المدخل لا يمكن ان يتجازو 69 سنة');
+                    }
+
+                }
+                else {
+                    var allowed_Age = 20;
+                    if (realestatetypes.val() == 'OffPlanCalc' || realestatetypes.val() == 'LSFAgMortgageCalc')
+                        allowed_Age = 21;
+
+                    if (parseInt(realestateageValue.val()) < allowed_Age) {
+
+                        var div = realestateageValue.parent("div");
+                        div.removeClass('has-success');
+                        div.addClass('has-error');
+                        if (Lang == 'en') {
+                            $('#spnrealestate-age').text('minimum allowed age is ' + allowed_Age + ' Year');
+                        }
+                        else {
+                            $('#spnrealestate-age').text('العمر المدخل لا يمكن أن يقل عن ' + allowed_Age + ' سنة');
+                        }
+
+                    }
+                    else {
+                        var div = realestateageValue.parent("div");
+                        div.removeClass('has-error');
+                        div.addClass('has-success');
+                        $('#spnrealestate-age').text('');
+
+                    }
+                }
+            }
+
+        }
+    });
+
+
+    jQuery(realestateconstperiod).focusout(function () {
+        if (realestateconstperiod.val() == '' || realestateconstperiod.val() === '0') {
+
+            var div = realestateconstperiod.parent("div");
+            div.removeClass('has-success');
+            div.addClass('has-error');
+            if (Lang == 'en') {
+                $('#spnrealestate-constperiod').text('\n Mandatory field \n');
+            }
+            else {
+                $('#spnrealestate-constperiod').text('\n الحقل مطلوب\n');
+
+            }
+
+        }
+        else {
+            var isValid = idRegexPattern.test(realestateconstperiod.val());
+            if (!isValid) {
+
+                var div = realestateconstperiod.parent("div");
+                div.removeClass('has-success');
+                div.addClass('has-error');
+                if (Lang == 'en') {
+                    $('#spnrealestate-constperiod').text('Numbers Only');
+                }
+                else {
+                    $('#spnrealestate-constperiod').text('أرقام فقط');
+                }
+
+            }
+            else {
+
+                if (parseInt(realestateconstperiod.val()) > 24) {
+
+                    var div = realestateconstperiod.parent("div");
+                    div.removeClass('has-success');
+                    div.addClass('has-error');
+                    if (Lang == 'en') {
+                        $('#spnrealestate-constperiod').text('maximum allowed is 24 Months');
+                    }
+                    else {
+                        $('#spnrealestate-constperiod').text('مدة البناء لا يمكن ان تتجاوز 24 شهر');
+                    }
+                }
+                else {
+                    var div = realestateconstperiod.parent("div");
+                    div.removeClass('has-error');
+                    div.addClass('has-success');
+                    $('#spnrealestate-constperiod').text('');
+
+                }
+            }
+
+        }
+    });
+
+
+    jQuery(realestatepriceValue).focusout(function () {
+        if (realestatepriceValue.val() == '' || realestatepriceValue.val() === '0') {
+
+            var div = realestatepriceValue.parent("div");
+            div.removeClass('has-success');
+            div.addClass('has-error');
+            if (Lang == 'en') {
+                $('#spnrealestate-price').text('\n Mandatory field \n');
+            }
+            else {
+                $('#spnrealestate-price').text('\n الحقل مطلوب\n');
+
+            }
+
+        }
+        else {
+            var isValid = idRegexPattern.test(realestatepriceValue.val());
+            if (!isValid) {
+
+                var div = realestatepriceValue.parent("div");
+                div.removeClass('has-success');
+                div.addClass('has-error');
+                if (Lang == 'en') {
+                    $('#spnrealestate-price').text('Numbers Only');
+                }
+                else {
+                    $('#spnrealestate-price').text('أرقام فقط');
+                }
+
+
+            }
+            else {
+                var div = realestatepriceValue.parent("div");
+                div.removeClass('has-error');
+                div.addClass('has-success');
+                $('#spnrealestate-price').text('');
+
+            }
+
+        }
+    });
+
+
+    jQuery(realestateredfValue).change(function () {
+        if (realestateredfValue.val() !== 'no' && realestateredfValue.val() !== "yes") {
+
+            var div = realestateredfValue.parent("div");
+            div.removeClass('has-success');
+            div.addClass('has-error');
+            if (Lang == 'en') {
+                $('#spnrealestate-redf').text('\n Mandatory field \n');
+            }
+            else {
+                $('#spnrealestate-redf').text('\n الحقل مطلوب\n');
+
+            }
+
+        }
+        else {
+
+            var div = realestateredfValue.parent("div");
+            div.removeClass('has-error');
+            div.addClass('has-success');
+            $('#spnrealestate-redf').text('');
+
+        }
+    });
+
+
+    jQuery(realestateredfValue).focusout(function () {
+        if (realestateredfValue.val() !== 'no' && realestateredfValue.val() !== "yes") {
+
+            var div = realestateredfValue.parent("div");
+            div.removeClass('has-success');
+            div.addClass('has-error');
+            if (Lang == 'en') {
+                $('#spnrealestate-redf').text('\n Mandatory field \n');
+            }
+            else {
+                $('#spnrealestate-redf').text('\n الحقل مطلوب\n');
+
+            }
+
+        }
+        else {
+
+            var div = realestateredfValue.parent("div");
+            div.removeClass('has-error');
+            div.addClass('has-success');
+            $('#spnrealestate-redf').text('');
+
+        }
+    });
+
+
+    jQuery(realestatetypes).change(function () {
+
+        if (realestatetypes.val() == '-1') {
+
+            var div = realestatetypes.parent("div");
+            div.removeClass('has-success');
+            div.addClass('has-error');
+            if (Lang == 'en') {
+                $('#spnrealestate-types').text('\n Mandatory field \n');
+            }
+            else {
+                $('#spnrealestate-types').text('\n الحقل مطلوب\n');
+
+            }
+
+            $('#div-realestate-constperiod').hide();
+            $('#div-realestate-selfconst').hide();
+
+        }
+        else {
+
+            if (realestatetypes.val() == 'OffPlanCalc')
+                $('#div-realestate-constperiod').show();
+            else
+                $('#div-realestate-constperiod').hide();
+
+            if (realestatetypes.val() == 'SelfConstructionCalc')
+                $('#div-realestate-selfconst').show();
+            else
+                $('#div-realestate-selfconst').hide();
+
+            var div = realestatetypes.parent("div");
+            div.removeClass('has-error');
+            div.addClass('has-success');
+            $('#spnrealestate-types').text('');
+
+        }
+    });
+
+
+    jQuery(realestatetypes).focusout(function () {
+        if (realestatetypes.val() == '-1') {
+
+            var div = realestatetypes.parent("div");
+            div.removeClass('has-success');
+            div.addClass('has-error');
+            if (Lang == 'en') {
+                $('#spnrealestate-types').text('\n Mandatory field \n');
+            }
+            else {
+                $('#spnrealestate-types').text('\n الحقل مطلوب\n');
+
+            }
+
+        }
+        else {
+
+            var div = realestatetypes.parent("div");
+            div.removeClass('has-error');
+            div.addClass('has-success');
+            $('#spnrealestate-types').text('');
+
+        }
+    });
+
+
+    jQuery(CaptchaValue).focusout(function () {
+        if (CaptchaValue.val() == '') {
+
+
+            var div = CaptchaValue.parent("div");
+            div.removeClass('has-success');
+            div.addClass('has-error');
+            $('#spnCaptchaValue').text(captchaMsg);
+
+
+            imgCaptcha.attr('src', "/_Layouts/15/BAB.V2.Internet.Web/web/Captcha.aspx?" + new Date().getTime());
+
+
+        }
+        else {
+            $.ajax({
+                url: '/_LAYOUTS/15/BAB.V2.Internet.Web/web/api.aspx?Operation=verifyCorrectCaptcha&captcha=' + CaptchaValue.val(),
+                async: false,
+                cache: false,
+                dataType: 'text',
+                success: function (txt) {
+
+                    if (txt == "True") {
+                        var div = CaptchaValue.parent("div");
+                        div.removeClass('has-error');
+                        div.addClass('has-success');
+                        $('#spnCaptchaValue').text('');
+                    }
+                    else {
+                        var div = CaptchaValue.parent("div");
+                        div.removeClass('has-success');
+                        div.addClass('has-error');
+                        $('#spnCaptchaValue').text(captchaMsg);
+
+                        imgCaptcha.attr('src', "/_Layouts/15/BAB.V2.Internet.Web/web/Captcha.aspx?" + new Date().getTime());
+                    }
+                },
+                error: function (XMLHttpRequest, textStatus, errorThrown) {
+
+                    var div = CaptchaValue.parent("div");
+                    div.removeClass('has-success');
+                    div.addClass('has-error');
+                    $('#spnCaptchaValue').text(captchaMsg);
+
+                    imgCaptcha.attr('src', "/_Layouts/15/BAB.V2.Internet.Web/web/Captcha.aspx?" + new Date().getTime());
+                }
+            });
+        }
+    });
+
+
+
+
+
+    $('#realestate-submit').click(function (event) {
+
+        ValidateRealEstateLoan();
+        return false;
+    });
+
+    function ValidateRealEstateLoan() {
+        var isValidLoanData = true;
+        if (realestateSalaryValue.val() == '' || realestateSalaryValue.val() === '0') {
+
+            var div = realestateSalaryValue.parent("div");
+            div.removeClass('has-success');
+            div.addClass('has-error');
+            if (Lang == 'en') {
+                $('#spnrealestate-salary').text('\n Mandatory field \n');
+            }
+            else {
+                $('#spnrealestate-salary').text('\n الحقل مطلوب\n');
+
+            }
+            isValidLoanData = false;
+        }
+        else {
+            var isValid = idRegexPattern.test(realestateSalaryValue.val());
+            if (!isValid) {
+
+                var div = realestateSalaryValue.parent("div");
+                div.removeClass('has-success');
+                div.addClass('has-error');
+                if (Lang == 'en') {
+                    $('#spnrealestate-salary').text('Numbers Only');
+                }
+                else {
+                    $('#spnrealestate-salary').text('أرقام فقط');
+                }
+                isVaisValidLoanDatalid = false;
+            }
+            else {
+                var div = realestateSalaryValue.parent("div");
+                div.removeClass('has-error');
+                div.addClass('has-success');
+                $('#spnrealestate-salary').text('');
+            }
+        }
+
+
+        if (realestateperiodValue.val() == '' || realestateperiodValue.val() === '0') {
+
+            var div = realestateperiodValue.parent("div");
+            div.removeClass('has-success');
+            div.addClass('has-error');
+            if (Lang == 'en') {
+                $('#spnrealestate-period').text('\n Mandatory field \n');
+            }
+            else {
+                $('#spnrealestate-period').text('\n الحقل مطلوب\n');
+
+            }
+
+            isValidLoanData = false;
+
+        } else {
+            var isValid = idRegexPattern.test(realestateperiodValue.val());
+            if (!isValid) {
+
+                var div = realestateperiodValue.parent("div");
+                div.removeClass('has-success');
+                div.addClass('has-error');
+                if (Lang == 'en') {
+                    $('#spnrealestate-period').text('Numbers Only');
+                }
+                else {
+                    $('#spnrealestate-period').text('أرقام فقط');
+                }
+                isValidLoanData = false;
+
+            }
+            else {
+
+                if (parseInt(realestateperiodValue.val()) > 25) {
+
+                    var div = realestateperiodValue.parent("div");
+                    div.removeClass('has-success');
+                    div.addClass('has-error');
+                    if (Lang == 'en') {
+                        $('#spnrealestate-period').text('maximum Finance Period is 25 Years');
+                    }
+                    else {
+                        $('#spnrealestate-period').text('المدة المسموحة هي 25 سنة كحد أقصى');
+                    }
+                    isValidLoanData = false;
+                }
+                else {
+                    var div = realestateperiodValue.parent("div");
+                    div.removeClass('has-error');
+                    div.addClass('has-success');
+                    $('#spnrealestate-period').text('');
+                }
+            }
+
+        }
+
+
+        if (realestateageValue.val() == '' || realestateageValue.val() === '0') {
+
+            var div = realestateageValue.parent("div");
+            div.removeClass('has-success');
+            div.addClass('has-error');
+            if (Lang == 'en') {
+                $('#spnrealestate-age').text('\n Mandatory field \n');
+            }
+            else {
+                $('#spnrealestate-age').text('\n الحقل مطلوب\n');
+
+            }
+            isValidLoanData = false;
+
+
+        }
+        else {
+            var isValid = idRegexPattern.test(realestateageValue.val());
+            if (!isValid) {
+
+                var div = realestateageValue.parent("div");
+                div.removeClass('has-success');
+                div.addClass('has-error');
+                if (Lang == 'en') {
+                    $('#spnrealestate-age').text('Numbers Only');
+                }
+                else {
+                    $('#spnrealestate-age').text('أرقام فقط');
+                }
+                isValidLoanData = false;
+
+            }
+            else {
+
+                if (parseInt(realestateageValue.val()) > 69) {
+
+                    var div = realestateageValue.parent("div");
+                    div.removeClass('has-success');
+                    div.addClass('has-error');
+                    if (Lang == 'en') {
+                        $('#spnrealestate-age').text('maximum allowed age is 69 Year');
+                    }
+                    else {
+                        $('#spnrealestate-age').text('العمر المدخل لا يمكن ان يتجازو 69 سنة');
+                    }
+                    isValidLoanData = false;
+                }
+                else {
+
+                    var allowed_Age = 20;
+                    if (realestatetypes.val() == 'OffPlanCalc' || realestatetypes.val() == 'LSFAgMortgageCalc')
+                        allowed_Age = 21;
+
+                    if (parseInt(realestateageValue.val()) < allowed_Age) {
+
+                        var div = realestateageValue.parent("div");
+                        div.removeClass('has-success');
+                        div.addClass('has-error');
+                        if (Lang == 'en') {
+                            $('#spnrealestate-age').text('minimum allowed age is ' + allowed_Age + ' Year');
+                        }
+                        else {
+                            $('#spnrealestate-age').text('العمر المدخل لا يمكن أن يقل عن ' + allowed_Age + ' سنة');
+                        }
+
+                    }
+                    else {
+                        var div = realestateageValue.parent("div");
+                        div.removeClass('has-error');
+                        div.addClass('has-success');
+                        $('#spnrealestate-age').text('');
+                    }
+                }
+            }
+
+        }
+
+        if (realestatetypes.val() == '-1') {
+
+            var div = realestatetypes.parent("div");
+            div.removeClass('has-success');
+            div.addClass('has-error');
+            if (Lang == 'en') {
+                $('#spnrealestate-types').text('\n Mandatory field \n');
+            }
+            else {
+                $('#spnrealestate-types').text('\n الحقل مطلوب\n');
+
+            }
+            isValidLoanData = false;
+        }
+        else {
+
+            var div = realestatetypes.parent("div");
+            div.removeClass('has-error');
+            div.addClass('has-success');
+            $('#spnrealestate-types').text('');
+
+        }
+
+
+        if (realestatetypes.val() == 'OffPlanCalc') {
+            if (realestateconstperiod.val() == '' || realestateconstperiod.val() === '0') {
+
+                var div = realestateconstperiod.parent("div");
+                div.removeClass('has-success');
+                div.addClass('has-error');
+                if (Lang == 'en') {
+                    $('#spnrealestate-constperiod').text('\n Mandatory field \n');
+                }
+                else {
+                    $('#spnrealestate-constperiod').text('\n الحقل مطلوب\n');
+
+                }
+                isValidLoanData = false;
+
+
+            }
+            else {
+                var isValid = idRegexPattern.test(realestateconstperiod.val());
+                if (!isValid) {
+
+                    var div = realestateconstperiod.parent("div");
+                    div.removeClass('has-success');
+                    div.addClass('has-error');
+                    if (Lang == 'en') {
+                        $('#spnrealestate-constperiod').text('Numbers Only');
+                    }
+                    else {
+                        $('#spnrealestate-constperiod').text('أرقام فقط');
+                    }
+                    isValidLoanData = false;
+
+                }
+                else {
+
+                    if (parseInt(realestateconstperiod.val()) > 24) {
+
+                        var div = realestateconstperiod.parent("div");
+                        div.removeClass('has-success');
+                        div.addClass('has-error');
+                        if (Lang == 'en') {
+                            $('#spnrealestate-constperiod').text('maximum allowed is 24 Months');
+                        }
+                        else {
+                            $('#spnrealestate-constperiod').text('مدة البناء لا يمكن ان تتجاوز 24 شهر');
+                        }
+                        isValidLoanData = false;
+                    }
+                    else {
+                        var div = realestateconstperiod.parent("div");
+                        div.removeClass('has-error');
+                        div.addClass('has-success');
+                        $('#spnrealestate-constperiod').text('');
+
+                    }
+                }
+
+            }
+
+        }
+
+
+
+        if (realestatepriceValue.val() == '' || realestatepriceValue.val() === '0') {
+
+            var div = realestatepriceValue.parent("div");
+            div.removeClass('has-success');
+            div.addClass('has-error');
+            if (Lang == 'en') {
+                $('#spnrealestate-price').text('\n Mandatory field \n');
+            }
+            else {
+                $('#spnrealestate-price').text('\n الحقل مطلوب\n');
+
+            }
+            isValidLoanData = false;
+        }
+        else {
+            var isValid = idRegexPattern.test(realestatepriceValue.val());
+            if (!isValid) {
+
+                var div = realestatepriceValue.parent("div");
+                div.removeClass('has-success');
+                div.addClass('has-error');
+                if (Lang == 'en') {
+                    $('#spnrealestate-price').text('Numbers Only');
+                }
+                else {
+                    $('#spnrealestate-price').text('أرقام فقط');
+                }
+                isValidLoanData = false;
+
+            }
+            else {
+                var div = realestatepriceValue.parent("div");
+                div.removeClass('has-error');
+                div.addClass('has-success');
+                $('#spnrealestate-price').text('');
+
+            }
+
+        }
+
+        if (realestateredfValue.val() !== 'no' && realestateredfValue.val() !== "yes") {
+
+            var div = realestateredfValue.parent("div");
+            div.removeClass('has-success');
+            div.addClass('has-error');
+            if (Lang == 'en') {
+                $('#spnrealestate-redf').text('\n Mandatory field \n');
+            }
+            else {
+                $('#spnrealestate-redf').text('\n الحقل مطلوب\n');
+
+            }
+            isValidLoanData = false;
+        }
+        else {
+
+            var div = realestateredfValue.parent("div");
+            div.removeClass('has-error');
+            div.addClass('has-success');
+            $('#spnrealestate-redf').text('');
+
+        }
+
+
+
+
+
+        if (CaptchaValue.val() == '') {
+
+
+            var div = CaptchaValue.parent("div");
+            div.removeClass('has-success');
+            div.addClass('has-error');
+
+            $('#spnCaptchaValue').text(captchaMsg);
+            isValidLoanData = false;
+
+            imgCaptcha.attr('src', "/_Layouts/15/BAB.V2.Internet.Web/web/Captcha.aspx?" + new Date().getTime());
+
+
+        }
+        else {
+            $.ajax({
+                url: '/_LAYOUTS/15/BAB.V2.Internet.Web/web/api.aspx?Operation=verifyCorrectCaptcha&captcha=' + CaptchaValue.val(),
+                async: false,
+                cache: false,
+                dataType: 'text',
+                success: function (txt) {
+
+                    if (txt == "True") {
+                        var div = CaptchaValue.parent("div");
+                        div.removeClass('has-error');
+                        div.addClass('has-success');
+
+                        $('#spnCaptchaValue').text('');
+                    }
+                    else {
+                        var div = CaptchaValue.parent("div");
+                        div.removeClass('has-success');
+                        div.addClass('has-error');
+                        $('#spnCaptchaValue').text(captchaMsg);
+                        isValidLoanData = false;
+                        imgCaptcha.attr('src', "/_Layouts/15/BAB.V2.Internet.Web/web/Captcha.aspx?" + new Date().getTime());
+                    }
+                },
+                error: function (XMLHttpRequest, textStatus, errorThrown) {
+
+                    var div = CaptchaValue.parent("div");
+                    div.removeClass('has-success');
+                    div.addClass('has-error');
+                    $('#spnCaptchaValue').text(captchaMsg);
+                    isValidLoanData = false;
+                    imgCaptcha.attr('src', "/_Layouts/15/BAB.V2.Internet.Web/web/Captcha.aspx?" + new Date().getTime());
+                }
+            });
+
+
+        }
+
+        if (isValidLoanData) {
+            CalcRealEsateLoan();
+        }
+    }
+
+
+
+    function CalcRealEsateLoan() {
+
+        var trueOrfalse = "";
+
+        if (realestateredfValue.val() == 'yes')
+            trueOrfalse = "true";
+        else
+            trueOrfalse = "false";
+
+        var additionalParam = "";
+        if (realestatetypes.val() == 'OffPlanCalc')
+            additionalParam = "&constructionPeriod=" + realestateconstperiod.val();
+
+        var strQuery = 'price=' + realestatepriceValue.val() + '&salary=' + realestateSalaryValue.val() +
+            '&age=' + realestateageValue.val() + '&supportedByREDF=' + trueOrfalse + '&tenorMonths=' + realestateperiodValue.val() * 12
+            + additionalParam;
+
+        var obj = {};
+
+        obj.url = 'InRuleServiceUrl_RealEstate';  //$('#hdnUrl').val() + realestatetypes.val();
+        obj.operationname = realestatetypes.val();
+        obj.query = strQuery;
+        obj.captcha = CaptchaValue.val();
+
+        var url = '/_Layouts/15/BAB.V2.Internet.Web/web/Form.aspx/Get2';
+        //debugger;
+        $.ajax({
+            type: 'POST',
+            url: url,
+            data: JSON.stringify(obj),
+            contentType: 'application/json;charset=tuf-8',
+            dataType: 'json',
+            cache: false,
+            success: OnSuccess,
+            failure: OnError,
+            error: OnError,
+            beforeSend: function () {
+                $('#loader').show();
+            },
+            complete: function (data) {
+                $('#loader').hide();
+            }
+        });
+    }
+
+
+    $('#realestate-trench').click(function (event) {
+
+        CalcRealEsateLoan();
+        return false;
+    });
+
+
+    function OnSuccess(response) {
+        var result = response.d;
+
+        var xmlDoc = $.parseXML(result);
+        var xml = $(xmlDoc);
+
+
+        $("#realestate-trench").hide();
+        $('div#realestate-loan').hide();
+
+        $('div#realestate-applynow').show();
+
+
+        if (realestatetypes.val() == 'MurabhaCalc') {
+
+            var output = xml.find('MurabhaCalc_Entity');
+
+            $('div#realestate-murabaha-result').show();
+
+            $('#realestate-installments').text(output.find('clcTonerInMonths_Field').text());//.toFixed(4).toString());
+            $('#realestate-total').text(currencyFormat(output.find('clcFinanceAmount_Field').text()));//.toFixed(4).toString());
+            $('#realestate-total-grand').text(currencyFormat(output.find('clcMonthlyInstallment_Field').text()));//.toFixed(4).toString());
+            $('#realestate-down-payment').text(currencyFormat(parseFloat(realestatepriceValue.val()) - parseFloat(output.find('clcFinanceAmount_Field').text())));//.toFixed(4).toString());
+
+            var tmp = '';
+            if (isNaN(parseFloat(output.find('clcLoanToVaueRatio_Field').text())))
+                tmp = 0;
+            else
+                tmp = parseFloat(output.find('clcLoanToVaueRatio_Field').text());
+
+            $('#realestate-loanTovalueRatio-output').text((tmp * 100).toFixed(2) + " % ");
+
+            if (isNaN(parseFloat(output.find('outAPRRate_Field').text())))
+                tmp = 0;
+            else
+                tmp = parseFloat(output.find('outAPRRate_Field').text());
+
+            $('#realestate-apr-output').text((tmp * 100).toFixed(2) + " % ");
+            $('#realestate-price-output').text(currencyFormat(output.find('clc_PropertyPrice_Field').text()));
+        }
+
+
+        if (realestatetypes.val() == 'SelfConstructionCalc') {
+
+            var output = xml.find('SelfConstructionCalc_Entity');
+
+
+            var hdn = $('#selfconst-trench-hidden');
+            if (hdn.val() == '' || hdn.val() == '4')
+                hdn.val('1');
+            else {
+
+                hdn.val((parseInt(hdn.val()) + 1).toString());
+            }
+
+            $('div#realestate-selfconst-result').show();
+
+            $('#selfconst-installments').text(parseFloat(output.find('clcTonerInYears_Field').text()) * 12);//.toFixed(4).toString());
+            $('#selfconst-total').text(currencyFormat(output.find('clc_FinanceAmount_Trensh' + hdn.val() + '_Field').text()));//.toFixed(4).toString());
+            $('#selfconst-total-grand').text(currencyFormat(output.find('clc_MonthlyInstallment_Trensh' + hdn.val() + '_Field').text()));//.toFixed(4).toString());
+            $('#selfconst-down-payment').text(currencyFormat(parseFloat(output.find('clc_PropertyPrice_Trensh' + hdn.val() + '_Field').text()) - parseFloat(output.find('clc_FinanceAmount_Trensh1_Field').text())));//.toFixed(4).toString());
+
+            var tmp = '';
+            if (isNaN(parseFloat(output.find('clc_LoanToValueRatio_Trensh' + hdn.val() + '_Field').text())))
+                tmp = 0;
+            else
+                tmp = parseFloat(output.find('clc_LoanToValueRatio_Trensh' + hdn.val() + '_Field').text());
+
+            $('#selfconst-loanTovalueRatio-output').text((tmp * 100).toFixed(2) + " % ");
+
+            if (isNaN(parseFloat(output.find('outAPRRate_Field').text())))
+                tmp = 0;
+            else
+                tmp = parseFloat(output.find('outAPRRate_Field').text());
+
+            $('#selfconst-apr-output').text((tmp * 100).toFixed(2) + " % ");
+            $('#selfconst-price-output').text(currencyFormat(output.find('clc_PropertyPrice_Trensh' + hdn.val() + '_Field').text()));
+
+            if (Lang == 'en') {
+                $('#selfconst-trench-head').text('Trench Number ' + hdn.val());
+            }
+            else
+                $('#selfconst-trench-head').text('رقم الدفعة ' + hdn.val());
+
+
+            $("#realestate-trench").show();
+            $("#realestate-trench").css("display", "block");
+
+
+
+        }
+
+
+        if (realestatetypes.val() == 'LSFAgMortgageCalc') {
+
+            var output = xml.find('LSFAgMortgageCalc_Entity');
+
+            $('div#realestate-mortgage-result').show();
+
+            $('#mortgage-installments').text(output.find('clcTonerInMonths_Field').text());//.toFixed(4).toString());
+            $('#mortgage-total').text(currencyFormat(output.find('clcFinanceAmount_Field').text()));//.toFixed(4).toString());
+            $('#mortgage-total-grand').text(currencyFormat(output.find('clcMonthlyInstallment_Field').text()));//.toFixed(4).toString());
+            $('#mortgage-down-payment').text(currencyFormat(parseFloat(realestatepriceValue.val()) - parseFloat(output.find('clcFinanceAmount_Field').text())));//.toFixed(4).toString());
+
+            var tmp = '';
+            if (isNaN(parseFloat(output.find('clcLoanToVaueRatio_Field').text())))
+                tmp = 0;
+            else
+                tmp = parseFloat(output.find('clcLoanToVaueRatio_Field').text());
+
+            $('#mortgage-loanTovalueRatio-output').text((tmp * 100).toFixed(2) + " % ");
+
+            if (isNaN(parseFloat(output.find('outAPRRate_Field').text())))
+                tmp = 0;
+            else
+                tmp = parseFloat(output.find('outAPRRate_Field').text());
+
+            $('#mortgage-apr-output').text((tmp * 100).toFixed(2) + " % ");
+
+            $('#mortgage-price-output').text(currencyFormat(output.find('clc_PropertyPrice_Field').text()));
+        }
+
+
+        if (realestatetypes.val() == 'OffPlanCalc') {
+
+            var output = xml.find('OffPlanCalc_Entity');
+
+            $('div#realestate-offplan-result').show();
+
+            $('#offplan-installments').text(parseFloat(output.find('clcTonerInYears_Field').text()) * 12);//.toFixed(4).toString());
+            $('#offplan-total').text(currencyFormat(output.find('clcFinanceAmount_Field').text()));//.toFixed(4).toString());
+            $('#offplan-total-grand-duringconst').text(currencyFormat(output.find('clcMonthlyInstallment_DuringConstruction_Field').text()));//.toFixed(4).toString());
+            $('#offplan-total-grand-afterconst').text(currencyFormat(output.find('clcMonthlyInstallment_AfterConstruction_Field').text()));//.toFixed(4).toString());
+            $('#offplan-down-payment').text(currencyFormat(parseFloat(realestatepriceValue.val()) - parseFloat(output.find('clcFinanceAmount_Field').text())));//.toFixed(4).toString());
+
+            var tmp = '';
+            if (isNaN(parseFloat(output.find('clcLoanToVaueRatio_Field').text())))
+                tmp = 0;
+            else
+                tmp = parseFloat(output.find('clcLoanToVaueRatio_Field').text());
+
+            $('#offplan-loanTovalueRatio-output').text((tmp * 100).toFixed(2) + " % ");
+
+            if (isNaN(parseFloat(output.find('outAPRRate_Field').text())))
+                tmp = 0;
+            else
+                tmp = parseFloat(output.find('outAPRRate_Field').text());
+
+            $('#offplan-apr-output').text((tmp * 100).toFixed(2) + " % ");
+
+            $('#offplan-price-output').text(currencyFormat(output.find('clc_PropertyPrice_Field').text()));
+        }
+
+        // $('#divFail').hide();
+        // $('[id*=divEventForm]').attr("style", "display:none !important;");
+        // $('#divSucceed').show();
+    }
+
+    function OnError(xhr, textStatus, errorThrown) {
+
+        console.log(textStatus);
+        imgCaptcha.attr('src', "/_Layouts/15/BAB.V2.Internet.Web/web/Captcha.aspx?" + new Date().getTime());
+
+    }
+
+    function currencyFormat(num) {
+        var parsed = parseFloat(num);
+        if (isNaN(parsed)) { return 0 }
+        var sar = "";
+        if (Lang == 'en')
+            sar = "SAR";
+        else
+            sar = "ر.س"
+        return parsed.toFixed(2).replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1,') + " " + sar;
+    }
+
+
+
+
+    $('#realestate-back').click(function (event) {
+
+        event.preventDefault();
+
+
+        $('div#realestate-loan').show();
+        //$('div#realestate-loan-result').hide();
+        $('div#realestate-murabaha-result').hide();
+        $('div#realestate-mortgage-result').hide();
+        $('div#realestate-offplan-result').hide();
+        $('div#realestate-selfconst-result').hide();
+        $('div#realestate-applynow').hide();
+
+        //murabaha
+        $('#realestate-total').text("");
+        $('#realestate-total-grand').text("");
+        $('#personal-installments').text("");
+        $('#realestate-down-payment').text("");
+        $('#realestate-price-output').text("");
+        $('#realestate-loanTovalueRatio-output').text("");
+        $('#realestate-apr-output').text("");
+
+        //selfconstuction
+        $('#selfconst-total').text("");
+        $('#selfconst-total-grand').text("");
+        $('#selfconst-installments').text("");
+        $('#selfconst-down-payment').text("");
+        $('#selfconst-price-output').text("");
+        $('#selfconst-loanTovalueRatio-output').text("");
+        $('#selfconst-apr-output').text("");
+
+
+        //mortgage
+        $('#mortgage-total').text("");
+        $('#mortgage-total-grand').text("");
+        $('#mortgage-installments').text("");
+        $('#mortgage-down-payment').text("");
+        $('#mortgage-price-output').text("");
+        $('#mortgage-loanTovalueRatio-output').text("");
+        $('#mortgage-apr-output').text("");
+
+
+        //offplan
+        $('#offplan-total').text("");
+        $('#offplan-total-grand-duringconst').text("");
+        $('#offplan-total-grand-afterconst').text("");
+        $('#offplan-installments').text("");
+        $('#offplan-down-payment').text("");
+        $('#offplan-price-output').text("");
+        $('#offplan-loanTovalueRatio-output').text("");
+        $('#offplan-apr-output').text("");
+
+
+        $('#realestate-period').val("");
+        $('#realestate-age').val("");
+        $('#realestate-salary').val("");
+        $('#realestate-price').val("");
+        $('#realestate-constperiod').val("");
+        $('#txtCaptchaValue').val("");
+        imgCaptcha.attr('src', "/_Layouts/15/BAB.V2.Internet.Web/web/Captcha.aspx?" + new Date().getTime());
+
+        $('#realestate-redf').val("-1");
+        $('#realestate-types').val("-1");
+        $('#realestate-selfconst').val("-1");
+
+
+
+    });
+
+    $('#realestate-cancel').click(function (event) {
+
+        event.preventDefault();
+
+
+        $('div#realestate-loan').show();
+
+        //$('div#realestate-loan-result').hide();
+        $('div#realestate-murabaha-result').hide();
+        $('div#realestate-mortgage-result').hide();
+        $('div#realestate-offplan-result').hide();
+        $('div#realestate-selfconst-result').hide();
+        $('div#realestate-applynow').hide();
+
+        //murabaha
+        $('#realestate-total').text("");
+        $('#realestate-total-grand').text("");
+        $('#personal-installments').text("");
+        $('#realestate-down-payment').text("");
+        $('#realestate-price-output').text("");
+        $('#realestate-loanTovalueRatio-output').text("");
+        $('#realestate-apr-output').text("");
+
+
+        //selfconstuction
+        $('#selfconst-total').text("");
+        $('#selfconst-total-grand').text("");
+        $('#selfconst-installments').text("");
+        $('#selfconst-down-payment').text("");
+        $('#selfconst-price-output').text("");
+        $('#selfconst-loanTovalueRatio-output').text("");
+        $('#selfconst-apr-output').text("");
+
+
+        //mortgage
+        $('#mortgage-total').text("");
+        $('#mortgage-total-grand').text("");
+        $('#mortgage-installments').text("");
+        $('#mortgage-down-payment').text("");
+        $('#mortgage-price-output').text("");
+        $('#mortgage-loanTovalueRatio-output').text("");
+        $('#mortgage-apr-output').text("");
+
+
+        //offplan
+        $('#offplan-total').text("");
+        $('#offplan-total-grand-duringconst').text("");
+        $('#offplan-total-grand-afterconst').text("");
+        $('#offplan-installments').text("");
+        $('#offplan-down-payment').text("");
+        $('#offplan-price-output').text("");
+        $('#offplan-loanTovalueRatio-output').text("");
+        $('#offplan-apr-output').text("");
+
+
+        $('#realestate-period').val("");
+        $('#realestate-age').val("");
+        $('#realestate-salary').val("");
+        $('#realestate-price').val("");
+        $('#realestate-constperiod').val("");
+        $('#txtCaptchaValue').val("");
+        imgCaptcha.attr('src', "/_Layouts/15/BAB.V2.Internet.Web/web/Captcha.aspx?" + new Date().getTime());
+
+        $('#realestate-redf').val("-1");
+        $('#realestate-types').val("-1");
+        $('#realestate-selfconst').val("-1");
+
+
+    });
+}
+
+function PrepareAutoLeaseFunctions() {
+
+    var autoleasepriceValue = $('#autolease-price');
+    var autoleaseperiodValue = $('#autolease-period');
+    var autoleasedownValue = $('#autolease-down');
+    var autoleasetransferValue = $('#autolease-transfer');
+
+    jQuery(autoleasepriceValue).focusout(function () {
+        if (autoleasepriceValue.val() == '' || autoleasepriceValue.val() === '0') {
+
+            var div = autoleasepriceValue.parent("div");
+            div.removeClass('has-success');
+            div.addClass('has-error');
+            if (Lang == 'en') {
+                $('#spnautolease-price').text('\n Mandatory field \n');
+            }
+            else {
+                $('#spnautolease-price').text('\n الحقل مطلوب\n');
+
+            }
+        }
+        else {
+            var isValid = idRegexPattern.test(autoleasepriceValue.val());
+            if (!isValid) {
+
+                var div = autoleasepriceValue.parent("div");
+                div.removeClass('has-success');
+                div.addClass('has-error');
+                if (Lang == 'en') {
+                    $('#spnautolease-price').text('Numbers Only');
+                }
+                else {
+                    $('#spnautolease-price').text('أرقام فقط');
+                }
+
+            }
+            else {
+                var div = autoleasepriceValue.parent("div");
+                div.removeClass('has-error');
+                div.addClass('has-success');
+                $('#spnautolease-price').text('');
+            }
+
+        }
+    });
+
+    jQuery(autoleaseperiodValue).focusout(function () {
+        if (autoleaseperiodValue.val() == '' || autoleaseperiodValue.val() === '0') {
+
+            var div = autoleaseperiodValue.parent("div");
+            div.removeClass('has-success');
+            div.addClass('has-error');
+            if (Lang == 'en') {
+                $('#spnautolease-period').text('\n Mandatory field \n');
+            }
+            else {
+                $('#spnautolease-period').text('\n الحقل مطلوب\n');
+
+            }
+
+
+
+        }
+        else {
+            var isValid = idRegexPattern.test(autoleaseperiodValue.val());
+            if (!isValid) {
+
+                var div = autoleaseperiodValue.parent("div");
+                div.removeClass('has-success');
+                div.addClass('has-error');
+                if (Lang == 'en') {
+                    $('#spnautolease-period').text('Numbers Only');
+                }
+                else {
+                    $('#spnautolease-period').text('أرقام فقط');
+                }
+
+            }
+            else {
+
+                if (parseInt(autoleaseperiodValue.val()) > 5) {
+
+                    var div = autoleaseperiodValue.parent("div");
+                    div.removeClass('has-success');
+                    div.addClass('has-error');
+                    if (Lang == 'en') {
+                        $('#spnautolease-period').text('maximum Finance Period is 5 years');
+                    }
+                    else {
+                        $('#spnautolease-period').text('المدة المسموحة للتمويل  5 سنوات كحد أقصى');
+                    }
+                }
+                else {
+                    var div = autoleaseperiodValue.parent("div");
+                    div.removeClass('has-error');
+                    div.addClass('has-success');
+                    $('#spnautolease-period').text('');
+                }
+            }
+
+        }
+    });
+
+    jQuery(autoleasedownValue).focusout(function () {
+        if (autoleasedownValue.val() == '' || autoleasedownValue.val() === '0') {
+            var div = autoleasedownValue.parent("div");
+            div.removeClass('has-error');
+            div.addClass('has-success');
+            $('#spnautolease-down').text('');
+
+        }
+        else {
+            var isValid = idRegexPattern.test(autoleasedownValue.val());
+            if (!isValid) {
+
+                var div = autoleasedownValue.parent("div");
+                div.removeClass('has-success');
+                div.addClass('has-error');
+                if (Lang == 'en') {
+                    $('#spnautolease-down').text('Numbers Only');
+                }
+                else {
+                    $('#spnautolease-down').text('أرقام فقط');
+                }
+
+            }
+            else {
+                var div = autoleasedownValue.parent("div");
+                div.removeClass('has-error');
+                div.addClass('has-success');
+                $('#spnautolease-down').text('');
+            }
+
+        }
+    });
+
+    jQuery(autoleasetransferValue).focusout(function () {
+        if ($('#autolease-transfer').val() !== 'no' && $('#autolease-transfer').val() !== "yes") {
+
+            var div = autoleasetransferValue.parent("div");
+            div.removeClass('has-success');
+            div.addClass('has-error');
+            if (Lang == 'en') {
+                $('#spnautolease-transfer').text('\n Mandatory field \n');
+            }
+            else {
+                $('#spnautolease-transfer').text('\n الحقل مطلوب\n');
+
+            }
+
+        }
+        else {
+
+            var div = autoleasetransferValue.parent("div");
+            div.removeClass('has-error');
+            div.addClass('has-success');
+            $('#spnautolease-transfer').text('');
+
+        }
+    });
+
+    autoleasetransferValue.change(function () {
+
+        if ($('#autolease-transfer').val() !== 'no' && $('#autolease-transfer').val() !== "yes") {
+
+            var div = autoleasetransferValue.parent("div");
+            div.removeClass('has-success');
+            div.addClass('has-error');
+            if (Lang == 'en') {
+                $('#spnautolease-transfer').text('\n Mandatory field \n');
+            }
+            else {
+                $('#spnautolease-transfer').text('\n الحقل مطلوب\n');
+
+            }
+
+        }
+        else {
+
+            var div = autoleasetransferValue.parent("div");
+            div.removeClass('has-error');
+            div.addClass('has-success');
+            $('#spnautolease-transfer').text('');
+
+        }
+    });
+
+
+
+    function PMTCalc(ir, np, pv, fv, type) {
+        /*
+        ir - interest rate per month
+        np - number of periods (months)
+        pv - present value
+        fv - future value (residual value)
+        */
+        if (!fv) fv = 0;
+        if (!type) type = 0;
+
+        if (ir == 0) return -(pv + fv) / np;
+
+        var pvif = Math.pow(1 + ir, np);
+        var pmt = ir / (pvif - 1) * -(pv * pvif + fv);
+
+        if (type == 1) {
+            pmt /= (1 + ir);
+        };
+
+        return pmt;
+    }
+
+
+    function CalcDepreciation(price, profitRate, period, insuranceRate) {
+
+        //var insuranceRate = 4.43;  // Insurance Rate For Ist and 2nd Year
+        var percentag = [100, 85, 72.25, 61.41, 52.20];
+        var calcProfit = 1 + (profitRate / 100);
+        var finalVal = 0.0;
+
+        var periodflag = 0;
+
+        for (var i = 0; i <= 4; i++) {
+            var percMul = (price * percentag[i]) / 100;
+            var insurMul = (percMul * insuranceRate) / 100;
+            insurMul = period > periodflag ? insurMul.toFixed(0) : 0;
+
+            var applyPower = Math.pow(calcProfit, i);
+            var calcVal = insurMul / applyPower;
+            calcVal = calcVal.toFixed(0);
+
+            finalVal = +finalVal + +calcVal;
+            periodflag = periodflag + 12;
+        }
+        return finalVal.toFixed(0); //Chnage this for the Profit amount 2 differenece
+    }
+
+
+    function IRRCalc(arr, guest) {
+        inc = 0.000001;
+        do {
+            guest += inc;
+            NPV = 0;
+            for (var j = 0; j < arr.length; j++) {
+                NPV += arr[j] / Math.pow((1 + guest), j);
+            }
+        } while (NPV > 0);
+        return guest * 100;
+    }
+
+
+    function calcAutoLeaseAPR(price, tenor_years, down_autolease, profit, insurance) {
+
+        //FinanceRate = profit
+        // downPayment  = down_autolease 
+        //insurance  = InsuranceRate
+
+        //var price =400000;
+        //var down_autolease=50000;
+        var origin_autolease = price - down_autolease;
+        var managementFees = (origin_autolease * 0.01) * 1.15;
+
+        profit = profit * 100; // 6.75;// 0.022;
+        insurance = insurance * 100;//6.50 ;// 0.03;
+
+
+        var fincancePeriod = tenor_years * 12;
+        var baloonVal = price * 0.35;
+
+        var calcBaloonPaymt = price * (baloonVal / price);
+        var baloonPercentage = (baloonVal / price);
+        var downPaymentPercentage = down_autolease / price;
+        var financeAmount = price - (price * downPaymentPercentage)
+
+        var calcInsurance = CalcDepreciation(price, profit, fincancePeriod, insurance);
+        var profitRate = (profit / 100) / 12;
+        var PMT = PMTCalc(profitRate, fincancePeriod, -financeAmount - calcInsurance, calcBaloonPaymt, 0);
+
+        //var profitAmount = (((PMT * fincancePeriod) + (price * baloonPercentage)) - financeAmount - calcInsurance).toFixedDown(2);
+        //var totalValofContract = (down_autolease + +financeAmount + +managementFees + +profitAmount + +calcInsurance).toFixedDown(2);
+
+        var totalFinance = -financeAmount + managementFees;
+
+        var IRRval = [];
+
+        IRRval.push(totalFinance);
+
+        for (i = 0; i < fincancePeriod - 1; i++) {
+            IRRval.push(PMT);
+        }
+
+        IRRval.push(+PMT + +(price * baloonPercentage));
+        var IRR = IRRCalc(IRRval, 0.001) * 0.01;
+
+        var APR = (Math.pow((1 + IRR), 12) - 1) * 100;
+
+        return APR;
+
+    }
+
+
+    $('#autolease-submit').click(function (event) {
+
+        event.preventDefault();
+        var realestate_period = 0;
+        var realestate_period_max = 0;
+        var redf = 0.65;
+        var sal = 15000;
+        var installment = 0;
+        var total = 0;
+        var BABTotal = 0;
+        var realestateTotal = 0;
+        var APR = 0; //Math.pow(1 + 0.01, 12) - 1;//(1 + 0.01) ^ 12 - 1;
+        //var APR2 = 0;
+        var lease = 0;
+        var down_autolease = 0;
+        var insurance = 0.03;
+        var profit = 0.022;
+        total = insurance + profit;
+        var total_profit = 0;
+        var management_fees = 0;
+        var ballon_payment = 0;
+        var vat = 0;
+        var valid = true;
+
+        var autoleasepriceValue = $('#autolease-price');
+        var autoleaseperiodValue = $('#autolease-period');
+        var autoleasedownValue = $('#autolease-down');
+        var autoleasetransferValue = $('#autolease-transfer');
+
+
+        if (autoleasepriceValue.val() == '' || autoleasepriceValue.val() === '0') {
+
+            var div = autoleasepriceValue.parent("div");
+            div.removeClass('has-success');
+            div.addClass('has-error');
+            if (Lang == 'en') {
+                $('#spnautolease-price').text('\n Mandatory field \n');
+            }
+            else {
+                $('#spnautolease-price').text('\n الحقل مطلوب\n');
+
+            }
+            valid = false;
+        }
+        else {
+            var isValid = idRegexPattern.test(autoleasepriceValue.val());
+            if (!isValid) {
+
+                var div = autoleasepriceValue.parent("div");
+                div.removeClass('has-success');
+                div.addClass('has-error');
+                if (Lang == 'en') {
+                    $('#spnautolease-price').text('Numbers Only');
+                }
+                else {
+                    $('#spnautolease-price').text('أرقام فقط');
+                }
+                valid = false;
+
+            }
+            else {
+                var div = autoleasepriceValue.parent("div");
+                div.removeClass('has-error');
+                div.addClass('has-success');
+                $('#spnautolease-price').text('');
+                valid = true;
+            }
+
+        }
+
+
+
+
+        if (autoleaseperiodValue.val() == '' || autoleaseperiodValue.val() === '0') {
+
+            var div = autoleaseperiodValue.parent("div");
+            div.removeClass('has-success');
+            div.addClass('has-error');
+            if (Lang == 'en') {
+                $('#spnautolease-period').text('\n Mandatory field \n');
+            }
+            else {
+                $('#spnautolease-period').text('\n الحقل مطلوب\n');
+
+            }
+            valid = false;
+
+
+        }
+        else {
+            var isValid = idRegexPattern.test(autoleaseperiodValue.val());
+            if (!isValid) {
+
+                var div = autoleaseperiodValue.parent("div");
+                div.removeClass('has-success');
+                div.addClass('has-error');
+                if (Lang == 'en') {
+                    $('#spnautolease-period').text('Numbers Only');
+                }
+                else {
+                    $('#spnautolease-period').text('أرقام فقط');
+                }
+                valid = false;
+
+            }
+            else {
+
+                if (parseInt(autoleaseperiodValue.val()) > 5) {
+
+                    var div = autoleaseperiodValue.parent("div");
+                    div.removeClass('has-success');
+                    div.addClass('has-error');
+                    if (Lang == 'en') {
+                        $('#spnautolease-period').text('maximum Finance Period is 5 years');
+                    }
+                    else {
+                        $('#spnautolease-period').text('المدة المسموحة للتمويل  5 سنوات كحد أقصى');
+                    }
+                    valid = false;
+                }
+                else {
+                    var div = autoleaseperiodValue.parent("div");
+                    div.removeClass('has-error');
+                    div.addClass('has-success');
+                    $('#spnautolease-period').text('');
+                }
+                valid = valid;
+            }
+
+        }
+
+
+
+        if (autoleasedownValue.val() == '' || autoleasedownValue.val() === '0') {
+            var div = autoleasedownValue.parent("div");
+            div.removeClass('has-error');
+            div.addClass('has-success');
+            $('#spnautolease-down').text('');
+
+        }
+        else {
+            var isValid = idRegexPattern.test(autoleasedownValue.val());
+            if (!isValid) {
+
+                var div = autoleasedownValue.parent("div");
+                div.removeClass('has-success');
+                div.addClass('has-error');
+                if (Lang == 'en') {
+                    $('#spnautolease-down').text('Numbers Only');
+                }
+                else {
+                    $('#spnautolease-down').text('أرقام فقط');
+                }
+                valid = false;
+
+            }
+            else {
+                var div = autoleasedownValue.parent("div");
+                div.removeClass('has-error');
+                div.addClass('has-success');
+                $('#spnautolease-down').text('');
+                valid = valid;
+            }
+
+        }
+
+
+        if ($('#autolease-transfer').val() !== 'no' && $('#autolease-transfer').val() !== "yes") {
+
+            var div = autoleasetransferValue.parent("div");
+            div.removeClass('has-success');
+            div.addClass('has-error');
+            if (Lang == 'en') {
+                $('#spnautolease-transfer').text('\n Mandatory field \n');
+            }
+            else {
+                $('#spnautolease-transfer').text('\n الحقل مطلوب\n');
+
+            }
+
+            valid = false;
+        }
+        else {
+
+            var div = autoleasetransferValue.parent("div");
+            div.removeClass('has-error');
+            div.addClass('has-success');
+            $('#spnautolease-transfer').text('');
+            valid = valid;
+        }
+
+
+
+        if (valid) {
+
+
+            if (($('#autolease-transfer').val()) == "yes")
+                profit = 0.03;//0.022;
+            else
+                profit = 0.0361;//0.03;
+
+            if (($('#autolease-down').val()) != '' && ($('#autolease-down').val()) > 0) {
+                down_autolease = ($('#autolease-down').val());
+            }
+
+            origin_autolease = ($('#autolease-price').val()) - down_autolease;
+
+            if (($('#autolease-price').val()) >= 35000 && ($('#autolease-price').val()) <= 50000)
+                insurance = 0.04;
+            else if (($('#autolease-price').val()) > 50000 && ($('#autolease-price').val()) <= 500000)
+                insurance = 0.03;
+            else
+                insurance = 0.042;
+
+            total = insurance + profit;
+            total_profit = ((origin_autolease * profit) + $('#autolease-price').val() * insurance) * parseInt($('#autolease-period').val());
+            management_fees = (origin_autolease * 0.01) * 1.15;// 1.05;
+            if (autoleasetransferValue.val() == 'yes') {
+                ballon_payment = ($('#autolease-price').val()) * 0.35;
+            }
+            else {
+                ballon_payment = ($('#autolease-price').val()) * 0.30;
+            }
+            vat = origin_autolease * 0.15;
+            installment = (origin_autolease + total_profit + vat - ballon_payment) / ($('#autolease-period').val() * 12);
+
+            // console.log(origin_autolease + ' ' + total_profit + ' ' + vat + ' ' + ballon_payment);
+            //console.log($('#autolease-period').val() * 12);
+            //console.log(installment);
+
+
+            $('div#autolease-loan').hide();
+            $('div#autolease-loan-result').show();
+
+            APR = calcAutoLeaseAPR($('#autolease-price').val(), $('#autolease-period').val(), down_autolease, profit, insurance);
+            $('#autolease-apr').text(APR.toFixed(3) + " % ");//profit);
+
+            $('#autolease-tenor-years').text($('#autolease-period').val());
+            $('#autolease-finance-amount').text(currencyFormat(origin_autolease.toString().split(".")[0]));//installment.toString().split(".")[0] * $('#autolease-period').val());
+
+
+            $('#autolease-total').text(currencyFormat(total_profit.toString().split(".")[0]));
+            $('#autolease-management-payment').text(currencyFormat(management_fees.toString().split(".")[0]));
+            $('#autolease-balloon-payment').text(currencyFormat(ballon_payment.toString().split(".")[0]));
+            $('#autolease-month-payment').text(currencyFormat(installment.toString().split(".")[0]));
+
+
+        }
+
+
+
+
+
+        //var total = $('#personal-total').text().split(".")[0];
+        //var total_grand = $('#personal-total-grand').text().split(".")[0];
+        //$('#realestate-total').text(total);
+        //$('#realestate-total-grand').text(total_grand);
+    });
+
+    $('#autolease-back').click(function (event) {
+
+        event.preventDefault();
+
+
+        $('div#autolease-loan').show();
+        $('div#autolease-loan-result').hide();
+        $('#autolease-total').text("");
+        $('#autolease-management-payment').text("");
+        $('#autolease-balloon-payment').text("");
+        $('autolease-month-payment').text("");
+
+        $('#autolease-price').val("");
+        $('#autolease-down').val("");
+        $('#autolease-period').val("");
+
+        $('#autolease-transfer').val("الرجاء الاختيار");
+
+    });
+    $('#autolease-cancel').click(function (event) {
+
+        event.preventDefault();
+
+
+        $('div#autolease-loan').show();
+        $('div#autolease-loan-result').hide();
+        $('#autolease-total').text("");
+        $('#autolease-management-payment').text("");
+        $('#autolease-balloon-payment').text("");
+        $('autolease-month-payment').text("");
+
+        $('#autolease-price').val("");
+        $('#autolease-down').val("");
+        $('#autolease-period').val("");
+
+        $('#autolease-transfer').val("الرجاء الاختيار");
+
+    });
+
+    function currencyFormat(num) {
+        var parsed = parseFloat(num);
+        if (isNaN(parsed)) { return 0 }
+        var sar = "";
+        if (Lang == 'en')
+            sar = "SAR";
+        else
+            sar = "ر.س"
+        return parsed.toFixed(2).replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1,') + " " + sar;
+    }
+
+}
+
+
+$('#realestate-apply').click(function (event) {
+
+    event.preventDefault();
+
+    var url = Lang == "en" ? '/en/pages/apply-for-product.aspx' : '/ar/Pages/apply-for-product.aspx';
+
+    if ($("#hdn_realestate_url").length) // check if hidden field does exist. 
+    {
+        if ($.trim($('#hdn_realestate_url').val()) != '') { // check if you added hidden field with no value (URL)
+            url = $.trim($('#hdn_realestate_url').val());
+        }
+    }
+
+    window.location.href = url;
+
+});
+
+
+$('#autolease-apply').click(function (event) {
+
+    event.preventDefault();
+
+    var url = Lang == "en" ? '/en/pages/apply-for-product.aspx' : '/ar/Pages/apply-for-product.aspx';
+
+    if ($("#hdn_autolease_url").length) { // check if hidden field does exist. 
+        if ($.trim($('#hdn_autolease_url').val()) != '') { // check if you added hidden field with no value (URL)
+            url = $.trim($('#hdn_autolease_url').val());
+        }
+    }
+
+    window.location.href = url;
+
+
+});
+
+
+$('#personal-apply').click(function (event) {
+
+    event.preventDefault();
+
+    var url = Lang == "en" ? '/en/pages/apply-for-product.aspx' : '/ar/Pages/apply-for-product.aspx';
+
+    if ($("#hdn_personal_url").length) { // check if hidden field does exist. 
+        if ($.trim($('#hdn_personal_url').val()) != '') { // check if you added hidden field with no value (URL)
+            url = $.trim($('#hdn_personal_url').val());
+        }
+    }
+
+    window.location.href = url;
+});
+
+
+function SetLoanCalculatorLanguage() {
+    if (Lang == "en") {
+
+        $('#realestate-captcha-head').text("Captcha");
+
+        //Personal Loan
+        $('.default-personal-period-option').text("Please Select");
+        $('#personal-apr-head').text('APR%');
+        $('#personal-tenor-years-head').text('Financing Tenor (Years)');
+        $('#personal-loan-header').text("Personal Finance");
+        $('#realestate-loan-header').text("Real Estate Finance");
+        $('#autolease-loan-header').text("Auto Lease");
+        $('.tab-content-head').text("Calculate your Finance");
+        $('.tab-content-line').text("Please fill following fields and click on calculate to view the details");
+        $('#personal-salary-head').text("Monthly Salary");
+        $('#personal-extra-head').text("Extra Income (if Any)");
+        $('#personal-deduct-head').text("Customer Commitment");
+        $('#personal-period-head').text("Finance Period (Months) ");
+        $('#personal-installment-head').text("Finance Installment");
+        $('#personal-total-head').text("Total Finance Amount");
+        $('#personal-grand-head').text("Net Finance Amount");
+        $('.calculate').text("Calculate");
+        $('#personal-cancel').text("Delete");
+        $('#personal-total-head').text("Total Finance Amount");
+        $('.applyloancalc').text("Apply Now");
+        $('#personal-back').text("Back");
+        $('.termsloancalc').text("The above calculation is a preliminary and non-binding calculation of the bank");
+        $('.default-loancal-option').text("Please Select");
+        $('h2.hor_1:first').append('Personal Finance');
+        $('.default-personal-realestate').text("Real Estate Finance");
+        $('.default-personal-autoleasecard').text("Auto Lease or Credit Card");
+
+
+        //Realestate Loan
+
+        $('.default-loancal-redf-murabha').text("Real Estate Murabha");
+        $('.default-loancal-redf-selfconst').text("Self-Construction");
+        $('.default-loancal-redf-mortgage').text("LSF Ag Mortgage");
+        $('.default-loancal-redf-offplan').text("Off Plan");
+        $('.default-loancal-redf-yes').text("Yes");
+        $('.default-loancal-redf-no').text("No");
+        $('#realestate-back').text("Back");
+        $('#realestate-cancel').text("Delete");
+        $('.default-loancal-yes').text("Salary Transfer Guaranteed");
+        $('.default-loancal-no').text("Salary Transfer NOT Guaranteed");
+        $('h2.hor_1').eq(1).append('Real Estate Finance');
+
+
+        //Input Fields
+        $('#realestate-types-head').text("Real Estate Calculator Types");
+        $('#realestate-redf-head').text("REDF Supported Customer");
+        $('#realestate-price-head').text("Property Price");
+        $('#realestate-salary-head').text("Customer Salary");
+        $('#realestate-age-head').text("Age in Hijri");
+        $('#realestate-period-head').text("Tenor Required (Years)");
+        $('#realestate-redf-selfconst-head').text("Land/Uncompleted Property");
+        $('#realestate-constperiod-head').text("Construction Period");
+
+        //Output Fields - Murabaha
+        $('#realestate-price-output-head').text('Property Price');
+        $('#realestate-loanTovalueRatio-output-head').text('Loan To Value Ratio');
+        $('#realestate-flatrate-output-head').text('Flat / Effective Rate');
+        $('#realestate-flatrate-output').text('Flat');
+        $('#realestate-apr-output-head').text('APR%');
+        $('#realestate-installments-head').text('Tenor in Months');
+        $('#realestate-installmentstype-output-head').text('Type of Installment');
+        $('#realestate-installmentstype-output').text('Net Loan and Profit');
+        $('#realestate-total-head').text('Finance Amount');
+        $('#realestate-total-grand-head').text('Monthly Installment');
+        $('#realestate-earlysettlements-output-head').text('Early Settlements');
+        $('#realestate-earlysettlements-output').text('Remaining Net Loan and three additional months profit');
+        $('#realestate-down-payment-head').text('Down Payment');
+
+        //Output Fileds - Self Construction
+        $('#selfconst-price-output-head').text('Property Price');
+        $('#selfconst-loanTovalueRatio-output-head').text('Loan To Value Ratio');
+        $('#selfconst-flatrate-output-head').text('Flat / Effective Rate');
+        $('#selfconst-flatrate-output').text('Flat');
+        $('#selfconst-apr-output-head').text('APR%');
+        $('#selfconst-installments-head').text('Tenor in Months');
+        $('#selfconst-installmentstype-output-head').text('Type of Installment');
+        $('#selfconst-installmentstype-output').text('Net Loan and Profit');
+        $('#selfconst-total-head').text('Finance Amount');
+        $('#selfconst-total-grand-head').text('Monthly Installment');
+        $('#selfconst-earlysettlements-output-head').text('Early Settlements');
+        $('#selfconst-earlysettlements-output').text('Remaining Net Loan and three additional months profit');
+        $('#selfconst-down-payment-head').text('Down Payment');
+        $('.trench').text("Trenches");
+
+        //Output Fileds - Mortgage
+        $('#mortgage-price-output-head').text('Property Price');
+        $('#mortgage-loanTovalueRatio-output-head').text('Loan To Value Ratio');
+        $('#mortgage-flatrate-output-head').text('Flat / Effective Rate');
+        $('#mortgage-flatrate-output').text('Flat');
+        $('#mortgage-apr-output-head').text('APR%');
+        $('#mortgage-installments-head').text('Tenor in Months');
+        $('#mortgage-installmentstype-output-head').text('Type of Installment');
+        $('#mortgage-installmentstype-output').text('Net Loan and Profit');
+        $('#mortgage-total-head').text('Finance Amount');
+        $('#mortgage-total-grand-head').text('Monthly Installment');
+        $('#mortgage-earlysettlements-output-head').text('Early Settlements');
+        $('#mortgage-earlysettlements-output').text('Remaining Net Loan and three additional months profit');
+        $('#mortgage-down-payment-head').text('Down Payment');
+
+        //Output Fileds - Offplan
+        $('#offplan-price-output-head').text('Property Price');
+        $('#offplan-loanTovalueRatio-output-head').text('Loan To Value Ratio');
+        $('#offplan-flatrate-output-head').text('Flat / Effective Rate');
+        $('#offplan-flatrate-output').text('Flat');
+        $('#offplan-apr-output-head').text('APR%');
+        $('#offplan-installments-head').text('Tenor in Months');
+        $('#offplan-installmentstype-output-head').text('Type of Installment');
+        $('#offplan-installmentstype-output').text('Net Loan and Profit');
+        $('#offplan-total-head').text('Finance Amount');
+        $('#offplan-total-grand-duringconst-head').text('Monthly Installment During Construction');
+        $('#offplan-total-grand-afterconst-head').text('Monthly Installment After construction');
+        $('#offplan-earlysettlements-output-head').text('Early Settlements');
+        $('#offplan-earlysettlements-output').text('Remaining Net Loan and three additional months profit');
+        $('#offplan-down-payment-head').text('Down Payment');
+        $('#offplan-installmentstype-duringconst-output-head').text('Type of Installment During Construction');
+        $('#offplan-installmentstype-duringconst-output').text('Net Loan and Profit');
+
+
+
+
+        //Autolease Loan
+
+        $('#autolease-asset-type').text('Car');
+        $('#autolease-asset-type-head').text('Asset Type');
+        $('#autolease-apr-head').text('APR%');
+        $('#autolease-tenor-years-head').text('Tenor');
+        $('#autolease-finance-amount-head').text('Financing Amount');
+
+        $('#autolease-transfer-head').text("Salary Transfer Guaranteed");
+
+        $('#autolease-price-head').text("Car Price");
+
+        $('#autolease-down-head').text("Down Payment");
+
+        $('#autolease-period-head').text("Finance Period (Years)");
+        $('.default-loancal-yes').text("Salary Transfer Guaranteed");
+        $('.default-loancal-no').text("Salary Transfer NOT Guaranteed");
+
+
+
+        $('#autolease-total-head').text("Profit and Insurance Total");
+
+        $('#autolease-management-payment-head').text("Management Fees");
+
+        $('#autolease-ballon-payment-head').text("Ballon Payment");
+        $('#autolease-month-payment-head').text("Monthly Installment");
+
+
+
+        $('#autolease-back').text("Back");
+        $('#autolease-cancel').text("Delete");
+        $('h2.hor_1:last').append('Auto Lease');
+
+
+    }
+    else {
+
+        $('#realestate-captcha-head').text("رمز التحقق");
+
+        //Personal Loan
+
+        $('.default-personal-period-option').text("الرجاء الإختيار");
+        $('#personal-apr-head').text('معدل النسبة السنوي');
+        $('#personal-tenor-years-head').text('مدة التمويل بالسنوات');
+        $('#personal-loan-header').text("التمويل الشخصي");
+        $('#realestate-loan-header').text("التمويل العقاري");
+        $('#autolease-loan-header').text("التمويل التأجيري للسيارات");
+        $('.tab-content-head').text("احسب تمويلك");
+        $('.tab-content-line').text("الرجاء تعبئة الحقول التالية ثم الضغط على احسب  لمعرفة التفاصيل");
+        $('#personal-salary-head').text("الراتب الشهري");
+        $('#personal-extra-head').text("الدخل الإضافي (إن وجد)");
+        $('#personal-deduct-head').text("قسط تمويلي - إلتزامات العميل");
+        $('#personal-period-head').text("مدة التمويل (أشهر)");
+        $('#personal-installment-head').text("قسط التمويل");
+        $('#personal-total-head').text("إجمالي مبلغ التمويل");
+        $('#personal-grand-head').text("صافي مبلغ التمويل");
+        $('.calculate').text("احسب");
+        $('#personal-cancel').text("مسح");
+        $('.applyloancalc').text("تقدم بطلبك الآن");
+        $('#personal-back').text("عودة");
+        $('.termsloancalc').html("الاحتساب أعلاه هو احتساب مبدئي و غير ملزم للبنك كما أن  التفاصيل النهائية يتم تحديدها  عند استيفاء كامل المستندات المطلوبة و رفعها في النظام من خلال القنوات البيعية لدى البنك ");
+
+        $('#realestate-price-head').text("Real Estate Price");
+
+        $('.default-loancal-option').text("الرجاء الإختيار");
+        $('h2.hor_1:first').append('التمويل الشخصي');
+        $('.default-personal-realestate').text("تمويل عقاري");
+        $('.default-personal-autoleasecard').text("تأجيري أو بطاقة ائتمانية");
+
+
+
+        //Realestate Loan
+
+        $('.default-loancal-redf-murabha').text("مرابحة");
+        $('.default-loancal-redf-selfconst').text("بناء ذاتي");
+        $('.default-loancal-redf-mortgage').text("تمويل مقابل رهن");
+        $('.default-loancal-redf-offplan').text("بيع على الخارطة");
+        $('.default-loancal-redf-yes').text("نعم");
+        $('.default-loancal-redf-no').text("لا");
+        $('#realestate-cancel').text("مسح");
+        $('#realestate-back').text("عودة");
+        $('h2.hor_1').eq(1).append('التمويل العقاري');
+
+        //Input Fields
+        $('#realestate-types-head').text("نوع التمويل المطلوب");
+        $('#realestate-redf-head').text("مدعوم من قبل وزارة الإٍسكان / صندوق التنمية العقارية");
+        $('#realestate-price-head').text("قيمة العقار");
+        $('#realestate-salary-head').text("الدخل الشهري");
+        $('#realestate-age-head').text("العمر (هجري)");
+        $('#realestate-period-head').text("مدة التمويل المطلوبة (سنوات)");
+        $('#realestate-redf-selfconst-head').text("أرض / عقار غير مكتمل البناء");
+        $('#realestate-constperiod-head').text("مدة بناء المشروع");
+
+
+        //Output Fields - Murabaha
+        $('#realestate-price-output-head').text('قيمة العقار');
+        $('#realestate-loanTovalueRatio-output-head').text('نسبة التمويل مقابل قيمة العقار');
+        $('#realestate-flatrate-output-head').text('نسبة هامش الربح ثابتة / متغيرة');
+        $('#realestate-flatrate-output').text('نسبة ثابتة');
+        $('#realestate-apr-output-head').text('معدل النسبة السنوية (APR)');
+        $('#realestate-installments-head').text('مدة التمويل بالاشهر');
+        $('#realestate-installmentstype-output-head').text('نوع الأقساط');
+        $('#realestate-installmentstype-output').text('أصل التمويل وربحه');
+        $('#realestate-total-head').text('مبلغ التمويل');
+        $('#realestate-total-grand-head').text('القسط الشهري');
+        $('#realestate-earlysettlements-output-head').text('السداد المبكر');
+        $('#realestate-earlysettlements-output').text('قيمة الأصل المتبقي مع أرباح 3 أشهر إضافية');
+        $('#realestate-down-payment-head').text('الدفعة المقدمة');
+
+        //Output Fileds - Self Construction
+        $('#selfconst-price-output-head').text('قيمة العقار');
+        $('#selfconst-loanTovalueRatio-output-head').text('نسبة التمويل مقابل قيمة العقار');
+        $('#selfconst-flatrate-output-head').text('نسبة هامش الربح ثابتة / متغيرة');
+        $('#selfconst-flatrate-output').text('نسبة ثابتة');
+        $('#selfconst-apr-output-head').text('معدل النسبة السنوية (APR)');
+        $('#selfconst-installments-head').text('مدة التمويل بالاشهر');
+        $('#selfconst-installmentstype-output-head').text('نوع الأقساط');
+        $('#selfconst-installmentstype-output').text('أصل التمويل وربحه');
+        $('#selfconst-total-head').text('مبلغ التمويل');
+        $('#selfconst-total-grand-head').text('القسط الشهري');
+        $('#selfconst-earlysettlements-output-head').text('السداد المبكر');
+        $('#selfconst-earlysettlements-output').text('قيمة الأصل المتبقي مع أرباح 3 أشهر إضافية');
+        $('#selfconst-down-payment-head').text('الدفعة المقدمة');
+        $('.trench').text("الدفعات");
+
+
+        //Output Fileds - Mortgage
+        $('#mortgage-price-output-head').text('قيمة العقار');
+        $('#mortgage-loanTovalueRatio-output-head').text('نسبة التمويل مقابل قيمة العقار');
+        $('#mortgage-flatrate-output-head').text('نسبة هامش الربح ثابتة / متغيرة');
+        $('#mortgage-flatrate-output').text('نسبة ثابتة');
+        $('#mortgage-apr-output-head').text('معدل النسبة السنوية (APR)');
+        $('#mortgage-installments-head').text('مدة التمويل بالاشهر');
+        $('#mortgage-installmentstype-output-head').text('نوع الأقساط');
+        $('#mortgage-installmentstype-output').text('أصل التمويل وربحه');
+        $('#mortgage-total-head').text('مبلغ التمويل');
+        $('#mortgage-total-grand-head').text('القسط الشهري');
+        $('#mortgage-earlysettlements-output-head').text('السداد المبكر');
+        $('#mortgage-earlysettlements-output').text('قيمة الأصل المتبقي مع أرباح 3 أشهر إضافية');
+        $('#mortgage-down-payment-head').text('الدفعة المقدمة');
+
+
+        //Output Fileds - Offplan
+        $('#offplan-price-output-head').text('قيمة العقار');
+        $('#offplan-loanTovalueRatio-output-head').text('نسبة التمويل مقابل قيمة العقار');
+        $('#offplan-flatrate-output-head').text('نسبة هامش الربح ثابتة / متغيرة');
+        $('#offplan-flatrate-output').text('نسبة ثابتة');
+        $('#offplan-apr-output-head').text('معدل النسبة السنوية (APR)');
+        $('#offplan-installments-head').text('مدة التمويل بالاشهر');
+        $('#offplan-installmentstype-output-head').text('نوع الأقساط');
+        $('#offplan-installmentstype-output').text('أصل التمويل وربحه');
+        $('#offplan-total-head').text('مبلغ التمويل');
+        $('#offplan-total-grand-duringconst-head').text('القسط الشهري خلال فترة الإنشاء');
+        $('#offplan-total-grand-afterconst-head').text('القسط الشهري بعد استلام الوحدة العقارية');
+        $('#offplan-earlysettlements-output-head').text('السداد المبكر');
+        $('#offplan-earlysettlements-output').text('قيمة الأصل المتبقي مع أرباح 3 أشهر إضافية');
+        $('#offplan-down-payment-head').text('الدفعة المقدمة');
+        $('#offplan-installmentstype-duringconst-output-head').text('نوع الأقساط خلال فترة الإنشاء');
+        $('#offplan-installmentstype-duringconst-output').text('أصل التمويل وربحه');
+
+
+        //Autolease Loan
+        $('#autolease-asset-type').text('سيارة');
+        $('#autolease-asset-type-head').text('نوع الأصل');
+        $('#autolease-apr-head').text('معدل النسبة السنوي%');
+        $('#autolease-tenor-years-head').text('مدة التمويل');
+        $('#autolease-finance-amount-head').text('أصل مبلغ التمويل');
+
+        $('#autolease-transfer-head').text("ضمان تحويل الراتب");
+
+        $('#autolease-price-head').text("سعر السيارة");
+
+        $('#autolease-down-head').text("الدفعة المقدمة");
+        $('#autolease-period-head').text("مدة  العقد (سنوات)");
+        $('.default-loancal-yes').text("بضمان تحويل الراتب");
+        $('.default-loancal-no').text("بدون ضمان تحويل الراتب");
+
+
+        $('#autolease-total-head').text("إجمالي الربح و التأمين");
+        $('#autolease-management-payment-head').text("الرسوم الإدارية");
+
+        $('#autolease-ballon-payment-head').text("الدفعة الأخيرة");
+        $('#autolease-month-payment-head').text("القسط الشهري");
+        $('#autolease-cancel').text("مسح");
+        $('#autolease-back').text("عودة");
+
+        $('h2.hor_1:last').append('التمويل التأجيري للسيارات');
+    }
+}
+
+
+</script>
+
+</body>
+</html>

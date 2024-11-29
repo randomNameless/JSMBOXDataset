@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>base.html</title>
+</head>
+<body>
+
+<script>
+if (!window.hasOwnProperty('nucleusConfig')) {
+    const currentLangStoreSearch = (window.mindShiftNav && window.mindShiftNav.locale);
+    window.nucleusConfig = window.nucleusConfig || {};
+    window.nucleusConfig.basePath = "/storesearch/assets/24.28-1/";
+    window.nucleusConfig.assetManifestPath = window.nucleusConfig.basePath + "build/manifest.assets.json";
+    window.nucleusConfig.nucleusManifestPath = window.nucleusConfig.basePath + "build/manifest.project.nucleus.json";
+    window.nucleusConfig.translationsJsonPath = window.nucleusConfig.basePath + "config/" + currentLangStoreSearch + "/translation.json";
+    window.storesearchConfig = {
+        path: window.nucleusConfig.basePath + "config/" + currentLangStoreSearch + "/config.json"
+    };
+
+
+    function createStoresearch() {
+        let openToggle = document.querySelectorAll('[data-map-search-toggle-preload]');
+        openToggle.forEach(toggle => {
+            toggle.addEventListener('click', (event) => {
+                let hasRatingButton = event.target.hasAttribute('data-store-rating');
+                let storeData = {
+                    target: event.target.getAttribute('aria-controls'),
+                    type: hasRatingButton ? "rating" : "default"
+                }
+                prepareStoreSearchAndOpen(storeData);
+            })
+        });
+    }
+
+    function createStoresearchStockAvailability() {
+        window.addEventListener("product:open-store-stock-dialog", function storeSearchOpen(e) {
+            let storeData = {
+                type: "storeStock",
+                erp: e.detail.erp,
+                storeId: e.detail.storeId
+            }
+            prepareStoreSearchAndOpen(storeData);
+        });
+    }
+
+    function prepareStoreSearchAndOpen(storeData) {
+        if (document.getElementsByClassName('nuc-o-map-search__dialog').length === 0) {
+            let nodeNucScope = document.createElement("div");
+            nodeNucScope.classList.add("nuc-global-scope");
+
+            let nodeDialog = document.createElement("div");
+            nodeDialog.classList.add("nuc-o-map-search__dialog");
+
+            let nodeMap = document.createElement("div");
+            nodeMap.classList.add("nuc-o-storesearch");
+
+            let nodeLoader = document.createElement("div");
+            nodeLoader.className = "nuc-o-map-search__loader";
+            nodeMap.appendChild(nodeLoader);
+            nodeDialog.appendChild(nodeMap);
+            nodeNucScope.appendChild(nodeDialog)
+            document.body.appendChild(nodeNucScope);
+
+            //fallback - remove loading dialog after 30sec
+            const loadingTimeout = setTimeout(function loadingNotSuccessful() {
+                document.body.removeChild(nodeNucScope);
+            }, 30000);
+
+            loadNucleusCssIfNeeded();
+
+            let script = document.createElement('script');
+            script.src = window.nucleusConfig.basePath + 'build/nucleus.js';
+            script.async = false;
+            script.defer = true;
+            script.onload = function () {
+                window.addEventListener("mapsearch-loaded", function storeSearchOpen(e) {
+                    clearTimeout(loadingTimeout);
+                    openStoresearch(storeData);
+                });
+            };
+            document.head.append(script);
+        } else {
+            openStoresearch(storeData);
+        }
+    }
+
+    function openStoresearch(storeData) {
+        let customEvent = new CustomEvent("mapsearch", {
+            detail: storeData
+        });
+        window.dispatchEvent(customEvent);
+    }
+
+    function loadNucleusForESIs() {
+        if (document.querySelector('.nuc-o-store-info') ||
+            document.querySelector('.nuc-global-scope')) {
+            loadNucleusJsIfNeeded();
+            loadNucleusCssIfNeeded();
+        }
+    }
+
+    function createButtons() {
+        // not sure if nuc-o-map-search__dialog has to be added in mindshift environment ?
+
+        if (document.querySelector('[data-store-search]') || document.querySelector('[data-store-rating]')) {
+            if (document.getElementsByClassName('nuc-o-map-search__dialog').length === 0) {
+                let nodeNucScope = document.createElement("div");
+                nodeNucScope.classList.add("nuc-global-scope");
+
+                let nodeDialog = document.createElement("div");
+                nodeDialog.className = "nuc-o-map-search__dialog hidden@all";
+
+                let nodeMap = document.createElement("div");
+                nodeMap.className = "nuc-o-storesearch";
+
+                let nodeLoader = document.createElement("div");
+                nodeLoader.className = "nuc-o-map-search__loader";
+                nodeMap.appendChild(nodeLoader);
+                nodeDialog.appendChild(nodeMap);
+                nodeNucScope.appendChild(nodeDialog)
+                document.body.appendChild(nodeNucScope);
+            }
+            loadNucleusJsIfNeeded();
+            loadNucleusCssIfNeeded();
+        }
+    }
+
+    function loadNucleusJsIfNeeded() {
+        if (!document.querySelector('script[src*="nucleus"]')) {
+            let script = document.createElement('script');
+            script.src = window.nucleusConfig.basePath + 'build/nucleus.js';
+            script.async = false;
+            script.defer = true;
+            document.head.append(script);
+        }
+    }
+
+    function loadNucleusCssIfNeeded() {
+        if (!document.querySelector('link[href*="nucleus"]')) {
+            let style = document.createElement('link');
+            style.href = window.nucleusConfig.basePath + 'build/nucleus.css';
+            style.rel = 'stylesheet';
+            style.type = 'text/css';
+            document.head.append(style);
+        }
+    }
+
+
+    function checkMindshiftNav() {
+        // language switching for multi language countries
+        if (window.location.href.indexOf("/storesearch/assets/detailpages/") !== -1 || window.location.href.indexOf("/s/") !== -1) {
+            (async () => {
+                if (window.hasOwnProperty('mindShiftNav')) {
+                    const multilanguageLocales = new Map();
+                    for (const lang of window.mindShiftNav.availableLangs) {
+                        multilanguageLocales.set(lang, lang + '-' + window.mindShiftNav.country);
+                    }
+                    if (window.hasOwnProperty('navLangUrls')) {
+                        let type;
+                        if (document.querySelector('[data-store-search-page-type]')) {
+                            const typeFromPage = document.querySelector('[data-store-search-page-type]').dataset.storeSearchPageType
+                            if (typeFromPage !== null && typeFromPage !== undefined) {
+                                type = typeFromPage;
+                            }
+                        }
+                        let navLangs = {};
+                        let pathname = decodeURIComponent(window.location.pathname);
+                        const currentLanguageShortURL = await _getShortUrlPart(window.mindShiftNav.locale, type);
+                        // if another language is set from the mindshift cookie, "window.mindShiftNav.locale" and locale in pathname do not match
+                        if (!pathname.includes(currentLanguageShortURL)) {
+                            for (let language of multilanguageLocales.keys()) {
+                                const languageShortURL = await _getShortUrlPart(multilanguageLocales.get(language), type);
+                                if (pathname.includes(languageShortURL)) {
+                                    // set pathname to the desired value to bring it inline with header
+                                    pathname = pathname.replace(multilanguageLocales.get(language) + languageShortURL, window.mindShiftNav.locale + currentLanguageShortURL);
+                                }
+                            }
+                        }
+                        for (let language of multilanguageLocales.keys()) {
+                            const languageShortURL = await _getShortUrlPart(multilanguageLocales.get(language), type);
+                            navLangs[language] = decodeURIComponent(pathname).replace(window.mindShiftNav.locale + currentLanguageShortURL, multilanguageLocales.get(language) + languageShortURL);
+                        }
+                        window.navLangUrls ? window.navLangUrls.replace(navLangs) : (window.navLangUrls = navLangs);
+                    }
+                }
+            })();
+        }
+    }
+
+    async function _getShortUrlPart(locale, type) {
+        const url = window.nucleusConfig.basePath + "config/" + locale + "/config.json";
+        const response = await fetch(url, {
+            method: 'GET',
+        })
+        const config = await response.json();
+        if (type === 'NEO') {
+            return "/" + config.storesearch.newOpenings;
+        } else if (type === 'POPUP') {
+            return "/" + config.storesearch.popupStores;
+        } else {
+            return "/" + config.storesearch.sdpShortUrl;
+        }
+    }
+
+    createStoresearch();
+    createStoresearchStockAvailability();
+    loadNucleusForESIs();
+    createButtons();
+    checkMindshiftNav();
+}
+</script>
+
+</body>
+</html>

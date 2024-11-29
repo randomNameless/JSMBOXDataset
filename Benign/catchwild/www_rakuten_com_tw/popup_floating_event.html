@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>popup_floating_event.html</title>
+</head>
+<body>
+
+<script>
+(function () {
+  /* 時段設定格式
+  const popup_timeTable = [
+    {
+      type: "start", //start代表一個新的時間區段，end代表整個活動的結束時間
+      startTime: "2021/10/13 10:00", //區段開始時間，也是上個區段的結束時間
+      repeat: 3,
+      imgLink:
+        "https://intl.rakuten-static.com/b/tw/assets/top/img/2021/10/500x500_index-1012.png",
+      altText: "text for the img",
+      landingUrl: "/event/double10/",
+    },
+    {
+      type: "start",
+      startTime: "2021/10/13 18:00",
+      repeat: 3,
+      imgLink:
+        "https://intl.rakuten-static.com/b/tw/assets/top/img/2021/10/500x500_index-1012.png",
+      altText: "text for the img",
+      landingUrl: "/event/double10/",
+    },
+    {
+      type: "end",
+      startTime: "2021/10/15 10:00",
+      repeat: 4,
+      imgLink:
+        "https://intl.rakuten-static.com/b/tw/assets/top/img/2021/10/500x500_index-1012.png",
+      altText: "text for the img",
+      landingUrl: "/event/double10/",
+    },
+  ];
+  const floating_timeTable = [
+    {
+      type: "start", //start代表一個新的時間區段，end代表整個活動的結束時間
+      startTime: "2021/10/13 10:00", //區段開始時間，也是上個區段的結束時間
+      imgLink:
+        "https://intl.rakuten-static.com/b/tw/assets/event/test/william/img/cup.png",
+      altText: "text for the img",
+      landingUrl: "/event/double10/",
+    },
+    {
+      type: "start",
+      startTime: "2021/10/13 18:00",
+      imgLink:
+        "https://intl.rakuten-static.com/b/tw/assets/event/test/william/img/pumpkin.png",
+      altText: "text for the img",
+      landingUrl: "/event/double10/",
+    },
+    {
+      type: "end",
+      startTime: "2021/10/15 10:00",
+      imgLink:
+        "https://intl.rakuten-static.com/b/tw/assets/top/img/2021/10/500x500_index-1004_80x80.png",
+      altText: "text for the img",
+      landingUrl: "/event/double10/",
+    },
+  ];*/
+  const now = new Date(); //現在時間
+  //函式：關閉popup
+  var closeButton = document.querySelectorAll(".expand-close, .expand-mask");
+  for (var i = 0; i < closeButton.length; i++) {
+    closeButton[i].addEventListener("click", function (e) {
+      e.preventDefault();
+      e.currentTarget.closest(".popup-wrap").classList.remove("open");
+    });
+  }
+  //函式：存入Localstorage
+  function setLocalstorage(name, value) {
+    localStorage.setItem(name, value);
+  }
+  //函式：存入cookie
+  function setCookie(name, value) {
+    var date = new Date();
+    date.setTime(date.getTime() + 24 * 60 * 60 * 1000);
+    var expires = "; expires=" + date.toUTCString();
+    document.cookie = name + "=" + value + expires + "; path=/";
+  }
+  //函式：裝置判斷
+  function isMobileDevice() {
+    const mobileDevice = [
+      "Android",
+      "webOS",
+      "iPhone",
+      "iPad",
+      "iPod",
+      "BlackBerry",
+      "Windows Phone",
+    ];
+    let isMobileDevice = mobileDevice.some((e) => navigator.userAgent.match(e));
+    return isMobileDevice;
+  }
+  //主邏輯
+  var isMobile = isMobileDevice();
+  var timeStamp = "";
+  var repeatLimit = 0;
+  var isPopEventPeriod = false;
+  var isFloEventPeriod = false;
+  popup_timeTable.map((e, index) => {
+    if (e.type !== "end") {
+      let startTime = new Date(e.startTime);
+      let endTime = new Date(popup_timeTable[index + 1].startTime);
+      //尋找目前活動區間，設定timestamp，取得圖片、次數限制
+      if (startTime <= now && endTime >= now) {
+        isPopEventPeriod = true;
+        timeStamp =
+          now.getMonth() + 1 + "-" + now.getDate() + "-" + startTime.getHours();
+        repeatLimit = e.repeat;
+        document
+          .querySelector(".popup-wrap .expand-content")
+          .setAttribute("href", e.landingUrl + popupTrackingCode);
+        document
+          .querySelector(".popup-wrap .expand-content img")
+          .setAttribute("src", e.imgLink);
+        document
+          .querySelector(".popup-wrap .expand-content img")
+          .setAttribute("alt", e.altText);
+      }
+    }
+  });
+  floating_timeTable.map((e, index) => {
+    if (e.type !== "end") {
+      let startTime = new Date(e.startTime);
+      let endTime = new Date(floating_timeTable[index + 1].startTime);
+      //尋找floating圖片
+      if (startTime <= now && endTime >= now) {
+        isFloEventPeriod = true;
+        document
+          .querySelector(".floating-btn-icon")
+          .setAttribute("href", e.landingUrl + floatingTrackingCode);
+        document
+          .querySelector(".floating-btn-icon img")
+          .setAttribute("src", e.imgLink);
+        document
+          .querySelector(".floating-btn-icon img")
+          .setAttribute("alt", e.altText);
+      }
+    }
+  });
+  if (!isPopEventPeriod) {
+    document.querySelector(".expand-mask").remove();
+    document.querySelector(".expand-content").remove();
+  }
+  if (!isFloEventPeriod) {
+    document.querySelector(".floating-btn-icon").remove();
+  }
+
+  //檢查裝置、localStorage來判斷是否開啟popup
+  if (!isMobile) {
+    //PC
+    if (localStorage.getItem("R-popup") === null) {
+      setLocalstorage("R-popup", timeStamp);
+      setLocalstorage("R-popup-repeat", 1);
+      //do popup
+      document.querySelector(".popup-wrap").classList.add("open");
+    } else {
+      if (localStorage.getItem("R-popup") !== timeStamp) {
+        //新時段
+        //save timeStamp & repeatTimes
+        setLocalstorage("R-popup", timeStamp);
+        setLocalstorage("R-popup-repeat", 1);
+        //do popup
+        document.querySelector(".popup-wrap").classList.add("open");
+      } else {
+        //同時段
+        if (localStorage.getItem("R-popup-repeat") < repeatLimit) {
+          var repeatTimes =
+            parseInt(localStorage.getItem("R-popup-repeat"), 10) + 1;
+          setLocalstorage("R-popup-repeat", repeatTimes);
+          //do popup
+          document.querySelector(".popup-wrap").classList.add("open");
+        } else {
+          document.querySelector(".popup-wrap").classList.remove("open");
+        }
+      }
+    }
+  } else {
+    //Mobile
+    if (typeof document.cookie.split("time_stamp=")[1] === "undefined") {
+      setCookie("time_stamp", timeStamp);
+      setCookie("popup_repeat", 1);
+      //do popup
+      document.querySelector(".popup-wrap").classList.add("open");
+    } else {
+      if (document.cookie.split("time_stamp=")[1].split(";")[0] !== timeStamp) {
+        //新時段
+        //save timeStamp & repeatTimes
+        setCookie("time_stamp", timeStamp);
+        setCookie("popup_repeat", 1);
+        //do popup
+        document.querySelector(".popup-wrap").classList.add("open");
+      } else {
+        //同時段
+        if (
+          document.cookie.split("popup_repeat=")[1].split(";")[0] < repeatLimit
+        ) {
+          var repeatTimes =
+            parseInt(
+              document.cookie.split("popup_repeat=")[1].split(";")[0],
+              10
+            ) + 1;
+          setCookie("popup_repeat", repeatTimes);
+          //do popup
+          document.querySelector(".popup-wrap").classList.add("open");
+        } else {
+          //remove open
+          document.querySelector(".popup-wrap").classList.remove("open");
+        }
+      }
+    }
+  }
+})();
+
+</script>
+
+</body>
+</html>

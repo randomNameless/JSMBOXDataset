@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>script.html</title>
+</head>
+<body>
+
+<script>
+(function($){
+	$(document).ready(function() {
+
+		// img size checker
+/*
+		img1 = $(".categories img.comp1").height();
+		img2 = $(".categories img.comp2").height();
+		diff = Math.abs(img1-img2);
+		if (img1 > img2) {
+			$(".categories img.comp2").parent().css("marginTop", diff);
+		}
+		else {
+			$(".categories img.comp1").parent().css("marginTop", diff);
+		} */
+
+
+    	$("#content h3.expand").toggler();
+    	$("#content div.demo").expandAll({trigger: "h3.expand", ref: "h3.expand"});
+
+		// expand custom script
+		$('.switch a').click(function() {
+			if ($(this).hasClass('open')) {
+				$('.expand a').html("More [-]");
+			}
+			else {
+				$('.expand a').html("More [+]");
+			}
+		});
+
+		// click turns active
+		$('.menu1 a, .browse-category a').not('.header li li a').click(function() {
+			// remove initial active
+			$(this).parent().parent().find('.active').removeClass();
+			// add class
+			$(this).parent().addClass('active');
+		});
+
+		$(".header .search input").focus(function() {
+			$(this).closest("div").css("borderColor", "yellow")}
+		);
+		$(".header .search input").blur(function() {
+			$(this).closest("div").css("borderColor", "white")}
+		);
+
+/*		menuFit("div.menu1", "div.menu1 ul");
+		menuFit(".browse-category", ".browse-category ul"); */
+
+		function menuFit(container, menu) {
+			stringSize = [];
+			addSizes = 0;
+			counter = 0;
+			containerSize = $(container).width();
+			$(menu+" span").each(function() {
+				stringSize.push($(this).width());
+				addSizes += $(this).width();
+				counter++;
+			});
+			getPadding = ((containerSize - addSizes) / counter) / 2;
+			$(menu+ "> li a, .browse-category li em").not("ul li ul a").css({"paddingLeft":getPadding, "paddingRight":getPadding});
+		}
+
+		/*$('.hover').on({
+			 mouseenter: function(e) {
+				 e.preventDefault();
+				 if($(this).hasClass('active')){
+
+				 }else{
+					 list = $('.menu1').find('.active');
+					 list.removeClass('active');
+					 $(this).addClass('active');
+				 }
+			 }
+		});	*/
+	});
+})(jQuery);
+
+var MIN_LENGTH = 2;
+var AC_INDEX = -1;
+
+$( document ).ready(function() {
+		$("#keyword").keydown(function(e) {
+		  setTimeout(function() {
+				if (e.keyCode === 38 || e.keyCode === 40) { // Down/Up arrow
+					e.preventDefault();
+
+					var count = $("#autocomplete li").length;
+					var newindex = -1;
+
+					if (e.keyCode === 40) { // DOWN arrow
+						newindex = AC_INDEX < (count - 1) ? AC_INDEX + 1 : -1;
+					} else {
+						newindex = AC_INDEX == -1 ? count - 1 : AC_INDEX - 1;
+					}
+					var lis = $("#autocomplete li");
+
+					if (AC_INDEX > -1) {
+						lis[AC_INDEX].className = lis[AC_INDEX].className.replace(" achighlight","");
+					}
+
+					AC_INDEX = newindex;
+
+					if (newindex > -1 && lis.length > 0) {
+						lis[newindex].className += " achighlight";
+					}
+
+					return;
+				}
+				if ((e.keyCode === 13) && (AC_INDEX >= 0)) {
+					e.preventDefault();
+					var lis = $("#autocomplete li");
+					lis[AC_INDEX].click();
+				}
+				AC_INDEX = -1;
+				if (e.keyCode === 10 || e.keyCode === 13 || ((e.keyCode >= 37) && (e.keyCode <= 40)))
+        			return;
+                var keyword = $("#keyword").val();
+		var temp = document.createElement('div');
+                temp.textContent = keyword;
+                keyword = temp.innerHTML;
+                if (keyword.length >= MIN_LENGTH) {
+                        var checkpath = window.location.pathname;
+                        if (checkpath.indexOf("members/") > 0)
+                                var linkprefix = "/members/";
+                        else
+                                var linkprefix = "/tour/";
+                        $.get( linkprefix + "ac.php", { k: keyword } )
+                        .done(function( data ) {
+								$('#autocomplete').html('<ul>');
+                                var results = jQuery.parseJSON(data);
+                                $(results).each(function(key, value) {
+                                       	var splits = value.split("|");
+                                        value = splits[0];
+                                        var aka = splits[1];
+                                        var idlink = splits[3];
+                                        var link = value;
+                                        if (splits[2] == 'n') {
+                                                link = '<a href="' + linkprefix + 'name.php/' + idlink + '"><li class="acname">' + value + '</li></a>';
+                                                                                                $('#autocomplete').append(link);
+                                        } else {
+                                                if (aka.length == 0)
+                                                        link = '<a href="' + linkprefix + 'source.php/' + idlink + '"><li class="acsource">' + value + '</li></a>';
+                                                else
+                                                        link = '<a href="' + linkprefix + 'source.php/' + idlink + '"><li class="acsource">' + value + '<br /><span class="acaka">' + aka + '</span></li></a>';
+                                                                                                $('#autocomplete').append(link);                                                                                }
+                                })
+                                $('#autocomplete').append('<a href="' + linkprefix + 'search.php?searchstring=' + keyword + '"><li class="acname">See all results for <i>' + keyword + '</i></li></a></ul>');
+                        });
+                } else {
+                        $('#autocomplete').html('');
+                }
+		 }, 1);
+        });
+
+    $("#keyword").blur(function(){
+                $("#autocomplete").fadeOut(500);
+        })
+        .focus(function() {
+            $("#autocomplete").show();
+        });
+
+});
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>basket-widget-loader.html</title>
+</head>
+<body>
+<script>function loadWebComponentsLoaderAndWidget(triggeringElement, event) {
+  event.preventDefault();
+  document
+    .getElementById('shoppingCartBtnLoader')
+    ?.setAttribute('class', 'd-inline');
+  triggeringElement?.classList.add('disabled');
+  // Check if the web-component-loader.js is already loaded and ready
+  if (
+    window.WebComponents === 'undefined' ||
+    window.WebComponents === undefined ||
+    !window.WebComponents.ready
+  ) {
+    // Load web-component-loader.js
+    var webcomponentsLoader = document.createElement('script');
+    webcomponentsLoader.src =
+      '/webstore/basket-widget/assets/js/webcomponents-loader.js';
+    document.head.appendChild(webcomponentsLoader);
+
+    webcomponentsLoader.onload = () =>
+      WebComponents.waitFor(() =>
+        loadWebComponentsBasketWidget(triggeringElement),
+      );
+  } else {
+    loadWebComponentsBasketWidget(triggeringElement);
+  }
+}
+
+function loadWebComponentsBasketWidget(triggeringElement) {
+  if (
+    window.basketWidgetScript === 'undefined' ||
+    window.basketWidgetScript === undefined
+  ) {
+    window.basketWidgetScript = document.createElement('script');
+    basketWidgetScript.type = 'module';
+    basketWidgetScript.src = '/webstore/basket-widget/basket-widget.esm.js';
+    document.head.appendChild(basketWidgetScript);
+
+    basketWidgetScript.onload = () => {
+      const isoNavBar = document.querySelector('.nav-iso > .container');
+      isoNavBar.classList.add('position-relative');
+      let basketWidget = document.createElement('basket-widget');
+      basketWidget.id = 'basket-widget';
+      basketWidget.setAttribute('visibility', 'show');
+      basketWidget.style.display = 'none';
+      let rect = triggeringElement?.getBoundingClientRect();
+      basketWidget.className = 'card shadow position-absolute end-0';
+      basketWidget.style.top = (rect ? rect.bottom : '0') + 'px';
+      let shoppingCartButton = document.querySelector('#shoppingCart');
+      let cartBtn = shoppingCartButton.getBoundingClientRect();
+      basketWidget.style.right = (cartBtn ? cartBtn.right : '0') + 'px';
+      basketWidget.style.marginRight = '15px';
+      basketWidget.style.marginLeft = '15px';
+      triggeringElement.parentElement.appendChild(basketWidget);
+
+      basketWidget.addEventListener('basket-changed', (event) => {
+        document.querySelector('#shoppingCart span.badge').textContent =
+          countItemsQuantity(event.detail.basket);
+      });
+
+      showCartWidget(triggeringElement);
+    };
+
+    document.addEventListener('hide-basket', function() {
+      hideCartWidget(document.querySelector('#basket-widget'));
+    });
+
+  } else {
+    let basketWidget = document.getElementById('basket-widget');
+    if (basketWidget.getAttribute('visibility') === 'show') {
+      hideCartWidget(triggeringElement);
+    } else {
+      showCartWidget(triggeringElement);
+    }
+  }
+}
+
+function countItemsQuantity(basket) {
+  let totalQuantity = 0;
+  basket.items
+    .filter((item) => !item.isShippingChargeLineItem)
+    .forEach((item) => (totalQuantity += item.quantity));
+  return totalQuantity;
+}
+
+// Function to handle the key press event
+function handleKeyPress(event) {
+  if (event.key === 'Escape') {
+    // Call your hide method when the "Escape" key is pressed
+    hideCartWidget();
+  }
+}
+
+function hideCartWidget(triggeringElement) {
+  let basketWidget = document.getElementById('basket-widget');
+  basketWidget.setAttribute('visibility', 'hide');
+  basketWidget.style.display = 'none';
+  // Remove the key press event listener
+  document.removeEventListener('keydown', handleKeyPress);
+  document
+    .getElementById('shoppingCartBtnLoader')
+    ?.setAttribute('class', 'd-none');
+  triggeringElement?.classList?.remove('disabled');
+}
+
+function showCartWidget(triggeringElement) {
+  let basketWidget = document.getElementById('basket-widget');
+  basketWidget.setAttribute('visibility', 'show');
+  basketWidget.style.display = 'block';
+  // Listen for the "Escape" key press
+  document.addEventListener('keydown', handleKeyPress);
+  document
+    .getElementById('shoppingCartBtnLoader')
+    ?.setAttribute('class', 'd-none');
+  triggeringElement.classList.remove('disabled');
+}</script>
+</body>
+</html>

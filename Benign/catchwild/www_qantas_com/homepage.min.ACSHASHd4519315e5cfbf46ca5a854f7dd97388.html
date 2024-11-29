@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>homepage.min.ACSHASHd4519315e5cfbf46ca5a854f7dd97388.html</title>
+</head>
+<body>
+
+<script>
+const FORM_MODAL_EXPANDED = 'formModalExpanded';
+const FORM_MODAL_COLLAPSED = 'formModalCollapsed';
+
+const customEvents = {
+  formModalExpanded: new CustomEvent(FORM_MODAL_EXPANDED),
+  formModalCollapsed: new CustomEvent(FORM_MODAL_COLLAPSED),
+};
+
+const skipLinksContainer = document.querySelector('.skiplinks');
+const skipToMultiSearchClass = 'skip-to-multi-search';
+
+const scrollIntoView = (element) => {
+  let rect = element.getBoundingClientRect();
+
+  let offset = {
+    top: rect.top + window.scrollY - 70,
+    left: rect.left + window.scrollX,
+    behaviour: 'smooth',
+  };
+
+  window.scrollTo(offset);
+};
+
+const addSkipLinks = (linkList) => {
+  if (!linkList || linkList.length === 0 || !skipLinksContainer) return;
+
+  let skipLinksLabel = skipLinksContainer.dataset.skipToLabel;
+  let newSkipLinks = '';
+
+  linkList.forEach((linkItem) => {
+    let tabId = linkItem.id;
+    let tabLabel = linkItem.innerText;
+    var skipLabel = skipLinksLabel.replace('%s', tabLabel);
+    newSkipLinks += `<a href="#${tabId}" class="${skipToMultiSearchClass}">${skipLabel}</a>`;
+  });
+
+  skipLinksContainer.innerHTML += newSkipLinks;
+};
+
+const handleHomepageTabs = () => {
+  const homepageTabs = document.querySelector('.cmp-tabs--home-page');
+
+  const options = {
+    isExpanded: false,
+    accordionButtons: homepageTabs.querySelectorAll(
+      '.accordion_control_button',
+    ),
+    tabPanels: homepageTabs.querySelectorAll('.cmp-tabs__tabpanel--homepage'),
+    desktopTabs: homepageTabs.querySelectorAll(
+      '.homepage-tablist .cmp-tabs__tab',
+    ),
+    tabsOverlay: homepageTabs.querySelector('.multi-search-form__overlay'),
+    tabsOverlayCloseButton: homepageTabs.querySelector(
+      '.multi-search-form__close-button',
+    ),
+    multiSearchForm: homepageTabs.querySelector('.multi-search-form'),
+    pageMain: document.querySelector('main'),
+    tabActive: homepageTabs.querySelector('.cmp-tabs__tab--active'),
+
+    tabsExpandedClassName: 'tabs-homepage--expanded',
+    tabPanelActiveClassName: 'cmp-tabs__tabpanel--active',
+    accordionButtonActiveClassName: 'accordion_control_button--active',
+    desktopActiveTabClassName: 'cmp-tabs__tab--active',
+    tabClassName: 'cmp-tabs__tab',
+  };
+
+  const expand = () => {
+    if (options.isExpanded) return;
+    scrollIntoView(options.multiSearchForm);
+    homepageTabs.classList.add(options.tabsExpandedClassName);
+    options.tabsOverlayCloseButton.setAttribute('aria-hidden', false);
+    options.pageMain.classList.add('multi-search-form-main--expanded');
+    document.dispatchEvent(customEvents.formModalExpanded);
+    options.isExpanded = true;
+  };
+
+  const collapse = () => {
+    if (!options.isExpanded) return;
+    homepageTabs.classList.remove(options.tabsExpandedClassName);
+    options.tabsOverlayCloseButton.setAttribute('aria-hidden', true);
+    document.dispatchEvent(customEvents.formModalCollapsed);
+    options.pageMain.classList.remove('multi-search-form-main--expanded');
+    options.isExpanded = false;
+  };
+
+  const updateActiveTabFromURL = () => {
+    let queryStringTabId = window.location.hash;
+
+    if (queryStringTabId) {
+      const activeTabButtonElement = homepageTabs.querySelector(
+        `.accordion_control_button${queryStringTabId}`,
+      );
+
+      if (activeTabButtonElement) {
+        activeTabButtonElement.classList.add(
+          options.accordionButtonActiveClassName,
+        );
+      } else {
+        const selectedTab = homepageTabs.querySelector(
+          `${queryStringTabId}.${options.tabClassName}`,
+        );
+        if (selectedTab) {
+          selectedTab.classList.add(options.desktopActiveTabClassName);
+        }
+        const firstMobileTab = homepageTabs.querySelectorAll(
+          '.accordion_control_button',
+        )[0];
+        firstMobileTab.classList.add(options.accordionButtonActiveClassName);
+      }
+    } else {
+      const firstMobileTab = homepageTabs.querySelectorAll(
+        '.accordion_control_button',
+      )[0];
+      firstMobileTab.classList.add(options.accordionButtonActiveClassName);
+    }
+  };
+
+  const updateActiveTab = (newActiveTabID) => {
+    //reset desktop tabs
+    options.desktopTabs.forEach((tab) => {
+      tab.classList.remove(options.desktopActiveTabClassName);
+    });
+
+    //set active desktop tabs
+    homepageTabs
+      .querySelector(`.cmp-tabs__tab#${newActiveTabID}`)
+      .classList.add(options.desktopActiveTabClassName);
+  };
+
+  const setActiveAccordionButton = (nextActiveAccordionButton) => {
+    //reset accordion buttons
+    options.accordionButtons.forEach((btn) => {
+      btn.classList.remove(options.accordionButtonActiveClassName);
+      btn.setAttribute('aria-selected', 'false');
+    });
+
+    nextActiveAccordionButton.classList.add(
+      options.accordionButtonActiveClassName,
+    );
+    nextActiveAccordionButton.setAttribute('aria-selected', 'true');
+  };
+
+  const handleTabClick = (e) => {
+    let thisTab = e.target;
+    const activeTabButtonElement = homepageTabs.querySelector(
+      `.accordion_control_button#${thisTab.id}`,
+    );
+
+    setActiveAccordionButton(activeTabButtonElement);
+  };
+
+  const handleTabKeydown = (e, index) => {
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      let previousElementIndex = index > 0 && index - 1;
+
+      if (!previousElementIndex) return;
+
+      const activeTabButtonElement =
+        options.accordionButtons[previousElementIndex];
+      setActiveAccordionButton(activeTabButtonElement);
+    }
+
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      let nextElementIndex =
+        index < options.desktopTabs.length - 1 && index + 1;
+
+      if (!nextElementIndex) return;
+
+      const activeTabButtonElement = options.accordionButtons[nextElementIndex];
+      setActiveAccordionButton(activeTabButtonElement);
+    }
+  };
+
+  const handleAccordionButtonClick = (e) => {
+    let accordionButton = e.target;
+
+    //reset accordionButtons
+    options.accordionButtons.forEach((btn) => {
+      btn.classList.remove(options.accordionButtonActiveClassName);
+      btn.setAttribute('aria-selected', 'false');
+    });
+
+    //reset tabPanels
+    options.tabPanels.forEach((tabPanel) => {
+      tabPanel.classList.remove(options.tabPanelActiveClassName);
+      tabPanel.setAttribute('aria-hidden', 'true');
+    });
+
+    homepageTabs
+      .querySelector(
+        `.cmp-tabs__tabpanel--homepage#${accordionButton.id}-tabpanel`,
+      )
+      .classList.add(options.tabPanelActiveClassName);
+    homepageTabs
+      .querySelector(
+        `.cmp-tabs__tabpanel--homepage#${accordionButton.id}-tabpanel`,
+      )
+      .setAttribute('aria-hidden', 'false');
+
+    //update url
+    let newRelativePathQuery =
+      window.location.pathname + `#${accordionButton.id}`;
+    history.pushState(null, '', newRelativePathQuery);
+
+    accordionButton.classList.add(options.accordionButtonActiveClassName);
+    accordionButton.setAttribute('aria-selected', 'true');
+
+    updateActiveTab(accordionButton.id);
+  };
+
+  const setupListeners = () => {
+    options.desktopTabs.forEach((tab, index) => {
+      tab.addEventListener('click', handleTabClick);
+      tab.addEventListener('keydown', (e) => handleTabKeydown(e, index));
+    });
+
+    options.tabPanels.forEach((panel) => {
+      if (panel.querySelector('.cx25-tabs')) {
+        // Nested tabs. Delay expand for tabs to be active first.
+        panel.addEventListener('click', () => {
+          setTimeout(() => {
+            expand();
+          });
+        });
+      } else {
+        panel.addEventListener('click', expand);
+      }
+      panel.addEventListener('keypress', expand);
+    });
+
+    options.tabsOverlay.addEventListener('click', collapse);
+    options.tabsOverlayCloseButton.addEventListener('click', collapse);
+    options.tabsOverlayCloseButton.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === 'Tab') collapse(e);
+    });
+
+    options.tabActive.addEventListener('keydown', (e) => {
+      if (e.shiftKey && e.key === 'Tab') collapse(e);
+    });
+
+    options.accordionButtons.forEach((accordionButton) => {
+      accordionButton.addEventListener('click', handleAccordionButtonClick);
+    });
+  };
+
+  const init = () => {
+    updateActiveTabFromURL();
+    addSkipLinks(options.desktopTabs);
+    setupListeners();
+    document.dispatchEvent(customEvents.formModalCollapsed);
+  };
+
+  init();
+};
+
+document.addEventListener('DOMContentLoaded', handleHomepageTabs);
+
+
+</script>
+
+</body>
+</html>

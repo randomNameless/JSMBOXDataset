@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>default_chart_MDJIndex.html</title>
+</head>
+<body>
+
+<script>
+var custWidth1 = '173px'
+var custWidth2 = '201px'
+var custHeight = '120px'
+//只有PC要resize
+if ( !/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ) {
+	$( window ).resize(function() {
+		show_iQuote_all(new Date());//iQuote
+		show_Display(Math.floor(nowtime % 5)+1);//全球指數VS基金表現
+	});
+}
+
+var ETFView = {};
+var ETFViewData = {};
+if (!Date.now) Date.now = function () {return +new Date();};
+//console.log(ETFView);
+//iQuote
+function show_iQuote_all(Ddate){
+	var DdateNum = FormatTime_HH(Ddate);
+	if (DdateNum > 8 && DdateNum < 16) {
+		show_iQuote(3); //亞洲
+	} else if (DdateNum <= 21 && DdateNum >= 16) {
+		show_iQuote(2); //歐洲
+	} else {
+		show_iQuote(1); //美洲
+	}
+}
+function show_iQuote(tnum){
+	ChangeTab('iQuoteTab',tnum);
+	if (tnum == "1"){//美國
+		GetFlashView('AI000010','道瓊指數','iQ01');
+		GetStockView('IXIC.FS','那斯達克指數','iQ02');
+		GetFlashView('SPY.US','S&P500(SPY.US)','iQ03');
+		GetStockView('SOXX.FS','費城半導體','iQ04');
+		GetFlashView('AJ010784','VIX波動率','iQ05');
+	}
+	if (tnum == "2"){//歐洲
+		GetFlashView('AJ011933','德國(EWG.US)','iQ01');
+		GetStockView('FCHI.FS','法國CAC','iQ02');
+		GetStockView('RTSI.FS','俄羅斯RTSI','iQ03');
+		GetFlashView('AI001048','道瓊歐洲STOXX 50指數','iQ04');
+		GetFlashView('AJ011660','英國(EWU.US)','iQ05');
+	}
+	if (tnum == "3"){//亞洲
+		GetStockView('TSE.TW','臺灣加權','iQ01');
+		GetFlashView('AI000030','日經指數','iQ02');
+		GetFlashView('EWY.US','南韓(EWY.US)','iQ03');
+		GetStockView('HSI.FS','恆生指數','iQ04');
+		GetStockView('SHASHR.FS','上証Ａ股指數','iQ05');
+	}
+	if (tnum == "4"){//新興市場
+		GetFlashView('THD.US','泰國(THD.US)','iQ01');
+		GetFlashView('AI000800','越南指數','iQ02');
+		GetStockView('JKSE.FS','印尼綜合','iQ03');
+		GetFlashView('AJ011934','印度(INDA.US)','iQ04');
+		GetStockView('BVSP.FS','巴西','iQ05');
+	}
+	if (tnum == "5"){//商品
+		GetFlashView('FM200048','布蘭特原油','iQ01');
+		GetFlashView('FM200047','西德州原油','iQ02');
+		GetFlashView('AI000390','黃金','iQ03');
+		GetFlashView('AI000190','CRB','iQ04');
+		GetFlashView('FM400007','波羅的海(BDI)','iQ05');
+	}
+	if (tnum == "6"){//其他
+		GetFlashView('AI000440','NBI','iQ01');
+		GetFlashView('AJ011791','新興市場','iQ02');
+		GetFlashView('AJ010749','CRB農業','iQ03');
+		GetFlashView('GBUS120','美國十年債券','iQ04');
+		GetFlashView('GBDM120','德國10年','iQ05');
+	}
+	$('#iQuoteMore').html('<a href="/iquote/iquoteidxchart.djhtm">more</a>');
+}
+//分時走勢圖
+function GetStockView(StockID, sCaption, sDiv) {
+	chartLoadObj.destroyView(sDiv);//先刪圖Cache
+	var divname = (sDiv + StockID).replace(".", "");
+	var tmpWidth = "173px";
+	//alert(document.body.offsetWidth)
+	if (document.body.offsetWidth <= 1215){
+		tmpWidth = "211px";
+	}
+	//畫圖
+	var params = {}, bcd = [];
+	params['ID'] = sDiv;
+	params['fSrc'] = "STOCK";
+	params['fWidth'] = tmpWidth;
+	params['fHeight'] = "120px";
+	params['NoData'] = "查無資料";
+	params['TYPE'] = "area";
+	params['AlignTxtY'] = "right";
+	params['BaseMid'] = "0";
+	params['POS_Legend'] = "bottom";
+	params['GV_PAD'] = 0;
+	params['Caption'] = sCaption; //Y軸標示
+	params['AddClass'] = "ixChart"; //控制iframe的class
+	params['POS_CTRL'] = "none"; //左右鍵移除
+	params['Pos_Logo'] = "1"; //左右鍵移除
+
+	stockProvider.setID(StockID, {
+		success: function(rs) {
+			params['TradeT'] = rs.TradeTime;
+			params['Exch'] = rs.Exch;
+			params['DP'] = rs.DP;
+			params['U'] = rs.U;
+			params['D'] = rs.D;
+			params['PC'] = rs.PC;
+
+			bcd.push(rs.T.join(','));
+			bcd.push(rs.O.join(','));
+			bcd.push(rs.H.join(','));
+			bcd.push(rs.L.join(','));
+			bcd.push(rs.C.join(','));
+			
+			ChartLoad(bcd.join(' '), params, function() {//callback
+					var tmptime = $('#'+sDiv+' .notehead').html();
+					if ($.trim(tmptime) != '' && tmptime.indexOf(':') != -1){
+							$('#'+sDiv+' .notehead').prepend( rs.Date.substr(4,2) + '/' + rs.Date.substr(6,2) + ' ' );
+					}
+			});
+		},
+		fail: function() { //取不到分時資料
+			ChartLoad(bcd.join(' '), params);
+		}
+	});
+}
+//走勢圖
+function GetFlashView(StockID, sCaption, sDiv) { //sBCD, sCaption, sID
+	chartLoadObj.destroyView(sDiv);//先刪圖Cache
+	var eDate = [];
+	var eNum = [];
+	$.ajax({
+		type: "GET",
+		url: "/SymbolSvc/TAHistData.aspx?a="+StockID+"&b=8&e="+dateFunc.format(dateFunc.dateAdd(Date.now(),'y',-1),"yyyyMMdd")+"&c="+dateFunc.format(Date.now(),"yyyyMMdd"),
+		dataType: "text",
+		success: function(data) {
+			xml = LoadXML(data);
+			$(xml).find("Item").each(function(i){ 
+			   eDate.push(','+$(this).attr("D"));
+			   eNum.push(','+$(this).attr("C"));
+			}); 
+			var tmparray = eNum.join('').split(',');
+			var tmpWidth = custWidth1;
+			if (document.body.offsetWidth <= 1215){
+				tmpWidth = custWidth2;
+			}
+			//沒有畫過就畫圖
+			var sParams =
+			{
+				ID: sDiv, //Canvas Div ID專用
+				Type: "Mountain:L",
+				fWidth: tmpWidth,
+				fHeight: custHeight,
+				POS_Legend: "bottom",
+				CUTTINGY: "4", //Y軸切4刀
+				AddClass: "ixChart", //控制iframe的class
+				Caption: sCaption,
+				POS_CTRL: "none"//左右鍵移除
+			}
+			var DP = FindDP(StockID);
+			sParams["DP"] = DP;
+			ChartLoad(eDate.join('').substring(1) + ' ' + eNum.join('').substring(1), sParams);
+		},
+		error: function (request, error) {
+			console.log(arguments);
+			alert(" Can't do because: " + error);
+		}	
+	});
+}
+//尋找小數位數
+function FindDP(id) {
+	var str = "2";
+	var _exchMap = {
+		'AX000090': '4', 'AX000040': '4', 'AX000070': '4', 'AX000100': '4', 'AX000250': '4'
+	}
+	id = id.toUpperCase();
+	if (_exchMap[id]) {
+		str = _exchMap[id];
+		return str;
+	}
+}
+//全球指數VS基金表現
+function show_Display(tnum){
+	ChangeTab('DisplayTab',tnum);
+	Display_Index(tnum);
+	Display_Fund(tnum);
+}
+//全球指數
+function Display_Index(tnum){
+	var loader;
+	var url = "/jsondata/funddj/fundweb.xdjjson?x=d14&a="+"9998";
+	var urlmore = "/iquote/iQuoteReturn.djhtm?a=C";
+	if (tnum == "2"){url = "/jsondata/funddj/fundweb.xdjjson?x=d14&a="+"1";urlmore = "/iquote/iQuoteShow.djhtm?a=1"}
+	if (tnum == "3"){url = "/jsondata/funddj/fundweb.xdjjson?x=d14&a="+"2";urlmore = "/iquote/iQuoteShow.djhtm?a=2"}
+	if (tnum == "4"){url = "/jsondata/funddj/fundweb.xdjjson?x=d14&a="+"3";urlmore = "/iquote/iQuoteShow.djhtm?a=3"}
+	if (tnum == "5"){url = "/jsondata/funddj/fundweb.xdjjson?x=d14&a="+"97";urlmore = "/iquote/iQuoteShow.djhtm?a=97"}
+	$.ajax({
+		dataType: "json",
+		url: url,
+		beforeSend:function(){loader = new ajaxLoader('#DisplayDiv')},
+		complete:function(){if (loader) loader.remove();},
+		success: function(data) {
+			var objList = data.ResultSet.Result;
+			var dataSet = [];
+			var yyy = [];
+			yyy.push('<table id="eTableL" class="display">');
+			yyy.push('<thead>');
+			yyy.push('    <tr>');
+			yyy.push('		<th class="donowrap"><span>排名</sapn></th>');
+			yyy.push('      <th class="donowrap"><span>走勢</sapn></th>');
+			yyy.push('      <th class="donowrap"><span>股市</sapn></th>');
+			yyy.push('      <th class="donowrap"><span>行情</sapn></th>');
+			yyy.push('		<th class="donowrap" style="padding-right:12px;"><span>月報酬%</sapn></th>');
+			yyy.push('    </tr>');
+			yyy.push('</thead>');
+			yyy.push('<tfoot><tr style="height:27px;"><th colspan="5" style="text-align:right;padding-right:12px;line-height:35px;"><a href="'+urlmore+'"><span class="buttonmore2">more</span></a></th></tr></tfoot>');
+			yyy.push('<tbody>');
+			for(var i=0;i<objList.length;i++){
+				var num = (i+1);
+				if (i < 3){num='<div class="number'+(i+1)+'"></div>'} 
+				yyy.push('<tr>');
+				yyy.push('<td>'+ num + '</td>');//排名
+				yyy.push('<td class="details-control" id="D_'+objList[i]['V1']+'" style="padding-top:0px;padding-bottom:0px;">'+'<img width="24" height="24" src="/ChartCache/Index/Small/ChartSmallIndex.xdjpng?id='+objList[i]['V1']+'" title="請點我">'+'</td>');//走勢
+				yyy.push('<td>'+'<span class="ellipsis200"><a href="/iquote/iQuoteChart.djhtm?a='+objList[i]['V1']+'" title="'+objList[i]['V2']+'">' + objList[i]['V2'] + '</a>'+'</span></td>');//股市
+				yyy.push('<td>'+ numFunc.format(objList[i]['V4'],2) + '</td>');//行情
+				yyy.push('<td style="padding-right:12px;">'+ ChkNumCss5(objList[i]['V5'],2) + '</td>');//月報酬%
+				yyy.push('</tr>');
+			}
+			yyy.push('</tbody>');
+			yyy.push('</table>');
+			var table = $('#DisplayL').html(yyy.join('')).children('table')
+			.DataTable($.extend(dt_Set(),{
+					aoColumnDefs:
+					[
+						{bSortable: false, aTargets: [ 0,1,2,3,4 ]},
+						{sClass: "align_left",aTargets:[2]}, // 欄位靠左
+						{sClass: "align_right donowrap",aTargets:[3,4]}, // 欄位靠右
+						{sClass: "align_center donowrap",aTargets:[0,1]} // 欄位置中
+					]
+			}));
+			
+			
+			$('#eTableL tbody').on('click', 'td.details-control', function () {
+				//alert($(this).attr('id'))
+				var tr = $(this).closest('tr');
+				var row = table.row( tr );
+				var id = $(tr).find('td:eq(1)').attr('id').replace('D_','');
+				//alert($("#eTableL tbody tr[class*='shown']").next().length)
+				//$("#eTableL tbody tr td[colspan='5']").css('padding-bottom','0px').css('line-height','0px');
+				$("#eTableL tbody tr[class*='shown']").next().hide();
+				$("#eTableL tbody tr[class*='shown']").next().removeClass('shown');
+				var ChartID = 'ChartL'
+				chartLoadObj.destroyDiv(ChartID);//先刪圖Cache
+				var periodstr = '<div id="PeriodL">'
+				periodstr+='<div class="period first"><a href="javascript:GetFlashView2(\''+id+'\',\''+ChartID+'\',\'1m\');"><span>1m</span></a></div>';
+				periodstr+='<div class="period"><a href="javascript:GetFlashView2(\''+id+'\',\''+ChartID+'\',\'3m\');"><span>3m</span></a></div>';
+				periodstr+='<div class="period"><a class="on" href="javascript:GetFlashView2(\''+id+'\',\''+ChartID+'\',\'1y\');"><span>1y</span></a></div>';
+				periodstr+='<div class="period"><a href="javascript:GetFlashView2(\''+id+'\',\''+ChartID+'\',\'5y\');"><span>5y</span></a></div>';
+				periodstr+='<div class="period last"><a href="javascript:GetFlashView2(\''+id+'\',\''+ChartID+'\',\'YTD\');"><span>YTD</span></a></div>';
+				periodstr+='</div>'
+				row.child('<div style="min-height:125px;"><div id="'+ChartID+'"></div></div>'+periodstr).show();
+				tr.addClass('shown');
+				GetFlashView2(id,ChartID,'1y');//畫圖
+			} );
+			$('#eTableL tbody tr td.details-control').css('cursor','pointer');
+			$('#'+$('#eTableL tbody tr td.details-control').attr('id')).click();
+			$("#eTableL tbody tr td[colspan='5']").css('padding-bottom','0px').css('line-height','0px');
+			//alert($('#DisplayL').css('height'))
+			//$("#D_AJ010699").click();
+		}
+	});	
+}
+//基金表現
+function Display_Fund(tnum){
+	var loader;
+	switch(tnum) {
+    case '2':
+        url = "/jsondata/funddj/fundweb.xdjjson?x=d15&a="+"8";//1,5,6,8,9,12,13,17,18,19,21,22,31,38,41,47,48,51,53,58,59,62,65,79,82,85,86
+		urlmore = "/iQuote/iQuoteFundCatFund.djhtm?A=2&B=1&C=8";
+        break;
+    case '3':
+        url = "/jsondata/funddj/fundweb.xdjjson?x=d15&a="+"27,55";//3,7,14,16,20,24,25,26,27,28,34,35,39,42,43,50,56,60,63,67,68,72,73,75,76,77,78,80,81,55,69,71,87
+		urlmore = "/iQuote/iQuoteFundCatFund.djhtm?A=4&B=1&C=27";
+        break;
+	case '4':
+        url = "/jsondata/funddj/fundweb.xdjjson?x=d15&a="+"2";//2,11,15,33,57,61,64,66,74
+		urlmore = "/iQuote/iQuoteFundCatFund.djhtm?A=3&B=1&C=2";
+        break;
+	case '5':
+        url = "/jsondata/funddj/fundweb.xdjjson?x=d16";
+		urlmore = "/iQuote/iQuoteFundCatFund.djhtm?A=15,1,2,16,21,42,47,11,35,45&B=2&C=35";
+        break;
+    default:
+		url = "/jsondata/funddj/fundweb.xdjjson?x=d15&a="+"4";
+		urlmore = "/iQuote/iQuoteFundCatFund.djhtm?A=1&B=1&C=4";
+	}
+	
+	$.ajax({
+		dataType: "json",
+		url: url,
+		beforeSend:function(){loader = new ajaxLoader('#DisplayDiv')},
+		complete:function(){if (loader) loader.remove();},
+		success: function(data) {
+			var objList = data.ResultSet.Result;
+			var dataSet = [];
+			var yyy = [];
+			yyy.push('<table id="eTableR" class="display">');
+			yyy.push('<thead>');
+			yyy.push('    <tr>');
+			yyy.push('		<th class="donowrap"><span>排名</sapn></th>');
+			yyy.push('      <th class="donowrap"><span>走勢</sapn></th>');
+			yyy.push('      <th class="donowrap"><span>基金</sapn></th>');
+			yyy.push('		<th class="donowrap" style="padding-right:12px;"><span>月報酬%</sapn></th>');
+			yyy.push('    </tr>');
+			yyy.push('</thead>');
+			yyy.push('<tfoot><tr><th colspan="4" style="text-align:right;padding-right:12px;line-height:35px;"><a href="'+urlmore+'"><span class="buttonmore2">more</span></a></th></tr></tfoot>');
+			yyy.push('<tbody>');
+			if (objList.length > 1){
+				for(var i=0;i<objList.length;i++){
+					var num = (i+1);
+					if (i < 3){num='<div class="number'+(i+1)+'"></div>'} 
+					yyy.push('<tr>');
+					yyy.push('<td>'+ num + '</td>');//排名
+					yyy.push('<td class="details-control" id="D_'+objList[i]['V1']+'" style="padding-top:0px;padding-bottom:0px;">'+ '<img width="24" height="24" src="/ChartCache/Fund/Small/ChartSmallFund.xdjpng?id='+objList[i]['V1']+'" title="請點我">' + '</td>');//走勢
+					yyy.push('<td>'+'<span class="ellipsis250"><a href="'+GoWhere(objList[i]['V1'],objList[i]['V5'])+'" title="'+objList[i]['V2']+'">' + objList[i]['V2'] + '</a>'+'</span></td>');//基金
+					yyy.push('<td style="padding-right:12px;">'+ ChkNumCss5(objList[i]['V4'],2) + '</td>');//月報酬%
+					yyy.push('</tr>');
+				}
+			}else{
+				yyy.push('<tr><td colspan="4" align="center" style="border-top:1px solid #e5e5e5;">查無資料</td></tr>');
+			}
+			yyy.push('</tbody>');
+			yyy.push('</table>');
+			var table = $('#DisplayR').html(yyy.join('')).children('table')
+			.DataTable($.extend(dt_Set(),{
+					aoColumnDefs:
+					[
+						{bSortable: false, aTargets: [ 0,1,2,3 ]},
+						{sClass: "align_left",aTargets:[2]}, // 欄位靠左
+						{sClass: "align_right donowrap",aTargets:[3]}, // 欄位靠右
+						{sClass: "align_center donowrap",aTargets:[0,1]} // 欄位置中
+					]
+			}));
+			$('#eTableR tbody').on('click', 'td.details-control', function () {
+				var tr = $(this).closest('tr');
+				var row = table.row( tr );
+				var id = $(tr).find('td:eq(1)').attr('id').replace('D_','');
+				$("#eTableR tbody tr[class*='shown']").next().hide();
+				$("#eTableR tbody tr[class*='shown']").next().removeClass('shown');
+				var ChartID = 'ChartR'
+				chartLoadObj.destroyDiv(ChartID);//先刪圖Cache
+				var periodstr = '<div id="PeriodR">'
+				periodstr+='<div class="period first"><a href="javascript:GetFlashView2(\''+id+'\',\''+ChartID+'\',\'1m\');"><span>1m</span></a></div>';
+				periodstr+='<div class="period"><a href="javascript:GetFlashView2(\''+id+'\',\''+ChartID+'\',\'3m\');"><span>3m</span></a></div>';
+				periodstr+='<div class="period"><a class="on" href="javascript:GetFlashView2(\''+id+'\',\''+ChartID+'\',\'1y\');"><span>1y</span></a></div>';
+				periodstr+='<div class="period"><a href="javascript:GetFlashView2(\''+id+'\',\''+ChartID+'\',\'5y\');"><span>5y</span></a></div>';
+				periodstr+='<div class="period last"><a href="javascript:GetFlashView2(\''+id+'\',\''+ChartID+'\',\'YTD\');"><span>YTD</span></a></div>';
+				periodstr+='</div>'
+				row.child('<div style="min-height:125px;"><div id="'+ChartID+'"></div></div>'+periodstr).show();
+				tr.addClass('shown');
+				GetFlashView2(id,ChartID,'1y');//畫圖
+			} );
+			$('#eTableR tbody tr td.details-control').css('cursor','pointer');
+			$('#'+$('#eTableR tbody tr td.details-control').attr('id')).click();
+			$("#eTableR tbody tr td[colspan='4']").css('padding-bottom','0px').css('line-height','0px');
+		}
+	});	
+}
+//全球指數VS基金表現的走勢圖
+function GetFlashView2(StockID, sDiv, sPeriod) { //sBCD, sCaption, sID
+    $('#Period'+sDiv.replace('Chart','')+' div a.on').removeClass('on');
+	$('#Period'+sDiv.replace('Chart','')+' div a[href*=\''+sPeriod+'\']').addClass('on');
+	switch(sPeriod) {
+    case '1m':
+        urlstr = "&b=8&e="+dateFunc.format(dateFunc.dateAdd(Date.now(),'m',-1),"yyyyMMdd")+"&c="+dateFunc.format(Date.now(),"yyyyMMdd");
+        break;
+    case '3m':
+        urlstr = "&b=8&e="+dateFunc.format(dateFunc.dateAdd(Date.now(),'m',-3),"yyyyMMdd")+"&c="+dateFunc.format(Date.now(),"yyyyMMdd");
+        break;
+	case '5y':
+        urlstr = "&b=8&d=9999&e="+dateFunc.format(dateFunc.dateAdd(Date.now(),'y',-5),"yyyyMMdd")+"&c="+dateFunc.format(Date.now(),"yyyyMMdd");
+        break;
+	case 'YTD':
+        urlstr = "&b=8&e="+dateFunc.format(Date.now(),"yyyy")+'0101'+"&c="+dateFunc.format(Date.now(),"yyyyMMdd");
+        break;
+    default: //1y
+		urlstr = "&b=8&e="+dateFunc.format(dateFunc.dateAdd(Date.now(),'y',-1),"yyyyMMdd")+"&c="+dateFunc.format(Date.now(),"yyyyMMdd");
+	}
+	
+	var eDate = [];
+	var eNum = [];
+	var tmpWidth = "400px";
+	//alert(document.body.offsetWidth)
+	if (document.body.offsetWidth <= 1215){
+		tmpWidth = "300px";
+	}
+	$.ajax({
+		type: "GET",
+		url: "/SymbolSvc/TAHistData.aspx?a="+StockID+urlstr,
+		dataType: "xml",
+		success: function(data) {
+			xml = data;
+			$(xml).find("Item").each(function(i){ 
+			   eDate.push(','+$(this).attr("D"));
+			   eNum.push(','+$(this).attr("C"));
+			}); 
+			var tmparray = eNum.join('').split(',');
+			//沒有畫過就畫圖
+			var sParams =
+			{
+				ID: sDiv, //Canvas Div ID專用
+				Type: "nparea",
+				fWidth: tmpWidth,
+				fHeight: "100px",
+				POS_Legend: "bottom",
+				CUTTINGY: "4", //Y軸切4刀
+				AddClass: "ixChart", //控制iframe的class
+				POS_CTRL: "none",//左右鍵移除
+				NPArea_base:tmparray[tmparray.length-1]
+			}
+			var DP = FindDP(StockID);
+			sParams["DP"] = DP;
+			ChartLoad(eDate.join('').substring(1) + ' ' + eNum.join('').substring(1), sParams);
+		}
+	});
+
+}
+function LoadXML(txt)
+{
+    var xmlDoc;
+    if (window.DOMParser)
+    {
+        xmlDoc=(new DOMParser()).parseFromString(txt,"text/xml");
+    }
+    else
+    {
+        xmlDoc=new ActiveXObject("Microsoft.XMLDOM");
+        xmlDoc.async="false";
+        xmlDoc.loadXML(txt);
+		
+    } 
+    return xmlDoc;    
+}
+</script>
+
+</body>
+</html>

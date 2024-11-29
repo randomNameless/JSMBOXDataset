@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GeneralCMCallHandler.html</title>
+</head>
+<body>
+
+<script>
+//******************************************************* Java script code *************************************************************************//
+var GeneralCMCallHandler = function () {
+    function GeneralCMCallHandler() {
+        this.CMCallHandlerID = '';
+    }
+
+    // Overrides Super Init to Set mAsyncData = true, So that Form Marked as a Call Form
+    // Overridable By Business to Assign Form Variables and Options Like: InputRequestClassType, MWServiceId, CachingKey, GetFromCache, ...
+    GeneralCMCallHandler.Init = function () {
+        this.CMConfig = config.CMCallHandlers[this.CMCallHandlerID];
+        this.mAsyncData = true;
+        this.MWServiceId = this.CMConfig.MWServiceID;
+        this.DataCachingKey = this.CMConfig.MWServiceID;
+        this.ReqInputObj = null;
+        this.InputRequestClassType = eval(this.CMConfig.SchemaObjectTypeName);
+        this.RspOutputObj = null; //mwConfig.ResponseSchemaObjectName;
+        this.ReqObj = null;
+        //this.GetFromCache = (this.WidgetConfig.WidgetCommunicationSettings.GetFromDevice + '').toLowerCase() == 'true' ? true : false;
+        this.CacheResponseFlag = true;
+        this.mSpinnerDivContainer = '';
+        this.mAnimationDiv = '';
+        this.DataGottenFromServer = false;
+        this.LastCallResultCode = 0;
+        this.DisplayDefaultErrorAlert = true;
+        this.HideSpinnerWhenMWCallError = false;
+        this.HideSpinnerWhenAjaxCallError = false;
+        this.ContinueProcessingAfterMWError = false;
+        //this.mAsyncData = true;
+        this.InParameters;
+        this.CallBackFunc;
+    };
+
+    // Overrides Super GetScreenData, to Prepare Request and Call MW
+    GeneralCMCallHandler.GetScreenData = function () {
+        this.Init();
+        this.CreateRequestObj();
+        this.CallMW();
+    };
+
+    // Assigns ReqInputObj a new Instance from InputRequestClassType, Prepares it's header with MWServiceId, and Assign the Caching Key for the Response
+    GeneralCMCallHandler.CreateRequestObj = function () {
+        this.ReqInputObj = CreateBridgeRequestObj(this.InputRequestClassType, this.MWServiceId, this.CachingKey);
+
+        //var col = clone(eval(this.CMConfig.RequestSchemaObjectTypeName));
+        this.ReqInputObj.Item.Body[this.CMConfig.RequestSchemaPropertyName] =
+            CreateBridgeObject(eval(this.CMConfig.RequestSchemaObjectTypeName));
+        if (this.InParameters) {
+            for (var inParm in this.InParameters) {
+                this.ReqInputObj.Item.Body[this.CMConfig.RequestSchemaPropertyName][inParm] = this.InParameters[inParm];
+            }
+        }
+        //        this.ReqObj = this.ReqInputObj.Item.Body[this.CMConfig.RequestSchemaPropertyName] =
+        //CreateBridgeObject(eval(this.CMConfig.RequestSchemaObjectTypeName))
+        //Create New Instance of MW Request Object
+        //clone(this.WidgetInfo.RequestSchema);
+        //var inParams = this.InParameters;
+        //if (inParams) {//Check InParameters is Exist, if Exist then set all Request Properties that have same property name automatically
+        //    var pramsRef = new Reflector(inParams);
+        //    var pramsProperties = pramsRef.getProperties();
+        //    var reqRef = new Reflector(this.ReqInputObj.Item.Body[this.CMConfig.RequestSchemaPropertyName]);
+        //    var reqProperties = reqRef.getProperties();
+        //    for (var pramsProp in pramsProperties) {
+        //        for (var reqProp in reqProperties) {
+        //            if (reqProperties[reqProp] == pramsProperties[pramsProp]) {
+        //                this.ReqObj[reqProperties[reqProp]] = parms[reqProperties[reqProp]];
+        //            }
+        //        }
+        //    }
+        //}
+    };
+
+    // Prepare the CallMWBridge InputData and Calls It
+    GeneralCMCallHandler.CallMW = function () {
+
+        var SpinnerDivContainerName;
+
+        if (this.mSpinnerDivContainer == '') {
+            SpinnerDivContainerName = '';
+        }
+        else {
+            SpinnerDivContainerName = "" + GetActiveSubPageID() + '_' + this.mSpinnerDivContainer;
+        }
+        var Data = {
+            MWServiceID: this.MWServiceId,
+            InputObject: this.ReqInputObj,
+            OnSuccessFunction: this.HandleSuccess,
+            OnFailureFunction: this.HandleAjaxErr,
+            GetFromCache: this.GetFromCache,
+            CacheResponseFlag: this.CacheResponseFlag,
+            CachingKey: this.DataCachingKey,
+            DisplayDefaultErrorAlert: this.DisplayDefaultErrorAlert,
+            AnimationDiv: this.mAnimationDiv,
+            SpinnerDivContainer: SpinnerDivContainerName,//"" + GetActiveSubPageID() + '' + this.mSpinnerDivContainer,
+            NavigationHistoryItemID: this.NavigationHistoryItemID,
+            CallBackContextObj: this
+        };
+        CallMWBridge(Data);
+    };
+
+    // Handles the Ajax Call Success
+    GeneralCMCallHandler.HandleSuccess = function (Data) {
+        this.RspOutputObj = Data.RspObj;
+        this.RSP = clone(this.RspOutputObj.Item.Body[this.CMConfig.ResponseSchemaPropertyName]);
+        this.DataGottenFromServer = Data.DataGottenFromServer;
+        this.LastCallResultCode = Data.ResultCode;
+        this.CachedDataBinded = Data.CachedDataBinded;
+        for (var index = 0; index < this.CallBackFunc.length; index++) {
+            if (typeof this.CallBackFunc[index] === "function") {
+                this.CallBackFunc[index](Data.ResultCode, this.RSP, this.RspOutputObj);
+            }
+        }
+        //if (Data.ResultCode == 0) {
+        //    this.HandleGetScreenDataFinished();
+        //} else {
+        //    if (this.DisplayDefaultErrorAlert) {
+        //        AlertFunction(this.RspOutputObj.Item.Header.Service.ServiceResult.ResultDesc, this.RspOutputObj.Item.Header.Service.ServiceResult.ResultDesc, "Sorry", "عفواً", "OK", "موافق", "");
+        //        Globals.EnableReportCase = Globals.EnableReportCase || false;
+        //        if (Globals.EnableReportCase)
+
+        //            HandleReportCaseCommonBusiness();
+        //    }
+        //    this.HandleMWErr();
+        //    if (this.ContinueProcessingAfterMWError) {
+        //        this.HandleGetScreenDataFinished();
+        //    }
+        //}
+        try {
+            this.OnCMCallFinished(Data)
+        } catch (e) {
+
+        }
+    };
+
+    GeneralCMCallHandler.SetOutParams = function (DataObject) {
+        if (this.WidgetConfig && this.WidgetConfig.WidgetParams) {
+            if (!this.OutParameters) this.OutParameters = {};
+            var params = this.WidgetConfig.WidgetParams;
+            for (var index = 0; index < params.length; index++) {
+                var prop = params[index].ParamName;
+                //var isOptional = params[index].IsOptional;
+                var paramType = params[index].ParamType.toLowerCase();
+                if ((paramType == 'out' || paramType == 'inout') && this.RSP && this.RSP[prop]) {
+                    this.OutParameters[prop] = this.RSP[prop];
+                    //var element = params[index].BindedHTMLElementSelector;
+                    //if (element && element.length > 0) {
+                    //    element = element.split(',');
+                    //    for (var elm = 0; elm < element.length; elm++) {
+                    //        var domElem = this.GetHTMLElement(element[elm]);
+                    //        if (domElem && domElem.is('input')) {
+                    //            this.OnChangeObject(this.OutParameters, domElem, prop);
+                    //        }
+                    //    }
+                    //}
+                }
+            }
+        }
+    };
+    // Overridable By Business Classes, to Execute a business flow if MW Response ResultCode != 0
+    // If Flag ContinueProcessingAfterMWError Set to True, HandleGetScreenDataFinished will be called
+    GeneralCMCallHandler.HandleMWErr = function () {
+        if (this.HideSpinnerWhenMWCallError) {
+            HideLoadingSpinner();
+        }
+    };
+
+    // Overridable By Business to Handle Ajax Call Error, i.e: Custom Comm Err Handling
+    GeneralCMCallHandler.HandleAjaxErr = function (Data) {
+        try {
+            this.OnCMCallFinished(Data)
+        } catch (e) {
+
+        }
+        if (this.HideSpinnerWhenAjaxCallError) {
+            HideLoadingSpinner();
+        }
+        try {
+            $("#" + this.mPageID + " .WidgetsMsgs").hide();
+            $("#" + this.mPageID + " .WidgetAjaxPart").show();
+            var CommErrorStr = "Communication Error";
+            if (Language != "en") {
+                CommErrorStr = "خطأ فى الاتصال"
+            }
+            $("#" + this.mPageID + " .WidgetAjaxPart span").text(CommErrorStr);
+        } catch (e) {
+            log("==== HandleAjaxErr EX: ");
+            log(e);
+        }
+
+    };
+    return GeneralCMCallHandler;
+}
+</script>
+
+</body>
+</html>

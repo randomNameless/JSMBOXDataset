@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>va-loader.html</title>
+</head>
+<body>
+
+<script>
+'use strict';
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+(function configurator(w, i, n, e) {
+
+  // 初期化
+  function configureVa(config) {
+
+    var VA = w.VA;
+    var util = new Util(config);
+
+    // 明示的に無効が設定されていたらここまで
+    if (config.isEnabled === false) return;
+
+    // ↓configのカスタマイズここから
+
+    // SP版はテーマ固定
+    if (config.initType === 'SP') {
+      config.uiThemeName = 'overlay';
+      config.initialPageName = 'chatUi';
+    }
+
+    if (config.uiThemeName === 'toast') {
+      // バナーの閉じるボタンをクリックされた場合の非表示処理はトースト型の時のみ行う（※埋込み型・オーバレイ型の時は対象外）
+      var uiCategory = VA.jq('#va').hasClass('va_club') ? 'club' : 'soloel';
+      var vaDisabled = getDocCookies().getItem('va-disabled-' + uiCategory);
+      if (vaDisabled) return;
+
+      // トーストポップアップ用設定
+      //config.selector = '#va-root';
+
+      // UIを一番手前に表示させるため
+      // 挿入先の要素がbodyじゃなければ、挿入先の要素をbody最後に移動
+      var notBeginBody = function notBeginBody(string) {
+        return string.indexOf('body') !== 0;
+      };
+      if (config.parentSelector.split(' ').every(notBeginBody)) {
+        VA.jq(config.parentSelector).css('position', 'relative').appendTo('body');
+      }
+    } else if (config.initType === 'SP') {
+      // SPのオーバーレイ用設定
+      config.selector = '#va';
+    }
+
+    config.inputEvaluator = util.inputEvaluator;
+
+    // IE10以下だったら非対応環境の表示
+    var ua = VA.getUA();
+    if (ua.browser.family === 'IE' && ua.browser.major <= 10) {
+      config.initialSpeech = notCovered;
+      delete config.initialSpeechName;
+    }
+
+    // ↑configのカスタマイズここまで
+
+    var afterResume = function afterResume(responses, cb) {
+      // 復元した履歴の最後の会話を取得
+      var latestConversation = responses[responses.length - 1];
+      // 最後の会話が履歴保存していなければ何も行わない
+      if (!util.isSaveConversation(latestConversation)) return;
+
+      var options = latestConversation.reply.components.assist.options;
+      // 入力補助がなければここで終了
+      if (options.length === 0) return;
+
+      // 最初の入力補助をデータを送信
+      var option = options[0];
+
+      // ここでsend()を呼び出すとスクロール位置が復元した最後の吹き出しになってしまったので、
+      // １秒後にsend()を実行しています。（これでsend後の回答にスクロールされた）
+      setTimeout(function () {
+        VA.instance.select(option.text, 'resume', option.value, option.qaNumber);
+      }, 1000);
+      return cb();
+    };
+
+    var vaArgs = {
+      config: config,
+      variables: {
+        // スタート時の挨拶時間帯出し分け
+        greeting: util.getGreeting()
+      },
+      handlers: {
+        goToLoginPage: function goToLoginPage() {
+          return util.goToLoginPage();
+        },
+        sendEnqueteResult: function sendEnqueteResult() {
+          if (VA.jq(this).is(':disabled')) return;
+
+          // ラジオボタン選択のアンケートをログに送信
+          util.sendEnqueteResult(this);
+        }
+      },
+      attributesToAdd: {
+        // UIに来る直前のページを記録
+        'location.href': location.href,
+        'document.referrer': document.referrer,
+        accessToken: function accessToken() {
+          return VA.instance.readCookie('AOI_TOKEN') || '';
+        }
+      },
+      functionsForRpc: {
+        requireLogin: function requireLogin(args, responses) {
+          return util.requireLogin(args, responses);
+        }
+      },
+      hookHandlers: {
+        afterResume: [afterResume]
+      }
+    };
+    // メモ
+    // ・今回追加するresume前後のハンドラはautoResume時にも呼ばれる必要がある
+    // ・autoResumeはVAのconstruncorで実行されるので、VA.instance.onでのハンドラ追加では間に合わない
+    // ・よってVAのconstoractor引数でハンドラを渡すようにしている
+
+    var showVA = function showVA() {
+      return VA.getInstance(vaArgs).then(function () {
+
+        // 時間回答
+        VA.instance.on('beforeRenderingReply', function (query, docs, response, cb) {
+          var now = new Date();
+          VA.instance.variables['currentTime'] = now.getHours() + '\u6642' + now.getMinutes() + '\u5206';
+
+          // VAがアンケート表示された場合に、ラジオボタンのアンケートを削除
+          var isSurveyDisplayed = response.reply.components.survey.display || false;
+
+          if (isSurveyDisplayed) {
+            VA.jq('.va-enquete-in-balloon').each(function (i, elem) {
+              if (VA.jq(elem).find(".overlay").length === 0) {
+                var overlay = VA.redom.el("div.overlay", [VA.redom.el("div.notes", "このアンケートは回答期限が過ぎたため、入力できません。")]);
+                VA.jq(elem).append(overlay);
+              }
+            });
+
+            var responses = VA.instance.getResponses();
+            var lastSurveyed = responses[responses.length - 1];
+            VA.lastSurveyedQaNumber = lastSurveyed.reply.attributes.qaNumber;
+          }
+
+          return cb(docs);
+        });
+
+        // 会話履歴の保存
+        VA.instance.on('afterRenderingReply', function (initialQuery, addBubble, response, cb) {
+          var isStartConversation = function isStartConversation() {
+            return VA.instance.getResponses().length === 1;
+          };
+          var isSaveConversation = function isSaveConversation(response) {
+            return util.isSaveConversation(response);
+          };
+          if (!isStartConversation() && isSaveConversation(response)) {
+            util.saveConversation();
+          }
+
+          return cb();
+        });
+
+        var finalize = function finalize() {
+          // 会話復元が必要であれば、この時点で復元処理は終わっているので
+          // 会話ログ削除
+          util.clearConversation();
+
+          if (!VA.instance.isStarted()) VA.instance.start();
+        };
+
+        return util.requireLogin().then(function (result) {
+          // ログインしている場合は会話ログの復元
+          if (result.q === 'alreadyLogin') {
+            return util.resumeConversation();
+          }
+        }).then(finalize, finalize);
+      });
+    };
+
+    var UI = util.getUIClass(VA.redom);
+    var ui = new UI({ showVA: showVA });
+
+    // クリックした、li要素のみにselectedクラスを追加（※他は除外）
+    VA.jq(document).on('click', '.va-enquete-in-balloon li', function () {
+      var balloon = VA.jq(this).closest(".va-enquete-in-balloon");
+
+      VA.jq("li", balloon).not(this).stop().removeClass('selected');
+      VA.jq(this).addClass('selected');
+
+      util.sendEnqueteResult(balloon.find("button"), true);
+    });
+
+    // 回答内の自由記述アンケート入力ハンドラ設定
+    VA.jq(document).on('input', '.va-enquete-in-balloon textarea', function () {
+      util.sendEnqueteResult(VA.jq(this).closest(".va-enquete-in-balloon").find("button"), true);
+    });
+
+    ui.mount(config.parentSelector, config.initialPageName);
+
+    // 画像拡大処理（UIの構造上、handlers:{}に設定出来ない為ここに記述）
+    VA.jq(document).on('click', "[name='va-zoomable']", function () {
+      var zoomImg = VA.jq(this).find('img')[0];
+      var zoomSrc = VA.jq(zoomImg).attr('src') || '';
+      VA.BigPicture({
+        el: zoomImg,
+        imgSrc: zoomSrc
+      });
+    });
+  }
+
+  var Util = function () {
+
+    /**
+     * コンストラクタ
+     * @param config
+     */
+    function Util(config) {
+      _classCallCheck(this, Util);
+
+      this.config = config;
+
+      // 会話ログ関連変数
+      this.conversationLogKey = 'va-conversation';
+    }
+
+    /**
+     * このクラスへのイベントリスナーを登録する
+     * @param types
+     * @param selector
+     * @param data
+     * @param fn
+     * @returns {*}
+     */
+
+
+    _createClass(Util, [{
+      key: 'on',
+      value: function on(types, selector, data, fn) {
+        return w.VA.jq(this).bind(types, selector, data, fn);
+      }
+
+      /**
+       * このクラスでイベントを発生させる
+       * @param event
+       * @param data
+       * @returns {*}
+       */
+
+    }, {
+      key: 'trigger',
+      value: function trigger(event, data) {
+        return w.VA.jq(this).trigger(event, data);
+      }
+
+      /**
+       * UIクラスを返す
+       * @param {object} redom
+       * @returns {UI}
+       */
+
+    }, {
+      key: 'getUIClass',
+      value: function getUIClass(redom) {
+        var el = redom.el,
+            _mount = redom.mount,
+            setStyle = redom.setStyle;
+
+        var config = this.config;
+        var VA = w.VA;
+
+        /**
+         * 起動バナー
+         */
+
+        var Launcher = function () {
+          function Launcher(props) {
+            var _this = this;
+
+            _classCallCheck(this, Launcher);
+
+            this.props = props;
+            this.state = {
+              display: false
+            };
+            // クリック時のアニメーションとホバー時の色味変更を実現するために
+            // 内部にホバー用のdivを設定
+            this.el = el('div#va-launcher', { style: { display: this.state.display } }, el('div'), this.closeButton = el('span#va-launcher-closeButton'));
+            this.el.onclick = function (e) {
+              var uiState = config.initType === 'PC' ? 'switcherUi' : 'chatUi';
+              _this.props.go(uiState);
+            };
+            this.closeButton.onclick = function (e) {
+              // VAの無効化フラグをクッキーとして設定する（寿命は1週間）
+              var uiCategory = VA.jq('#va').hasClass('va_club') ? 'club' : 'soloel';
+              getDocCookies().setItem('va-disabled-' + uiCategory, 'true', 60 * 60 * 24 * 7, '/');
+
+              e.stopPropagation();
+              _this.props.go('exit');
+            };
+          }
+
+          _createClass(Launcher, [{
+            key: 'update',
+            value: function update(uiState) {
+              this.state.display = uiState.pageName === 'launcher';
+              var classNames = [];
+              classNames.push(this.state.display ? 'va-launcher-active' : 'va-launcher-inactive');
+              this.el.className = classNames.join(' ');
+            }
+          }]);
+
+          return Launcher;
+        }();
+
+        /**
+         * PC用チャットUI
+         */
+
+
+        var ChatUiPc = function () {
+          function ChatUiPc(props) {
+            var _this2 = this;
+
+            _classCallCheck(this, ChatUiPc);
+
+            this.props = props;
+            this.state = {
+              displayedOnce: false, // 一度でも表示したらtrue
+              displayedFirst: true // 初回表示ならtrue
+            };
+            this.el = el('div#va-window', { style: { display: 'block' } }, [this.header = el('div#va-header', this.closeButton = el('span#va-header-closeButton')), this.va = el('div#va-root')]);
+            this.closeButton.onclick = function (e) {
+              VA.instance.prepareToBeClosed();
+              _this2.props.go('launcher');
+            };
+
+            // アイキャッチの表示と非表示
+            var $eyeCatchBalloon = VA.jq('<div class="eyeCatchBalloon bounce">こちらにご質問ください</div>');
+            $eyeCatchBalloon.appendTo('#va-area-control');
+            setTimeout(function () {
+              $eyeCatchBalloon.remove();
+            }, 3000);
+          }
+
+          _createClass(ChatUiPc, [{
+            key: 'update',
+            value: function update(uiState) {
+              var _this3 = this;
+
+              var isMyTurn = uiState.pageName === 'chatUi';
+              var showVaPromise = isMyTurn ? this.props.showVA() : Promise.resolve();
+              showVaPromise.then(function () {
+                if (isMyTurn) {
+                  _this3.el.style.display = 'inline-block';
+                  _this3.state.displayedOnce = true;
+                }
+
+                if (_this3.state.displayedOnce) {
+                  // 初回表示ではクラスはつけない（戻ってくるアニメーションが発生してしまうため）
+                  if (_this3.state.displayedFirst) {
+                    _this3.state.displayedFirst = false;
+                    return;
+                  }
+                }
+
+                _this3.el.classList.add(isMyTurn ? 'va-window-active' : 'va-window-inactive');
+                _this3.el.classList.remove(isMyTurn ? 'va-window-inactive' : 'va-window-active');
+                _this3.el.classList.add('animation');
+                setTimeout(function () {
+                  _this3.el.classList.remove('animation');
+                }, 1000);
+              });
+            }
+          }]);
+
+          return ChatUiPc;
+        }();
+
+        /**
+         * SP用チャットUI
+         */
+
+
+        var ChatUiSp = function () {
+          function ChatUiSp(props) {
+            _classCallCheck(this, ChatUiSp);
+
+            this.props = props;
+            this.state = {
+              display: false
+            };
+            this.el = el('div#va-window', { style: { display: this.state.display } }, this.pageHeader = el('div#va-page-header'), this.header = el('div#va-header', this.backButton = el('span#va-header-backButton.btn-return', '< 戻る'), this.title = el('span#va-header-title.va-header-text', 'チャットで質問')), this.va = el('div#va-root'));
+            this.backButton.onclick = function (e) {
+              history.back();
+            };
+            // 履歴がなければ戻るボタンを消す
+            var hasHistory = window.history.length > 1;
+            setStyle(this.backButton, { display: hasHistory ? 'block' : 'none' });
+
+            // アイキャッチの表示と非表示
+            var $eyeCatchBalloon = VA.jq('<div class="eyeCatchBalloon bounce">こちらにご質問ください</div>');
+            $eyeCatchBalloon.appendTo('#va-area-control');
+            setTimeout(function () {
+              $eyeCatchBalloon.remove();
+            }, 3000);
+          }
+
+          _createClass(ChatUiSp, [{
+            key: 'update',
+            value: function update(uiState) {
+              this.state.display = uiState.pageName === 'chatUi';
+              setStyle(this.el, { display: this.state.display ? 'block' : 'none' });
+              if (this.state.display) {
+                VA.jq('body').addClass('va-container-opened'); // iOS11バグ対策
+                this.props.showVA();
+              } else {
+                VA.jq('body').removeClass('va-container-opened'); // iOS11バグ対策
+              }
+            }
+          }]);
+
+          return ChatUiSp;
+        }();
+
+        /**
+         * スイッチャーUI
+         */
+
+
+        var SwitcherUiPc = function () {
+          function SwitcherUiPc(props) {
+            _classCallCheck(this, SwitcherUiPc);
+
+            this.props = props;
+            this.state = {
+              displayedOnce: false // 一度でも表示したらtrue
+            };
+            var ChatUiClass = config.initType === 'PC' ? ChatUiPc : ChatUiSp;
+            this.el = el('div#va-switcher', el('div#va-switcher-inner', [this.chatUi = new ChatUiClass(this.props)]));
+          }
+
+          _createClass(SwitcherUiPc, [{
+            key: 'update',
+            value: function update(uiState) {
+              var _this4 = this;
+
+              var isMyTurn = uiState.pageName !== 'launcher';
+              var isExit = uiState.pageName === 'exit';
+              //this.el.style.display = isMyTurn ? 'block' : 'none';
+              if (isMyTurn) {
+                if (isExit) {
+                  var exitState = { pageName: uiState.pageName };
+                  this.chatUi.update(exitState);
+                } else if (!this.displayedOnce) {
+                  if (config.uiThemeName === 'toast' && uiState.pageName === 'switcherUi') {
+                    // トーストポップアップでは初回起動時にswitcherをVAで初期化
+                    var state = { pageName: 'chatUi' };
+                    this.chatUi.update(state);
+                  }
+
+                  this.displayedOnce = true;
+                }
+              }
+
+              if (config.uiThemeName === 'toast') {
+                // トースト型の時にウィンドウのアニメーション処理のクラスの付け替えをここで処理
+                this.chatUi.el.classList.add(isMyTurn ? 'va-window-active' : 'va-window-inactive');
+                this.chatUi.el.classList.remove(isMyTurn ? 'va-window-inactive' : 'va-window-active');
+                this.chatUi.el.classList.add('animation');
+                setTimeout(function () {
+                  _this4.chatUi.el.classList.remove('animation');
+                }, 1000);
+              }
+
+              if (uiState.pageName === 'chatUi' || uiState.pageName === 'talkUi') {
+                this.chatUi.update(uiState);
+              }
+            }
+          }]);
+
+          return SwitcherUiPc;
+        }();
+
+        /**
+         * UIクラス
+         */
+
+
+        var UI = function () {
+          function UI(props) {
+            _classCallCheck(this, UI);
+
+            this.props = props;
+            this.state = {
+              pageName: 'launcher'
+            };
+            // const ChatUiClass = config.initType === 'PC' ? ChatUiPc : ChatUiSp;
+            var SwitcherUiClass = config.initType === 'PC' ? SwitcherUiPc : ChatUiSp;
+            var showVA = this.props.showVA;
+            var go = this.go.bind(this);
+            var className = config.uiThemeName ? '.va-theme-' + config.uiThemeName : '';
+            this.el = el('#va-container' + className, this.switcherUi = new SwitcherUiClass({ showVA: showVA, go: go }), this.launcher = new Launcher({ go: go }));
+
+            // 特定クラスに対してpopupを設定
+            VA.jq(config.selector).on('click', '.popup_free', function (e) {
+              window.open(e.target.href, 'popup_free', 'width=987, height=800, scrollbars=yes');
+              return false;
+            });
+
+            VA.jq(config.selector).on('click', '.popup_fixed', function (e) {
+              window.open(e.target.href, 'popup_fixed', 'menubar=no, toolbar=no, scrollbars=yes');
+              return false;
+            });
+          }
+
+          _createClass(UI, [{
+            key: 'mount',
+            value: function mount(selector, pageName) {
+              var parent = document.querySelector(selector);
+              _mount(parent, this.el);
+              this.go(pageName || this.state.pageName);
+            }
+          }, {
+            key: 'go',
+            value: function go(pageName) {
+              this.state.pageName = pageName;
+
+              this.switcherUi.update(this.state);
+              this.launcher.update(this.state);
+            }
+          }, {
+            key: 'setTalkUiUrl',
+            value: function setTalkUiUrl(talkUiUrl) {
+              this.state.talkUiUrl = talkUiUrl;
+            }
+          }]);
+
+          return UI;
+        }();
+
+        return UI;
+      }
+
+      /**
+       * アンケートのエラーメッセージの状態を変化させる
+       * @param balloon
+       * @param className
+       */
+
+    }, {
+      key: 'changeEnqueteErrorStatus',
+      value: function changeEnqueteErrorStatus(balloon) {
+        var className = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : "";
+
+        var errors = {
+          select: {
+            class: "select",
+            exist: balloon.find("p.error.select").length > 0,
+            self: balloon.find("p.error.select"),
+            text: "",
+            place: balloon.find("ul")
+          },
+          input: {
+            class: "input",
+            exist: balloon.find("p.error.input").length > 0,
+            self: balloon.find("p.error.input"),
+            text: "",
+            place: balloon.find("textarea")
+          },
+          "input-email": {
+            class: "input-email",
+            exist: balloon.find("p.error.input-email").length > 0,
+            self: balloon.find("p.error.input-email"),
+            text: "",
+            place: balloon.find("textarea")
+          }
+        };
+
+        // エラー非表示
+        for (var property in errors) {
+          if (errors[property].exist) {
+            errors[property].self.hide();
+          }
+        }
+
+        // ボタン状態の初期化
+        var button = balloon.find("button");
+        button.prop("disabled", false);
+
+        if (!className) return;
+
+        if (errors[className].text.length > 0) {
+          // エラー表示
+          if (!errors[className].exist) {
+            var errorMessage = VA.redom.el('p.error.' + errors[className].class);
+            errorMessage.innerHTML = errors[className].text;
+            errors[className].place.after(errorMessage);
+          } else {
+            balloon.find('p.error.' + errors[className].class).show();
+          }
+        }
+
+        // ボタンの状態を変化させる
+        button.prop("disabled", true);
+      }
+
+      /**
+       * 自由記述アンケートの回答送信
+       * @param {element}} target
+       */
+
+    }, {
+      key: 'sendEnqueteResult',
+      value: function sendEnqueteResult(target) {
+        var onlyValidate = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
+
+        var components = {
+          button: VA.jq(target),
+          balloon: VA.jq(target).closest('.va-enquete-in-balloon'),
+          selected: VA.jq(target).closest('.va-enquete-in-balloon').find('li.selected'),
+          textarea: VA.jq(target).closest('.va-enquete-in-balloon').find("textarea"),
+          ul: VA.jq(target).closest('.va-enquete-in-balloon').find("ul"),
+          span: VA.jq(target).closest("span")
+        };
+
+        var values = {
+          selected: components.selected.text() || "",
+          input: components.textarea.val().trim().replace('\n', '') || ""
+        };
+
+        var statuses = {
+          isRequire: components.selected.hasClass("require")
+        };
+
+        // エラーチェック
+        if (!notContainsEmail(values.input)) {
+          // メールアドレスを含む時
+          this.changeEnqueteErrorStatus(components.balloon, "input-email");
+
+          return;
+        } else if (values.selected.length === 0) {
+          // 未入力時
+          this.changeEnqueteErrorStatus(components.balloon, "select");
+
+          return;
+        } else if (statuses.isRequire && values.input.length === 0) {
+          // 未入力時
+          this.changeEnqueteErrorStatus(components.balloon, "input");
+
+          return;
+        }
+
+        this.changeEnqueteErrorStatus(components.balloon);
+
+        if (onlyValidate) return;
+
+        // その他の付随情報に自由回答追加
+        var attributes = {
+          reason: values.selected,
+          qaNumber: VA.lastSurveyedQaNumber,
+          freetext: values.input
+        };
+        for (var property in attributes) {
+          VA.instance.attributesToAdd[property] = attributes[property];
+        }
+
+        // 送信
+        var firstProperty = Object.keys(attributes)[0];
+
+        // フォームとボタンを非表示
+        components.span.html('');
+
+        // お礼文の挿入
+        var afterMessage = VA.redom.el('p.success');
+        afterMessage.innerHTML = 'ご協力ありがとうございました。<br />みなさまのお役に立てるよう、もっともっと勉強していきます！';
+        components.span.append(afterMessage);
+
+        VA.instance.record(firstProperty).then(function () {
+          // 追加した付随情報を削除
+          for (var _property in attributes) {
+            delete VA.instance.attributesToAdd[_property];
+          }
+        });
+      }
+
+      /**
+       * スタート時の挨拶時間帯出し分け
+       * @returns {string}
+       */
+
+    }, {
+      key: 'getGreeting',
+      value: function getGreeting() {
+        var _config$greeting = this.config.greeting,
+            morning = _config$greeting.morning,
+            daytime = _config$greeting.daytime,
+            night = _config$greeting.night;
+
+        var hours = new Date().getHours();
+        if (hours >= morning.startHour && hours < daytime.startHour) return morning.message;
+        if (hours >= daytime.startHour && hours < night.startHour) return daytime.message;
+        return night.message;
+      }
+    }, {
+      key: 'inputEvaluator',
+      value: function inputEvaluator(inputString) {
+        var evaluations = [{
+          validator: overMaxLengthNum,
+          msg: '50文字以下で入力してください。',
+          isValid: false,
+          selector: '#va-input'
+        }, {
+          validator: notContainsEmail,
+          msg: 'メールアドレスは入力できません。',
+          isValid: false,
+          selector: '#va-input'
+        }];
+        return evaluations.find(function (evaluation) {
+          return !evaluation.validator(inputString);
+        }) || { isValid: true };
+      }
+    }, {
+      key: 'requireLogin',
+      value: function requireLogin(args, responses) {
+        var VA = w.VA;
+
+        var url = this.config.answerType === 'club' ? this.config.api.club.checkLoginURL : this.config.api.soloel.checkLoginURL;
+
+        var settings = {
+          method: 'post',
+          url: url,
+          data: {}
+        };
+
+        return VA.axios(settings).then(function (response) {
+          var result = response.data.result;
+          var query = '';
+
+          switch (result) {
+            case 0:
+              query = 'alreadyLogin';
+              break;
+            case 1:
+              query = 'notLoggin';
+              break;
+            case 2:
+              query = 'notAuthorization';
+              break;
+            default:
+              query = 'other';
+          }
+
+          return { q: query, name: '' };
+        }).catch(function (e) {
+          return { q: 'other', name: '' };
+        });
+      }
+
+      // 会話ログの保存
+
+    }, {
+      key: 'saveConversation',
+      value: function saveConversation() {
+        var VA = w.VA;
+        VA.instance.save(this.conversationLogKey);
+      }
+
+      // 会話の復元
+
+    }, {
+      key: 'resumeConversation',
+      value: function resumeConversation() {
+
+        // 復元
+        return VA.instance.resume(this.conversationLogKey);
+      }
+
+      // 会話の削除
+
+    }, {
+      key: 'clearConversation',
+      value: function clearConversation() {
+        sessionStorage.removeItem(this.conversationLogKey);
+      }
+
+      /**
+       * 「ログインページへ」ボタンのクリックハンドラ
+       */
+
+    }, {
+      key: 'goToLoginPage',
+      value: function goToLoginPage() {
+        // トーストポップアップ型なら戻り先はヘルプページ固定、そうでなければ現在地に戻す
+        var transitionUrl = this.config.uiThemeName === 'toast' ? '/f/help/index.html' : '' + location.pathname + location.search + location.hash;
+        // ログインページへ遷移
+        var urlEncoded = encodeURIComponent(transitionUrl);
+        location.href = '/webapp/shops-club/servlet/YLogonSSLView?transitionURL=' + urlEncoded;
+      }
+    }, {
+      key: 'isSaveConversation',
+      value: function isSaveConversation(response) {
+        return response.reply.docs[0].indexOf('<!--saveConversation-->') !== -1;
+      }
+    }]);
+
+    return Util;
+  }();
+
+  // 50文字・メールアドレス入力制限
+
+
+  function notContainsEmail(inputString) {
+    /* eslint max-len: 0 */
+    return !inputString.match(/[-a-z0-9~!$%^&*_=+}{\'?]+(\.[-a-z0-9~!$%^&*_=+}{\'?]+)*@([a-z0-9_][-a-z0-9_]*(\.[-a-z0-9_]+)*\.(aero|arpa|biz|com|coop|edu|gov|info|int|mil|museum|name|net|org|pro|travel|mobi|[a-z][a-z])|([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}))(:[0-9]{1,5})?/i);
+  }
+
+  function overMaxLengthNum(inputString) {
+    return inputString.length <= 50;
+  }
+
+  var notCovered = {
+    docs: ['\n\u5927\u5909\u7533\u3057\u8A33\u3054\u3056\u3044\u307E\u305B\u3093\u3002\u304A\u5BA2\u69D8\u306E\u3054\u5229\u7528\u3044\u305F\u3060\u3044\u3066\u3044\u308B\u30D6\u30E9\u30A6\u30B6\u306F\u5BFE\u5FDC\u7BC4\u56F2\u5916\u3068\u306A\u3063\u3066\u304A\u308A\u307E\u3059\u3002\n\u4E0B\u8A18\u306E\u30D6\u30E9\u30A6\u30B6\u3088\u308A\u8A71\u304B\u3051\u3066\u3044\u305F\u3060\u3051\u307E\u3059\u3068\u5E78\u3044\u3067\u3059\u3002<br><br>\n\u25A0\u30D1\u30BD\u30B3\u30F3\u30FB\u30BF\u30D6\u30EC\u30C3\u30C8\u306E\u63A8\u5968\u74B0\u5883<br>\n[Windows]<br>\n\u30FBInternet Explorer 11<br>\n\u30FBMicrosoft Edge \u6700\u65B0\u7248<br>\n\u30FBFirefox \u6700\u65B0\u7248<br>\n\u30FBChrome \u6700\u65B0\u7248<br>\n <br>\n[Mac OS]<br>\n\u30FBSafari \u6700\u65B0\u7248<br>\n\u30FBFirefox \u6700\u65B0\u7248<br>\n\u30FBChrome \u6700\u65B0\u7248<br>\n<br>\n[iPad]<br>\n\u30FBiOS \u6700\u65B0\u7248<br>\n<br>\n\u25A0\u30B9\u30DE\u30FC\u30C8\u30D5\u30A9\u30F3\u306E\u63A8\u5968\u74B0\u5883<br>\n[\u30D6\u30E9\u30A6\u30B6]<br>\n\u30FBAndroid 4.0\u4EE5\u964D \u6A19\u6E96\u642D\u8F09\u306E\u30D6\u30E9\u30A6\u30B6\u3001\u304A\u3088\u3073Chrome\u6700\u65B0\u7248<br>\n\u30FBiOS 7.0\u4EE5\u964D Safari\u6700\u65B0\u7248<br>\n<br>\n[\u30A2\u30D7\u30EA]<br>\n\u30FBAndroid OS 4.1\u4EE5\u964D\u306E\u30B9\u30DE\u30FC\u30C8\u30D5\u30A9\u30F3\u7AEF\u672B<br>\n\u30FBiOS 8.0 \u4EE5\u964D iPhone\u3001iPad\u3001\u304A\u3088\u3073 iPod touch'],
+    components: {
+      character: {
+        state: 'apology'
+      }
+    }
+  };
+
+  // デバイス判定ロジック
+  function getInitType() {
+    var isSpSite = document.location.pathname.match(/^\/before_login\/sp_aoi\//) || document.location.pathname.match(/^\/askul\/sp\//);
+    return isSpSite ? 'SP' : 'PC';
+  }
+
+  /**
+   * Cookie操作ライブラリのオブジェクトを返す
+   * https://developer.mozilla.org/ja/docs/Web/API/Document/cookie/Simple_document.cookie_framework
+   * @returns {{removeItem: removeItem, keys: (function(): string[]), hasItem: hasItem, getItem: getItem, setItem: setItem}}
+   */
+  function getDocCookies() {
+    return {
+      /**
+       * アイテムを取得する
+       * @param sKey
+       * @returns {(string | null)|null}
+       */
+      getItem: function getItem(sKey) {
+        if (!sKey) {
+          return null;
+        }
+        return decodeURIComponent(document.cookie.replace(new RegExp("(?:(?:^|.*;)\\s*" + encodeURIComponent(sKey).replace(/[\-\.\+\*]/g, "\\$&") + "\\s*\\=\\s*([^;]*).*$)|^.*$"), "$1")) || null;
+      },
+      /**
+       * アイテムを設定する
+       * @param sKey
+       * @param sValue
+       * @param vEnd
+       * @param sPath
+       * @param sDomain
+       * @param bSecure
+       * @returns {boolean}
+       */
+      setItem: function setItem(sKey, sValue, vEnd, sPath, sDomain, bSecure) {
+        if (!sKey || /^(?:expires|max\-age|path|domain|secure)$/i.test(sKey)) {
+          return false;
+        }
+        var sExpires = "";
+        if (vEnd) {
+          switch (vEnd.constructor) {
+            case Number:
+              sExpires = vEnd === Infinity ? "; expires=Fri, 31 Dec 9999 23:59:59 GMT" : "; max-age=" + vEnd;
+              break;
+            case String:
+              sExpires = "; expires=" + vEnd;
+              break;
+            case Date:
+              sExpires = "; expires=" + vEnd.toUTCString();
+              break;
+          }
+        }
+        document.cookie = encodeURIComponent(sKey) + "=" + encodeURIComponent(sValue) + sExpires + (sDomain ? "; domain=" + sDomain : "") + (sPath ? "; path=" + sPath : "") + (bSecure ? "; secure" : "");
+        return true;
+      },
+      /**
+       * アイテムを削除する
+       * @param sKey
+       * @param sPath
+       * @param sDomain
+       * @returns {boolean}
+       */
+      removeItem: function removeItem(sKey, sPath, sDomain) {
+        if (!this.hasItem(sKey)) {
+          return false;
+        }
+        document.cookie = encodeURIComponent(sKey) + "=; expires=Thu, 01 Jan 1970 00:00:00 GMT" + (sDomain ? "; domain=" + sDomain : "") + (sPath ? "; path=" + sPath : "");
+        return true;
+      },
+      /**
+       * アイテムがあるかどうか返す
+       * @param sKey
+       * @returns {boolean}
+       */
+      hasItem: function hasItem(sKey) {
+        if (!sKey || /^(?:expires|max\-age|path|domain|secure)$/i.test(sKey)) {
+          return false;
+        }
+        return new RegExp("(?:^|;\\s*)" + encodeURIComponent(sKey).replace(/[\-\.\+\*]/g, "\\$&") + "\\s*\\=").test(document.cookie);
+      },
+      /**
+       * キー一覧を取得する
+       * @returns {string[]}
+       */
+      keys: function keys() {
+        var aKeys = document.cookie.replace(/((?:^|\s*;)[^\=]+)(?=;|$)|^\s*|\s*(?:\=[^;]*)?(?:\1|$)/g, "").split(/\s*(?:\=[^;]*)?;\s*/);
+        for (var nLen = aKeys.length, nIdx = 0; nIdx < nLen; nIdx++) {
+          aKeys[nIdx] = decodeURIComponent(aKeys[nIdx]);
+        }
+        return aKeys;
+      }
+    };
+  }
+
+  // globalへエクスポート
+  w[i] = w[i] || {};
+  w[i][n] = configureVa;
+  w[i][e] = getInitType;
+})(window, 'VirtualAgentObject', 'configureVa', 'getInitType');
+function _slicedToArray(arr, i) { return _arrayWithHoles(arr) || _iterableToArrayLimit(arr, i) || _nonIterableRest(); }
+
+function _nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance"); }
+
+function _iterableToArrayLimit(arr, i) { if (!(Symbol.iterator in Object(arr) || Object.prototype.toString.call(arr) === "[object Arguments]")) { return; } var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"] != null) _i["return"](); } finally { if (_d) throw _e; } } return _arr; }
+
+function _arrayWithHoles(arr) { if (Array.isArray(arr)) return arr; }
+
+function ownKeys(object, enumerableOnly) { var keys = Object.keys(object); if (Object.getOwnPropertySymbols) { var symbols = Object.getOwnPropertySymbols(object); if (enumerableOnly) symbols = symbols.filter(function (sym) { return Object.getOwnPropertyDescriptor(object, sym).enumerable; }); keys.push.apply(keys, symbols); } return keys; }
+
+function _objectSpread(target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i] != null ? arguments[i] : {}; if (i % 2) { ownKeys(source, true).forEach(function (key) { _defineProperty(target, key, source[key]); }); } else if (Object.getOwnPropertyDescriptors) { Object.defineProperties(target, Object.getOwnPropertyDescriptors(source)); } else { ownKeys(source).forEach(function (key) { Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key)); }); } } return target; }
+
+function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
+
+(function initializer(w, i, n, e, s) {
+  // VAMから与えられた設定
+  var envGiven = {
+    apiServerUrl: 'https://v1.va-api.net',
+    staticServerUrl: 'https://static-v1.va-api.net',
+    endpointId: '25',
+    apiKey: '6ee5811b821f6d1bd3432389e7fedefc'
+  }; // アプリバージョン設定（本番はv1.0、テストはv1.1）
+  // ※VAMにバージョン設定機能がつくまでの間の暫定仕様
+
+  var isProduction = parseInt(envGiven.endpointId) % 2 === 1;
+  envGiven.chatAppVersion = isProduction ? 'v1.0' : 'v1.1';
+  envGiven.endpointUrl = "".concat(envGiven.apiServerUrl, "/api/Endpoints");
+  envGiven.statusApiUrl = "".concat(envGiven.staticServerUrl, "/api/Statuses/va-service.json"); // グローバルから受け取る設定
+
+  var envGlobal = {};
+  if (w.__VA_API_SERVER_URL__) envGlobal.apiServerUrl = w.__VA_API_SERVER_URL__.replace(/\/$/, '');
+  if (w.__VA_STATIC_SERVER_URL__) envGlobal.staticServerUrl = w.__VA_STATIC_SERVER_URL__.replace(/\/$/, '');
+  if (w.__VA_ENDPOINT_ID__) envGlobal.endpointId = w.__VA_ENDPOINT_ID__;
+  if (w.__VA_APIKEY__) envGlobal.apiKey = w.__VA_APIKEY__;
+  if (w.__VA_ENDPOINT_URL__) envGlobal.endpointUrl = w.__VA_ENDPOINT_URL__.replace(/\/$/, '');
+  if (w.__VA_STATUS_API_URL__) envGlobal.statusApiUrl = w.__VA_STATUS_API_URL__;
+  if (w.__VA_STATIC_BASE_URL__) envGlobal.staticBaseUrl = w.__VA_STATIC_BASE_URL__.replace(/\/$/, '');
+  if (w.__VA_CHAT_APP_VERSION__) envGlobal.chatAppVersion = String(w.__VA_CHAT_APP_VERSION__); // 補完
+
+  if (!envGlobal.endpointUrl && envGlobal.apiServerUrl) envGlobal.endpointUrl = "".concat(envGlobal.apiServerUrl, "/api/Endpoints");
+  if (!envGlobal.statusApiUrl && envGlobal.staticServerUrl) envGlobal.statusApiUrl = "".concat(envGlobal.staticServerUrl, "/api/Statuses/va-service.json"); // 設定を合成（グローバル優先）
+
+  var env = _objectSpread({}, envGiven, {}, envGlobal);
+
+  if (!env.staticBaseUrl) env.staticBaseUrl = "".concat(env.staticServerUrl, "/api/Endpoints/").concat(env.endpointId); // グローバル経由で関数受け取り（なかったらデフォルト値）
+
+  var getInitType = w[i][e] || getInitTypeDefault;
+  var getInitMode = w[i][s] || getInitModeDefault;
+  var configureVa = w[i][n]; // UIタイプとUIモードを決定
+
+  env.initType = getInitType();
+  env.initMode = getInitMode(); // UIタイプ決定結果に基づいて、読み込むファイルを決定
+
+  env.pathToCss = "".concat(env.staticBaseUrl, "/va-").concat(env.initType.toLowerCase(), ".css");
+  env.pathToJs = "".concat(env.staticServerUrl, "/chatapp/").concat(env.chatAppVersion, "/va.js");
+  env.pathToConfig = "".concat(env.staticBaseUrl, "/va-config.json");
+
+  var onDOMContentLoaded = function onDOMContentLoaded() {
+    var VA = w.VA;
+    getConfigAndStatus(VA, env).then(function (_ref) {
+      var _ref2 = _slicedToArray(_ref, 2),
+          vaConfig = _ref2[0],
+          vaStatus = _ref2[1];
+
+      // VA Serviceがダウンしている場合はUIも起動しない
+      if (vaStatus.data.status === 'fail') {
+        console.log('VA Service is currently unavailable.');
+        return;
+      }
+
+      var uiParams = vaConfig && vaConfig.data && vaConfig.data.uiParams || {}; // initObjectの作成
+
+      var initObject = _objectSpread({}, env);
+
+      if (w.vaDataQueue) {
+        w.vaDataQueue.forEach(function (data) {
+          var path = data[0];
+          var value = data[1];
+          var pathToLast = path.split('.');
+          var lastKey = pathToLast.pop();
+          var targetObject = pathToLast.reduce(function (memo, key) {
+            memo[key] = memo[key] || {};
+            return memo[key];
+          }, initObject);
+          targetObject[lastKey] = value;
+        });
+      } // ページ別設定の合成（マッチしたロケーション全部の設定を頭から合成。後ろほど優先）
+      // 現在のURLとして、もしパラメータ「va-location」で指定があれば、本物の代わりにそれを使う
+
+
+      var currentUrl = VA.URI(w.location.href).search(true)['va-location'] || w.location.href;
+      var locations = uiParams.locations || [];
+      var matchedLocations = locations.reduce(function (memo, location) {
+        var matcher = new VA.UrlMatch(location.pattern);
+        if (matcher.test(currentUrl)) memo.push(location);
+        return memo;
+      }, []);
+      var thisLocationConfig = matchedLocations.reduce(function (memo, location) {
+        return VA.jq.extend(true, memo, location.config);
+      }, {}); // 設定オブジェクトの合成（initObject > ページ別 > デバイス別 > デフォルト の順に優先)
+
+      var thisDefault = uiParams.default || {};
+      var devices = uiParams.devices || {};
+      var thisDevice = devices[env.initType] || {};
+      var config = VA.jq.extend(true, thisDefault.config, thisDevice.config, thisLocationConfig, initObject); // もしどこにもセレクタ定義が存在しなかったらデフォルト値を設定
+
+      config.selector = config.selector || '#va-root';
+      VA.init(env.initType, initObject);
+      configureVa(config);
+    }).catch(function (error) {
+      console.error(error);
+    });
+  }; // 実行
+
+
+  var link = w.document.createElement('link');
+  link.href = env.pathToCss;
+  link.rel = 'stylesheet';
+  link.type = 'text/css';
+  var head = w.document.getElementsByTagName('head')[0];
+  head.appendChild(link);
+  var tag = w.document.getElementsByTagName('script')[0];
+  var el = w.document.createElement('script');
+  el.defer = true;
+  el.src = env.pathToJs;
+  el.charset = 'utf-8';
+
+  el.onload = function () {
+    if (document.readyState !== "loading") return onDOMContentLoaded();
+    document.addEventListener('DOMContentLoaded', onDOMContentLoaded);
+  };
+
+  tag.parentNode.insertBefore(el, tag);
+  /**
+   * 設定とステータスを並列で取得する
+   * @param VA
+   * @param env
+   * @returns {VA.Promise}
+   */
+
+  function getConfigAndStatus(VA, env) {
+    return new VA.Promise(function (resolve, reject) {
+      VA.axios.all([VA.axios.get(env.pathToConfig), VA.axios.get(env.statusApiUrl)]).then(VA.axios.spread(function (vaConfig, vaStatus) {
+        resolve([vaConfig, vaStatus]);
+      })).catch(function (error) {
+        console.error(error);
+        reject(error);
+      });
+    });
+  } // UIタイプ決定ロジックのデフォルト
+
+
+  function getInitTypeDefault() {
+    var ua = w.navigator.userAgent.toLowerCase();
+    var isMobile = ua.indexOf('windows') !== -1 && ua.indexOf('phone') !== -1 || ua.indexOf('iphone') !== -1 || ua.indexOf('ipod') !== -1 || ua.indexOf('android') !== -1 && ua.indexOf('mobile') !== -1 || ua.indexOf('firefox') !== -1 && ua.indexOf('mobile') !== -1 || ua.indexOf('blackberry') !== -1;
+    return isMobile ? 'SP' : 'PC';
+  } // UIモード決定ロジックのデフォルト
+
+
+  function getInitModeDefault() {
+    var ua = w.navigator.userAgent.toLowerCase();
+    var isIPadOS = ua.indexOf('mac os') !== -1 && typeof document.ontouchstart !== 'undefined';
+    var isTablet = isIPadOS || ua.indexOf('ipad') !== -1 || ua.indexOf('android') !== -1 && ua.indexOf('mobile') === -1 || ua.indexOf('firefox') !== -1 && ua.indexOf('tablet') !== -1;
+    return {
+      tabletMode: isTablet
+    };
+  }
+})(window, 'VirtualAgentObject', 'configureVa', 'getInitType', 'getInitMode');
+
+</script>
+
+</body>
+</html>

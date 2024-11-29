@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>index.html</title>
+</head>
+<body>
+
+<script>
+$(function(){
+	This.Start();
+	All_Click();
+	View_Click();
+	AC.Start();
+	if(navigator.userAgent.indexOf('Mobile') == -1){
+		$(window).resize(function(){
+			This.Auto();
+		});
+	}
+	
+});
+function View_Click(){
+	var _V = $('#view');
+	if(_V.length == '0'){return (false);}
+	var Hash = _V.find('[data="public"]').attr('hash');
+	
+	var _do = _V.find('[ProSet="Demo"]');
+	var _ot = parseInt(_do.offset().top);
+	$(window).scroll(function(){
+		if(_do.attr('load') != '1'){
+			var _s = parseInt($(window).scrollTop()+$(window).height())+60;
+			if(_s >= _ot){
+				_do.attr('load','1');
+				This.Get(GoUrl.CdnAjax+'demo&hash[]='+Hash,function(d){
+					This.Cdn(d.Data);
+					setTimeout(function(){
+						_V.find('.demo .txt').removeAttr('load');
+					},1000);
+				});
+			}
+		}
+	});
+	 _V.find('.use button[for]').Click(function(e){
+		var _t = e.attr('for');
+		$("body,html").animate({scrollTop:$('[set="'+_t+'"]').offset().top-60},800);
+	});
+	_V.find('.glyphs li button').Click(function(e){
+		AC.Glyphs(_V.find('[data="public"] .i-list'));
+	});
+	_V.find('.left .download').Click(function(e){
+		var t = _V.find('[data="public"]');
+		AC.Generate(_V.find('.formats'),[{
+			'i':t.attr('hash'),
+			't':t.attr('var-title'),
+		}],t.attr('var-title'));
+	});
+	
+	$.get(GoUrl.Ajax+'setview&hash='+Hash);
+}
+
+function All_Click(){
+	var _H = $('#header');
+	var _M = $('#menu');
+	var _A = $('#login');
+	var _E = $('#ebox');
+	var _B = $('#box');
+	var _F = $('#footer');
+	$('#more').Click(function(e){
+		e.attr('disabled',true);
+		var p = e.attr('p');
+		var v = e.attr('data-id');
+		This.Get(GoUrl.Ajax+'more&p='+p+'&id='+v,function(d){
+			e.attr('disabled',false);
+			if(d.Type == 'Error'){e.hide();return (false);}
+			e.attr('p',d.Data.p);
+			$('#gul').append(d.Data.row);
+		});
+	});
+	
+	$('#download .format button[data]').Live(function(e){
+		var t = e.parent();
+		var o = e.attr('data');
+		var _i = t.attr('hash');
+		var _t = t.attr('var-title');
+		e.attr('disabled',true);
+		switch(o){
+			case 'web':
+				AC.Web(e,t);
+			break;
+			case 'download':
+				e.attr('disabled',false);
+				AC.Generate(t,[{
+					'i':_i,
+					't':_t,
+				}],_t);
+			break;
+		}
+	});
+	
+	_B.find('.download .db button').Click(function(e){
+		e.attr('disabled',true);
+		var o = e.attr('data');
+		var a = AC.Data();
+		if(a.length == 0){
+			e.attr('disabled',false);
+			This.sAlert('Please choose a fonts to get started.');
+			return (false);
+		}
+		switch(o){
+			case 'cdn':
+				This.Post(GoUrl.Ajax+'cdn',{DATA:a},function(d){
+					e.attr('disabled',false);
+					if(d.Type == 'Error'){This.Error(d.Data);return (false);}
+					var l = '';var f = '';
+					for(var i in d.Data){
+						l += d.Data[i].Id;
+						f += 'font-family: "'+This.WebTitle(d.Data[i].Title)+'";<br/>';
+					}
+					This.Box.Web({
+						'Title': 'Use on the web selected fonts',
+						'Link': '&lt;link href="'+GoUrl.DB+'/a/'+l+'" rel="stylesheet" type="text/css"/&gt;',
+						'Family': f,
+						'Demo': GoUrl.WWW+'/demo/'+l+'?os=list',
+					});
+				});
+			break;
+			case 'downloads':
+				e.attr('disabled',false);
+				AC.Generate(_B.find('.format'),a,'Your selected fonts');
+			break;
+		}
+	});
+	
+	
+	$('[data="range"]').Range(function(e,x){
+		var t = e.parents('.s');
+		var s = x+10;
+		t.find('span').text(parseInt(s));
+		var r = t.attr('to');
+		$(r).css({'font-size':s+'px'});
+	});
+	
+	$('[data="preview"]').live('input propertychange',function(){
+		var t = $(this).val();
+		if(t == ''){
+			return (false);
+		}
+		var r = $(this).attr('to');
+		$(r).html($(this).val());
+	});
+	
+	$('[data="color"]').Color({
+		I:function(e,i){
+			var r = e.attr('to');
+			$(r).css('color','#'+i);
+			e.attr('color','#'+i);
+		}
+	});
+	
+	This.Confirm('#box .i-remove-all',function(){
+		This.Storage.Del('FontsBox');
+		AC.Start();
+		$('[data="public"] button[data="remove"]').attr({'class':'i-add-icon','data':'add','data-title':'Add to collection'});
+	});
+	
+	$('[data="public"] button[data]').Live(function(e){
+		e.attr('disabled',true);
+		
+		switch(e.attr('data')){
+			case 'favorites':
+			  AC.Favorites(e);
+			break;
+			case 'add':
+			  AC.Add(e);
+			break;
+			case 'remove':
+			  AC.Remove(e);
+			break;
+			case 'info':
+			  AC.Info(e);
+			break;
+			case 'web':
+			  AC.Web(e);
+			break;
+			case 'demo':
+			  AC.Demo(e);
+			break;
+			case 'glyphs':
+			  AC.Glyphs(e);
+			break;
+			case 'download':
+			  AC.Download(e);
+			break;
+		}
+		return (false);
+	});
+	
+	_H.find('#openmenu').Click(function(e){
+		_H.find('#nav').toggle();
+	});
+	
+	_H.find('.search .show').Click(function(e){
+		var i = e.find('i');
+		if(i.attr('class') == 'i-magnifier'){
+			i.attr('class','i-times');
+		}else{
+			i.attr('class','i-magnifier');
+		}
+		_H.find('.search form').toggle();
+	});
+	
+	_H.find('.login .io').Live(function(e){
+		Account.Add('login');
+		return (false);
+	});
+	_A.find('a[as="1"]').Live(function(e){
+		Account.Add(e.attr('data'));
+		return (false);
+	});
+	_A.find('.es input').live('focus',function(){
+		var _t = _A.find('.es');
+		for(i=0;i<_t.length;i++){
+			if(_t.eq(i).find('input').val() == ''){
+				_t.eq(i).removeAttr('t');
+			}
+		}
+		$(this).parent().attr('t','1');
+	});
+	
+	_H.find('button[data="getuser"]').Live(function(e){
+		_H.find('.login .ub').toggle();
+	});
+	
+	_H.find('.menu').Click(function(e){
+		This.Menu();
+	});
+	$('#mDiv,#menu .head button').Live(function(e){
+		This.MenuClose();
+	});
+	
+	$('#header .collection button,#box .layer .close').Click(function(e){
+		var _o = 'open';
+		var _b = $('body');
+		if(_b.attr(_o)){
+			_b.removeClass(_o);
+			_b.removeAttr(_o);
+			This.Storage.Set('Open','0');
+		}else{
+			_b.addClass(_o);
+			_b.attr(_o,'1');
+			This.Storage.Set('Open','1');
+		}
+		This.Auto();
+		AC.Start();
+	});
+	
+	_H.find('#logout').Live(function(e){
+		This.Cookie.Del('UserId');
+		This.Cookie.Del('UserKey');
+		This.sAlert('Logout success.',function(){
+			This.Storage.Del('IconsBox');
+			window.location.href = window.location.href;
+		});
+	});
+	
+	_F.find('.subscribe form button').Click(function(e){
+		var t = e.parent('form');
+		if(!This.onMail(t[0])){return (false);}
+		var v = t.find('input').val();
+		e.attr('disabled',true);
+		This.Get(GoUrl.Ajax+'subscribe&mail='+v,function(d){
+			e.attr('disabled',false);
+			This.sAlert(d.Data);
+			return (false);
+		});
+		return (false);
+	});
+	
+	$('.share [data]').Click(function(e){
+		var u = encodeURIComponent(String(window.location.href));
+		var t = $(document).attr("title").replace(/[ ]/g,"+");
+		var d = e.attr('data');
+		switch(d){
+			case 'facebook':
+				var url = 'https://www.facebook.com/sharer/sharer.php?u='+u;
+			break;
+			case 'twitter':
+				var url = 'https://twitter.com/intent/tweet?url='+u+'&text='+t;
+			break;
+			case 'linkedin':
+				var url = 'https://www.linkedin.com/shareArticle?ro=false&mini=true&url='+u;
+			break;
+			case 'pinterest':
+				var i = encodeURIComponent(String($('meta[property="og:image"]').attr('content')));
+				var url = 'https://www.pinterest.com/pin/create/bookmarklet/?url='+u+'&media='+i+'&description='+t;
+			break;
+			case 'reddit':
+			var i = encodeURIComponent(String($('meta[property="og:image"]').attr('content')));
+				var url = 'https://www.reddit.com/submit?url='+u+'&media='+i+'&title='+t;
+			break;
+		}
+		if(url == undefined){return (false);}
+		window.open(''+url+'','_blank','width=600,height=400');
+	});
+	
+	_A.find('.form [data="submit"]').Live(function(e){
+		var _t = e.parents('#login');
+		var _m = _t.find('input[name="email"]').val();
+		var _p = _t.find('input[name="password"]').val();
+		var _s = _m.search(/^\w+((-\w+)|(\.\w+))*\@{1}\w+\.{1}\w{2,4}(\.{0,1}\w{2}){0,1}/ig);
+		if(_m == '' | _s == -1){
+			This.Error('Enter the correct email address!');
+			return (false);
+		}
+		var _e = _t.attr('data');
+		var _o = _t.find('form').serialize();
+		switch(_e){
+			case 'login':
+				if(_p == ''){
+					This.Error('Enter your password!');
+					return (false);
+				}
+				e.attr('disabled',true);
+				This.Post(GoUrl.Account+'ajax&type=login&'+_o,{
+					icons:This.Storage.Get('icons'),
+					animations:This.Storage.Get('animations'),
+				},function(d){
+					if(d.Type == 'Error'){
+						This.Error(d.Data);
+						e.attr('disabled',false);
+						return (false);
+					}else{
+						This.Storage.Set('icons',This.EnArray(d.Data.icons));
+						This.Storage.Set('animations',This.EnArray(d.Data.animations));
+						if($('#login[eBox]').length == '1'){
+							window.location.href = window.location.href;
+						}else{
+							window.location.href = GoUrl.WWW+'/user';
+						}
+					}
+				});
+			break;
+			case 'register':
+				var _n = _t.find('input[name="name"]').val();
+				var _a = _t.find('input[name="epassword"]').val();
+				if(_n == ''){
+					This.Error('Enter your user name!');
+					return (false);
+				}else if(_p != _a){
+					This.Error('The Password is non-compliance!');
+					return (false);
+				}
+				e.attr('disabled',true);
+				This.Get(GoUrl.Account+'ajax&type=register&'+_o,function(d){
+					e.attr('disabled',false);
+					if(d.Type == 'Error'){
+						This.Error(d.Data);
+					}else{
+						if($('#login[eBox]').length == '1'){
+							alert(d.Data);
+							Account.Add('login');
+						}else{
+							This.sAlert(d.Data,function(){
+								window.location.href= GoUrl.WWW+'/login';
+							});
+						}
+					}
+				});
+			break;
+			case 'reset':
+				e.attr('disabled',true);
+				This.Get(GoUrl.Account+'ajax&type=reset&'+_o,function(d){
+					if(d.Type == 'Error'){
+						e.attr('disabled',false);
+						This.Error(d.Data);
+					}else{
+						_t.find('.txt').show();
+						e.attr('ok','1');
+					}
+				});
+			break;
+		}
+		return (false);
+	});
+	
+	$('[settings="color"] button[name]').Click(function(e){
+		var q = e.parents('[settings="color"]');
+		var t = q.find('[name="text"]').val();
+		if(t == ''){
+			return (false);
+		}
+		var url = '';
+		if(e.attr('name') == 'post'){
+			url = '?color='+q.find('[data="color"]').attr('value')+'&txt='+t;
+		}else{
+			q.find('[name="text"]').val('');
+		}
+		var g = q.attr('to');
+		$(g).each(function(){
+			var s = $(this).attr('src-id');
+			$(this).attr('src',s+url);
+		});
+	});
+	
+	$('[data="package"] [data="favorites"]').Click(function(e){
+		e.attr('disabled',true);
+		if(!This.ISLogin()){
+			e.attr('disabled',false);
+			Account.Add('login');
+			return (false);
+		}
+		var id = e.attr('data-id');
+		if(id == ''){
+			e.attr('disabled',false);
+			return (false);
+		}
+		var _c = (e.attr('class') == 'i-heart') ? 'add' : 'remove';
+		This.Get(GoUrl.Ajax+'operate&type=package&class='+_c+'&hash='+id,function(d){
+			e.attr('disabled',false);
+			if(d.Type == 'Error'){
+				This.Error(d.Data);
+				return (false);
+			}else{
+				if(_c == 'add'){
+					e.attr({'class':'i-hearts','data-title':'Remove form favorites'});
+				}else{
+					e.attr({'class':'i-heart','data-title':'Add to favorites'});
+				}
+			}
+		});
+	});
+	
+	$('#search .select').change(function(){
+		var e = $(this);
+		var v = e.find('option:selected').val();
+		var t = $('#search [name="q"]').val().replace(/[ ]/g,"+");
+		var r = ['author','package','style'];
+		var q = '';
+		for(var i in r){
+			if(v == r[i]){
+				q += 'type='+v+'&';
+			}
+		}
+		window.location.href = '/search?'+q+'q='+t;
+	});
+}
+var AC = {
+	Start:function(){
+		var _Default = [
+			'icons','animations'
+		];
+		if(!This.ISLogin()){
+			var _gtx = This.DeArray(This.Storage.Get(_Default[0]) ? This.Storage.Get(_Default[0]) : This.Storage.Get(_Default[1]));
+			if(_gtx != false){
+				if(_gtx.Svg.Id != '0'){
+					This.Storage.Del(_Default[0]);
+					This.Storage.Del(_Default[1]);
+				}
+			}
+		}
+		
+		this.Seach();
+		this.Count();
+		this.Open();
+	},
+	Data:function(){
+		var e = This.Storage.Get('FontsBox');
+		if(e == null){
+			return [];
+		}else{
+			return This.DeArray(e);
+		}
+	},
+	Seach:function(){
+		var d = this.Data();
+		for(var i in d){
+			$('[data="public"][hash="'+d[i].i+'"] button[data="add"]').attr({'class':'i-remove-icon','data':'remove','data-title':'Remove form collection'});
+		}
+	},
+	Exist:function(i,d){
+		if(d.length == 0){
+			return (false);
+		}
+		for(var x in d){
+			if(d[x].i == i){
+				return x;
+			}
+		}
+		return (false);
+	},
+	Count:function(d){
+		var d = d ? d : this.Data();
+		var _c = d.length;
+		$('#box .layer font').text(_c);
+		$('#header .collection button font').hide().show().text(_c);
+	},
+	Open:function(d){
+		if(!$('body').attr('open')){
+			return (false);
+		}
+		var d = d ? d : this.Data();
+		var _k = $('#box .empty');
+
+		if(d.length == 0){
+			_k.show();
+		}else{
+			_k.hide();
+		}
+		var h = '';
+		for (var i = d.length; i--;){
+			var _t = (d[i].f == 'i-stars') ? 'Remove form favorites' : 'Add to favorites';
+			h += '<li><font>'+(i+1)+'</font><a href="/download/'+d[i].i+'" target="_blank">'+d[i].t+'</a><div class="i" data="public" hash="'+d[i].i+'" var-title="'+d[i].t+'"><button data="remove" class="i-trash" data-title="Remove form collection"></button><button data="favorites" class="'+d[i].f+'" data-title="'+_t+'"></button><button data="demo" class="i-demo" data-title="Demo"></button></div></li>';
+		}
+		$('#box ul').empty().html(h);
+	},
+	AddClass:function(e){
+		var t = e.parents('[data="public"]');
+		var a = $('[data="public"][hash="'+t.attr('hash')+'"]');
+		if(e.attr('class') == 'i-add-icon'){
+			a.find('button[data="add"]').attr({'class':'i-remove-icon','data':'remove','data-title':'Remove form collection'});
+		}else{
+			a.find('button[data="remove"]').attr({'class':'i-add-icon','data':'add','data-title':'Add to collection'});
+		}
+		e.attr('disabled',false);
+	},
+	Favorites:function(e){
+		if(!This.ISLogin()){
+			e.attr('disabled',false);
+			Account.Add('login');
+			return (false);
+		}
+		var _t = e.parents('[data="public"]');
+		var _c = (e.attr('class') == 'i-star') ? 'add' : 'remove';
+		This.Get(GoUrl.Ajax+'operate&type=favorites&class='+_c+'&hash='+_t.attr('hash'),function(d){
+			e.attr('disabled',false);
+			if(d.Type == 'Error'){
+				This.Error(d.Data);
+				return (false);
+			}else{
+				var _a = $('[data="public"][hash="'+_t.attr('hash')+'"] button[data="favorites"]');
+				if(_c == 'add'){
+					_a.attr({'class':'i-stars','data-title':'Remove form favorites'});
+				}else{
+					_a.attr({'class':'i-star','data-title':'Add to favorites'});
+				}
+			}
+		});
+	},
+	Add:function(e){
+		var t = e.parents('[data="public"]');
+		var d = this.Data();
+		if(d == '' & !$('body').attr('open')){$('#header .collection button').click();}
+		var _f = t.find('button[data="favorites"]').attr('class');
+		var i = t.attr('hash');
+		var r = {
+			'i':i,
+			't':t.attr('var-title'),
+			'f':_f,
+		};
+		if(this.Exist(i,d) !== false){
+			this.AddClass(e);
+			return (false);
+		}
+		if(This.ISLogin()){
+			if(d.length >= 20){
+				e.attr('disabled',false);
+				This.sAlert('Exceeding the limit, please upgrade to vip user',function(){
+					This.Box.Vip();
+				});
+				return (false);
+			}
+		}else if(d.length >= 10){
+			e.attr('disabled',false);
+			This.sAlert('Exceeding the limit, please log in to continue.',function(){
+				Account.Add('login');
+			});
+			return (false);
+		}
+		d.push(r);
+		This.Storage.Set('FontsBox',This.EnArray(d));
+		this.AddClass(e);
+		this.Count(d);
+		this.Open(d);
+		return (false);	
+	},
+	Remove:function(e){
+		var t = e.parents('[data="public"]');
+		var d = this.Data();
+		var i = t.attr('hash');
+		var x = this.Exist(i,d);
+		if(x === false){
+			this.AddClass(e);
+			return (false);
+		}
+		d.splice(x,1);
+		This.Storage.Set('FontsBox',This.EnArray(d));
+		this.AddClass(e);
+		this.Count(d);
+		this.Open(d);
+		return (false);	
+	},
+	Info:function(e){
+		var t = e.parents('[data="public"]');
+		This.Get(GoUrl.Ajax+'info&hash='+t.attr('hash'),function(d){
+			e.attr('disabled',false);
+			if(d.Type == 'Error'){
+				This.Error(d.Data);
+				return (false);
+			}else{
+				This.Box.Info(d.Data);
+			}
+		});
+	},
+	Web:function(e,t){
+		var t = t ? t : e.parents('[data="public"]');
+		var i = t.attr('var-title');
+		var a = This.WebTitle(i);
+		var h = t.attr('hash');
+		var u = '&lt;link href="'+GoUrl.DB+'/c/'+h+'?family='+a.replace(/[ ]/g,"+")+'" rel="stylesheet" type="text/css"/&gt;';
+		This.Box.Web({
+			'Title': i,
+			'Link': u,
+			'Family': 'font-family: "'+a+'";',
+			'Demo': GoUrl.WWW+'/download/'+h,
+		});
+		e.attr('disabled',false);
+	},
+	Demo:function(e){
+		e.attr('disabled',false);
+		This.Loading();
+		var t = e.parents('[data="public"]');
+		This.Get(GoUrl.CdnAjax+'demo&hash[]='+t.attr('hash'),function(d){
+			if(d.Type == 'Error'){This.Close();This.Error(d.Data);return (false);}
+			This.Cdn(d.Data);
+			This.eBox.Demo({
+				'Title':t.attr('var-title'),
+				'Family':d.Data.i[0],
+				'hash':t.attr('hash'),
+			});
+		});
+	},
+	Glyphs:function(e){
+		e.attr('disabled',false);
+		This.Loading();
+		var t = e.parents('[data="public"]');
+		This.Get(GoUrl.CdnAjax+'demo&hash[]='+t.attr('hash'),function(d){
+			if(d.Type == 'Error'){This.Close();This.Error(d.Data);return (false);}
+			This.Cdn(d.Data);
+			This.Get(GoUrl.Ajax+'glyphs&hash='+t.attr('hash'),function(o){
+				if(o.Type == 'Error'){This.Close();This.Error(o.Data);return (false);}
+				This.eBox.Glyphs({
+					'Title':t.attr('var-title'),
+					'Family':d.Data.i[0],
+					'hash':t.attr('hash'),
+					'Ul':o.Data,
+				});
+			});
+		});
+	},
+	Download:function(e){
+		var t = e.parents('[data="public"]');
+		This.Box.Formats({
+			'Title': t.attr('var-title'),
+			'Hash': t.attr('hash'),
+		});
+		e.attr('disabled',false);
+		
+	},
+	Generate:function(e,a,t){
+		var format = '';
+		e.find('input[data-id]:checked').each(function(i,x){
+			format += '&f[]='+$(this).attr('data-id');
+		});
+		if(format == ''){
+			This.Error('Please select a format!');
+			return (false);
+		}
+
+		This.Close();
+		This.Loading('Generating...');
+		This.Post(GoUrl.CdnAjax+'downloads'+format,{DATA:a},function(d){
+			if(d.Type == 'Error'){This.sAlert(d.Data);return (false);}
+			This.Box.Downloads({
+				Title:t,
+				Url:d.Data,
+			});
+			if(This.ISLogin()){
+				$.post(GoUrl.Ajax+'userdownloads',{DATA:a});
+			};
+		});
+		return (false);
+	}
+	
+};
+</script>
+
+</body>
+</html>

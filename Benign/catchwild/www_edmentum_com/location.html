@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>location.html</title>
+</head>
+<body>
+
+<script>
+(function() {
+
+	const stateLookup = {
+		AL: "Alabama",
+		AK: "Alaska",
+		AZ: "Arizona",
+		AR: "Arkansas",
+		CA: "California",
+		CO: "Colorado",
+		CT: "Connecticut",
+		DE: "Delaware",
+		FL: "Florida",
+		GA: "Georgia",
+		HI: "Hawaii",
+		ID: "Idaho",
+		IL: "Illinois",
+		IN: "Indiana",
+		IA: "Iowa",
+		KS: "Kansas",
+		KY: "Kentucky",
+		LA: "Louisiana",
+		ME: "Maine",
+		MD: "Maryland",
+		MA: "Massachusetts",
+		MI: "Michigan",
+		MN: "Minnesota",
+		MS: "Mississippi",
+		MO: "Missouri",
+		MT: "Montana",
+		NE: "Nebraska",
+		NV: "Nevada",
+		NH: "New Hampshire",
+		NJ: "New Jersey",
+		NM: "New Mexico",
+		NY: "New York",
+		NC: "North Carolina",
+		ND: "North Dakota",
+		OH: "Ohio",
+		OK: "Oklahoma",
+		OR: "Oregon",
+		PA: "Pennsylvania",
+		RI: "Rhode Island",
+		SC: "South Carolina",
+		SD: "South Dakota",
+		TN: "Tennessee",
+		TX: "Texas",
+		UT: "Utah",
+		VT: "Vermont",
+		VA: "Virginia",
+		WA: "Washington",
+		WV: "West Virginia",
+		WI: "Wisconsin",
+		WY: "Wyoming"
+	};
+	
+	function getQueryParam(param) {
+		const urlParams = new URLSearchParams(window.location.search);
+		return urlParams.get(param);
+	}
+
+	let location = null;
+	let locationTitle = 'Region/US State';
+
+	const queryLocation = getQueryParam('locale');
+
+	if (queryLocation) {
+		const normalizedLocation = queryLocation.toUpperCase();
+
+		if (stateLookup[normalizedLocation]) {
+			location = normalizedLocation;
+			locationTitle = stateLookup[location];
+
+			localStorage.setItem('location', JSON.stringify(location));
+			localStorage.setItem('locationTitle', JSON.stringify(locationTitle));
+		}
+	}
+
+	if (!location) {
+		if (localStorage.getItem('location')) {
+			location = JSON.parse(localStorage.getItem('location'));
+			locationTitle = JSON.parse(localStorage.getItem('locationTitle'));
+		} else {
+			const jurisdiction = window.Osano.cm.jurisdiction;
+			const countryCode = window.Osano.cm.countryCode;
+
+			location = countryCode;
+			locationTitle = 'Region/US State';
+
+			if (jurisdiction) {
+				const stateAbbreviation = jurisdiction.split('-')[1]?.toUpperCase();
+				if (stateAbbreviation && stateLookup[stateAbbreviation]) {
+					location = stateAbbreviation;
+					locationTitle = stateLookup[stateAbbreviation];
+				}
+			}
+
+			const defaults = ["us", "ca"];
+			if (defaults.indexOf(countryCode.toLowerCase()) === -1) {
+				location = 'INTL';
+			}
+
+			localStorage.setItem('location', JSON.stringify(location));
+			localStorage.setItem('locationTitle', JSON.stringify(locationTitle));
+		}
+	}
+
+	if (location === 'INTL') {
+		const path = window.location.pathname;
+		if (!path.startsWith("/intl")) {
+			const url = window.location.href;
+			const baseUrl = window.location.origin;
+			const newUrl = baseUrl + '/' + location.toLowerCase();
+			const goto = url.replace(baseUrl, newUrl);
+			window.location.href = goto;
+		}
+	}
+
+	window.dataLayer = window.dataLayer || [];
+	window.dataLayer.push({
+		event: 'edm_region_selected', 
+		'edm_region': locationTitle
+	});
+	
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>id-user-7d2afb5570e5ce8e0d0928e4d9580139.html</title>
+</head>
+<body>
+
+<script>
+// This is the same behaviour as @circleci/analytics ≥ v2.7.0
+// https://github.com/circleci/frontplane/pull/460
+function generateCircleciAnonymousId() {
+  const localStorageKey = 'circleciAnonymousId';
+  const localStorageAnonymousId = localStorage.getItem(localStorageKey);
+  const anonymousId = localStorageAnonymousId || Date.now().toString();
+
+  if (!localStorageAnonymousId) {
+    localStorage.setItem(localStorageKey, anonymousId);
+  }
+
+  return anonymousId;
+}
+
+function generateSessionId() {
+  const sessionStorageKey = 'session_id';
+  const sessionStorageId = sessionStorage.getItem(sessionStorageKey);
+  const sessionId = sessionStorageId || Date.now();
+
+  if (!sessionStorageId) {
+    sessionStorage.setItem(sessionStorageKey, sessionId);
+  }
+
+  return sessionId;
+}
+
+function checkApiData() {
+  if (!sessionStorage.getItem('meApiDone')) {
+    var meApiEvent = new CustomEvent('meApiDone');
+
+    fetch("/api/v1/me")
+      .then(function(response) {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
+        }
+        return response.json();
+      })
+      .then(function(userData) {
+        userData["analytics_id"] && sessionStorage.setItem("analytics_id", userData["analytics_id"]);
+        userData["login"] && sessionStorage.setItem("login", userData["login"]);
+        localStorage.setItem("is_customer", !!userData);
+      })
+      .catch(function(error) {
+        console.warn('Error fetching user data:', error);
+      })
+      .finally(function() {
+        sessionStorage.setItem("meApiDone", true);
+        window.dispatchEvent(meApiEvent);
+        generateCircleciAnonymousId();
+      });
+  }
+};
+
+
+if (document.readyState === 'loading') {  // Loading hasn't finished yet
+  document.addEventListener("DOMContentLoaded", checkApiData);
+} else { // `DOMContentLoaded` has already fired
+  checkApiData();
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>report.html</title>
+</head>
+<body>
+
+<script>
+$(function(){
+var articleUrl = "/_wp3services/generalQuery?queryObj=articles";
+var siteId = 3; //站点Id
+var columnId = 17649; //多个以英文逗号分隔
+var pageIndex = 1; //从某页开始
+var rows = $(window).width()>999?20:4; //每页显示多少篇文章
+var text = "";
+var month=new Date().getMonth()<9?"0"+(new Date().getMonth()*1+1):new Date().getMonth()*1+1;
+var year=new Date().getFullYear()
+
+if($(window).width()>999){
+    var mySwiper2 = new Swiper('.swiper2',{
+        navigation: {
+            nextEl: '.swiper-button-next',
+            prevEl: '.swiper-button-prev',
+        },
+        direction: 'vertical',    
+        slidesPerView:4,
+        spaceBetween:$(".post-31 .example").width()
+    })
+} 
+
+    $(".post-31 #calendar .year").text(year)
+    $(".post-31 #calendar .month").text(month+"月")
+    getPrevMonths(year,month,3)
+
+    $(".post-31 #calendar .currentDate").click(function(e){
+        e.stopPropagation();
+        $(".post-31 #calendar .monthlist").slideDown(400)
+    })
+
+    $(".post-31 #calendar .monthlist div").click(function(){
+        var m=$(this).text();
+        $(".post-31 #calendar .month").addClass("current")
+        var y=$(this).attr('year');
+        $(this).addClass("selected").siblings().removeClass("selected")
+        $(".post-31 #calendar .month").text(m)
+        $(".post-31 #calendar .year").text(y)
+        $(".post-31 #calendar .monthlist").slideUp(400)
+        loadContents(1,columnId,siteId,rows);
+    })
+
+    $("body,html").click(function(){
+        $(".post-31 #calendar .monthlist").slideUp(400)
+    })
+
+//loadContents(pageIndex,columnId,siteId,rows);
+function loadContents(pageIndex,columnId,siteId,rows){
+    $(".post-31 ul.news_list").removeAttr("style")
+    $(".post-31 ul.news_list").children().remove();
+    //排序参数
+    var orderData = [
+    ];
+    var returnInfos = JSON.stringify(returnData());
+    var orders = JSON.stringify(orderData);
+    var conditions = JSON.stringify(conditData());
+                                                                                                                    
+    $.ajax({
+        url: articleUrl,
+        type: 'POST',
+        contentType: "application/x-www-form-urlencoded; charset=utf-8",
+        async: true,
+        dataType: 'json',
+        data: {
+            siteId:siteId,
+            columnId:columnId,
+            pageIndex:pageIndex,
+            rows: rows,
+            orders:orders,
+            returnInfos: returnInfos,
+            conditions:conditions
+            //visitPermitFilter:1
+        },
+        success: function(result){
+            var total = result.total;
+            if (total != 0){
+                //console.log(result);
+                for (j=0;j < result.data.length; j++){
+                    var art = result.data[j];                                                                             
+                    html ='<li class="news n{序号值} swiper-slide" >'+
+'<div class="news_time">'+art.publishTime+'</div>'+
+'<div class="news_title line2"><a href="'+art.url+'" target="blank">'+art.title+'</a></div>'+
+'</li>';
+                    $(".post-31 .news_list").append(html);
+                }
+if($(window).width()>999){
+    var mySwiper2 = new Swiper('.swiper2',{
+        navigation: {
+            nextEl: '.swiper-button-next',
+            prevEl: '.swiper-button-prev',
+        },
+        direction: 'vertical',    
+        slidesPerView:4,
+        spaceBetween:$(".post-31 .example").width()
+    })
+} 
+            }else{
+              $(".post-31 .news_list").append('<div class="noinfo">暂无内容</div>');
+           }
+        }
+    });
+}
+
+/*查询条件*/
+function conditData(){
+    var conditdata = [
+          //{field: "title", value: val, judge: "like"},
+          {field: "scope", value: 1, judge: "="}
+    ];
+    var year=$(".post-31 #calendar .year").text();
+    var month=$(".post-31 #calendar .month").text().split('月')[0];
+    conditdata.push({field: "publishTime", value:year+'-'+month+"-01", judge: ">"})
+    conditdata.push({field: "publishTime", value:getNextMonth(year,month).year+'-'+getNextMonth(year,month).month+"-01", judge: "<"})
+    return conditdata;
+}
+//请求返回参数
+function returnData(){
+    var returnInfosdata = [
+        {field: "title", name: "title"},
+        {field: "publishTime",pattern: [{name: "d",value: "yyyy-MM-dd"}],name: "publishTime"}
+    ];
+    return returnInfosdata;
+}
+
+
+})
+
+//获取下一月
+function getNextMonth(year,month){
+if(month==12){
+return {year:year+1,month:'01'}
+}else{
+var next=parseInt(month)+1
+ next<10?next="0"+next:next
+return {year:year,month:next}
+} 
+}
+
+    //获取某一月的前x月
+    function getPrevMonths(year, month,length) {
+        let months = [];
+        for (let i = 0; i < length; i++) {
+          let m = month - i;
+          let y = year;
+          if (m <= 0) {
+            m += 12;
+            y--;
+          }
+            m<10?m="0"+m:m;
+          months.unshift({ year: y, month: m });
+          $(".post-31 #calendar .monthlist").prepend('<div year="'+y+'">'+m+'月</div>')
+        } 
+    }
+</script>
+
+</body>
+</html>

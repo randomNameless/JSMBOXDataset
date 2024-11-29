@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>clientlib-headerecom.min.3acdfeb752a118021c8c5f7455f344a9.html</title>
+</head>
+<body>
+
+<script>
+var EcommerceHeader = (function () {
+  var customerToken = getCookie("customer_token");
+  var userToken = getCookie("user_token");
+  const domain = document.body.getAttribute("data-ecommerceconfig-domain")
+    ? document.body.getAttribute("data-ecommerceconfig-domain")
+    : eCommerceConfig && eCommerceConfig.publishDomain
+    ? eCommerceConfig.publishDomain
+    : "";
+
+  var init = function () {
+    /*document.querySelectorAll(".loggedOutDropdown .customerSignIn").forEach((element) => {
+      element.setAttribute("href", eCommerceConfig['eCommerceRedirectUrl']);
+    });*/
+    
+    bindEvents();
+    initLoggedInState();
+    initUserDetails();
+  };
+
+  function bindEvents() {
+    document.querySelectorAll(".customerSignOut").forEach((element) => {
+      element.addEventListener("click", function (e) {
+        e.preventDefault();
+        window.adobeDataLayer.push(
+          {
+            "event": "sign out",
+            "accountID": getAccountId()
+          }
+        );    
+        deleteCookie("user_token");
+        deleteCookie("customer_email_hash");
+        eCommerceConfig.availableStoreCodes.split(",").forEach(function(storeCode){
+          deleteCookie(
+            "customer_cart_id___" +
+              (storeCode ? storeCode : "us")
+          );
+          deleteMiniCartItemSessionStorage(
+            "minicart_items___" +
+              (storeCode ? storeCode : "us")
+          );
+          deleteCookie(
+            "guest_cart_id___" +
+              (storeCode ? storeCode : "us")
+          );
+        });        
+        deleteCookie("customer_token");        
+        eCommerceConfig.availableWebsiteCodes.split(",").forEach(function(websiteCode){
+          deleteCookie(
+            "customer_token_" +
+              (websiteCode ? websiteCode : "us")
+          );
+        });  
+        deleteCookie("cartId");
+        window.location.assign(
+          eCommerceConfig.eCommerceLogoutUrl
+        );
+        
+      });
+    });
+  }
+
+  function initLoggedInState() {
+    if (customerToken != null) {
+      document.querySelectorAll(".loggedOutDropdown").forEach((element) => {
+        element.remove();
+      });
+    } else {
+      document.querySelectorAll(".loggedInDropdown").forEach((element) => {
+        element.remove();
+      });
+    }
+  }
+
+  function initUserDetails() {
+    if (customerToken != null && userToken == null) {
+      var formData = new FormData();
+      formData.append("action", "get_userinfo");
+      formData.append("customerToken", customerToken);
+      formData.append(
+        "storeCode",
+        eCommerceConfig ? eCommerceConfig.storeCode : "us"
+      );
+      fetch(`${domain}/ww/ecommerce`, {
+        method: "POST",
+        body: formData,
+      })
+        .then((response) => response.json())
+        .then(function (response) {
+          var cookie =
+            "firstname=" +
+            response?.data?.customer.firstname +
+            "&lastname=" +
+            response?.data?.customer.lastname;
+          setSessionCookie("user_token", cookie);
+          setSessionCookie(
+            "customer_email_hash",
+            response?.data?.customer.email_hash
+              ? response?.data?.customer.email_hash
+              : "guest"
+          );
+          document.querySelectorAll(".loginCustomerName").forEach((element) => {
+            element.innerText = response?.data?.customer.firstname;
+          });
+        })
+        .catch(function (error) {});
+    } else if (customerToken != null && userToken != null) {
+      var userDetails = userToken.split("&");
+      var firstname = userDetails[0].split("=");
+      document.querySelectorAll(".loginCustomerName").forEach((element) => {
+        element.innerText = firstname[1];
+      });
+    }
+  }
+
+  function getCookie(name) {
+    var dc = document.cookie;
+    var prefix = name + "=";
+    var begin = dc.indexOf("; " + prefix);
+    if (begin == -1) {
+      begin = dc.indexOf(prefix);
+      if (begin != 0) return null;
+    } else begin += 2;
+    var end = document.cookie.indexOf(";", begin);
+    if (end == -1) end = dc.length;
+    return unescape(dc.substring(begin + prefix.length, end));
+  }
+
+  function setSessionCookie(name, value) {
+    document.cookie =
+      name +
+      "=" +
+      escape(value) +
+      "; path=/ ;domain=" +
+      (window.location.hostname == "localhost" ? "localhost" : ".seagate.com");
+  }
+
+  function deleteCookie(name) {
+    document.cookie =
+      name +
+      "=; Max-Age=0; path=/; domain=" +
+      (window.location.hostname == "localhost" ? "localhost" : ".seagate.com");
+  }
+
+  function getAccountId() {
+    var accountId = "guest";
+    var customerToken = getCookie("customer_token");
+    var email = getCookie("customer_email_hash");
+    if (
+      !(customerToken == null || customerToken == "") &&
+      !(email == null || email == "")
+    ) {
+      accountId = email;
+    }
+    return accountId;
+  }
+
+  
+  function deleteMiniCartItemSessionStorage(name) {
+    if(sessionStorage.getItem(name)){
+      sessionStorage.removeItem(name);
+    }			
+  }
+
+  return {
+    init,
+  };
+})();
+
+if (document.querySelector(".PrimaryNav-side--account") != null) {
+  EcommerceHeader.init();
+}
+
+</script>
+
+</body>
+</html>

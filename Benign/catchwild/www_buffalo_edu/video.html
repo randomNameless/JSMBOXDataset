@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>video.html</title>
+</head>
+<body>
+
+<script>
+(function (namespace) {
+    namespace.VideoSplicer = namespace.VideoSplicer || (function () {
+        var VideoSplicer = function (selector, videos, mobile_videos, config) {
+            config = config || {};
+            this.selector = selector;
+            this.$target = $(selector);
+            this.videos = videos;
+            this.mobile_videos = mobile_videos;
+            this.$mobile_play = $(config.mobile_play_selector || '#mobile-play');
+            this.duration = config.duration || 400;
+            this.mobile_width = config.mobile_width || 721;
+            this.randomize = config.randomize || true;
+            this.bg = config.bg || '.bg';
+            this.controls_selector = config.controls_selector || '.hero-video-wrapper .icon-center';
+            this.class_active = config.class_active || 'active';
+            this.class_loaded = config.class_loaded || 'loaded';
+            this.class_high_index = config.class_high_index || 'high-index';
+            this.breakpoint = window.matchMedia('(min-width: ' + this.mobile_width + 'px)');
+            this.desktop_count = config.desktop_count || 5;
+            this.mobile_count = config.mobile_count || 5;
+            this.mobile_alt_default = config.mobile_alt_default || 'video placeholder';
+            this.concatenated_alts = '';
+            this.isPlaying = false;
+        };
+
+        VideoSplicer.prototype = {
+            init: function () {
+                var
+                    _this = this,
+                    bind_videos = function () {
+                        $('video', _this.$target).on('ended', function (e) {
+                            var
+                                active = e.currentTarget,
+                                $active = $(active),
+                                $next = get_next($active);
+                            $active.hide().removeClass(_this.class_active);
+                            play($next);
+                            active.pause();
+                            active.currentTime = 0;
+                        });
+                    },
+                    create_video = function (video) {
+                        var
+                            freezeFrame = video.freezeFrame ? 'data-freezeFrame="' + video.freezeFrame + '"' : '',
+                            $video = $('<video preload="auto" muted="" playsinline ' + freezeFrame + '></video>').appendTo(_this.$target);
+                        $('<source src="' + video.src + '" />').appendTo($video);
+                    },
+                    create_videos = function (videos, index) {
+                        index = index || 0;
+                        $(videos).each(function (i, elem) {
+                            if (i >= index) {
+                                create_video(elem);
+                            }
+                        });
+                    },
+                    get_next = function (video) {
+                        var
+                            $all_videos = $('video', _this.$target),
+                            active_index = $all_videos.index($(video)),
+                            $next_elem = $all_videos.eq(active_index + 1);
+                        return $next_elem.length ? $next_elem : $('video', _this.$target).first();
+                    },
+                    init_device = function () {
+                        this.isPlaying = false;
+                        var
+                            init_desktop = function () {
+                                var videos = [];
+                                _this.videos = randomize(_this.videos);
+                                videos = _this.desktop_count ? _this.videos.slice(0, _this.desktop_count) : _this.videos;
+                                preload_freeze_frames(videos);
+                                create_videos(videos, 0);
+                                concatenate_alts(videos);
+                                bind_videos();
+                                play($('video', _this.$target).first());
+                                _this.isPlaying = true;
+                                updateControls();
+                            },
+                            init_mobile = function () {
+                                var
+                                    videos = [],
+                                    init_videos = function () {
+                                        create_videos(videos, 1);
+                                        bind_videos();
+                                        $(_this.$mobile_play).hide();
+                                        $(_this.controls_selector).show();
+                                        play($('video', _this.$target).first());
+                                        _this.isPlaying = true;
+                                        updateControls();
+                                    },
+                                    set_mobile_still = function (video) {
+                                        if (video.mobileStill) {
+                                            $(_this.bg, _this.target).css('background-image', 'url(' + video.mobileStill + ')').attr({
+                                                role: 'img',
+                                                'aria-label': video.alt || _this.mobile_alt_default
+                                            });
+                                        }
+                                    };
+                                $(_this.controls_selector).hide();
+                                if (_this.mobile_videos.length) {
+                                    _this.mobile_videos = randomize(_this.mobile_videos);
+                                    videos = _this.mobile_count ? _this.mobile_videos.slice(0, _this.mobile_count) : _this.mobile_videos;
+                                    preload_freeze_frames(videos);
+                                    create_video(videos[0]);
+                                    set_mobile_still(videos[0]);
+                                    concatenate_alts(videos);
+                                    _this.$mobile_play.length ?
+                                        _this.$mobile_play.fadeIn(_this.duration).click(init_videos) :
+                                        init_videos();
+                                }
+                            },
+                            preload_freeze_frames = function (videos) {
+                                $(videos).each(function () {
+                                    if (this.freezeFrame) {
+                                        $('<img/>')[0].src = this.freezeFrame;
+                                    }
+                                });
+                            },
+                            randomize = function (videos) {
+                                var
+                                    video = null,
+                                    random = null,
+                                    output = [];
+                                if (_this.randomize) {
+                                    while (videos.length) {
+                                        random = Math.floor(Math.random() * videos.length);
+                                        video = videos.splice(random, 1);
+                                        output.push(video[0]);
+                                    }
+                                    videos = output;
+                                }
+                                return videos;
+                            },
+                            concatenate_alts = function (videos) { // Call after randomize to only handle selected videos.
+                                _this.concatenated_alts = ''; // Clear. Func is ran on mobile/desktop switch trigger events.
+
+                                $(videos).each(function () {
+                                    if ((this.alt === undefined) || (this.alt.length < 1)) {
+                                        return; // In jQuery, return without false works as continue;
+                                    }
+
+                                    const altStr = this.alt.trim();
+                                    _this.concatenated_alts += altStr;
+
+                                    _this.concatenated_alts += ' '; // Space before the next string.
+                                });
+
+                                _this.concatenated_alts = _this.concatenated_alts.trim(); // Remove trailing space at end.
+                            };
+                        $('video', _this.$target).remove();
+                        _this.breakpoint.matches ? init_desktop() : init_mobile();
+                    },
+                    play = function (video) {
+                        var
+                            $next = get_next($(video)),
+                            freezeFrame = $next.attr('data-freezeFrame');
+                        $video = $(video);
+                        $video[0].play();
+                        _this.isPlaying = true;
+                        updateControls();
+                        $video.addClass(_this.class_active).show();
+                        if (freezeFrame) {
+                            setTimeout(function () {
+                                $(_this.bg, _this.target).css('background-image', 'url(' + freezeFrame + ')').attr({
+                                    role: 'img',
+                                    'aria-label': _this.concatenated_alts
+                                });
+                            }, 1000);
+                        }
+
+                    },
+                    updateControls = function () {
+                        let playPauseIcon = $('i', _this.controls_selector);
+                        if (_this.isPlaying) {
+                            playPauseIcon.removeClass('icon-play3');
+                            playPauseIcon.addClass('icon-pause2');
+                        } else {
+                            playPauseIcon.addClass('icon-play3');
+                            playPauseIcon.removeClass('icon-pause2');
+                        }
+                    },
+                    bindControls = function () {
+                        $(_this.controls_selector).click(()=>{
+                            let video = $('.hero-video-wrapper .active')[0];
+                            if (_this.isPlaying) {
+                                video.pause();
+                            } else {
+                                video.play();
+                            }
+                            _this.isPlaying = !_this.isPlaying;
+                            updateControls();
+                        });
+                    };
+                _this.breakpoint.addListener(init_device);
+                init_device();
+                bindControls();
+
+                return this;
+            }
+        };
+        return VideoSplicer;
+    }());
+})(UBCMS.namespace('UBCMS'));
+</script>
+
+</body>
+</html>

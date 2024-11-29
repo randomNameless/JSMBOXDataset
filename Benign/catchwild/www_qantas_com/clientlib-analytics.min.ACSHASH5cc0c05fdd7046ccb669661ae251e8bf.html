@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>clientlib-analytics.min.ACSHASH5cc0c05fdd7046ccb669661ae251e8bf.html</title>
+</head>
+<body>
+
+<script>
+/**
+ *  Data layer
+ *
+ *  @returns {object} digitalData JSON and set/get methods
+ */
+
+'use strict';
+
+var dataLayer = function () {
+
+  /**
+   *  Digital data
+   *
+   *  Based on the Customer Experience Digital Data Layer 1.0 draft standard
+   *  https://www.w3.org/2013/12/ceddl-201312.pdf
+   */
+
+  var digitalData = {
+    "pageInstanceID": document.title + "-" + getEnvironment(),
+    "page": {
+      "pageInfo": {
+        "pageID": document.title,
+        "pageName": document.title,
+        "destinationURL": document.location,
+        "referringURL": document.referrer,
+        "sysEnv": getDeviceType(),
+        "version": "0.0.1",
+        "language": getLanguage() + "-" + getRegion(),
+        "geoRegion": getRegion(),
+        "publisher": "Qantas"
+      },
+      "category": setCategory(window.digitalDataCategory)
+    },
+    "listing": [],
+    "component": [],
+    "event": [],
+    "product": [],
+    "user": [],
+    "version": "1.0",
+    "privacy": {
+      "accessCategories": [
+        {
+          "categoryName": "Default",
+          "domains": ["qantas.com", "qantas.com.au", "adobedtm.com"]
+        }
+      ]
+    }
+  };
+
+  /**
+   *  DTM track
+   *
+   *  @param {string} str - DTM direct call parameter
+   */
+
+  function dtmTrack (str) {
+    if (typeof _satellite !== 'undefined' && 
+      str !== undefined) {
+      return _satellite.track(str);
+    }
+
+    return 'unknown';
+  }
+
+  /**
+   *  Get device type
+   *
+   *  @returns {string} User device type (returned by Adobe DTM)
+   */
+
+  function getDeviceType () {
+    if (typeof _satellite !== 'undefined' && 
+      typeof _satellite.browserInfo !== 'undefined') {
+      return _satellite.browserInfo.deviceType;
+    }
+
+    return 'unknown';
+  }
+
+  /**
+   *  Get region
+   *
+   *  @param {string} [region] - ISO 3166-1 Alpha-2 region code
+   *  @returns {string} Qantas.com marketing region (ISO 3166-1 Alpha-2)
+   */
+
+  function getRegion (region) {
+    if (!region) {
+      var htmlLang = document.documentElement.getAttribute('lang');
+      var region = (htmlLang && htmlLang.split('-')[1]) ? htmlLang.split('-')[1] : window.location.pathname.split('/')[1];
+    }
+    
+    if (region && 
+      region.length === 2) {
+      return region.toUpperCase();
+    }
+
+    return 'AU';
+  }
+
+  /**
+   *  Get language
+   *
+   *  @param {string} [lang] - ISO 639-1 language code
+   *  @returns {string} Qantas.com language (ISO 639-1)
+   */
+
+  function getLanguage (lang) {
+    if (!lang) {
+      var htmlLang = document.documentElement.getAttribute('lang');
+      var lang = (htmlLang && htmlLang.split('-')[0]) ? htmlLang.split('-')[0] : window.location.pathname.split('/')[2];
+    }
+
+    if (lang && 
+      lang.length === 2) {
+      return lang.toLowerCase();
+    }
+
+    return 'en';
+  }
+
+  /**
+   *  Get environment
+   *
+   *  @param {string} [host] - URL host
+   *  @returns {string} Qantas.com environment
+   */
+
+  function getEnvironment (host) {
+    host = host || window.location.host;
+
+    if (host.indexOf('qcpaws.qantas.com') !== -1) {
+      return 'develop';
+    }
+
+    if (host.indexOf('www-staging.qantas.com') !== -1) {
+      return 'staging';
+    }
+
+    if (host.indexOf('qantas.com') !== -1) {
+      return 'production';
+    }
+
+    return 'local';
+  }
+
+  /**
+   *  Set category
+   *
+   *  @param {Array} arr - Array of categories
+   *  @returns {object} Key/value pairs for primaryCategory and subCategory (if exists)
+   */
+
+  function setCategory (arr) {
+    if (!arr || !Array.isArray(arr) || arr.length === 0) {
+      return {};
+    }
+
+    var categories = {};
+
+    for (var i = 0, arrLen = arr.length; i < arrLen; i++) {
+      if (!categories["primaryCategory"]) {
+        categories["primaryCategory"] = arr[i].name;
+      } else {
+        categories["subCategory" + i] = arr[i].name;
+      }
+    }
+
+    return categories;
+  }
+
+  /**
+   *  Set event
+   *
+   *  @param {object} evt - Event
+   *    @param {string} name - A unique event name. Camel case. Naming order is 1) section name (optional), 
+   *    2) component name and 3) action (eg. create, read, update, delete) eg. "flightOffersFormUpdate"
+   *    @param {string} [action] - A value representing the event's initiation ("1") or completion ("2")
+   *    @param {number} [points] - An arbitrary point value representing the event's business value
+   *    @param {string} [type] - A name representing the event type
+   *    @param {(object|string)} [date] - An event date object or string in ISO 8601 format
+   *    @param {string[]} [categories] - An array of event categories ordered by most to least important
+   *    @param {object} [attributes] - An object of event attributes in key/value pairs
+   *  @returns {object} Final event data object
+   *
+   *  Example use -
+   *  
+   *  dataLayer.setEvent({
+   *    name: "flightOffersFormUpdate",
+   *    module: "flightOffers",
+   *    action: "1",
+   *    points: 100,
+   *    timestamp: new Date(),
+   *    categories: ["Plan", "Flight Offers"],
+   *    attributes: {
+   *      flightNumber: "QF530",
+   *      departureCode: "SYD",
+   *      departureName: "Sydney",
+   *      departureCountry: "Australia",
+   *      departureRegion: "Australia",
+   *      departureDate: new Date(),
+   *      arrivalCode: "BNE",
+   *      arrivalName: "Brisbane",
+   *      arrivalCountry: "Australia",
+   *      arrivalRegion: "Australia",
+   *      arrivalDate: new Date(),
+   *      traveClassCode: "ECO",
+   *      saleName: true
+   *    }
+   *  });
+   */
+
+  function setEvent (evt) {
+    if (!evt || !evt.name || !evt.module) {
+      return false;
+    }
+
+    var e = {
+      "eventInfo": {
+        "eventName": evt.name,
+        "module": evt.module
+      }
+    };
+
+    if (evt.action) {
+      e.eventInfo.eventAction = evt.action;
+    }
+
+    if (evt.points) {
+      e.eventInfo.eventPoints = evt.points;
+    }
+
+    if (evt.type) {
+      e.eventInfo.type = evt.type;
+    }
+
+    if (evt.timestamp) {
+      e.eventInfo.timeStamp = evt.timestamp;
+    }
+
+    if (evt.categories) {
+      for (var i = 0, categoriesLen = evt.categories.length; i < categoriesLen; i++) {
+        if (i === 0) {
+          e.category = {
+            "primaryCategory": evt.categories[0]
+          }
+        } else {
+          e.category["subCategory" + i] = evt.categories[i];
+        }
+      }
+    }
+
+    if (evt.attributes) {
+      e.attributes = evt.attributes;
+    }
+
+    digitalData.event.push(e);
+    dtmTrack(evt.module + '_' + evt.name + '_events');
+
+    return e;
+  }
+
+  /**
+   *  Set listing
+   *
+   *  @param {object} listing - Listing
+   *    @param {string} name - A unique listing name. Camel case. Naming order is 1) section name (optional) and 2) component name
+   *    @param {string[]} [categories] - An array of listing categories ordered by most to least important
+   *    @param {string} [status] - A status value for the listing eg. 'SUCCESS', 'NO_RESULTS', 'ERROR'
+   *    @param {string[]} [items] - An array of item listings containing key/value pairs
+   *  @returns {object} Final listing data object
+   *
+   *  Example use -
+   *  
+   *  dataLayer.setListing({
+   *    name: "flightOffersSearch",
+   *    categories: ["Flight Offers", "Flights to Sydney"],
+   *    items: [
+   *      {
+   *        departureAirportCode: “MEL",
+   *        departureCity: "Melbourne",
+   *        arrivalAirportCode: “SYD",
+   *        arrivalCity: "Sydney",
+   *        position: 1
+   *      },
+   *      {
+   *        departureAirportCode: "EDN",
+   *        departureCity: "Adelaide",
+   *        arrivalAirportCode: “SYD",
+   *        arrivalCity: "Sydney",
+   *        position: 2
+   *      }
+   *    ]
+   *  });
+   */
+
+  function setListing (listing) {
+    if (!listing || !listing.name) {
+      return false;
+    }
+
+    var list = {
+      "listingName": listing.name
+    };
+
+    if (listing.categories) {
+      for (var i = 0, categoriesLen = listing.categories.length; i < categoriesLen; i++) {
+        if (i === 0) {
+          list.category = {
+            "primaryCategory": listing.categories[0]
+          }
+        } else {
+          list.category["subCategory" + i] = listing.categories[i];
+        }
+      }
+    }
+
+    if (listing.status) {
+      list.status = listing.status;
+    }
+
+    if (listing.items) {
+      list.items = listing.items;
+    }
+
+    digitalData.listing.push(list);
+    dtmTrack(listing.name + '_listings');
+
+    return list;
+  }
+
+  /**
+   *  Get categories
+   *
+   *  @param {number} [category] - Category name
+   *  @returns {object} digitalData.page.category
+   *
+   *  Example use -
+   *
+   *  // Get all categories
+   *  dataLayer.getCategories();
+   *
+   *  // Get primary category
+   *  dataLayer.getCategories('primaryCategory');
+   *
+   *  // Get sub category 1
+   *  dataLayer.getCategories('subCategory1');
+   */
+
+  function getCategories (category) {
+    if (category && digitalData.page.category[category]) {
+      return digitalData.page.category[category];
+    }
+
+    return digitalData.page.category;
+  }
+
+  /**
+   *  Get events
+   *
+   *  @param {string} [name] - Event name
+   *  @returns {Array} digitalData.event(s)
+   *
+   *  Example use -
+   *
+   *  // Get all events
+   *  dataLayer.getEvents();
+   *
+   *  // Get all events with name 'flightOffersFormUpdate'
+   *  dataLayer.getEvents('flightOffersFormUpdate');
+   */
+
+  function getEvents (name) {
+    if (name) {
+      return digitalData.event.filter(getEventsByName(name));
+    }
+
+    return digitalData.event;
+  }
+
+  function getEventsByName (name) {
+    return function (event) {
+      return event.eventInfo.eventName === name;
+    }
+  }
+
+  /**
+   *  Get listings
+   *
+   *  @param {string} [name] - Listing name
+   *  @returns {Array} digitalData.listing(s)
+   *
+   *  Example use -
+   *
+   *  // Get all listings
+   *  dataLayer.getListings();
+   *
+   *  // Get all listings with name 'flightOffersSearch'
+   *  dataLayer.getListings('flightOffersSearch');
+   */
+
+  function getListings (name) {
+    if (name) {
+      return digitalData.listing.filter(getListingsByName(name));
+    }
+
+    return digitalData.listing;
+  }
+
+  function getListingsByName (name) {
+    return function (listing) {
+      return listing.listingName === name;
+    }
+  }
+
+  function setUser(user) {
+    if(user) {
+      digitalData.user = user;
+      return setEvent({ 
+        "name": "userPopulated",
+        "module": "Frequent Flyer",
+        "action": "onReady",
+        "points": 10,
+        "timestamp": new Date(),
+        "categories": ["Frequent Flyer"],
+        "attributes": {
+          "frequentFlyerNumber": user.frequentFlyerNumber
+        }
+      });
+    }
+  }
+
+  function getUser() {
+    return digitalData.user;
+  }
+
+  return {
+    digitalData: digitalData,
+    dtmTrack: dtmTrack,
+    getDeviceType: getDeviceType,
+    getRegion: getRegion,
+    getLanguage: getLanguage,
+    getEnvironment: getEnvironment,
+    setCategory: setCategory,
+    getCategories: getCategories,
+    setEvent: setEvent,
+    getEvents: getEvents,
+    setListing: setListing,
+    getListings: getListings,
+    setUser: setUser,
+    getUser: getUser
+  }
+
+}();
+
+/**
+ *  Do not ever modify digitalData or dataLayer.digitalData directly.
+ *  Always push changes using dataLayer methods.
+ */
+
+if (typeof module === 'object' && module.exports) {
+  module.exports = dataLayer;
+} else {
+  window.dataLayer = dataLayer;
+  window.digitalData = dataLayer.digitalData;
+}
+
+/**
+*  Data layer
+*
+*  @returns {object} analyticsData JSON and set/get methods
+*/
+
+'use strict';
+
+var newDataLayer = function () {
+    /**
+    *  Analytics data
+    */
+
+    const currentURL = window.location.href;
+    const pageUrl = currentURL.replace(/^(https?:\/\/)?/, '');
+
+    const categories = setCategory(window.digitalDataCategory);
+
+    var analyticsData = {
+        "detail": {
+            "analyticsData": {
+                "event": {
+                    "eventCategory": categories.primaryCategory ? categories.primaryCategory : "",
+                    "eventAction": categories.journeyStep ? categories.journeyStep : "",
+                    "eventLabel": "",
+                    "eventType": "pageload"
+                },
+                "journey": {
+                    "pageUrl": pageUrl,
+                    "pageName": document.title,
+                    "referringUrl": document.referrer,
+                    ...categories,
+                    "journeyName": categories.primaryCategory ? categories.primaryCategory : "",
+                    "geoRegion": getRegion(),
+                    "language": getLanguage() + "-" + getRegion(),
+                }
+            }
+        },
+        "setUser": (user) => {
+            if(user) {
+                analyticsData.detail.analyticsData.user = user;
+            }
+        }
+    };
+
+    /**
+    *  Get region
+    *
+    *  @param {string} [region] - ISO 3166-1 Alpha-2 region code
+    *  @returns {string} Qantas.com marketing region (ISO 3166-1 Alpha-2)
+    */
+
+    function getRegion(region) {
+        if (!region) {
+            var htmlLang = document.documentElement.getAttribute('lang');
+            var region = (htmlLang && htmlLang.split('-')[1]) ? htmlLang.split('-')[1] : window.location.pathname.split('/')[1];
+        }
+
+        if (region &&
+            region.length === 2) {
+            return region.toUpperCase();
+        }
+
+        return 'AU';
+    }
+
+    /**
+    *  Get language
+    *
+    *  @param {string} [lang] - ISO 639-1 language code
+    *  @returns {string} Qantas.com language (ISO 639-1)
+    */
+
+    function getLanguage(lang) {
+        if (!lang) {
+            var htmlLang = document.documentElement.getAttribute('lang');
+            var lang = (htmlLang && htmlLang.split('-')[0]) ? htmlLang.split('-')[0] : window.location.pathname.split('/')[2];
+        }
+
+        if (lang &&
+            lang.length === 2) {
+            return lang.toLowerCase();
+        }
+
+        return 'en';
+    }
+
+    /**
+    *  Set category
+    *
+    *  @param {Array} arr - Array of categories
+    *  @returns {object} Key/value pairs for primaryCategory, subCategory and journeyStep (if exists)
+    */
+
+    function setCategory(arr) {
+        if (!arr || !Array.isArray(arr) || arr.length === 0) {
+            return {};
+        }
+
+        var categories = {};
+        categories["journeyStep"] = "";
+
+        for (var i = 0, arrLen = arr.length; i < arrLen; i++) {
+            let name = arr[i].name;
+
+            if (!categories["primaryCategory"]) {
+                categories["primaryCategory"] = name.replace(/-/g, ' ');
+            } else {
+                categories["subCategory" + i] = name;
+
+                if((i + 1) === arr.length) {
+                    categories["journeyStep"] = name;
+                }
+            }
+        }
+
+        return categories;
+    }
+
+    return {
+        analyticsData: analyticsData,
+        getRegion: getRegion,
+        getLanguage: getLanguage,
+        setCategory: setCategory,
+    }
+}();
+
+
+window.analyticsData = newDataLayer.analyticsData;
+document.body.dispatchEvent(new CustomEvent("analyticsData", window.analyticsData));
+
+
+
+</script>
+
+</body>
+</html>

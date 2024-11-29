@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>blogparts.html</title>
+</head>
+<body>
+
+<script>
+/**
+ * コンストラクタの生成
+ *
+ * */
+if (typeof BlzRssC == 'undefined') {
+
+    /**
+     * コンストラクタ
+     * @param  user      ユーザーID
+     * @param  template  テンプレートID
+     * @param  parts     ツール名
+     * @param  linkage   連動フラグ
+     * @return this
+     * */
+    var BlzRssC = function(user, template, parts) {
+        this.user     = user;       // ユーザーID
+        this.tmp      = template;   // テンプレートID
+        this.parts    = parts;       // ツール名
+        return this;
+    };
+
+    BlzRssC.CONST = {
+        baseUrl  : '//blozoo.com/',       // アプリURL
+        cacheUrl : '//cache.blozoo.info/', // キャッシュサーバーURL
+        partsUrl : '//parts.blozoo.com/', // トラッキングサーバーURL
+        rssUrl : '//rss.blozoo.com/', // トラッキングサーバーURL
+        BLOG     : [
+                    'blog.livedoor.jp',
+                    'ameblo.jp',
+                    'blog.goo.ne.jp',
+                    'yaplog.jp',
+                    'ap.teacup.com',
+                    'blog.oricon.co.jp',
+                    'blog.3016.jp',
+                    'maruta.be'
+                    ]
+    };
+
+    /**
+     * 関数の初期化
+     * */
+    var BlzfadeOutId,
+        BlzfadeInId;
+
+    /**
+     * URLからドメインを取得する(ブログによってはディレクトリまで)
+     */
+    BlzRssC.prototype.getDomainUrl = function(url) {
+        // URLが存在しない
+        if (!url) return url;
+
+        // URLをパースする
+        var parser   = document.createElement('a');
+        parser.href  = url;
+        var protocol   = parser.protocol,
+            hostname   = parser.hostname,
+            pathname   = parser.pathname;
+
+        pathname = pathname.indexOf('/') == 0 ? pathname : '/' + pathname;
+
+        var ret_url = protocol + '//' + hostname + '/';
+
+        // サブディレクトリブログ
+        var targetBlogs = BlzRssC.CONST.BLOG;
+        for (var i = 0; i < targetBlogs.length; ++i) {
+            if (targetBlogs[i] === hostname) {
+                var path = pathname.split('/');
+                ret_url += path[1] + '/';
+            }
+        }
+        return ret_url;
+    };
+
+    /**
+     * jsonpを取得する
+     * */
+    BlzRssC.prototype.getJSONP = function() {
+
+        var blzU = this.user,
+            blzT = this.tmp,
+            blzP = this.parts,
+            blzK = this.linkage || false,  // 記事連動の場合
+            target = document.getElementById('blz_' + blzP + '_' + blzT + '_' + blzU); // ターゲットのDOMを取得しておく
+        // style情報を追加
+        this.setResetCss(target);
+
+        // コールバック関数をwindowオブジェクトに拡張
+        window[blzP + '_' + blzT + '_' + blzU] = function(data) {
+
+            // レスポンスデータをdiv要素に挿入
+            var div = document.createElement('div');
+            div.id = 'blzInitWraper_' + blzP + '_' + blzT + '_' + blzU;
+            div.innerHTML = data.html;
+            target.appendChild(div);
+
+            // グローバル関数を削除
+            try {
+                delete this[blzP + '_' + blzT + '_' + blzU];
+            } catch (e) {
+                // IE7-の時はプロパティを未定義にしておく
+                this[blzP + '_' + blzT + '_' + blzU] = undefined;
+            }
+
+            // コールバックスクリプトタグを削除
+            document.getElementById('blzoosc_' + blzP + '_' + blzT + '_' + blzU).parentNode.removeChild(document.getElementById('blzoosc_' + blzP + '_' + blzT + '_' + blzU));
+
+            // インプッションを計測
+            BlzRssC.prototype.imp(blzP, blzT, blzU);
+
+            // パーツのクリックを計測
+            BlzRssC.prototype.clickParts(blzP, blzT, blzU);
+
+            // IE７対応
+            if (window.navigator.appVersion.match(/MSIE 7.0/ig)) {
+                var initWrapper = document.getElementById('blzInitWraper_' + blzP + '_' + blzT + '_' + blzU);
+                for (var i = 0, l = initWrapper.children[0].children.length; i < l; i++) {
+                    if (initWrapper.children[0].children[i].className === 'imgUnits') {
+                        initWrapper.children[0].children[i].style.borderWidth = '0px';
+                    }
+                    for (var j = 0, m = initWrapper.children[0].children[i].children.length; j < m; j++) {
+                        if (initWrapper.children[0].children[i].children[j].className === 'textUnits') {
+                            initWrapper.children[0].children[i].children[j].style.paddingLeft = '0px';
+                            initWrapper.children[0].children[i].children[j].style.paddingRight = '0px';
+                        }
+                    }
+                }
+            }
+
+            // スタイルシートを追加
+            // BlzRssC.prototype.addCss(blzP, blzT, blzU);
+
+            // // ホバー時の処理
+            // BlzRssC.prototype.overParts(blzP, blzT, blzU);
+
+            // // ホバー時の処理
+            // BlzRssC.prototype.outParts(blzP, blzT, blzU);
+
+        }
+
+        // スクリプトタグを生成する
+        var script = document.createElement('script');
+
+        script.src = BlzRssC.CONST.cacheUrl + blzP + 'tool/generate/blogparts/' + blzT + '/' + blzU;
+        script.charset = 'UTF-8';
+        script.defer   = 'defer';
+        script.async   = 'async';
+        script.type    = 'text/javascript';
+        // 削除用IDを付加
+        script.id = 'blzoosc_' + blzP + '_' + blzT + '_' + blzU;
+        // ヘッドへ追加して実行
+        document.getElementsByTagName('head')[0].appendChild(script);
+
+        return target;
+    };
+
+    /**
+     * リセット用スタイルを生成
+     * @param target スタイルを適用させるDOM
+     * */
+    BlzRssC.prototype.setResetCss = function(target) {
+        var styleTag = document.createElement('style'),
+            style = '#blz_' + this.parts + '_' + this.tmp + '_' + this.user + ' ' + 'a:hover{position:static!important;top:auto!important;left:auto!important;}';
+            try {
+                styleTag.innerHTML = style;
+            } catch (e) {
+                // IE7-の時は読み取り専用を回避
+                styleTag.outerHTML = style;
+            }
+        target.appendChild(styleTag);
+    };
+
+    /**
+     * インプレッション用の<img>タグを取得
+     *
+     *
+     * */
+    BlzRssC.prototype.imp = function(parts, tmp, user){
+        var img = document.createElement('img');
+        // parts.blozoo.com/parts.html?p= !imp! [パーツ名] ! [テンプレートID] ! [ユーザID] ! [現在のURL] ! [リファラ] !
+        var _imp = BlzRssC.CONST.partsUrl + 'parts.html?p=' + '!imp!' + parts + 'tool!' + tmp + '!' + user + '!' + BlzRssC.prototype.getDomainUrl(location.href) + '!' + BlzRssC.prototype.getDomainUrl(document.referrer) + '!' + '?_' + (new Date).getTime();
+        img.src = _imp;
+        img.style.width   = '0px';
+        img.style.height  = '0px';
+        img.style.display = 'none';
+        // 削除用IDを付加
+        img.id = 'imp' + '_' + parts + '_' + tmp + '_' + user;
+        // bodyに追加してトラッキングサーバーにリクエスト
+        document.getElementsByTagName('body')[0].appendChild(img);
+        // <img>タグを削除
+        document.getElementById(img.id).parentNode.removeChild(document.getElementById(img.id));
+    };
+
+    /**
+     * ブログパーツにクリックイベントを追加
+     *
+     * */
+    BlzRssC.prototype.clickParts = function(parts, tmp, user) {
+        try {
+            document.getElementById('blz_' + parts + '_' + tmp + '_' + user)
+                .addEventListener('click', function(element) {
+                    BlzRssC.prototype.sendClick(element.target, location.href, parts, tmp, user);
+                }, false);
+        } catch (e) {
+            document.getElementById('blz_' + parts + '_' + tmp + '_' + user)
+                .attachEvent('onclick', function(element) {
+                    BlzRssC.prototype.sendClick(element.srcElement, location.href, parts, tmp, user);
+                });
+        }
+    };
+
+    /**
+     * クリック用の<img>タグを取得
+     * @param integer $hoge 説明
+     * @return Array $result 説明
+     * */
+    BlzRssC.prototype.sendClick = function(target, href, parts, tmp, user) {
+        var anchor, img;
+        while (target) {
+            if (target.href && !target.src) {
+                if (BlzRssC.prototype.getDomainUrl(target.href)) {
+                    // track.blozoo.com/inout.html?p= !out! [テンプレートID] ! [ユーザID] ! [現在のURL] ! [リファラ] !
+                    var _clickUrl = BlzRssC.CONST.partsUrl + 'parts.html?p=' + '!click!' + parts + 'tool!' + tmp + '!' + user + '!' + BlzRssC.prototype.getDomainUrl(location.href) + '!' + encodeURIComponent(target.href) + '!' + '?_' + (new Date).getTime();
+                    document.getElementById('blzClick').src = _clickUrl;
+                    var _outUrl = BlzRssC.CONST.rssUrl + 'rss.html?p=' + '!out!' + tmp + '!' + encodeURIComponent(BlzRssC.prototype.getDomainUrl(location.href)) + '!' + encodeURIComponent(BlzRssC.prototype.getDomainUrl(target.href)) + '!' + encodeURIComponent(target.href) + '!' + '?_' + (new Date).getTime();
+                    document.getElementById('blzRssOutClick').src = _outUrl;
+                    break;
+                }
+            }
+            target = target.parentNode ? target.parentNode : null;
+        }
+    };
+
+    /**
+     * 説明
+     * @param integer $hoge 説明
+     * @return Array $result 説明
+     * */
+    BlzRssC.prototype.overParts = function(parts, tmp, user) {
+        var _target = document.getElementById('blz_' + parts + '_' + tmp + '_' + user);
+         try {
+            document.getElementById('blz_' + parts + '_' + tmp + '_' + user)
+                .addEventListener('mouseover', function(element) {
+                   clearTimeout(BlzfadeInId);
+                   BlzRssC.prototype.over(element.target, 0);
+                }, true);
+        } catch (e) {
+            document.getElementById('blz_' + parts + '_' + tmp + '_' + user)
+                .attachEvent('onmouseover', function(element) {
+                   clearTimeout(BlzfadeInId);
+                   BlzRssC.prototype.over(element.srcElement, 0);
+                });
+        }
+    };
+
+    /**
+     * 説明
+     * @param integer $hoge 説明
+     * @return Array $result 説明
+     * */
+     BlzRssC.prototype.outParts = function(parts, tmp, user) {
+         try {
+             document.getElementById('blz_' + parts + '_' + tmp + '_' + user)
+                 .addEventListener('mouseout', function(element) {
+                    clearTimeout(BlzfadeOutId);
+                    BlzRssC.prototype.out(element.target, 0);
+                 }, true);
+         } catch (e) {
+             document.getElementById('blz_' + parts + '_' + tmp + '_' + user)
+                 .attachEvent('onmouseout', function(element) {
+                    clearTimeout(BlzfadeOutId);
+                    BlzRssC.prototype.out(element.srcElement, 0);
+                 });
+         }
+     };
+
+     BlzRssC.prototype.getTextArea = function(target) {
+        if (target.className.match(/textUnits/i)) {
+            var textUnits = target;
+        } else if (target.className.match(/imgUnits/i)) {
+            var textUnits = target.lastChild.childNodes[0];
+        } else if (target.nodeName.toLowerCase() == 'img') {
+            if (target.parentNode.nextSibling) {
+                var textUnits = target.parentNode.nextSibling.childNodes[0];
+            } else {
+                var textUnits = null;
+            }
+        } else if (target.nodeName.toLowerCase() == 'span') {
+            var textUnits = target.parentNode;
+        } else {
+            var textUnits = null;
+        }
+        return textUnits;
+     }
+
+    /**
+     * マウスオーバーイベント
+     * @param element target  指定要素
+     * @param Number  opValue opacity
+     * @param Object  event   イベントオブジェクト
+     * */
+    BlzRssC.prototype.over = function(target, opValue, event) {
+        var _textUnits = window.BlzRssC.prototype.getTextArea(target);
+        if (_textUnits && event) {
+            if (event.fromElement.className.match(/textUnits/) || event.fromElement.className.match(/textUnits/) || event.fromElement.nodeName.toLowerCase() == 'span' || event.fromElement.nodeName.toLowerCase() == 'img') {
+                return;
+            }
+        }
+        if (_textUnits && _textUnits.className.match(/blz-textunit-hover/i)) {
+            _textUnits.style.display = 'block';
+            if (opValue < 1) {
+                _textUnits.style.filter = 'alpha(opacity=' + ( opValue * 100 ) + ')';
+                _textUnits.style.opacity = opValue;
+                opValue = opValue + 0.1;
+                BlzfadeInId = setTimeout(function(){
+                    this.BlzRssC.prototype.over(_textUnits, opValue);
+                }, 18);
+            } else {
+                clearTimeout(BlzfadeInId);
+                _textUnits.style.filter  = 'alpha(opacity=100)';
+                _textUnits.style.opacity = 1;
+            }
+        }
+
+    };
+
+    /**
+     * マウスアウトイベント
+     * @param element target  指定要素
+     * @param Number  opValue opacity
+     * @param Object  event   イベントオブジェクト
+     * */
+    BlzRssC.prototype.out = function(target, opValue, event) {
+        var _textUnits = window.BlzRssC.prototype.getTextArea(target);
+        if (_textUnits && event) {
+            if (event.toElement.className.match(/textUnits/) || event.toElement.className.match(/textUnits/) || event.toElement.nodeName.toLowerCase() == 'span' || event.toElement.nodeName.toLowerCase() == 'img') {
+                return;
+            }
+        }
+        if (_textUnits && _textUnits.className.match(/blz-textunit-hover/i)) {
+            _textUnits.style.opacity = 0;
+            _textUnits.style.display = 'none';
+            _textUnits.style.filter = 'alpha(opacity=0)';
+            clearTimeout(BlzfadeOutId);
+        }
+
+    };
+};
+
+/**
+ * 即時関数
+ *
+ * */
+(function() {
+
+    //-----------------------------------
+    // データチェック
+    //-----------------------------------
+    if(!blzU || !blzT || !blzP) return;
+
+    // 既にグローバルオブジェクトが存在する場
+    if (BlzRssC[blzU + '_' + blzT + '_' + blzP]) return;
+
+    // 記事連動の場合
+    if (document.getElementById('blz_' + blzP + '_' + blzT + '_' + blzU + '_kw')) {
+        var blzK = document.getElementById('blz_' + blzP + '_' + blzT + '_' + blzU + '_kw').innerHTML;
+        // 余分な文字を削除しておく
+        blzK = blzK.replace(/'|"|&quot;|&lt;|&gt;|&nbsp;|&copy;/ig);
+    }
+
+    //-----------------------------------
+    // 実行スクリプトのオブジェクトを作成
+    //-----------------------------------
+    BlzRssC[blzU + '_' + blzT + '_' + blzP] = {
+        'user' : blzU,
+        'tmp'  : blzT,
+        'tool' : blzP
+    };
+
+    if ( window['blzOverad'] == undefined ) {
+        if (typeof(blzAC) != "undefined") {
+            var bac = blzAC;
+        } else {
+            var bac = '';
+        }
+        document.write('<script src="//js.blozoo.com/?p='+blzP+'&t='+blzT+'&u='+blzU+'&c='+bac+'"></script>');
+    }
+
+    // クリック用の<img>タグを生成する
+    if (!document.getElementById('blzClick')) {
+        var img = document.createElement('img');
+        img.id = 'blzClick';
+        img.style.width   = '0px';
+        img.style.height  = '0px';
+        img.style.display = 'none';
+        // bodyに追加してトラッキングサーバーにリクエスト
+        document.getElementsByTagName('body')[0].appendChild(img);
+    }
+
+    // クリック用の<img>タグを生成する
+    if (!document.getElementById('blzRssOutClick')) {
+        var img = document.createElement('img');
+        img.id = 'blzRssOutClick';
+        img.style.width   = '0px';
+        img.style.height  = '0px';
+        img.style.display = 'none';
+        // bodyに追加してトラッキングサーバーにリクエスト
+        document.getElementsByTagName('body')[0].appendChild(img);
+    }
+
+    //-----------------------------------
+    // パーツ表示
+    //-----------------------------------
+    // インスタンスを生成
+    var blozoo = new BlzRssC(blzU, blzT, blzP);
+
+    // jsonpでリクエストしてコールバック関数を実行、結果のDOMを取得
+    var target = blozoo.getJSONP();
+
+    // 各値を初期化
+    blzU = blzT = blzP = undefined;
+    if ( typeof(blzAC) != "undefined" ) {
+        blzAC = undefined;
+    }
+})();
+
+</script>
+
+</body>
+</html>

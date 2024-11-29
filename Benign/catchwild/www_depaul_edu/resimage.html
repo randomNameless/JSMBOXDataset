@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>resimage.html</title>
+</head>
+<body>
+
+<script>
+function ImageButtonPush(siteurl, action) {
+    var pagelistid = _spPageContextInfo.pageListId;
+    var pageitemid = _spPageContextInfo.pageItemId;
+    var options = SP.UI.$create_DialogOptions();
+    if (action == 'add') {
+		options.url = siteurl + "/_layouts/15/DU.SPResponsiveImageButton/DUImage.aspx?ListId=" + pagelistid + "&PageId=" + pageitemid;
+
+    } else if (action == 'change') {
+		var urlT = siteurl + "/_layouts/15/DU.SPResponsiveImageButton/DUImage.aspx?ListId=" + pagelistid + "&PageId=" + pageitemid + "&change=true";
+        var rng = RTE.Cursor.getSelectedImage();
+        var parentN = rng.parentNode;
+        //need to handle the case when figure does not have a figcaption child
+        var caption = $(parentN).find('figcaption').text();
+        options.args = {
+            ImageSrc: rng.src,
+            Caption: caption,
+            FigureClasses: $(parentN).attr('class'),
+            ImageTitle: $(rng).attr('alt')
+        };
+
+        options.url = urlT;
+    } else {
+        removeImage();
+        return;
+    }
+    options.height = 600;
+    options.width = 800;
+    options.dialogReturnValueCallback = Function.createDelegate(null, myDialogCallback);
+    SP.UI.ModalDialog.showModalDialog(options); // To Open Page in Model Dialogue
+}
+
+function removeImage() {
+    var ans = confirm("Are you sure you wish to delete this image?");
+    if (ans) {
+        var rng = RTE.Cursor.getSelectedImage();
+        var parentEl = rng.parentNode;
+        var nodeName = parentEl.nodeName;
+        if (nodeName.toUpperCase() == "FIGURE") {
+            //we need to grab the full figure and delete it.
+            while ((parentEl.parentNode != null) && parentEl.parentNode.hasChildNodes()) {
+                parentEl.parentNode.removeChild(parentEl);
+            }
+
+        } else {
+            rng.parentNode.removeChild(rng);
+        }
+    }
+}
+
+function replaceAll(find, replace, str) {
+    return str.replace(new RegExp(escapeRegExp(find), 'g'), replace);
+}
+function escapeRegExp(str) {
+    return str.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
+}
+
+function myDialogCallback(result, response) {
+    /* 
+    response[0] = Image (Url)
+    response[1] = Title text
+    response[2] = Caption text
+    response[3] = Is this an update?
+    response[4]  = Figure classes
+    */
+    switch (result) {
+        case SP.UI.DialogResult.cancel:
+            //do nothing
+            break;
+        case SP.UI.DialogResult.invalid:
+            //do nothing
+            break;
+        case SP.UI.DialogResult.OK:
+            var rng = RTE.Cursor.get_range().parentElement();
+            var d = rng.ownerDocument;
+            if (response[3] == "True") {
+                var trng = RTE.Cursor.getSelectedImage();
+                var parentEl = trng.parentNode;
+                var nodeName = parentEl.nodeName;
+                if (nodeName.toUpperCase() == "FIGURE") {
+                    //need to add the cursor start/stop spans above the figure
+                    var startspan = d.createElement("span");
+                    startspan.setAttribute('id', "image-here");
+                    startspan.setAttribute('style', "display:none;");
+                    parentEl.parentNode.insertBefore(startspan, parentEl);
+                    parentEl.parentNode.removeChild(parentEl);
+
+                    var newrng = d.getElementById("image-here");
+                    var a = d.createElement("figure");
+                    a.setAttribute("class", response[4]);
+                    var link = d.createElement("img");
+                    //link.setAttribute("class", response[4]);
+
+                    link.setAttribute("src", decodeURIComponent(response[0]));
+                    var titleText = replaceAll("%27", "'", response[1]);
+                    link.setAttribute("alt", titleText);
+                    link.setAttribute("title", titleText);
+
+                    //Add Lazy Loading attribute
+                    link.setAttribute("loading", "lazy");
+
+                    //  link.setAttribute("alt", response[1].replace("%27", "'"));
+                    // link.setAttribute("title", response[1].replace("%27", "'"));
+                    a.appendChild(link);
+
+                    //On an update, only insert the caption if the user enters text
+                    if (response[2] != "null" && response[2].length > 0) {
+                        var caption = d.createElement("figcaption");
+                        var captionText = replaceAll("%27", "'", response[2]);
+                        var captext = d.createTextNode(captionText);
+                        // var captext = d.createTextNode(response[2].replace("%27", "'"));
+                        caption.appendChild(captext);
+                        a.appendChild(caption);
+                    }
+
+                    SP.UI.UIUtility.insertAfter(a, newrng);
+                    newrng = d.getElementById("image-here");
+                    newrng.parentNode.removeChild(newrng);
+                    break;
+                }
+                else {
+                    rng.parentNode.removeChild(rng);
+                }
+
+            } else {
+                //is new insert, just need to delete whatever is selected
+                //rng = RTE.Cursor.get_range().parentElement();
+				rng = RTE.Cursor.get_range().get_endMarker();
+                var selectedText = RTE.Cursor.s_range.get_text();
+                RTE.Cursor.get_range().deleteContent();
+
+                var a = d.createElement("figure");
+                a.setAttribute("class", response[4]);
+
+                var link = d.createElement("img");
+                //link.setAttribute("class", response[4]);
+                link.setAttribute("src", decodeURIComponent(response[0]));
+
+                var titleText = replaceAll("%27", "'", response[1]);
+                //var cleanText = response[1].replace("%27", "'");
+                link.setAttribute("alt", titleText);
+                link.setAttribute("title", titleText);
+
+                //Add Lazy Loading attribute
+                link.setAttribute('loading', "lazy");
+
+                a.appendChild(link);
+                //On an update, only insert the caption if the user enters text
+                if (response[2] != "null" && response[2].length > 0) {
+                    var caption = d.createElement("figcaption");
+                    var captionText = replaceAll("%27", "'", response[2]);
+                    var captext = d.createTextNode(captionText);
+                    // var captext = d.createTextNode(response[2].replace("%27", "'"));
+                    caption.appendChild(captext);
+                    a.appendChild(caption);
+                }
+
+                SP.UI.UIUtility.insertAfter(a, rng);
+                break;
+            }
+    }
+}
+
+//Functions addClass(), removeClass() copied from delivered file DragDrop.js to prevent console errors
+function addClass(elem, className) {
+	if (fIsNullOrUndefined(elem))
+		return;
+	if (!fIsNullOrUndefined(elem.className)) {
+		if (elem.className.indexOf(className) == -1)
+			elem.className = elem.className + ' ' + className;
+	}
+	else {
+		elem.className = className;
+	}
+}
+
+function removeClass(elem, className) {
+	if (fIsNullOrUndefined(elem))
+		return;
+	if (elem.className == className)
+		elem.className = '';
+	var oldClassName = elem.className;
+	var searchName = ' ' + className;
+
+	if (oldClassName.indexOf(searchName) != -1)
+		elem.className = oldClassName.replace(searchName, '');
+	else if (oldClassName.indexOf(className) != -1)
+		elem.className = oldClassName.replace(className, '');
+}
+</script>
+
+</body>
+</html>

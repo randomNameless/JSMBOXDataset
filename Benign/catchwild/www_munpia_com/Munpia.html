@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Munpia.html</title>
+</head>
+<body>
+
+<script>
+"use strict";
+
+var Munpia = Munpia || {};
+var $M = Munpia;
+
+/**
+ * namespace 를 생성
+ *
+ * @param string namespace			namespace, . 으로 구분
+ * @return obj
+ */
+Munpia.namespace = function(namespace) {
+    var path = namespace.split(".");
+    var parent = Munpia;
+
+	//첫 값이 Munpia 인 경우 사용하지 않음
+    if ( path[0] == "Munpia" ) { 
+		path = path.slice(1);
+    }
+
+	//입력 namespace 개수를 확인한다.
+	var pathCount = path.length;
+
+	for(var i=0;i<pathCount;i=i+1) { 
+		if ( typeof parent[path[i]] == "undefined" ) {		//없는 프로퍼티인 경우
+			parent[path[i]] = {};		//새로 생성
+		}
+
+		parent = parent[path[i]];
+	}
+
+	return parent;
+
+};
+
+//-------------------------------------------------------------------------------------------------
+
+Munpia.namespace("init");
+
+/**
+ * 서비스 초기화
+ * 입력 정보를 저장 영역에 저장한다.
+ */
+Munpia.init = function(params) {
+
+	Munpia.namespace("common.params");
+	Munpia.common.params = params;
+
+};
+
+/**
+ * 기본 표시 설정, 표지 로드 실패시 호출되며, 무한 로딩이 안되도록 속성정보를 확인 후 처리한다.
+ * 
+ * @param object obj			Img object
+ */
+Munpia.namespace("util.noneCover");
+
+Munpia.util.noneCover = function(obj) 
+{
+	var defaultCoverThumb = Munpia.common.params.staticHost + "/assets/legacy/www/tpl/novel/core/covers/no.jpgtb.jpg";
+	var defaultCover = Munpia.common.params.staticHost + "/assets/legacy/www/tpl/novel/core/covers/no.jpg";
+	
+	//기본 cover 사용중인지 확인
+	var isDefaultCover = obj.getAttribute("data-is-default-cover");
+
+	if ( isDefaultCover == "true" ) { 
+		return false;
+	}
+
+	//섬네일 표지인지 아닌지 확인
+	var useCover = defaultCoverThumb;
+	var isNotThumb = obj.getAttribute("data-is-not-thumb");
+	
+	//섬네일 표지가 아니라면
+	if ( isNotThumb == "true" ) { 
+		useCover = defaultCover;
+	}
+
+	//기본 표지 URL로 변경
+	obj.setAttribute("data-load-error", obj.getAttribute("src"));		
+	obj.setAttribute("data-is-default-cover", "true");	
+	obj.setAttribute("src", useCover);
+}
+
+</script>
+
+</body>
+</html>

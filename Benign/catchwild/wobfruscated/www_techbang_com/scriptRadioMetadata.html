@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>scriptRadioMetadata.html</title>
+</head>
+<body>
+<script>import { reactive } from 'https://unpkg.com/petite-vue?module';
+import scriptHelpers from '/scripts/scriptHelpers.js';
+import {stitchingScript} from '/scripts/scriptStitching.js';
+import {$store} from '/scripts/store.js';
+
+export const radioMetadataScript = reactive({
+  /** Variable radio */
+  maxMinutesSessionId: 1,
+  radioMetadata: {
+    metadata: undefined,
+    change: true,
+    history: [],
+    sessionId: undefined,
+    dateSessionId: undefined,
+    manifestParameters:"origin=miniplayer"
+  },
+  nextAdvertising: {
+    startDate: undefined,
+    tag: undefined,
+  },
+
+  /** Functions */
+  initRadioBehavior() {
+    $store.state[0].audio = document.getElementById("audio-id-" + 0);
+    $store.state[0].video = document.getElementById("video-id-" + 0);
+    if(miniplayerRequestParams.stream.length){
+      $store.state[0].audio.crossOrigin="anonymous";
+      $store.state[0].video.crossOrigin="anonymous";
+    }
+    if(!radio){
+      $store.info[0].title = locales['Listen to the radio'];
+      return;
+    }
+    if (document.referrer) {
+      this.radioMetadata.manifestParameters += "&referrer=" + document.referrer;
+    }
+    if(""!==miniplayerRequestParams.listenerId){
+      this.radioMetadata.manifestParameters+="&listenerId="+encodeURI(miniplayerRequestParams.listenerId);
+    }
+    this.radioLoadMetadata();
+    setInterval(() => {
+      this.radioLoadMetadata();
+    }, 3000);
+    const history = document.getElementsByClassName("inside-volet");
+    this.radioHandleMetadata(history);
+    setInterval(() => {
+      this.radioHandleMetadata(history);
+    }, 1000);
+  },
+  handleSessionIdRadio(){
+    if(this.radioMetadata.sessionId && dayjs().diff(dayjs(this.radioMetadata.dateSessionId), 'm')<this.maxMinutesSessionId){
+      return;
+    }
+    this.radioMetadata.sessionId = this.uuidv4();
+  },
+  uuidv4() {
+    return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, c =>
+      (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+    );
+  },
+  async radioLoadMetadata() {
+    try {
+      const metadata = await scriptHelpers.makeRequest(
+        radioUrl + "/player/playing/" + radio.id,
+        "GET",
+        false,
+      );
+      // MOCK TODO
+     /*  metadata.nextAdvertising = {
+          "startDate": "2024-10-30T11:01:00Z",
+          "tag": "5e385e1b51c86"
+      } */
+      if(metadata.nextAdvertising?.startDate && metadata.nextAdvertising?.startDate !== this.nextAdvertising?.startDate){
+        stitchingScript.defineRadioInterval(metadata.nextAdvertising);
+      }
+      this.nextAdvertising = metadata.nextAdvertising ?? {};
+      let arrayMetadata = metadata.previously;
+      arrayMetadata.unshift(metadata.currently);
+      for (let i = 0; i < arrayMetadata.length; i++) {
+        if (dayjs() - 18000 > dayjs(arrayMetadata[i].startDate)) {
+          if (arrayMetadata[i].title != this.radioMetadata?.metadata?.title) {
+            this.radioMetadata.metadata = arrayMetadata[i];
+            this.radioMetadata.change = true;
+            this.radioMetadata.history = arrayMetadata.slice(i + 1, arrayMetadata.length);
+          }
+          return;
+        }
+      }
+    } catch (error) {
+      console.log("Error fetching radio metadata");
+    }
+   
+  },
+  radioDisplayTitle(metadata) {
+    let title = "";
+    if (metadata.title) {
+      title += metadata.title;
+    }
+    if (metadata.artist) {
+      title += " - " + metadata.artist;
+    }
+    return title;
+  },
+  radioHandleMetadata(history) {
+    if (!this.radioMetadata.metadata) {
+      return;
+    }
+    const actualMilliSecondsPlayed =
+      Date.now() -
+      18000 -
+      new Date(this.radioMetadata.metadata.startDate).valueOf();
+    $store.info[0].positionPercent =
+      (actualMilliSecondsPlayed /
+        (this.radioMetadata.metadata.mediaDuration * 1000)) *
+      100;
+    $store.info[0].timeElapsedSeconds = actualMilliSecondsPlayed;
+    $store.info[0].timeElapsed = scriptHelpers.relativeTimeFormat(
+      Math.round(actualMilliSecondsPlayed),
+    );
+    if (!this.radioMetadata.change) {
+      return;
+    }
+    this.radioMetadata.change = false;
+    $store.info[0].timeRemaining = scriptHelpers.relativeTimeFormat(
+      Math.round(this.radioMetadata.metadata.mediaDuration * 1000),
+    );
+    $store.info[0].title = this.radioDisplayTitle(
+      this.radioMetadata.metadata,
+    );
+    if (history && this.radioMetadata.history) {
+      let historyString = locales["Previously"] + ": <br/>";
+      for (let i = 0; i < this.radioMetadata.history.length; i++) {
+        historyString +=
+          dayjs(this.radioMetadata.history[i].startDate).format("HH:mm") +
+          " " +
+          this.radioDisplayTitle(this.radioMetadata.history[i]) +
+          "<br/>";
+      }
+      history[0].innerHTML = historyString;
+    }
+  },
+  
+});</script>
+</body>
+</html>

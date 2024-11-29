@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>bdai.html</title>
+</head>
+<body>
+
+<script>
+(function () {
+    // 封装异步加载资源的方法
+    function loadExternalResource(url, type) {
+        return new Promise((resolve, reject) => {
+            let tag;
+            if (type === "css") {
+                tag = document.createElement("link");
+                tag.rel = "stylesheet";
+                tag.href = url;
+            } else if (type === "js") {
+                tag = document.createElement("script");
+                tag.src = url;
+            }
+            if (tag) {
+                tag.onload = () => resolve(url);
+                tag.onerror = () => reject(url);
+                document.head.appendChild(tag);
+            }
+        });
+    };
+    // 唯一值
+    var generateUUID = function () {
+        var d = new Date().getTime();
+        if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
+            d += performance.now(); // 使用性能数据来增加唯一性
+        }
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+            var r = (d + Math.random() * 16) % 16 | 0;
+            d = Math.floor(d / 16);
+            return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+        });
+    };
+    // 获取url参数
+    var getQueryVariable = function (variable) {
+        var query = window.location.search.substring(1);
+        var vars = query.split("&");
+        for (var i = 0; i < vars.length; i++) {
+            var pair = vars[i].split("=");
+            if (pair[0] == variable) {
+                return pair[1];
+            }
+        }
+        return '';
+    };
+    var host = {
+        'www.cnxiangyan.com': {
+            'inupt': '.search .intxt',
+            'search': '.tjbtn',
+            'agentId': 'MmfKTNELFhBBeMN0hJGqH2I5us9FuRUO',
+            'title': '中华烟',
+            'pathname':'/'
+        },
+    };
+    var $inupt = document.querySelector(host[window.location.host].inupt);
+    var $search = document.querySelector(host[window.location.host].search);
+    var $agentId = host[window.location.host].agentId;
+    var $title = host[window.location.host].title;
+    var $pathname = host[window.location.host].pathname;
+
+    var loadAllExternalResources = async function () {
+        Promise.all([
+            await loadExternalResource("https://unpkg.com/lingjing-agent@1.0.0/dist/js/index.global.js", "js"),
+        ]).then(async () => {
+            $('form[name=formsearch]').submit(function() {
+                return false;
+            })
+            let searchButton = $search;
+            searchButton.value = 'AI搜索';
+            let chat = new LingJingAgent.Chat({
+                // 站点对应的 agentId
+                agentId: $agentId,
+                // ⽤户唯⼀ id
+                uid: generateUUID(),
+                // 对话流的 Container，默认为 document.body
+                container: undefined,
+                /** 启动⼊⼝（悬浮球）配置，可不填 */
+                entry: {
+                    // ⼊⼝的 Container，默认为 document.body
+                    container: undefined,
+                    // ⼊⼝的 image 的 url 地址，默认为动图
+                    image: undefined,
+                }
+            });
+            chat.showEntry();
+            searchButton.addEventListener('click', function () {
+                chat.show();
+                setTimeout(function () {
+                    let searchInput = $inupt;
+                    let query = searchInput.value;
+                    if(query.length == 0){
+                        query = $title;
+                    }
+                    let textareaContents = document.getElementsByClassName('chat-input-box-textarea-content');
+                    for (let i = 0; i < textareaContents.length; i++) {
+                        textareaContents[i].value = query;
+                        textareaContents[i].focus();
+                        let event = new Event('input', {
+                            bubbles: true,
+                            cancelable: true
+                        });
+                        textareaContents[i].dispatchEvent(event);
+                        break;
+                    }
+                    setTimeout(() => {
+                        document.querySelectorAll('.chat-input-box-send').forEach(element => {
+                            element.click();
+                        });
+                    }, 500
+                    );
+                }, 500)
+            });
+        });
+    };
+    var searchResources = async function () {
+        Promise.all([
+            await loadExternalResource("https://unpkg.com/lingjing-agent@1.0.0/dist/js/index.global.js", "js"),
+        ]).then(async () => {
+            let lastConversion = null;
+            let chat = new LingJingAgent.Chat({
+                // 站点对应的 agentId
+                agentId: 'MmfKTNELFhBBeMN0hJGqH2I5us9FuRUO',
+                // ⽤户唯⼀ id
+                uid: generateUUID(),
+                // 对话流的 Container，默认为 document.body
+                container: undefined,
+                /** 启动⼊⼝（悬浮球）配置，可不填 */
+                entry: {
+                    // ⼊⼝的 Container，默认为 document.body
+                    container: undefined,
+                    // ⼊⼝的 image 的 url 地址，默认为动图
+                    image: undefined,
+                }
+            });
+            var chatfun = function (query) {
+                // 销毁上⼀轮会话
+                lastConversion && lastConversion.destroy();
+                // ⽣成新⼀轮对话
+                lastConversion = chat.conversion(query);
+                // 渲染内容
+                lastConversion.render({ container: document.getElementById('agent-conversion') });
+            };
+            setTimeout(function () {
+                if(getQueryVariable('keyword') == '' || getQueryVariable('keyword') == null || getQueryVariable('keyword').length == 0){
+                    
+                    chatfun('中华烟')
+                }else{
+                    chatfun(decodeURIComponent(getQueryVariable('keyword')))
+                }
+                
+            }, 500)
+
+        });
+    };
+    if (host[window.location.host] && $pathname == window.location.pathname) {
+        loadAllExternalResources();
+    }    
+    if(host[window.location.host] && window.location.pathname == '/search'){
+        $('.pleft form').after(`<div id="agent-conversion"></div>`);
+        searchResources();
+    }
+    
+})();
+</script>
+
+</body>
+</html>

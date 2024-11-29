@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>mi24video-tracking-helper-a0e12622.html</title>
+</head>
+<body>
+
+<script>
+import { A as AccessMode } from './components-property-helper-a473b7fd.js';
+
+class Mi24VideoTrackingService {
+  constructor() {
+    // @ts-ignore
+    window.dataLayer = window.dataLayer || [];
+    // @ts-ignore
+    window.eloquaTracking = window.eloquaTracking || null;
+  }
+  // @ts-ignore
+  trackMi24ViewIntentionOrSuccessEvent(eventsTrackingData, window) {
+    const { accessMode, eventAction, videoId, videoTitle } = eventsTrackingData;
+    mi24VideoTrackingHelper.pushDataLayerProperties({
+      event: DATALAYER_PROPERTIES.gaEvent,
+      eventCategory: DATALAYER_PROPERTIES.video,
+      eventAction: eventAction,
+      eventLabel: `Mi24Video: ${videoTitle}`,
+      videoId: videoId,
+      accessMode: accessMode
+    }, window);
+  }
+  // used for tracking START, PAUSE and FULLSCREEN
+  // @ts-ignore
+  trackMi24Video(eventsTrackingData, window) {
+    const { action, id, element } = eventsTrackingData;
+    const videoTitle = this.getVideoTitle(element, id);
+    const videoAccessMode = this.getVideoAccessMode(element);
+    mi24VideoTrackingHelper.pushDataLayerProperties({
+      event: DATALAYER_PROPERTIES.gaEvent,
+      eventCategory: DATALAYER_PROPERTIES.video,
+      eventAction: this.getVideoEventAction(action),
+      eventLabel: this.getVideoEventLabel(videoTitle),
+      videoId: id,
+      accessMode: videoAccessMode
+    }, window);
+    if (action === "PLAY") {
+      // @ts-ignore
+      if (typeof vi.mi24Video.mi24VideoViewSuccessTracked != 'undefined' && !vi.mi24Video.mi24VideoViewSuccessTracked) {
+        // track Video View Intention Success
+        mi24VideoTrackingHelper.trackMi24ViewIntentionOrSuccess(id, videoTitle, DATALAYER_PROPERTIES.videoViewIntentionSuccessEventAction, window);
+        // @ts-ignore
+        vi.mi24Video.mi24VideoViewSuccessTracked = true;
+      }
+    }
+  }
+  getVideoEventAction(action) {
+    let eventAction = undefined;
+    switch (action) {
+      case "PLAY":
+        eventAction = DATALAYER_PROPERTIES.videoPlayedEventAction;
+        break;
+      case "PAUSE":
+        eventAction = DATALAYER_PROPERTIES.videoPausedEventAction;
+        break;
+      case "FULLSCREEN":
+        eventAction = DATALAYER_PROPERTIES.videoFullScreenEventAction;
+        break;
+    }
+    return eventAction;
+  }
+  getVideoTitle(clickedElement, videoId) {
+    let closestHeadingText;
+    try {
+      let closestHeading = clickedElement.closest('.videoteaser, .video-element, .slide-wrapper, .mi24-video-wrapper');
+      if (closestHeading == null) {
+        closestHeading = clickedElement.closest('ifx-mi24-video');
+      }
+      closestHeadingText = closestHeading.querySelector('h1, h2, h3').innerText;
+    }
+    catch (_a) {
+      closestHeadingText = videoId;
+    }
+    return closestHeadingText;
+  }
+  getVideoAccessMode(clickedElement) {
+    let videoAccessMode = AccessMode.PUBLIC;
+    if (clickedElement.closest('ifx-mi24-video') != null) {
+      videoAccessMode = clickedElement.closest('ifx-mi24-video').getAttribute('access-mode');
+    }
+    return videoAccessMode;
+  }
+  getVideoEventLabel(title) {
+    return `Mi24Video: ${title}`;
+  }
+}
+
+const DATALAYER_PROPERTIES = {
+  callToActions: 'Call-To-Actions',
+  gaEvent: 'ga_event',
+  video: 'Video',
+  videoPlayedEventAction: 'Played Click',
+  videoPausedEventAction: 'Paused Click',
+  videoFullScreenEventAction: 'FullScreen Click',
+  videoViewIntentionEventAction: 'Video View Intention',
+  videoViewIntentionSuccessEventAction: 'Video View Intention Success'
+};
+function pushDataLayerProperties(dataLayerProperties, window) {
+  // @ts-ignore
+  window.dataLayer = window.dataLayer || [];
+  // @ts-ignore
+  window.dataLayer.push(dataLayerProperties);
+}
+function trackMi24Video(eventsTrackingData, window) {
+  const mi24VideoTrackingService = new Mi24VideoTrackingService();
+  mi24VideoTrackingService.trackMi24Video(eventsTrackingData, window);
+}
+function trackMi24ViewIntentionOrSuccess(videoId, videoTitle, eventAction, window) {
+  const mi24VideoTrackingService = new Mi24VideoTrackingService();
+  const videoTrackingData = getMi24VideoViewIntentionOrSuccessTrackingData(videoId, videoTitle, eventAction);
+  mi24VideoTrackingService.trackMi24ViewIntentionOrSuccessEvent(videoTrackingData, window);
+}
+function getMi24VideoViewIntentionOrSuccessTrackingData(videoId, videoTitle, eventAction) {
+  return {
+    accessMode: AccessMode.GATED_CONTENT,
+    videoId: videoId,
+    videoTitle: videoTitle,
+    eventAction: eventAction
+  };
+}
+const mi24VideoTrackingHelper = {
+  trackMi24Video,
+  trackMi24ViewIntentionOrSuccess,
+  pushDataLayerProperties
+};
+
+export { DATALAYER_PROPERTIES as D, mi24VideoTrackingHelper as m };
+
+//# sourceMappingURL=mi24video-tracking-helper-a0e12622.js.map
+</script>
+
+</body>
+</html>

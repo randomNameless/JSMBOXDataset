@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>comm.html</title>
+</head>
+<body>
+
+<script>
+/// <reference path="jquery-1.8.3.min.js" />
+var isloadhistory = false;
+var isloadbookmark = false;
+$(function () {
+    if($(".top-bar-box-1").length>0)
+    {
+        $(".top-bar-right-list-3-con").hover(function () {
+            if(!isloadhistory)
+            {
+                loadhistory();
+            }
+        });
+
+    }
+
+    if($(".top-bar-box-2").length>0)
+    {
+        $(".top-bar-avatar-con").hover(function () {
+            if(!isloadbookmark)
+            {
+                loadbookmark();
+            }
+        });
+    }
+    $("#fastsearch").keyup(function (event) {
+        if (event.keyCode == 13) {
+            var $searchform = $("#searchform");
+            $searchform.submit();
+        }
+    });
+
+    $(".fastsearchbt").click(
+       function () {
+           var $searchform = $("#searchform");
+           $searchform.submit();
+       }
+   );
+});
+
+function loadhistory() {
+    var imageroot = $(".top-bar-box-2").data("imageroot");
+    var uname = $(".top-bar-box-2").data("uname");
+    var html = "";
+    $.getJSON("/usermanga.ashx", { action: "getreadhistorys", t: new Date().getTime(),ps:3 }, function (data) {
+        if (data && data.items && data.items.length > 0) {
+            $(data.items).each(function (index, item) {
+                if (index == 0) {
+                    html += "<img src=\"" + imageroot + "images/arrow-up.png\" class=\"top-bar-box-arrow\">";
+                    html += "<p class=\"top-bar-box-title\">My History</p>";
+                }
+               
+                html += "<div class=\"top-bar-box-manga\">";
+                html += "<a href=\"/manga/" + item.MUrlKey + "/\"><img class=\"top-bar-box-manga-cover\" src=\"" + item.ShowPicUrlB + "\"></a>";
+                html += "<div class=\"top-bar-box-manga-info\">";
+                html += "<p class=\"top-bar-box-manga-info-title\"><a href=\"/manga/" + item.MUrlKey + "/\">" + subtext(item.MName,36) + "</a></p>";
+                if (item.ChapterId > 0) {
+                    var vol = "";
+                    var ch = "";
+                    var ruletype = item.RuleType;
+                    if (item.VolumeName != null) {
+                        vol = item.VolumeName;
+                    }
+                    ch = item.Name;
+                    html += "<p class=\"top-bar-box-manga-info-subtitle\">Read to <a href=\"/manga/" + item.UrlKey + "/"+item.Page+".html\">";
+                    if (vol != "") {
+                        html += "Vol " + vol;
+                    }
+                    else {
+                        if (ruletype != 1) {
+                            html += "Sp " + ch;
+                        }
+                        else {
+                            html += "Ch " + ch;
+                        }
+                    }
+                    html += "</a></p>";
+                    html += "<p class=\"top-bar-box-manga-info-tip\">";
+                    if (vol != "" && ch != "") {
+                        html += "Ch " + ch;
+                    }
+                    else
+                    {
+                        html += "&nbsp;&nbsp;&nbsp;";
+                    }
+                    html += "<span>" + item.LastAddTime + "</span></p>";
+                }
+                html += "</div></div>";
+            });
+            html += "<a href=\"/comichistory/\" class=\"top-bar-box-2-bottom\">All History(" + data.count + ")</a>";
+        } else {
+            html += "<img src=\"" + imageroot + "images/arrow-up.png\" class=\"top-bar-box-arrow\">";
+            html += "<img class=\"top-bar-box-nodata\" src=\"" + imageroot + "images/history-nodata.png\">";
+            html += "<p class=\"top-bar-box-2-title\">No Manga-reading Records</p>";
+        }
+        isloadhistory = true;
+        console.log(html);
+        $(".top-bar-box-2").html(html);
+    });
+}
+function loadbookmark()
+    {
+        var imageroot=$(".top-bar-box-1").data("imageroot");
+        var uname=$(".top-bar-box-1").data("uname");
+        var html = "";
+        $.getJSON("/usermanga.ashx", { action: "getbookmarkers", t: new Date().getTime() ,ps:3}, function (data) {
+            if (data && data.items && data.items.length > 0) {
+                $(data.items).each(function (index, item) {
+                    if (index == 0) {
+                        html += " <img src=\"" + imageroot + "images/arrow-up.png\" class=\"top-bar-box-arrow\">";
+                        html += " <p class=\"top-bar-box-title\">";
+                        html += uname + "</p>";
+                        html += "<p class=\"top-bar-box-library\">Library <a href=\"/bookmark/\">(" + data.count + ")</a></p>";
+                    }
+                    html+= "<div class=\"top-bar-box-manga\">";
+                    html+="<a href=\"/manga/"+item.MUrlKey+"/\"><img class=\"top-bar-box-manga-cover\" src=\""+item.MComicPicB+"\"></a>";
+                    html+="<div class=\"top-bar-box-manga-info\">";
+                    html += "<p class=\"top-bar-box-manga-info-title\"><a href=\"/manga/" + item.MUrlKey + "/\">" + subtext(item.MName,36) + "</a></p>";
+                    if(item.ChapterId>0)
+                    {
+                        var vol="";
+                        var ch="";
+                        var ruletype=item.RuleType;
+                        if(item.VolumeName!=null)
+                        {
+                            vol=item.VolumeName;
+                        }
+                        ch = item.Name;
+                        html += "<p class=\"top-bar-box-manga-info-subtitle\">Read to <a href=\"/manga/" + item.UrlKey + "/" + item.Page + ".html\">";
+                        if(vol!="")
+                        {
+                            html+="Vol "+vol;
+                        }
+                        else
+                        {
+                            if(ruletype!=1)
+                            {
+                                html+="Sp "+ch;
+                            }
+                            else{
+                                html+="Ch "+ch;
+                            }
+                        }
+                        html+="</a></p>";
+                        html+="<p class=\"top-bar-box-manga-info-tip\">";
+                        if(vol!=""&&ch!="")
+                        {
+                            html+="Ch "+ch;
+                        }
+                        else {
+                            html += "&nbsp;&nbsp;&nbsp;";
+                        }
+                        html+="<span>"+item.LastAddTime+"</span></p>";
+                    }
+                    else
+                    {
+                        html += "<p class=\"top-bar-box-manga-info-subtitle\">";
+                        html += "&nbsp;&nbsp;&nbsp;";
+                        html += "</p>";
+                        html += "<p class=\"top-bar-box-manga-info-tip\">";
+                        html += "&nbsp;&nbsp;&nbsp;";
+                        html += "</p>";
+                    }
+                    html+="</div></div>";
+                });
+            } else {
+                html+="<img src=\""+imageroot+"images/arrow-up.png\" class=\"top-bar-box-arrow\">";
+                html+="<img class=\"top-bar-box-nodata\" src=\""+imageroot+"images/account-nodata.png\">";
+                html+="<p class=\"top-bar-box-1-title\">No Favorite Manga yet</p>";
+            }
+            html+="<a href=\"/logout/\" class=\"top-bar-box-1-bottom\">Sigh Out</a>";
+            isloadbookmark = true;
+            //console.log(html);
+            $(".top-bar-box-1").html(html);
+        });
+    }
+
+    function isIe() {
+        return ("ActiveXObject" in window);
+    }
+
+    function isIe8() {
+        // alert(!-[1,])//->IE678返回NaN 所以!NaN为true 标准浏览器返回-1 所以!-1为false
+        return isIe() && !-[1, ] && document.documentMode;
+    }
+    function isIe9() {
+        return navigator.userAgent.indexOf("MSIE 9.0") > 0
+    }
+
+    function isLogin() {
+        var ustatus = getLoginStatus();
+        if (!ustatus || ustatus == "0") {
+            return false;
+        }
+        return true;
+    }
+    function isRealNum(val) {
+        if (val === "" || val == null) {
+            return false;
+        }
+        if (!isNaN(val)) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+    function getLoginStatus() {
+        var result;
+        $.ajax({
+            url: '/showstatus.ashx?d=' + new Date().getTime(),
+            async: false,
+            error: function (msg) {
+                result = "0";
+            },
+            success: function (json) {
+                result = json;
+            }
+        });
+        return result;
+    }
+
+    function checkAdult()
+    {
+        $("#checkAdult").click(function () {
+            $.cookie("isAdult", 1, { path: "/", expires: 1 });
+            window.location.reload();
+        });
+    }
+
+    function isCookieEnabled() {
+        return navigator.cookieEnabled;
+    }
+
+    function showLoginModal()
+    {
+        if ($("#fastlogin .reader-login-win").length == 0) {
+            $("#fastlogin").load("/fastlogin/?time=1", function () {
+                $('.reader-mask').show();
+                $('.reader-login-win').show();
+            });
+        }
+        else {
+            $('.reader-mask').show();
+            $('.reader-login-win').show();
+        }
+    }
+
+    function ShowDialog(txt)
+    {
+        console.log(txt);
+        $(".main-tip-2").text(txt);
+        $(".main-tip-2").show();
+        setTimeout(function () { $(".main-tip-2").hide() }, 2000);
+    }
+
+    function ShowSuccess(txt) {
+        console.log(txt);
+        $(".main-tip-1").text(txt);
+        $(".main-tip-1").show();
+        setTimeout(function () { $(".main-tip-1").hide() }, 2000);
+    }
+
+    function closeWin() {
+        $('.reader-mask').hide();
+        $('.reader-win').hide();
+        $('.reader-win-last').hide();
+        $('.reader-login-win').hide();
+    }
+
+    function subtext(txt,len)
+    {
+        var orglen = txt.length;
+        if(orglen>len)
+        {
+            return txt.substring(0, len)+"...";
+        }
+        return txt;
+    }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>egain-chat.html</title>
+</head>
+<body>
+
+<script>
+(function () {
+    var getUrlParameter = function (name) {
+        var ret = null;
+        if (name && "string" === typeof name) {
+            name = name.replace(/[\[]/, "\\\[").replace(/[\]]/, "\\\]");
+            var regex = new RegExp("[\\?&]" + name + "=([^&#]*)");
+            var results = regex.exec(location.search);
+            if (results && 2 <= results.length) {
+                ret = decodeURIComponent(results[1].replace(/\+/g, " "));
+            }
+        }
+        return ret;
+    };
+    var isEgXsMode = ("true" === getUrlParameter("eg_tb_mode"));
+    /* ignore if included through onetag instrumentation */
+    if (!isEgXsMode && (window.eGainOneTagUtil || (top !== self))) {
+        return;
+    }
+
+    /*
+     * The function will return true if the chat relay frame approach is enabled
+     * At present it is only enabled for IE browser
+     * @returns {Boolean}
+     */
+    var isChatRelayIframeEnabled = function () {
+        var enabled = false;
+        if (navigator) {
+            enabled = 0 <= navigator.userAgent.indexOf("Trident") || 0 <= navigator.userAgent.indexOf("Edge");
+        }
+        return enabled;
+    };
+
+    /* 
+     * The function will return true if URL is valid 
+     * @param {type} urlString
+     * @returns {Boolean}
+     */ 
+    var isValidURL = function (urlString) {
+        try {
+          var url = new URL(urlString);
+          return true;
+        } catch (error) {
+          return false;
+        }
+    };
+
+    /* Create new Iframe */
+    var addChatRelayIframe = function () {
+        if (true === isChatRelayIframeEnabled()) {
+            var chatRelayIframeSrc = getEgainChatUrl();
+            if (chatRelayIframeSrc) {
+                var slashIndex = chatRelayIframeSrc.lastIndexOf("/");
+                if (0 <= slashIndex) {
+                    chatRelayIframeSrc = chatRelayIframeSrc.substring(0, slashIndex + 1);
+                    if (chatRelayIframeSrc) {
+                        chatRelayIframeSrc += "chat-relay-frame.html";
+                        var urlString = window.location.protocol + "//" + window.location.host;
+                        chatRelayIframeSrc += "?wsname=" + (isValidURL(urlString) ? urlString : "");
+                        var chatRelayIframe = document.createElement('iframe');
+                        chatRelayIframe.id = "egain-chat-relay-frame";
+                        chatRelayIframe.name = "egain-chat-relay-frame";
+                        chatRelayIframe.src = chatRelayIframeSrc;
+                        chatRelayIframe.title = "";
+                        (chatRelayIframe.frameElement || chatRelayIframe).style.cssText = "width: 0; height: 0; border: 0; position: fixed; left: 0; bottom: 0";
+                        where.appendChild(chatRelayIframe);
+                    }
+                }
+            }
+        }
+    };
+    var dom, doc, where, iframe = document.createElement('iframe');
+    iframe.src = "javascript:false";
+    iframe.title = "Chat";
+    (iframe.frameElement || iframe).style.cssText = "width: 0; height: 0; border: 0";
+    where = document.getElementsByTagName('head')[0];
+    where.appendChild(iframe);
+    addChatRelayIframe();
+
+    /* load egain-docked-chat.js file inside iframe */
+    try {
+        doc = iframe.contentWindow.document;
+    } catch (e) {
+        dom = document.domain;
+        iframe.src = "javascript:var d=document.open();d.domain='" + dom + "';void(0);";
+        doc = iframe.contentWindow.document;
+    }
+    doc.open()._l = function () {
+        var js = this.createElement("script");
+        if (dom)
+            this.domain = dom;
+        js.id = "egain-docked-chat-async";
+        var src = getEgainChatUrl();
+        if (src !== "") {
+            var dockedChatJSPath = src.substring(0, src.lastIndexOf("/") + 1);
+            dockedChatJSPath += "egain-docked-chat.js";
+            js.src = dockedChatJSPath;
+            this.body.appendChild(js);
+        }
+    };
+    doc.write('<body onload="document._l();">');
+    doc.close();
+
+    function getEgainChatUrl() {
+        var src = "";
+        var addOn = document.getElementById("_egainallowdockchat");
+        if (addOn && addOn.src) {
+            src = addOn.src;
+        }
+        if (src === "") {
+            var scripts = document.getElementsByTagName('SCRIPT');
+            for (var i = 0; i < scripts.length; i++) {
+                if (scripts[i].src.replace(/\\/, "/").indexOf("/egain-chat.") !== -1) {
+                    src = scripts[i].src;
+                }
+            }
+        }
+        return src;
+    }
+})();
+</script>
+
+</body>
+</html>

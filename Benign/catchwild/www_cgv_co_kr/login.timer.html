@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>login.timer.html</title>
+</head>
+<body>
+
+<script>
+var Basictime = 180;         // 3분
+var myTimer;
+
+function SMSTimer(s) {
+    // SMS발송 인증 타이머 
+    Basictime = s;         // 파라미터값
+
+    // 인증번호 받기 재발송시 타이머를 멈춘후 다시 시작
+    if (myTimer != undefined) {
+        clearInterval(myTimer);
+    }
+
+    myTimer = setInterval(function () {
+        Basictime -= 1;
+
+        if (Basictime <= 0) {
+            clearInterval(myTimer);
+            $("#certificationtd strong").html("인증번호 유효기간이 초과되었습니다. 인증번호를 다시 요청해주세요.");
+        }
+        else
+            $("#SMS_time").html(time_format(Basictime));
+
+    }, 1000);
+}
+
+// 시간 포맷(MM:dd)
+function time_format(s) {
+    var nMin = 0;
+    var uSec = 0;
+    var uTime = "00:00";
+
+    if (s > 0) {
+        uSec = s;
+
+        if (s > 60) {
+            nMin = parseInt(s / 60);
+            uSec = s % 60;
+        }
+
+        if (uSec < 10) uSec = "0" + uSec;
+        if (nMin < 10) nMin = "0" + nMin;
+        uTime = "" + nMin + ":" + uSec;
+    }
+
+    return uTime;
+}
+
+// 인증번호 받기(SMS 발송)
+function sendSms(mobile1Obj, mobile2Obj, mobile3Obj, AuthSS) {
+
+    if (mobile1Obj.val() == "") {
+        alert("핸드폰번호를 입력해주세요.");
+        mobile1Obj.focus();
+        return false;
+    }
+    if (mobile2Obj.val() == "") {
+        alert("핸드폰번호를 입력해주세요.");
+        mobile2Obj.focus();
+        return false;
+    }
+    if (mobile3Obj.val() == "") {
+        alert("핸드폰번호를 입력해주세요.");
+        mobile3Obj.focus();
+        return false;
+    }
+
+    $.ajax({
+        type: "POST",
+        url: '/common/ajax/login.aspx/SendSMS',
+        data: "{'cellNumber1':'" + app.crypto.AESEncryptToBase64(mobile1Obj.val()) + "' , 'cellNumber2':'" + app.crypto.AESEncryptToBase64(mobile2Obj.val()) + "' , 'cellNumber3':'" + app.crypto.AESEncryptToBase64(mobile3Obj.val()) + "'}",
+        contentType: "application/json; charset=utf-8",
+        async: false,
+        dataType: 'json',
+        success: function (result) {
+            var JObject = JSON.parse(result.d.toString());
+
+            switch (JObject["resultCode"]) {
+                case "0": // 복호화 에러 발생시 정상적인 쿠키값 아님
+                case "2": // 파라미터가 미전송
+                    alert("휴대폰 번호를 다시 확인해 주세요.");
+                    $('#hdIsSendSMS').val('');
+                    $('#hdlSendSMSNo').val('');
+                    break;
+                case "3": // 인증번호 발송 오류
+                    alert("인증번호 발송 오류");
+                    $('#hdIsSendSMS').val('');
+                    $('#hdlSendSMSNo').val('');
+                    break;
+                case "1":
+                    alert("입력하신 휴대폰 번호로 인증번호가 발송되었습니다.\n확인후 인증번호를 입력해주세요.");
+                    $("#certificationtd strong").html("<strong>남은시간 <i id='SMS_time'>03:00</i></strong>");
+                    SMSTimer(AuthSS);                     // 인증 남은시간 셋팅
+                    $('#hdIsSendSMS').val('send');     // SMS 발송여부
+                    $('#hdlSendSMSNo').val(JObject["resultData"]);     // 인증번호
+                    break;
+                default:
+                    //   alert('Error result Value : ' + result);                    
+                    break;
+            }
+        }
+    });
+
+    return true;
+}           
+</script>
+
+</body>
+</html>

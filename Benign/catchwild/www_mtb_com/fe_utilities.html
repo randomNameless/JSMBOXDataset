@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>fe_utilities.html</title>
+</head>
+<body>
+
+<script>
+var inAuthorEnv = function(){ return  /^axp\-author\-[a-z]{2,}\.mtb\.com/.test(window.location.hostname) };
+var inAuthorEnvEditing = function(){ return (inAuthorEnv && /^\/editor.html/.test(window.location.pathname)) };
+var notOnWaamPg = (/wilmington-advisors/gi.test(window.location.pathname)) == false;
+
+try {document.querySelector("html").setAttribute("lang",(/\/es[\/\.]/gi.test(window.location) ? "es" : "en"));} catch(err){}
+
+
+function jsonArrayQuery(q,f,w){	
+	/*
+		w == leave undefined and passed function will run when all are done | true then
+		sample call | jsonArrayQuery("select from ['productData']['Rates'] where [MinAmount == '10000',MinFico == '680']","doThis",false|true);
+		max ref = '>'
+		min ref = '<'
+	*/
+	if(q){
+		var cond = "x['"+q.match(/where \[.+?\]/gi)[0].replace(/where/gi,"").trim().replace(/[\[\]]/gi,"").replace(/where/gi,"").trim().replace(/[\[\]]/gi,"").replace(/\,/gi," && x['").replace(/ == /gi, "'] == " ).replace(/ > /gi, "'] > " ).replace(/ < /gi, "'] < " ).replace(/ >= /gi, "'] >= " ).replace(/ <= /gi, "'] <= " ).replace(/ != /gi, "'] != " );
+		w = w || true;
+		console.log("Query: "+q);		
+		console.log("Condition: "+ cond);
+		
+		var getJson = function(){
+			return eval("window"+q.match(/from \S+ /gi)[0].replace(/from/gi,"").trim());
+		}
+		
+		var getCondition = function(x){						
+			return eval(cond);
+		}
+		
+		var allItems = getJson();
+		var foundItems = [];
+		[].forEach.call(allItems,function(x,i){
+			if( getCondition(x) ){
+				console.log("Found index:"+i+" | keys["+Object.keys(x).join(",")+"]"+" values["+Object.values(x).join(",")+"]");
+				foundItems.push(x);
+				if(f && !w){					
+					window[f](x);					
+				}			
+			}
+			if((i == allItems.length-1) && w){
+				window[f](foundItems);
+			}
+		});
+	}
+}
+
+
+function getPageFromFile(){
+	var myPgAlertItems = [];
+	var isWithinDate = function(d1,d2){
+		try {
+			var today = new Date();	
+			return (today >= (new Date(d1))) && (today <= (new Date(d2)));
+		}catch(err){
+			return false;
+		}
+	}
+
+	try {				
+		var myPg = window.location.pathname.replace(".html","").replace(/\/content\/mtb-web\/en(-v2)*/,"");
+		[].forEach.call(siteAlerts.alerts,function(a,i){			
+			if(a.pages.indexOf(myPg) != -1 && (isWithinDate(a.alertDateStart,a.alertDateEnd))){
+				myPgAlertItems.push(a);
+			}
+		});		
+	} catch(err){ 
+		return false;
+	}
+	return myPgAlertItems;
+}
+
+function showAlertFromFile(){
+	try {
+		var theAlerts = getPageFromFile();
+		[].forEach.call(theAlerts,function(theAlert,jj){
+			if(Object.keys(theAlert).length > 0){
+				var alertHtml = document.querySelector("template#alert").cloneNode(true);		
+				for(var a in theAlert){
+					try {
+						alertHtml.innerHTML = alertHtml.innerHTML.replaceAll("[["+a+"]]",theAlert[a]);
+					} catch(err2){}
+				}
+				
+				if(theAlert.alertType == "login-olb"){
+					document.querySelector(".mtb-login-alert[data-alert-for='login-olb']").innerHTML += alertHtml.innerHTML;
+				} else if(theAlert.alertType == "login-treasury"){
+					document.querySelector(".mtb-login-alert[data-alert-for='login-treasury']").innerHTML += alertHtml.innerHTML;
+				} else {
+					document.querySelector(".mtb-alert-items").innerHTML = alertHtml.innerHTML;
+				}
+			}
+		});			
+	} catch(err){}	
+}
+
+function makeWaamModal(){	
+	try {		
+		var xhtml = "<div class='modal fade' data-component-id='bs_modal-waam2' id='waam-entry-2' data-bs-backdrop='static' data-bs-keyboard='false' tabindex='-1' aria-labelledby='waam-entry-2Label' aria-hidden='true'><div class='modal-dialog'><div class='modal-content'><div class='modal-header border-bottom-0'><p class='h1 modal-title w-100' id='waam-entry-2Label'>Sit tight while we send you to a different section of our site (Wilmington Advisors @ M&amp;T)</p></div><div class='modal-body'><div data-component-type='rte' class='richtext section'><div id='bs_rte-6596764dddd62' data-component-id='bs_rte-6596764dddd62'><p>Wilmington Advisors @ M&amp;T professionals offer holistic financial planning guidance on retirement, education, and insurance. Wilmington Advisors @ M&amp;T is a brand name used by M&amp;T Bank employees who are registered representatives with LPL Financial (LPL). Products/services on this site are offered through LPL or its affiliates - entities that are separate from and not affiliates of M&amp;T Bank.</p></div></div><div data-component-type='cta' class='d-inline-block section'><a target='_self' id='bs_ctaBtn-17307540dddd07' data-component-id='bs_ctaBtn-17307540dddd07' class=' btn btn-secondary mtb-font-size-16 waam2decline rounded-0 position-relative' href='/content' data-btn-style='btn-secondary' data-tag-type='clickAction' data-bs-dismiss='modal'><span class='d-flex flex-column'><span class='btn-text'>Decline</span></span></a></div></div><div class='modal-footer border-top-0'><div class='d-inline-block w-100'><a data-isspeedbumplink='true' target='_self' href='#' class='btn btn-primary' data-bs-dismiss='modal' onclick='handleSpeedbumpContinue()'><span class='button-text text-nowrap'>Continue</span></a></div></div></div></div></div>";	
+		var waamer = document.createElement("div");
+		waamer.innerHTML = xhtml;		
+		document.querySelector("body").appendChild(waamer);	
+	} catch(err){ 
+		console.log(err); 
+	}	
+}
+
+function fixLplLinkstoShowModal(){
+	try {
+		var allBtns = document.querySelectorAll("a[href*='myaccountviewonline.com'][data-speedbump='true']");
+		[].forEach.call(allBtns,function(x,i){
+			x.setAttribute("data-bs-target","#account-view-modal");
+		});
+		document.querySelector("#accountviewmodalContinueBtn").setAttribute("href","https://myaccountviewonline.com/login");
+		document.querySelector("#accountviewmodalCancelBtn").setAttribute("data-bs-dismiss","modal");
+	} catch(err){}
+}
+
+/* geoAskAndCookie REMOVED, FUNCTION IS NOW IN CODE BASE */
+
+
+function setWaamSpeedbumpLinks(){
+	var allWamProdBtn;
+	if(notOnWaamPg){
+		allWamProdBtn = document.querySelectorAll("[href*='/wilmington-advisors/']");
+		
+		try {			
+			if(allWamProdBtn){
+				[].forEach.call(allWamProdBtn,function(z,j){
+					z.setAttribute("data-bs-toggle","modal" );
+					z.setAttribute("data-bs-target","#waam-entry-2");
+					z.setAttribute("data-speedbump","true");
+					if(z.attributes["target"] == undefined){
+						z.setAttribute("target","self");	
+					}
+					
+					if(j == (allWamProdBtn.length-1)){
+						setSpeedBumpDestination();
+					}
+				});	
+			}				
+		} catch(err){}		
+	}
+}
+
+/*ADDS FORMTTING ATTR TO SIBLING ITEM IN FORMS*/
+function formatMyInput(x){
+	try {
+	    var formatType = x.attributes["data-validation-type"].value;
+    	var fldVal = x.value;
+    	var fldId = x.attributes["id"].value;
+    	var formatedEle = document.querySelector("[data-formatter_for='"+fldId+"']");
+
+    	var formatMe = {
+    		"currency": function(){
+    		    var currencyVal = numAsCurrency(fldVal);
+    		    if(/\$/.test(currencyVal)){
+    		        formatedEle.setAttribute("data-formatted",currencyVal);
+    		    } else {
+    		        formatedEle.setAttribute("data-formatted","$ "+fldVal);
+    		    }
+    		}
+    	}
+
+    	formatMe[formatType]();
+	} catch(err){}
+}
+
+function toggleMaskShow(x){
+    var togMaskClass = function(){
+        x.classList.toggle("_is-masked");
+        return true;
+    }
+
+    try {
+        if(togMaskClass()){
+            if(x.classList.contains("_is-masked") == false){
+                document.querySelector("#"+(x.attributes["data-show_mask_for"].value)).setAttribute("type","text");
+            } else {
+                document.querySelector("#"+(x.attributes["data-show_mask_for"].value)).setAttribute("type","password");
+            }
+        }
+    } catch(err){
+        document.querySelector("#"+(x.attributes["data-show_mask_for"].value)).setAttribute("type","password");
+    }
+
+}
+/*ADDS FORMTTING ATTR TO SIBLING ITEM IN FORMS end*/
+
+function changeTagsBtoStrong(){
+	document.querySelectorAll("b").forEach(	
+			function(x){ 			
+				try {
+					x.outerHTML = "<strong>"+(x.innerHTML)+"<strong>" 
+				} catch(err){}
+			}		
+	);	
+}
+
+function moveZipModalToBodyEnd(){
+	try {
+		if(document.querySelector("#zipModal")){
+			document.querySelector("body").append(document.querySelector("#zipModal"))	
+		}		
+	} catch(err){}
+}
+
+window.addEventListener("load", function(){
+	makeWaamModal();
+	setWaamSpeedbumpLinks();
+	fixLplLinkstoShowModal();
+	showAlertFromFile();	
+	changeTagsBtoStrong();
+	moveZipModalToBodyEnd();
+});
+
+</script>
+
+</body>
+</html>

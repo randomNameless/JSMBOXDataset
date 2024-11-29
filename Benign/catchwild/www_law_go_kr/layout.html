@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>layout.html</title>
+</head>
+<body>
+
+<script>
+/* 
+ * file_name : layout.js
+ * summary	 : 공통 레이아웃 JS
+ * history	 : 2019. 03. 13. [#13634] 자치법규, 행정규칙 제명 핀고정
+			   2020. 08. 06. [#20635] 소개 페이지 추가 및 상단 영역 변경 요청
+			   2021. 07. 01. [#24958] 국가법령 본문 화면 스크롤 오류 확인
+			   2022. 04. 14. [#29152] 현행법령에서 예정법령을 구분하여 조회할 수 있는 기능 추가
+			   2022. 04. 28. [#29421] 팝업 제명 및 기본정보 핀고정 요청
+			   2023. 04. 04. [#32403] 조문내용 탭에서 별표 다운로드 오류
+ * @author   : 
+ * @date	 : 
+ */
+
+/**
+ * <pre>
+ *  body 객체
+ * </pre>
+ * @author brKim
+ * @since 2017. 5. 31.
+ */
+function BodyInfo() {
+	this.divCenterInfo = ""; // wideList 필터 부분 Div 내용
+	this.sideElWidth = ""; // 가로 높이
+	this.sideElHeight = ""; // 세로 높이
+}
+
+
+// body 객체 선언
+var bodyInfo = new BodyInfo();
+
+// 좌측 버튼 길이
+var togglerDefaultLength = 63;
+
+// 상단 레이아웃 사이즈
+var northDefaultSize = 205;
+
+// 좌측 레이아웃 사이즈
+var	westDefaultSize = 260;
+var westMaximumSize = 700;
+
+// 레이아웃 객체
+var	myLayout;
+
+/* 
+ * 현재 레이아웃 상태
+ * default, wide, hide
+ */
+var gIsWide = "wide";
+
+// TOGGLER CUSTOMIZATION SETTINGS
+var toggleButtons = '<div class="westClose" aria-label="목록영역 줄이기"></div><div class="westOpen" aria-label="목록영역 늘리기"></div>';
+
+/**
+ * <pre>
+ * 	레이아웃 세팅
+ * 	=> 팝업일 경우에는 레이아웃을 다르게 세팅한다.
+ * </pre>
+ * @author brKim
+ * @since 2017. 5. 30.
+ */
+function fnSetLayout(popYn) {
+	if (popYn) {
+		
+		myLayout = $('body').layout({
+			name:                           "myLayout"
+		   ,west__paneSelector:				'#west'
+		   ,center__paneSelector:			'#center'
+		   ,north__paneSelector:			'#topDiv'
+		   ,resizeWhileDragging:			true
+		   ,sizable:						false
+		   ,animatePaneSizing:				false
+		   ,fxSpeed:						'fast'
+		   ,north__size:					34
+		   ,north__resizable:				false
+		   ,north__spacing_open:			0
+		   ,north__spacing_closed:			0
+		   ,west__minSize:					westDefaultSize
+		   ,west__maxSize:					westMaximumSize
+		   ,north__onresize_end:          	fnWestDivChange
+		   ,west__initClosed:				true
+		   ,west__spacing_closed:			15
+		   ,west__spacing_open:				15
+		   ,west__togglerLength_closed:		65
+		   ,west__togglerLength_open:		65
+		});
+		
+		// 팝업은 좌측 레이아웃을 기본으로 숨긴다.
+		gIsWide = 'hide';
+	} else {
+		
+		// CREATE THE LAYOUT
+		myLayout = $('body').layout({
+			name:                           "myLayout"
+		   ,resizeWhileDragging:			false
+		   ,sizable:						false
+		   ,animatePaneSizing:				false
+		   ,fxSpeed:						'fast'
+		   ,west__paneSelector:				'#west'
+		   ,center__paneSelector:			'#center'
+		   ,north__paneSelector:			'#topDiv'
+		   ,north__size:					northDefaultSize
+		   ,north__spacing_open:			0
+		   ,north__spacing_closed:			0
+		   ,west__minSize:					westDefaultSize
+		   ,west__maxSize:					westMaximumSize
+		   ,west__resizable:                true
+		   ,west__spacing_closed:			15
+		   ,west__spacing_open:				15
+		   ,west__togglerLength_closed:		togglerDefaultLength * 2
+		   ,west__togglerLength_open:		togglerDefaultLength * 2
+		   ,west__togglerContent_closed:	toggleButtons
+		   ,west__togglerContent_open:		toggleButtons
+		   ,west__showOverflowOnHover:		true
+		   ,onresize:                       function (evt) {
+			    if(gIsWide == "wide"){fnWestWide(evt);}
+			    else if(gIsWide == "hide"){fnWestHide(evt);}
+			    //else {fnWestDefault(evt);}
+
+			    fnOnresize();
+		   }
+		});
+		
+		fnCstWestTogger();
+		fnWestOpen();
+	}
+};
+
+/**
+ * <pre>
+ * 	좌측 레이아웃 토글 버튼 이벤트 등록
+ * </pre>
+ * @author brKim
+ * @since 2017. 5. 30.
+ */
+function fnCstWestTogger() {
+	// UN-BIND DEFAULT TOGGLER FUNCTIONALITY
+	myLayout.togglers.west.unbind("click");
+	
+	// BIND CUSTOM WEST METHODS
+	myLayout.togglers.west.find(".westClose").click( fnWestClose );
+	myLayout.togglers.west.find(".westOpen").click( fnWestOpen );
+	
+	// ADD TOLLTIPS TO CUSTOM BUTTONS
+	$(".westClose").attr("title", "닫기");
+	$(".westOpen").attr("title", "펼치기");
+}
+
+/**
+ * <pre>
+ * 	wide <-> list 전환
+ * </pre>
+ * @author brKim
+ * @since 2017. 5. 30.
+ */
+function fnWestDivChange() {
+	if (gIsWide == "wide") {
+		myLayout.options.west.maxSize = 0;
+		myLayout.west.options.togglerLength_open = togglerDefaultLength;
+		myLayout.west.options.togglerLength_closed = togglerDefaultLength;
+		myLayout.disableResizable("west");
+		$('.westOpen').hide();
+		$('#leftContent').hide();
+		$('#WideListDIV').show();
+		myLayout.open("west");
+		sizePane("west", window.innerWidth);
+	} else {
+		myLayout.options.west.maxSize = westMaximumSize;
+		myLayout.enableResizable("west");
+		$('#leftContent').show();
+		$('#WideListDIV').hide();
+	}
+}
+
+/**
+ * <pre>
+ * 	좌측 레이아웃 상단 버튼
+ * </pre>
+ * @author brKim
+ * @since 2017. 5. 30.
+ * @param evt
+ */
+function fnWestClose(evt) {
+	if (myLayout.west.state.innerWidth > westMaximumSize) {
+		fnWestDefault(evt);
+	} else {
+		if (myLayout.west.state.isClosed == false) {
+			fnWestHide(evt);
+		}
+	}
+};
+
+/**
+ * <pre>
+ * 	좌측 레이아웃 하단 버튼
+ * </pre>
+ * @author brKim
+ * @since 2017. 5. 30.
+ * @param evt
+ */
+function fnWestOpen(evt) {
+	if (myLayout.west.state.isClosed == false) {
+		fnWestWide(evt);
+	} else {
+		fnWestDefault(evt);
+	}
+};
+
+/**
+ * <pre>
+ * 	좌측 레이아웃 비활성화 상태
+ * </pre>
+ * @author skOh
+ * @since 2018. 5. 4.
+ */
+function fnWestHide(evt) {
+	gIsWide = "hide";
+	$('.westOpen').show();
+	$('.westClose').hide();
+	myLayout.west.options.togglerLength_open = togglerDefaultLength;
+	myLayout.west.options.togglerLength_closed = togglerDefaultLength;
+	myLayout.close("west");
+	$('#leftContent').hide();
+	$('#WideListDIV').hide();
+
+}
+
+/**
+ * <pre>
+ * 	좌측 레이아웃 기본 상태
+ * </pre>
+ * @author brKim
+ * @since 2017. 6. 1.
+ */
+function fnWestDefault(evt) {
+	// 왼쪽메뉴가 기본으로 활성화 될 때
+	//console.log("왼쪽메뉴가 기본으로 활성화 될때");
+	//console.log(westDefaultSize);
+	gIsWide = "default";
+	$('.westClose').show();
+	$('.westOpen').show();
+	myLayout.west.options.togglerLength_open = togglerDefaultLength * 2;
+	myLayout.west.options.togglerLength_closed = togglerDefaultLength * 2;
+
+	myLayout.options.west.maxSize = westMaximumSize;
+	myLayout.enableResizable("west");
+	$('#leftContent').show();
+	$('#WideListDIV').hide();
+	sizePane("west", westDefaultSize);
+	myLayout.open("west");
+}
+
+/**
+ * <pre>
+ * 	좌측 레이아웃 와이드 상태
+ * </pre>
+ * @author skOh
+ * @since 2018. 5. 4.
+ */
+function fnWestWide(evt) {
+	gIsWide = "wide";
+	$('.westOpen').hide();
+	myLayout.west.options.togglerLength_open = togglerDefaultLength;
+	myLayout.west.options.togglerLength_closed = togglerDefaultLength;
+	
+	myLayout.options.west.maxSize = 0;
+	$('#leftContent').hide();
+	$('#WideListDIV').show();
+	sizePane("west", window.innerWidth);
+}
+
+
+// GENERIC HELPER FUNCTION
+function sizePane (pane, size) {
+	myLayout.sizePane(pane, size);
+	myLayout.open(pane); // open pane if not already
+};
+
+/**
+ * <pre>
+ * 	리스트 형태 변경
+ * </pre>
+ * @author brKim
+ * @since 2017. 6. 14.
+ */
+function listChange(layout) {
+	
+	gIsWide = layout;
+	
+	if (gIsWide == 'wide') {
+		gIsWide = 'default';
+	} else if (gIsWide = 'hide') {
+		gIsWide == 'default'
+	} else if (gIsWide = 'default') {
+		gIsWide == 'wide';
+	}
+	
+	fnWestDefault();
+	fnWestDivChange();
+}
+
+/**
+ * <pre>
+ * 	높이 수정 (DIV 대상 있음)
+ * </pre>
+ * @author brKim
+ * @since 2017. 5. 31.
+ * @param elName
+ * @param height
+ */
+function setElHeight(elName, height) {
+	try{
+		$("#" + elName).height(height);
+	}catch(e){}
+}
+
+/**
+ * <pre>
+ * 	높이 수정 (전체적으로 적용)
+ * </pre>
+ * @author brKim
+ * @since 2017. 5. 31.
+ * @param sideElHeight
+ * @param higLen
+ */
+function layHeight(sideElHeight, popYn) {
+	
+	if (popYn) {
+		if ($.browser.isIE) {
+			setElHeight("viewwrapCenter", sideElHeight - 104);
+		} else {
+			setElHeight("viewwrapCenter", sideElHeight - 104);
+		}
+		
+		var menuNm = $(".pophead").children().text();
+		
+		if(menuNm == "자치법규" || menuNm == "행정규칙"){
+			$('#viewwrapCenter').css('overflow-y', 'hidden');
+			
+			if(menuNm == "자치법규"){
+				$("#conScroll").width('100%');
+				$("#conScroll").height($("#viewwrapCenter").height() - $("#conTop").height() - ($(".law-title-wrap").height() + 20));
+				$("#rvsConScroll").height($("#viewwrapCenter").height() - $("#rvsConTop").height());
+			
+			}else if(menuNm == "행정규칙"){
+				$("#conScroll").height($("#viewwrapCenter").height() - $("#conTop").height());
+				$("#rvsConScroll").height($("#viewwrapCenter").height() - $("#rvsConTop").height());
+			}
+		}
+		
+	} else {
+		if ($.browser.isIE) {
+			setElHeight("viewwrapCenter", sideElHeight - 185);
+			setElHeight("lelistwrapLeft", sideElHeight - 180);
+		} else {
+			setElHeight("viewwrapCenter", sideElHeight - 270);
+			setElHeight("lelistwrapLeft", sideElHeight - 270);
+		}
+	}
+	
+}
+
+/**
+ * <pre>
+ * 	layout loadMask 적용
+ * </pre>
+ * @author brKim
+ * @since 2017. 6. 14.
+ */
+function layoutLoadMask(divId) {
+	
+	divId = findLayoutArea(divId);
+	
+	$('#'+divId).mask("Loading data...");
+}
+
+/**
+ * <pre>
+ * 	layout unMask 적용
+ * </pre>
+ * @author brKim
+ * @since 2017. 6. 14.
+ */
+function layoutUnMask(divId) {
+	
+	divId = findLayoutArea(divId);
+	
+	$('#'+divId).unmask();
+}
+
+/**
+ * <pre>
+ * 	부모 div가 west or center 영역일 경우 해당 영역으로 잡고
+ *  나머지는 자기 자신으로 잡음.
+ * </pre>
+ * @author brKim
+ * @since 2017. 7. 10.
+ * @param divId
+ * @returns
+ */
+function findLayoutArea(divId) {
+	
+	$('#'+divId).parents('div').each(function(idx, obj){
+		(function(idx, obj){
+			if ($(obj).attr('id') == 'west') {
+				divId = $(obj).attr('id');
+			} else if ($(obj).attr('id') == 'center') {
+				divId = $(obj).attr('id');
+			}
+		}(idx, obj));
+	});
+	
+	return divId;
+}
+
+/**
+ * <pre>
+ * 	AJAX 호출 목록 리스트 동기화
+ * </pre>
+ * @author brKim
+ * @since 2017. 6. 21.
+ */
+function syncDivList(responseText) {
+	
+	// 기본 상단 DIV 를 가지고 있는다.
+	if(!bodyInfo.divCenterInfo) {
+		bodyInfo.divCenterInfo = $('.cont_wrap').html();
+	}
+	$('.cont_wrap').html(bodyInfo.divCenterInfo + responseText);
+	
+	if (gIsWide == "hide") { // 좌측 리스트를 숨겼을 경우에도 검색할 시 나타나게 변경한다.
+		listChange("default");
+	}
+	var $sub_q = $("#query").val();
+	
+	if($sub_q != "*" && $sub_q != "" && $sub_q != null && $sub_q != undefined && $sub_q != searchMessage[searchId]){
+		$('.sub_q').html("\"<strong>"+$sub_q+"</strong>\"에 관한"); // wide 검색어 동기화
+		$('.sub_q').css('display','block');
+		$('.sub_tx').css('background','url("")');
+	}
+	$('.sub_tx').html($('#readNumDiv').html()); // wide 총 건수 동기화
+	fnOnresize();
+	$('#listDiv').html($('#list_listR').html()); // list 동기화
+		
+}
+
+/**
+ * <pre>
+ * 	AJAX 호출 필터 동기화
+ * </pre>
+ * @author brKim
+ * @since 2017. 6. 28.
+ * @param obj
+ * @param oneDepthYn
+ */
+function syncFilter(obj, oneDepthYn) {
+	
+	var $selectObj = obj instanceof $ ? obj : $(obj);
+	
+	// 1뎁스에서 클릭 시 2뎁스를 초기화한다.
+	var filterIndex = oneDepthYn ? 0 : $selectObj.find('option:selected').index();
+	
+	// 조약의 분야일 경우 (jquery에서 optgroup일 경우에는 인덱스를 정상적으로 못 가져와서 자바스크립트로 적용) 
+	if ($selectObj.attr('id') == 'fdCd') {
+		filterIndex = document.getElementById('fdCd').selectedIndex;
+	}
+	
+	// 셀렉트박스 초기화 후 해당 셀렉트박스로 변경
+	$selectObj.find('option').each(function(){
+		$(this).attr('selected', false);
+	});
+	$selectObj.find('option:eq(' + filterIndex + ')').attr('selected', true);
+	
+	$('.cont_wrap').html('<div class="list_util">' + $('.list_util').html() + '</div>');
+	
+	bodyInfo.divCenterInfo = $('.cont_wrap').html();
+}
+
+/**
+ * <pre>
+ * 	예정법령포함 체크 여부 
+ * </pre>
+ * @author syLee
+ * @since 2022. 4. 6.
+ */
+function syncChkFilter(){
+	
+	if($("#efCheck").is(":checked")){
+		$("#efCheck").attr('checked', true) ;
+	}else{
+		$("#efCheck").attr('checked', false) ;
+	}
+	if($("#bylCheck").is(":checked")){
+		$("#bylCheck").attr('checked', true) ;
+	}else{
+		$("#bylCheck").attr('checked', false) ;
+	}
+	$('.cont_wrap').html('<div class="list_util">' + $('.list_util').html() + '</div>');
+	bodyInfo.divCenterInfo = $('.cont_wrap').html();
+}
+
+function fnOnresize() {
+	var listHeight;
+    var contentHeight;
+    var contentWidth= $(window).width() - $("#lelistwrapLeft").width();
+    
+    if (myLayout.north.state.isClosed == false) {
+    	listHeight = $(window).height() - $('#topDiv').height() - $('.list_util').height() - 44;
+    	contentHeight = $(window).height() - $('#topDiv').height() - $('.body_top_area').height();
+    } else {
+    	listHeight = $(window).height() - $('.list_util').height() - 44;
+    	contentHeight = $(window).height() - $('.body_top_area').height();
+    }
+    
+    if (gIsWide == "wide") {
+		if($('.tbl_wrap').size() > 0) {
+			$('.tbl_wrap').height(listHeight);
+		}else if ($('.tbl16').size() > 0) {
+			$('.tbl16').height(listHeight); //자치법규, 별표, 주제별행정규칙
+			if($('#catelelitop').size() > 0){
+				$('#west-resizer').css("display","none"); //주제별행정규칙 닫기버튼 숨김
+			}
+		}
+	} else {
+		
+		/* 화면이 좁아질 경우 검색결과 없음 내 이미지 사이즈 조정 */
+		$("#examImg1").width(200);
+		$("#examImg2").width(200);
+		
+    	$('#listDiv').height(listHeight+16);
+    	$('#lelistwrapLeft').height(listHeight+16);
+    	$('.viewwrap').height(contentHeight-20);
+    	
+    	var menuNm = $('.gnb').find('.line-two.on').children('a').text();
+    	
+    	if($("#conTop").length > 0) {
+    		if(menuNm == " 자치법규(조례·규칙) "){
+    			if($("#conTop > .subtit2").length > 0){ //ELIS
+	    			$('#conScroll').height($("#viewwrapCenter").height() - $('#conTop').outerHeight() - 35);
+	    		} else {
+	    			$('#conScroll').height($("#viewwrapCenter").height() - $('#conTop').outerHeight() - 65);
+	    		}
+    		} else if(menuNm == " 행정규칙(훈령·예규·고시) "){
+    			$('#conScroll').height($("#viewwrapCenter").height() - $('#conTop').outerHeight());
+    		} else{
+    			if ($.browser.isIE) {
+    				$('#conScroll').height(contentHeight - $('#conTop').outerHeight() - 15);
+    			} else {
+    				$('#conScroll').height(contentHeight - $('#conTop').outerHeight() - 20);
+    			}
+    		}
+    		if(menuNm == " 행정규칙(훈령·예규·고시) "){ //행정규칙
+    			$("#sideCenter").css("width", contentWidth - 35);
+    			$("#conScroll").css("width", contentWidth - 35);
+    		}else {
+    			$("#sideCenter").css("width", contentWidth - 25);
+    			$("#conScroll").css("width", contentWidth - 25);
+    		}
+    	}
+    }
+}
+</script>
+
+</body>
+</html>

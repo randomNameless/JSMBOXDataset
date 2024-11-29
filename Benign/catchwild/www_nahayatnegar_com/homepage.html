@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>homepage.html</title>
+</head>
+<body>
+
+<script>
+$(document).ready(function(){
+	var isSticky = false;
+	$(window).scroll(scrollHandler);
+	function scrollHandler(e) {
+		/**
+		 * handle sticky menu
+		 */
+		var scrollTop = $(window).scrollTop();
+		var headerHeight = $('header').height();
+		if(scrollTop >= headerHeight && !isSticky) {
+			$('body').addClass('fixed-menu');
+			isSticky = true;
+		} else if(scrollTop < headerHeight && isSticky) {
+			$('body').removeClass('fixed-menu');
+			isSticky = false;
+		}
+	}
+	/**
+	 * handle css animations
+	 */
+	var introClassHandler = [];
+	$('[data-intro-class]').each(function(key, item) {
+		introClassHandler[key] = function(e) {
+			var offset = parseInt($(item).attr('data-offset'));
+			var itemTop = $(item).offset().top + offset;
+			var bottomOfWindow = $(window).scrollTop() + $(window).height();
+			if(itemTop < bottomOfWindow) {
+				$(item).addClass($(item).attr('data-intro-class'));
+				$(window).unbind('scroll', introClassHandler[key]);
+			}
+		}
+		$(window).scroll(introClassHandler[key]);
+	});
+
+	$('a[href^="#"]').click(function(event) {
+		event.preventDefault();
+	});
+
+	$('.toggle-nav').click(function() {
+            toggleNav();
+        });
+	
+	$('.toggle-menu').click(function() {
+		toggleNav(true);
+	});
+
+	$(document).keyup(function(e) {
+		if (e.keyCode == 27) {
+		  if ($('body').hasClass('left-sidebar')) {
+		    toggleNav();
+		  }
+		}
+	});
+
+	$('.overlay').click(function() {
+		toggleNav();
+	});
+
+	function toggleNav(isMobile) {
+	    if ($('body').hasClass('left-sidebar')) {
+	        $('body').removeClass('left-sidebar');
+	    } else {
+	        $('body').addClass('left-sidebar');
+	        if(isMobile) {
+	        	$('aside#sidebar').addClass('mobile-menu');
+	        } else {
+	        	$('aside#sidebar').removeClass('mobile-menu');
+	        }
+	    }
+	    return false;
+	}
+
+	$('[data-goto-tab]').click(function(e){
+		var tabId = $(this).attr('data-goto-tab');
+		var offset = $(this).attr('data-offset');
+		offset = (offset == '' || typeof offset == 'undefined') ? 40 : parseInt(offset);
+		var selector = '#' + tabId;
+		$('.tab-title a[href="'+selector+'"]').click();
+		scrollToTarget($(selector), offset);
+	});
+	$('[data-accordion]').each(function(index, element) {
+		$(element).find('.section:not(:first-child)').addClass('collapsed').find('.body').hide();
+		$(element).find('.section[status-color]').each(function(index, section) {
+			var color = $(section).attr('status-color');
+			if(color == '') {
+				return false;
+			}
+			$(section).find('> .title > .right-bar').css('background', color);
+			$(section).find('> .title > .status i').css('color', color);
+		});
+		$(element).find('.section').each(function(key, item){
+			if($(item).find('.body').length == 0) {
+				$(item).addClass('without-body');
+			}
+		});
+		$(element).find('.section:not(.without-body) .title').click(function(event) {
+			var isCollapsed = $(this).parent().hasClass('collapsed');
+			$(this).parent().parent().find('.section').addClass('collapsed').find('.body').slideUp();
+			if(isCollapsed) {
+				$(this).parent().removeClass('collapsed').find('.body').slideDown();
+			}
+		});
+	});
+
+
+
+
+	var updateLock = false;
+	/**
+	 * mini slider jquery
+	 */
+    var sliderHandler = [];
+	$('.slider').each(function(index, el) {
+		var sliderId = $(el).attr('data-slider-id');
+		var sliderType = $(el).attr('data-slider-type');
+		    sliderType = sliderType ? sliderType : 1;
+	    var duration = $(el).attr('data-duration')
+	    	gradientSelector = $(el).attr('gradient-selector') != '' ? $(el).attr('gradient-selector') : null;
+	    duration = duration ? duration : 15000;
+	    var updateDelay;
+		sliderHandler[sliderId] = {
+				'element' : el,
+				'bullets' : $('.bullets[data-slider-id="'+sliderId+'"]'),
+				'sliderType' : sliderType,
+				'duration' : duration,
+				'slideWidth' : $(el).width(),
+				'slideCount' : $(el).find('.slide').length,
+				'sliderContent' : $(el).find('> *').detach(),
+				'currentSlide' : 1,
+				'interval': null,
+				'prepare' : function() {
+					$(this.element).html('<div class="slide-container"></div>');
+					$(this.element).find('.slide-container').append(this.sliderContent);
+					$(this.element).find('.slide').width(this.slideWidth);
+					if(this.sliderType == 1) {
+						$(this.element).width($('.home-intro .no-pad').offset().left - 50);
+					}
+				},
+				'updateSlider' : function(slideNumber) {
+					if(updateLock) {
+						return;
+					}
+					updateLock = true;
+					if(!slideNumber) {
+						slideNumber = this.currentSlide;
+					}
+					var offsetLeft = $('div.row').first().offset().left;
+					this.slideWidth = this.sliderType == 1 ? $(this.element).width() * .8 : $(this.element).width();
+					this.bullets.find('.bullet').removeClass('active');
+					this.bullets.find('.bullet:nth-child('+slideNumber+')').addClass('active');
+					var slideWidth = this.slideWidth;
+					if(this.sliderType == 1) {
+						$(this.element).find('.slide').width(slideWidth);
+						$(this.element).find('.slide:not(:nth-child('+this.currentSlide+')):not(.active)').css({
+							marginLeft: -1 * slideWidth,
+							opacity: 0,
+						});
+						var prevSlide = $(this.element).find('.slide.active');
+						prevSlide.animate({
+							marginLeft: $(window).width(),
+							opacity: 0,
+						}, {
+							complete: function() {
+								prevSlide.removeClass('active').css('marginLeft', -1 * slideWidth).css('opacity', 0);
+								updateLock = false;
+							}
+						});
+						var handler = this;
+						setTimeout(function() {
+							var slide = $(handler.element).find('.slide:nth-child('+handler.currentSlide+')').addClass('active');
+							slide.animate({
+								marginLeft: offsetLeft,
+								opacity: 1
+							}, {
+								complete: function() {
+									updateLock = false;
+								}
+							});
+							var gradientColor = slide.attr('gradient-color') != '' ? slide.attr('gradient-color') : null;
+							if(gradientSelector && gradientColor) {
+								$(gradientSelector).css('background', 'linear-gradient(to right, rgba('+gradientColor+',0) 3%,rgba('+gradientColor+',0.7) 34%,rgba('+gradientColor+',0) 97%)');
+							}
+						}, 0);
+					} else if(this.sliderType == 2) {
+						$(this.element).find('.slide-container').css('marginRight', -1 * (slideNumber - 1) * this.slideWidth);
+						updateLock = false;
+					}
+				},
+				'startInterval' : function() {
+					var handler = this;
+					this.interval = setInterval(function() {
+						handler.next();
+					}, parseInt(handler.duration));
+				},
+				'next' : function(_handler) {
+					this.currentSlide++;
+					if(this.currentSlide > this.slideCount) {
+						this.currentSlide = 1;
+					}
+					this.updateSlider(this.currentSlide);
+				},
+				'prev' : function(_handler) {
+					this.currentSlide--;
+					if(this.currentSlide < 1) {
+						this.currentSlide = this.slideCount;
+					}
+					this.updateSlider(this.currentSlide);
+				},
+				'resetInterval' : function(){
+					clearInterval(this.interval);
+					this.startInterval();
+				},
+				'play' : function() {
+					this.prepare();
+					this.startInterval();
+					if(this.sliderId != '') {
+						var handler = this;
+						this.bullets.find('.bullet').click(function(e) {
+							handler.currentSlide = $(this).index() + 1;
+							handler.updateSlider(handler.currentSlide);
+							handler.resetInterval();
+						});
+					}
+					var handler = this;
+					$(window).on('resize', function(e) {
+						if(updateDelay) {
+							clearTimeout(updateDelay);
+							updateDelay = null;
+						}
+						updateDelay = setTimeout(function() {
+							handler.updateSlider();
+							updateDelay = null;
+						}, 500);
+					});
+					setTimeout(function() {
+						handler.updateSlider();
+					}, 500);
+				},
+		};
+		sliderHandler[sliderId].play();
+
+	});
+
+	var homeIntroHeightFixer = function() {
+		$('section.home-intro').height($(window).height() * (35/100) + 300);
+	}
+	homeIntroHeightFixer();
+	$(window).on('resize', homeIntroHeightFixer);
+
+
+	$('[data-goto]').click(function(event) {
+		var target = $(this).attr('data-goto');
+		var offset = $(this).attr('data-offset');
+		offset = (offset == '' || typeof offset == 'undefined') ? 40 : parseInt(offset);
+		target = target.length > 0 ? $('#' + target) : null;
+		if (target) {
+			scrollToTarget(target, offset);
+			return false;
+		}
+	});
+
+	function scrollToTarget(target, offset) {
+		target = target.offset().top - $('header').height() - offset;
+		$('html, body').animate({
+			scrollTop: target,
+		}, 1000);
+	}
+	var errorTimeout = null;
+	function showLoginError(text)
+	{
+		var holder = $('.login-error-msg');
+		if(errorTimeout == null) {
+			holder.html(text).slideDown();
+			errorTimeout = setTimeout(function() {
+				holder.slideUp();
+				errorTimeout = null;
+			}, 5000);
+		} else {
+			clearTimeout(errorTimeout);
+			errorTimeout = null;
+			holder.slideUp(400, 'swing', function() {
+				showLoginError(text);
+			});
+		}
+	}
+	$('.foundation-data-attribute-namespace').css('font-family', 'false'); // bug fix
+	$(document).foundation();
+	function makeStepsForm(idForm){
+		console.log('aaaaaaaaaaaaaaaaa', idForm);
+	    var theForm=document.querySelector( '#'+idForm );
+	    new stepsForm( theForm, {
+	        onSubmit : function( form ) {
+	            var result=true;
+	            var formData = new FormData(theForm);
+
+	            classie.addClass( theForm.querySelector( '.simform-inner' ), 'hide' );
+	            $('#'+idForm +" .loading").removeClass("hide");
+	            $.ajax({
+	                url: '/application/index/contact',
+	                data: formData,
+	                processData: false,
+	                type: 'POST',
+	                contentType: false,
+	                success: function ( data ) {
+	                    $('#'+idForm +" .loading").addClass("hide");
+	                    var messageEl = theForm.querySelector( '.final-message' );
+	                    messageEl.innerHTML = 'فرم با موفقیت ارسال شد.';
+						classie.addClass( messageEl, 'show' );
+
+						var btnEl = theForm.querySelector( '.refreshDiv' );
+						classie.addClass( btnEl, 'show' );
+
+	                },
+	                error : function( data ){
+	                    classie.addClass( theForm.querySelector( '.simform-inner' ), 'show' );
+	                    $('#'+idForm +" .loading").addClass("hide");
+	                    $('#'+idForm +' span.error-message').text("مشکلی پیش آمده است.");
+	                }
+	            });
+	        }
+	    } );
+
+	    $( "#"+idForm+" input.step-field[type='file']").change(function(event){
+	        //submit the form here
+	        var files = event.target.files;
+	        var file = files[0];
+	        $("#"+idForm+" .upload-box .fileName").html(file.name);
+	    });
+
+	}
+	// makeStepsForm("nahayatForm");
+	// makeStepsForm('ershanForm');
+	// makeStepsForm('contactForm');
+
+	function resetForm(idForm) {
+		var $form=$("#"+idForm);
+		$form.find('input:text, input:password, input:file, select, textarea').val('');
+		$form.find('input:radio, input:checkbox')
+			.removeAttr('checked').removeAttr('selected');
+		$form.find('.fileName').text('');
+		$form.find('.current').removeClass('current');
+		$form.trigger('reset');
+		$form.find('.simform-inner').removeClass('hide');
+		$form.find('.final-message').removeClass('show');
+		$form.find('.refreshDiv').removeClass('show');
+	}
+
+	$(".refreshForm").click(function (e) {
+		var idForm=$(this).attr('id');
+		resetForm(idForm);
+
+		var old_element = document.getElementById(idForm).querySelector('.simform-inner');
+		var new_element = old_element.cloneNode(true);
+		old_element.parentNode.replaceChild(new_element, old_element);
+
+		makeStepsForm(idForm);
+	});
+
+	// $('body').append('<script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?v=3.exp&language=fa&signed_in=true&key=AIzaSyDztzmMgnZbwTRWr9fGGSjMJ8kgTy8JF74&callback=initialize"></script>');
+});
+
+function openLayerMap(lon, lat, zoom, elementId)
+{
+    setTimeout(() => {
+        createMap();
+    }, 200);
+
+    function createMap() {
+        let fromProjection = new OpenLayers.Projection("EPSG:4326");   // Transform from WGS 1984
+        let toProjection   = new OpenLayers.Projection("EPSG:900913"); // to Spherical Mercator Projection
+        let position       = new OpenLayers.LonLat(lon, lat).transform(fromProjection, toProjection);
+
+        /**
+         * This line declare map with all controls disabled.
+         */
+        // let map = new OpenLayers.Map(elementId, { controls: [] });
+
+        /**
+         * Declare map with all default controls.
+         */
+        let map = new OpenLayers.Map(elementId);
+        let mapnik         = new OpenLayers.Layer.OSM();
+        map.addLayer(mapnik);
+
+        let markers = new OpenLayers.Layer.Markers( "Markers" );
+        map.addLayer(markers);
+        var size = new OpenLayers.Size(50, 50);
+        var offset = new OpenLayers.Pixel(-(size.w/2), -size.h);
+        var icon = new OpenLayers.Icon('/images/map/nn-location-mark2.svg', size, offset);
+        markers.addMarker(new OpenLayers.Marker(position, icon));
+        map.setCenter(position, zoom);
+
+        /**
+         * This is for disabling mouse wheel zoom according to afficial documentations, but now working.
+         */
+        // let movemap = new OpenLayers.Control.Navigation({'zoomWheelEnabled': false});
+        // movemap.disableZoomWheel();
+
+        /**
+         * This is the correct way to disable mouse wheel zoom.
+         */
+        let i, l, c = map.getControlsBy("zoomWheelEnabled", true);
+        for ( i = 0, l = c.length; i < l; i++ ) {
+            c[i].disableZoomWheel();
+        }
+    }
+}
+
+function initialize()
+{
+    /*
+	var ershanLatlng = new google.maps.LatLng(35.755027, 51.396637);
+	var MY_MAPTYPE_ID = 'ershan_style';
+	var mapOptions = {
+	    zoom: 15,
+	    center: ershanLatlng,
+	    mapTypeControlOptions: {
+	        mapTypeIds: [google.maps.MapTypeId.ROADMAP, MY_MAPTYPE_ID]
+	    },
+	    mapTypeId: MY_MAPTYPE_ID
+	};
+
+	var featureOpts = [{
+	    "featureType": "poi",
+	    "elementType": "all",
+	    "stylers": [{
+	        "color": "#999"
+	    }, {
+	        "visibility": "off"
+	    }]
+	}, {
+	    "featureType": "administrative",
+	    "elementType": "all",
+	    "stylers": [{
+	        "hue": "#000000"
+	    }, {
+	        "saturation": 0
+	    }, {
+	        "lightness": -100
+	    }, {
+	        "visibility": "off"
+	    }]
+	}, {
+	    "featureType": "road.local",
+	    "elementType": "labels",
+	    "stylers": [{
+	        "color": "#999"
+	    }, {
+	        "visibility": "on"
+	    }]
+	}, {
+	    "featureType": "road",
+	    "elementType": "labels",
+	    "stylers": [{
+	        "color": "#888888"
+	    }, {
+	        "visibility": "on"
+	    }]
+	}, {
+	    "featureType": "road",
+	    "elementType": "labels.text.stroke",
+	    "stylers": [{
+	        "color": "#e5e4e4"
+	    }, {
+	        "visibility": "on"
+	    }]
+	}, {
+	    "featureType": "water",
+	    "elementType": "labels",
+	    "stylers": [{
+	        "hue": "#000000"
+	    }, {
+	        "saturation": -100
+	    }, {
+	        "lightness": -100
+	    }, {
+	        "visibility": "off"
+	    }]
+	}, {
+	    "featureType": "road.local",
+	    "elementType": "geometry",
+	    "stylers": [{
+	        "hue": "#ffffff"
+	    }, {
+	        "saturation": -100
+	    }, {
+	        "lightness": 100
+	    }, {
+	        "visibility": "on"
+	    }]
+	}, {
+	    "featureType": "water",
+	    "elementType": "geometry",
+	    "stylers": [{
+	        "hue": "#ffffff"
+	    }, {
+	        "saturation": -100
+	    }, {
+	        "lightness": 100
+	    }, {
+	        "visibility": "on"
+	    }]
+	}, {
+	    "featureType": "transit",
+	    "elementType": "labels",
+	    "stylers": [{
+	        "color": "#999"
+	    }, {
+	        "visibility": "on"
+	    }]
+	}, {
+	    "featureType": "landscape",
+	    "elementType": "labels",
+	    "stylers": [{
+	        "color": "#999"
+	    }, {
+	        "visibility": "on"
+	    }]
+	}, {
+	    "featureType": "road",
+	    "elementType": "geometry",
+	    "stylers": [{
+	        "hue": "#bbbbbb"
+	    }, {
+	        "saturation": -100
+	    }, {
+	        "lightness": 26
+	    }, {
+	        "visibility": "on"
+	    }]
+	}, {
+	    "featureType": "landscape",
+	    "elementType": "geometry",
+	    "stylers": [{
+	        "hue": "#dddddd"
+	    }, {
+	        "saturation": -100
+	    }, {
+	        "lightness": -3
+	    }, {
+	        "visibility": "on"
+	    }]
+	}];
+
+	var map = new google.maps.Map(document.getElementById('footer_map'), mapOptions);
+
+	var styledMapOptions = {
+	    name: 'Ershan Style'
+	};
+	var customMapType = new google.maps.StyledMapType(featureOpts, styledMapOptions);
+	map.mapTypes.set(MY_MAPTYPE_ID, customMapType);
+
+	var contentString = '<div id="map_info_window">' +
+	    '<div class="casablanca">گروه مالی نهایت نگر</div>' +
+	    '<div class="ershanTS">تلفن: 84450</div>' +
+	    '</div>';
+
+	var infowindow = new google.maps.InfoWindow({
+	    content: contentString
+	});
+
+	var image = '/application/images/nahayatnegar_marker.png';
+	var marker = new google.maps.Marker({
+	    position: ershanLatlng,
+	    map: map,
+	    title: 'نهایت نگر',
+	    icon: image
+	});
+	google.maps.event.addListener(marker, 'click', function() {
+	    infowindow.open(map, marker);
+	});
+	*/
+	$('section.geometry').prepend('<div id="particles"></div>');
+	$('#particles').particleground({
+	    dotColor: '#fff',
+	    lineColor: '#fff',
+	    parallaxMultiplier: 15,
+	    proximity: 150,
+	    particleRadius: 11,
+	    density: 8000,
+	    maxSpeedX: 0,
+	    maxSpeedY: 0,
+	    minSpeedX: 0,
+	    minSpeedY: 0,
+	});
+}
+</script>
+
+</body>
+</html>

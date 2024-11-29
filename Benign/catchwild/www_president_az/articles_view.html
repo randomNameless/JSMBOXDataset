@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>articles_view.html</title>
+</head>
+<body>
+
+<script>
+$(function(){
+    $('body').on('click', '.sort-by_links', function(e){
+        e.preventDefault();
+
+        var _this = $(this),
+            _index = _this.index(),
+            _title = _this.attr('data-title'),
+            _href = _this.attr('href'),
+            _container = $('#js-article-filter-container');
+
+        $('.news-feed_sort-by').find('a.sort-by--active').removeClass('sort-by--active');
+        $('.news-feed_navbar .news-feed_sort-by a').eq(_index).addClass('sort-by--active');
+        $('.news-feed_navbar-fixed .news-feed_sort-by a').eq(_index).addClass('sort-by--active');
+
+        window.history.pushState("object or string", "", _href);
+
+        $.ajax({
+            url: _href + '/json',
+            method:"GET",
+            dataType: "json",
+        }).done(function(data) {
+            _container.html('').css('height', '1000px');
+            items(data, _container, _title);
+            _container.css('height', 'auto');
+        });
+    });
+
+    $('body').on('click', '.load-more-btn', function(e){
+        e.preventDefault();
+
+        var _this = $(this),
+            _title = _this.attr('data-title'),
+            _href = _this.attr('href'),
+            _container = $('#js-article-filter-container');
+
+        $.ajax({
+            url: _href + '/json',
+            method:"GET",
+            dataType: "json",
+        }).done(function(data) {
+            items(data, _container, _title);
+        }).always(function() {
+            _this.remove();
+        });
+    });
+
+    function items(data, _container, _title){
+        if(data.more_link && data.list.length > 0){
+            $.each(data.list, function (i, item){
+                if(item.youtube_video){
+                    _container.append('<article class="news-video">' +
+                        '<div class="news-video_category"><span class="category_title mod-for-news">' + (item.page_name?item.page_name:item.category) + '</span><span class="category_date">' + item.posted_at_date + '<br>' + item.posted_at_time + '</span></div>' +
+                        '<div class="news-video_body"><div class="news-video_video"><iframe allowFullScreen="allowfullscreen" frameBorder="0" src="' + item.youtube_video + '"></iframe></div><a class="news-video_label" href="' + item.url + '">' + item.name + '<span class="news-video_duration"></span></a></div>' +
+                        '</article>');
+                }
+                else if(item.picture){
+                    _container.append('<article class="news-photo">' +
+                        '<div class="news-photo_category"><span class="category_title mod-for-news">' + (item.page_name?item.page_name:item.category) + '</span><span class="category_date">' + item.posted_at_date + '<br>' + item.posted_at_time + '</span></div>' +
+                        '<a class="news-photo_body" href="' + item.url + '"><div class="news-photo_photo"><img src="' + item.picture + '"></div><div class="news-photo_label"><span class="label-title">' + item.name + '</span><span class="label-date">' + item.posted_at_date + ', ' + item.posted_at_time + '</span></div></a>' +
+                        '</article>');
+                }
+                else {
+                    _container.append('<article class="news-text">' +
+                        '<div class="news-text_category"><span class="category_title mod-for-news">' + item.page_name + '</span><span class="category_descr">' + item.category + '</span><span class="category_date">' + item.posted_at_date + '<br>' + item.posted_at_time + '</span></div>' +
+                        '<a class="news-text_body" href="' + item.url + '"><span>' + item.name + '</span><p>' + item.body + '</p><span class="text_body-date">' + item.posted_at_date + ', ' + item.posted_at_time + '</span></a>' +
+                        '</article>');
+                }
+            });
+
+            _container.append('<div class="load-more-row"><a class="load-more-btn" id="js-load-more" href="' + data.more_link + '" data-title="' + _title + '">' + _title + '</a></div>');
+        }
+    }
+});
+</script>
+
+</body>
+</html>

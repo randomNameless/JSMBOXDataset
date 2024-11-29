@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>external2.1.html</title>
+</head>
+<body>
+
+<script>
+//ver=2
+function getVars( query ) {
+	var vars = [];
+	if (!query) { return false; }
+	query = query.replace(/^\?/g,"");
+	var pairs = query.split("&");
+
+	for (var i = 0; i < pairs.length; i++) {
+		var pair = pairs[i].toString().split("=");
+		if (pair.length) {
+			pair[1] = ( pair[1] ) ? decodeURIComponent(pair[1]) : null;
+			pair[0] = decodeURIComponent(pair[0]);
+			if (pair[1] && (pair[0].indexOf("cthref") === 0 || pair[0].indexOf("url") === 0 || pair[0].indexOf("statichost") === 0) && pair[1].indexOf("//") === 0) {
+				pair[1] = location.protocol + pair[1];
+			}
+
+			vars[pair[0]] = pair[1];
+		}
+	}
+	return vars;
+}
+
+function extractBlock( id , query ) {
+	//alert(id);
+	var re = new RegExp("&"+id+"&(.*?)($|(&[\\w]{1}&))");
+	if (query.match(re)) { return getVars(query.match(re)[1].toString()); }
+
+	return false;
+}
+
+function applyParams( str ) {
+	if (!str) { return; }
+	var bs = []; var be = document.getElementsByTagName("body")[0]; var b = extractBlock("b",str);
+	for (var i in b) {
+		if (b.hasOwnProperty(i)) {
+			try{ be.style[i] = b[i]; } catch(e) {}
+		}
+	}
+
+	if (HttpGetVars.title) {
+		document.title = HttpGetVars.title;
+	}
+
+	try { if (HttpGetVars.target || HttpGetVars.target.length > 0) {
+		var head = document.getElementsByTagName('head')[0],
+			baseNodes = document.getElementsByTagName('base');
+
+		var base = (baseNodes.length !== 0) ? baseNodes[0] : head.appendChild(document.createElement('base'));
+		base.target = HttpGetVars.target;
+	} } catch(ex) {}
+}
+
+function parseVars( content, vars ) {
+	if (typeof vars != "object") { return content; }
+
+	for (var i in vars) {
+		if (vars.hasOwnProperty(i)) {
+			var reStr = "\\["+i+"\\]";
+			var re = new RegExp( reStr, "g" );
+			content = content.replace(re,vars[i]);
+
+			var ereStr = "\\["+i+"\.e\\]";
+			var ere = new RegExp( ereStr, "g" );
+			content = content.replace(ere, encodeURIComponent(vars[i]));
+		}
+	}
+	if (vars.consent && vars.gdpr) {
+		content = content.replace(/\$\{GDPR\}/g, vars.gdpr);
+		content = content.replace(/\$\{GDPR_CONSENT_\d+\}/g, vars.consent);
+	}
+	return content;
+}
+
+var HttpGetVars = getVars(location.search);
+
+</script>
+
+</body>
+</html>

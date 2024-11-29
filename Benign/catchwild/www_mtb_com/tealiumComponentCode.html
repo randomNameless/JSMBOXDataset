@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>tealiumComponentCode.html</title>
+</head>
+<body>
+
+<script>
+//START FORM CODE
+function tealiumWithFormSuccess(){
+	try{
+		utag.link({
+			tealium_event: document.querySelector("#tealiumEvent").value,
+			customLinkName: document.querySelector("#customLinkName").value,
+			componentName: document.querySelector("#componentName").value,
+			componentGuid: $('#aemformid').val()
+		});
+			
+	}catch(err){}
+}
+
+function tealiumWithFormFail(){
+	try{
+		utag.link({
+			tealium_event: document.querySelector("#tealiumEvent").value,
+			customLinkName: document.querySelector("#customLinkName").value,
+			componentName: document.querySelector("#componentName").value,
+			componentGuid: 'Server error'
+		});
+			
+	}catch(err){}
+}
+
+//END FORM CODE
+
+//START BUTTON CODE
+function fireAnalyticsEvent(b) {
+		if ($ctaButtonTagType === 'off') {
+			return;
+		}
+		var $ctaButtonComponent = b.parentElement;
+		var $ctaButtonLink = b;
+		var $ctaButtonId = $ctaButtonLink.attributes['id'].value;
+		var $ctaButtonLinkText = document.querySelector("[data-component-id='"+ $ctaButtonId + "'] > span > span ").innerHTML;
+		var $ctaButtonTagType = $ctaButtonLink.hasAttribute('data-tag-type')? $ctaButtonLink.attributes['data-tag-type'].value:'';
+		var $ctaButtonTagTextOverride = $ctaButtonLink.hasAttribute('data-tag-text')? $ctaButtonLink.attributes['data-tag-text'].value:'' ;
+		var $ctaButtonTagProduct = $ctaButtonLink.hasAttribute('data-tag-product')? $ctaButtonLink.attributes['data-tag-product'].value:'';
+		var $ctaButtonTagProductOverride = $ctaButtonLink.hasAttribute('data-tag-product-override')? $ctaButtonLink.attributes['data-tag-product-override'].value:'';
+		var $ctaButtonTagConversionType = $ctaButtonLink.hasAttribute('data-tag-product-conversion')? $ctaButtonLink.attributes['data-tag-conversion'].value:'';
+		var $ctaButtonTagCategory = $ctaButtonLink.hasAttribute('data-tag-product-category')? $ctaButtonLink.attributes['data-tag-category'].value:'';
+		var $ctaButtonTagCritical = $ctaButtonLink.hasAttribute('data-tag-product-critical')? $ctaButtonLink.attributes['data-tag-critical'].value:'';
+		
+		var tealiumEvent = {
+			pageName: window.utag_data.pageName,
+			tealium_event: $ctaButtonTagType,
+			componentGuid: $ctaButtonId,
+			componentName: 'ctaButton',
+			customLinkName: $ctaButtonTagTextOverride ? $ctaButtonTagTextOverride : $ctaButtonLinkText
+		};
+
+		//If the tagging type is for Account Opening, set additional properties in the track object
+		if ($ctaButtonTagType === 'openAccountCta') {
+			tealiumEvent['productType'] = $ctaButtonTagProduct === 'other' ? $ctaButtonTagProductOverride : $ctaButtonTagProduct;
+			tealiumEvent['conversionType'] = $ctaButtonTagConversionType;
+			tealiumEvent['productCategory'] = $ctaButtonTagCategory;
+		}
+
+		Utils.tealium.trackEvent(tealiumEvent);
+	}
+
+
+
+
+window.addEventListener("load", function(){
+	$('a[href="#ScheduleAppointment$"]').attr('href', 'https://schedule.mtb.com/service');
+	
+	var $ctaButtonComponents = document.querySelectorAll('.btn[id]');
+	[].forEach.call($ctaButtonComponents, function (b) {
+		if (typeof $ctaButtonTagCritical != 'undefined') {
+			b.addEventListener('mousedown', function(){
+				fireAnalyticsEvent(b);
+			});
+		}else {
+			b.addEventListener('click', function(){
+				fireAnalyticsEvent(b);
+			});
+		}
+	});
+});
+//END BUTTON CODE
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>medscape-vt.html</title>
+</head>
+<body>
+
+<script>
+/* Updated 08/24/2017 adding overlay when adblocker is enabled - Elvis */
+/* Updated 7/27/2017 adblocking data capture to Omniture - KJL */
+/* Previously Updated 9/16/16 PageFair Omniture Adjustments ML */
+/* Previously updated 9/12/16 Elvis Adding PageFair Pixel and Omniture Integration */
+/* Updated 11/19/2018 removing PageFair pixel and adblocker overlay */
+
+if ($.cookie('turnuuid') != null) { // Check for Ad-block cookie + set variable for initial Pageview call if existing
+    if (typeof window.s_context != 'object') {
+        window.s_context = {};
+    }
+    if ($.cookie('turnuuid') != null) {
+        window.s_context['wb.turnid'] = $.cookie('turnuuid');
+    }
+}
+
+var tcSliceG; //the letter after tcSlice is an abbreviated vendor name in case we need more than one.
+if (typeof userTactics == "string" && userTactics.trim() != '') { // This takes the tactics string from global var 'userTactics' for the Google Retargeting pixel in the footer.
+	tcSliceG = userTactics.split(",");
+} else if (typeof userTactics == "string" && userTactics.trim() == '') {
+	tcSliceG = ["0"]; // Match former use-case when DFPTargetKeys defined but no tactics available
+} else {
+	tcSliceG = null;
+}
+
+function addMessageListener(obj, func) {
+	if (obj.addEventListener) { // all other browsers
+		obj.addEventListener("message",func, false);
+	}
+	else if (obj.attachEvent) { //IE-8
+		obj.attachEvent("onmessage",func);
+	}
+}
+
+var AIQ = {
+    beacons: {
+        turn: "//d.turn.com/r/dd/id/L21rdC84MTYvY2lkLzI4NTQ1NTU0L3QvMi9jYXQvMzE5NjM2OTM"
+    },
+
+    status: {
+        id: 0
+    },
+
+    init: function() {
+        var turnid = this.getTurnIDCookie();
+        if(!turnid || turnid == 0) {
+            this.triggerBeacon("turn");
+        }
+        else {
+            this.callOmniture();
+        }
+    },
+
+    triggerBeacon: function(name) {
+        var self = this;
+        var uri = self.beacons[name];
+        $('<iframe>', {
+            src: uri,
+            id: name,
+            width: 1,
+            height: 1
+        })
+		.appendTo("body")
+		.load(function() {
+			this.contentWindow.postMessage({bturnid:true},'*'); //send the message and target URI
+		});
+		addMessageListener(window, function(event) {
+            if (event.origin !== "https://img.medscape.com")
+                return;
+			if(event.data.turnid)
+				self.returnID(event.data.turnid);
+		}, false);
+    },
+
+    returnID: function(id) {
+        if(this.status.id !== id)
+            this.status.id = id;
+        this.setTurnIDCookie();
+        this.callOmniture();
+    },
+
+    setTurnIDCookie: function() {
+        $.cookie("turnuuid", this.status.id, {path: '/', expires: 7});
+    },
+
+    getTurnIDCookie: function() {
+        this.status.id = $.cookie("turnuuid");
+        return this.status.id;
+    },
+
+    callOmniture: function() {
+        //window.wmdSetContext("wb.turnid", this.status.id);
+        if (typeof window.s_context != 'object') {
+            window.s_context = {};
+        }
+        window.s_context['wb.turnid'] = this.status.id;
+        // window.addLinkTrackVars('wb.turnid');
+        // window.wmdPageLink('experian');
+        // window.remLinkTrackVars('wb.turnid');
+    }
+};
+
+$(function () {
+    // load Experian Match Back Pixel only once per session
+    //if (!$.cookie("expMatchBkPxl")) {
+    //    $.cookie("expMatchBkPxl", "true", {domain: '', path: ''});
+    //    $("body").append('<img height="1" width="1" src="//d.turn.com/r/dd/id/L21rdC84MTYvY2lkLzI4NTg2NTM1L3QvMg/kv/profession=' + s_user_group + '">');
+    //}
+
+    // load Experian Match Back Pixel
+    if (document.getElementById('ot-stub') == null || document.cookie.match(/OptanonConsent[^;]+&groups[^;]+C0004%3A1/) != null || (document.getElementById('ot-ccpa') != null && document.cookie.match(/OptanonConsent[^;]+&groups/) == null)) {
+        AIQ.init();
+    }
+
+    window.pf_notify = function (status) {
+
+        // don't execute this inside an iframe
+        if (window.top !== window.self) {
+            return false;
+        }
+
+        try {
+            if (DFPTargetKeys.reqHeaders.device == 'MOBILE' || DFPTargetKeys.reqHeaders.device == 'IPAD') {
+                return false;
+            }
+        } catch (e) {
+            console.log(e);
+        }
+    };
+
+});
+
+var customCookie = {
+	
+	myCookie: function(cookieName, cookieValue,choice,endDomain) {
+		 if(endDomain == "com"){
+            document.cookie = cookieName +"=" + cookieValue +";domain=.medscape.com;path=/";
+         }
+         if(endDomain == "org"){
+            document.cookie = cookieName +"=" + cookieValue +";domain=.medscape.org;path=/";
+         }
+		  
+	},
+	getCookie:function(name){
+		var re = new RegExp(name + "=([^;]+)");
+		var value = re.exec(document.cookie);
+		return (value != null) ? unescape(value[1]) : null;
+	}
+	
+}
+
+
+function proclivityPixelCall(npiNumber){
+				
+				var proclivityURL = "";
+				
+				var pubid = "333";
+				var siteid = "33302";
+				
+				if(DFPTargetKeys.reqHeaders.requestEnv == ""){
+                    proclivityURL = "https://www.pswec.com/px/a26d38522a/v3";
+				}
+				else{
+					proclivityURL = "https://sandbox.pswec.com/px/a26d38522a/v3";
+				}
+				
+				try {
+						if(isMscpApp){
+						pubid = "334";
+						siteid = "33401";
+						}
+				}
+				catch(err) {
+					 console.warn(err.message);
+				}
+				
+				$.getScript(proclivityURL)
+				.done(function( script, textStatus ) {
+						wec.browse( { user_id : npiNumber, pubid: pubid, siteid : siteid } ); 
+				})
+				.fail(function( jqxhr, settings, exception ) {
+				console.warn("Failed to Load getscript");
+				});
+	
+}
+if (document.getElementById('ot-stub') == null || document.cookie.match(/OptanonConsent[^;]+&groups[^;]+C0004%3A1/) != null || (document.getElementById('ot-ccpa') != null && document.cookie.match(/OptanonConsent[^;]+&groups/) == null)) {
+    document.addEventListener("DOMContentLoaded", function (event) {
+        if (typeof DFPTargetKeys == "object") {
+            var npiNumber = ""; //By default empty string
+            if (DFPTargetKeys.userSegVars.dt) {
+                npiNumber = DFPTargetKeys.userSegVars.dt; //if dt exists assigning it to npiNumber
+            }
+            var hostName = window.location.host.split('.');
+            var length = hostName.length;
+            var endDomain = hostName[length - 1];
+            if (DFPTargetKeys.webSegVars.auth == "0") {
+
+                var checkAnonmousUserCookie = customCookie.getCookie("anonumoususer");
+
+                if (checkAnonmousUserCookie == null) { //Check anonumoususer Cookie already exists or not
+
+                    customCookie.myCookie("anonumoususer", "1", "set", endDomain);
+
+                    proclivityPixelCall(npiNumber);
+                }
+            }
+            if (DFPTargetKeys.webSegVars.auth == "1") {
+
+                customCookie.myCookie("anonumoususer", "1", "set", endDomain); //if user directly enters with loggin state that time need to fire once so setting anonmous cookie also "1"
+
+                var checkLoggedInUserCookie = customCookie.getCookie("loggedinuser");
+
+                if (checkLoggedInUserCookie == null) { 			//Check checkLoggedInUserCookie Cookie already exists or not
+
+                    customCookie.myCookie("loggedinuser", "1", "set", endDomain);
+
+                    proclivityPixelCall(npiNumber)
+
+                }
+            }
+        }
+    });
+}
+
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>sso-footer.html</title>
+</head>
+<body>
+
+<script>
+function isAuthenticated() {
+	return ((typeof PageMetadata != 'undefined' && typeof PageMetadata.authVar != 'undefined' && typeof PageMetadata.authVar.authLevel != 'undefined' && !isNaN(Number(PageMetadata.authVar.authLevel)) && Number(PageMetadata.authVar.authLevel) > 0) || (typeof s_auth_channel_id == 'string' && s_auth_channel_id.indexOf('100') == -1));
+}
+
+if (typeof isMscpApp == 'undefined' || !isMscpApp) {
+	// Optional callback function for OneTrust consent change
+	window.OTConsentChangeCB = function() {
+		if (document.querySelector('script[src*="otCCPAiab.js"]') == null) { // GDPR but NOT CCPA
+			window.location.reload();
+		}
+	}
+}
+
+function sendConsents(optCallback) {	
+	if (isAuthenticated()) {
+		let consentPayload;
+		let scodeVal = 'msp';
+		if (typeof PageMetadata.reqHeaders != 'undefined' && typeof PageMetadata.reqHeaders.scode == 'string') {
+			scodeVal = PageMetadata.reqHeaders.scode;
+		} else if (document.domain.indexOf('medscape.org') != -1) {
+			scodeVal = 'msporg';	
+		}
+		if (document.querySelector('script[src*="otCCPAiab.js"]') != null) {
+			consentPayload = [
+				{ "status": (document.querySelector('script[src*="otCCPAiab.js"]') != null && document.cookie.match(/OptanonConsent[^;]+&groups[^;]+C0002%3A1/) !== null && document.cookie.match(/OptanonConsent[^;]+&groups[^;]+C0003%3A1/) !== null && document.cookie.match(/OptanonConsent[^;]+&groups[^;]+C0004%3A1/) !== null) ? true : false, "consentCode": "ccpaOptin", "scode": scodeVal, "platform": "web", "value": "v2", "device": navigator.userAgent }
+			]
+		} else {			
+			consentPayload = [
+				{ "status": document.cookie.match(/OptanonConsent[^;]+&groups[^;]+C0002%3A1/) ? true : false, "consentCode": "gdprPerfOptin", "scode": scodeVal, "platform": "web", "value": "v2", "device": navigator.userAgent },
+				{ "status": document.cookie.match(/OptanonConsent[^;]+&groups[^;]+C0004%3A1/) ? true : false, "consentCode": "gdprTargOptin", "scode": scodeVal, "platform": "web", "value": "v2", "device": navigator.userAgent },
+				{ "status": document.cookie.match(/OptanonConsent[^;]+&groups[^;]+C0003%3A1/) ? true : false, "consentCode": "gdprFuncOptin", "scode": scodeVal, "platform": "web", "value": "v2", "device": navigator.userAgent }
+			]
+		}
+		
+		let headersObj = {
+			'Content-type': 'application/json;',
+			'isencrypted': false
+		};
+		let postObj = {
+				method: 'POST',
+				body: JSON.stringify(consentPayload),
+				headers: headersObj
+		}
+		if (typeof PageMetadata.authVar != 'undefined' && typeof PageMetadata.authVar.tokenValue != 'undefined') {
+			headersObj['x-user-token'] = PageMetadata.authVar.tokenValue;
+		} else {
+			postObj['credentials'] = 'include';
+		}
+
+		fetch('https://api.' + (document.domain.match(/((qa(\d+)?|dev\d+?|devint|staging)\.)/) != null ? document.domain.match(/((qa(\d+)?|dev\d+?|devint|staging)\.)/)[0].replace('qa.','qa01.').replace('devint.','dev01.') : '') + 'medscape' + (document.domain.indexOf('.org') != -1 ? '.org' : '.com') + '/regservice/registration/pub/v2/consents', postObj)
+		.then(res => res.text())
+		.then(respText => typeof optCallback == 'function' ? optCallback() : void(0)).catch(error => {
+			console.log(error);
+			typeof optCallback == 'function' ? optCallback() : void(0)
+		});	
+	} else if (typeof optCallback == 'function') {
+		optCallback();
+	}
+}
+
+function initConsentStorage() {
+	// Check consent status upon load, so can be determined if it was changed or not upon 'OneTrustGroupsUpdated' event
+	let initConsentState = '';
+	let domSplit = document.domain.split('.');
+	let subDom = domSplit[domSplit.length - 2] + '.' + domSplit[domSplit.length - 1];
+	if (document.domain.match(/\.\w\w\.\w\w$/) != null) { // Two 2-letter domain suffix at end, e.g. 'co.uk' {		
+		subDom = domSplit[domSplit.length - 3] + '.' + domSplit[domSplit.length - 2] + '.' + domSplit[domSplit.length - 1];
+	}
+
+	if (document.cookie.match(/OptanonConsent=[^;]+&groups=[^&]+/) != null) {
+		initConsentState = decodeURIComponent(document.cookie.match(/OptanonConsent=[^;]+&groups=[^&;]+/)[0].split('&groups=')[1]).replace(/[^,]+:0,?/g,'').replace(/:1/g,'').replace(/,$/,'');
+	}
+
+	window.addEventListener('OneTrustGroupsUpdated', function(e) {
+		if (e.detail.toString() != initConsentState && document.cookie.match(/OptanonConsent=[^;]+&groups=[^&;]+/) != null) { // event detail returns current consent categories, compare to value upon load to determine if changed
+			initConsentState = decodeURIComponent(document.cookie.match(/OptanonConsent=[^;]+&groups=[^&;]+/)[0].split('&groups=')[1]).replace(/[^,]+:0,?/g,'').replace(/:1/g,'').replace(/,$/,'');
+			window.dispatchEvent(new CustomEvent('OTConsentChange'),{detail:e.detail});
+			typeof OTConsentChangeCB == 'function' ? sendConsents(OTConsentChangeCB) : sendConsents();
+			if (!isAuthenticated()) {
+				document.cookie = 'cnsntPend=true; path=/; domain=' + subDom;
+			}
+		}
+	});
+
+	if (document.cookie.indexOf('cnsntPend') != -1 && isAuthenticated()) {
+		document.cookie = 'cnsntPend=false; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; domain=' + subDom;
+		sendConsents();
+	}
+}
+
+if (document.querySelector('script[src*="otSDKStub.js"]') != null) {
+	initConsentStorage();	
+}
+
+</script>
+
+</body>
+</html>

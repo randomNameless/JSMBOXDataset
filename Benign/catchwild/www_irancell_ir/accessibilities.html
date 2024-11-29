@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>accessibilities.html</title>
+</head>
+<body>
+
+<script>
+class AccessibilityService {
+    constructor() {}
+
+    themeLanguage() {
+        return document.documentElement.lang === 'fa-IR';
+    }
+
+    setLocalStorage(name, data) {
+        localStorage.setItem(name, JSON.stringify(data));
+    }
+
+    getLocalStorage() {
+        return JSON.parse(localStorage.getItem('accessibilities'));
+    }
+
+    deleteLocalStorage(name) {
+        localStorage.removeItem(name);
+    }
+
+    checkAccessibility(elements) {
+        let status = true;
+        elements.forEach(element => {
+            if(document.getElementById(element)) return status = true;
+            else return status = false;
+        });
+        return status;
+    }
+}
+
+class AccessibilityManagment {
+    constructor(accessibility) {
+        this.service = new AccessibilityService();
+        this.accessibility = accessibility;
+        if (this.service.getLocalStorage()) responseMessage(200, this.service.themeLanguage() ? 'دسترسی ها برای شما فعال هست. جهت بازنشانی دسترسی ها از بخش دسترسی ها بازگشت به مبدا را انتخاب نمایید.' : 'Accessibilities are enabled for you. To reset the accessibilities, return to the origin from the accessibilities section.');
+    }
+
+    touch() {
+        const area = document.getElementById('hidden-area');
+        let touchStartX = 0, touchStartY = 0, touchEndX = 0, touchEndY = 0;
+        area.addEventListener('touchstart', event => {
+            touchStartX = 0, touchStartY = 0;
+            touchStartX = event.touches[0].clientX;
+            touchStartY = event.touches[0].clientY;
+        });
+        area.addEventListener('touchmove', event => {
+            touchEndX = 0, touchEndY = 0;
+            touchEndX = event.touches[0].clientX;
+            touchEndY = event.touches[0].clientY;
+        });
+        area.addEventListener('touchend', () => {
+            if ((touchEndX - touchStartX > 32) && (Math.abs(touchEndY - touchStartY) < 16)) {
+                this.open();
+                area.style.display = 'none';
+            }
+            touchStartX = 0, touchStartY = 0, touchEndX = 0, touchEndY = 0;
+        });
+    }
+
+    doubleShift() {
+        let shiftPressTime = 0;
+        window.addEventListener('keydown', event => {
+            if (event.key === 'Shift') {
+                const currentTime = new Date().getTime();
+                if (currentTime - shiftPressTime < 300) {
+                    this.open();
+                }
+                shiftPressTime = currentTime;
+            }
+        });
+    }
+
+    open() {
+        this.accessibility.classList.remove('hide');
+        this.accessibility.classList.add('show');
+        setTimeout(() => {
+            this.accessibility.classList.remove('down');
+            this.accessibility.classList.add('up');
+        }, 500);
+    }
+
+    slide() {
+        if (this.accessibility.classList.contains('up')) {
+            this.accessibility.classList.remove('up');
+            this.accessibility.classList.add('down');
+        } else {
+            this.accessibility.classList.remove('down');
+            this.accessibility.classList.add('up');
+        }
+    }
+
+    close() {
+        if (this.accessibility.classList.contains('up') && this.accessibility.classList.contains('show')) {
+            this.accessibility.classList.remove('up');
+            this.accessibility.classList.add('down');
+            setTimeout(() => {
+                this.accessibility.classList.remove('show');
+                this.accessibility.classList.add('hide');
+                this.guide();
+            }, 500);
+        } else {
+            this.accessibility.classList.remove('show');
+            this.accessibility.classList.add('hide');
+            this.guide();
+        }
+    }
+
+    guide() {
+        const guide = 'ontouchstart' in window ? document.getElementById('mobile-guide') : document.getElementById('desktop-guide');
+        guide.style.display = 'block';
+        setTimeout(() => {
+            guide.style.display = 'none';
+            if ('ontouchstart' in window) document.getElementById('hidden-area').style.display = 'block';
+        }, 3000);
+    }
+}
+
+class AccessibilityFontSize {
+    constructor() {
+        this.service = new AccessibilityService();
+        this.fontSizeLevel = this.service.getLocalStorage() ? this.service.getLocalStorage().fontSize : 0;
+        if (this.service.getLocalStorage() && this.service.checkAccessibility(['acc-increase-font-size', 'acc-decrease-font-size'])) this.accessibility();
+    }
+
+    accessibility() {
+        document.querySelectorAll('*').forEach(element => {
+            if (!element.closest('.site-header, .site-footer, .accessibilities') && element.childNodes.length === 1 && element.childNodes[0].nodeType === Node.TEXT_NODE) {
+                const currentFontSize = parseFloat(window.getComputedStyle(element, null).getPropertyValue('font-size'));
+                element.style.setProperty('font-size', `${currentFontSize + this.fontSizeLevel}px`, 'important');
+            }
+        });
+    }
+
+    increase() {
+        if (this.fontSizeLevel < 6) {
+            this.fontSizeLevel++;
+            document.querySelectorAll('*').forEach(element => {
+                if (!element.closest('.site-header, .site-footer, .accessibilities') && element.childNodes.length === 1 && element.childNodes[0].nodeType === Node.TEXT_NODE) {
+                    const currentFontSize = parseFloat(window.getComputedStyle(element, null).getPropertyValue('font-size'));
+                    element.style.setProperty('font-size', `${currentFontSize + 1}px`, 'important');
+                }
+            });
+        }
+    }
+
+    decrease() {
+        if (this.fontSizeLevel > -6) {
+            this.fontSizeLevel--;
+            document.querySelectorAll('*').forEach(element => {
+                if (!element.closest('.site-header, .site-footer, .accessibilities') && element.childNodes.length === 1 && element.childNodes[0].nodeType === Node.TEXT_NODE) {
+                    const currentFontSize = parseFloat(window.getComputedStyle(element, null).getPropertyValue('font-size'));
+                    element.style.setProperty('font-size', `${currentFontSize - 1}px`, 'important');
+                }
+            });
+        }
+    }
+
+    default() {
+        this.fontSizeLevel = 0;
+        document.querySelectorAll('*').forEach(element => {
+            if (!element.closest('.site-header, .site-footer, .accessibilities') && element.childNodes.length === 1 && element.childNodes[0].nodeType === Node.TEXT_NODE) {
+                element.style.removeProperty('font-size');
+            }
+        });
+    }
+}
+
+class AccessibilityFontWeight {
+    constructor() {
+        this.service = new AccessibilityService();
+        this.status = this.service.getLocalStorage() ? this.service.getLocalStorage().fontWeight : false;
+        if(this.service.getLocalStorage() && this.service.checkAccessibility(['acc-font-wright'])) this.set();
+    }
+
+    set() {
+        console.log(this.status);
+        if (this.status) this.default();
+        else this.bold();
+        this.status = !this.status;
+    }
+
+    bold() {
+        document.querySelectorAll('*').forEach(element => {
+            if (!element.closest('.site-header, .site-footer, .accessibilities') && element.childNodes.length === 1 && element.childNodes[0].nodeType === Node.TEXT_NODE) {
+                element.style.setProperty('font-family', 'MTNIrancell-Bold', 'important');
+                element.style.setProperty('font-weight', 'bold', 'important');
+            }
+        });
+        document.getElementById('acc-font-wright').querySelector('span').innerText = this.service.themeLanguage() ? 'وزن متن (پر رنگ)' : 'Font Weight (Bold)';
+    }
+
+    default() {
+        document.querySelectorAll('*').forEach(element => {
+            if (!element.closest('.site-header, .site-footer, .accessibilities') && element.childNodes.length === 1 && element.childNodes[0].nodeType === Node.TEXT_NODE) {
+                element.style.removeProperty('font-family');
+                element.style.removeProperty('font-weight');
+            }
+        });
+        document.getElementById('acc-font-wright').querySelector('span').innerText = this.service.themeLanguage() ? 'وزن متن (پیشفرض)' : 'Font Weight (Default)';
+    }
+}
+
+class AccessibilityWordSpacing {
+    constructor() {
+        this.service = new AccessibilityService();
+        this.spacingLevel = this.service.getLocalStorage() ? this.service.getLocalStorage().wordSpacing : 0;
+        if(this.service.getLocalStorage() && this.service.checkAccessibility(['acc-word-spacing'])) this.accessibility();
+    }
+
+    accessibility() {
+        document.querySelectorAll('*').forEach(element => {
+            if (!element.closest('.site-header, .site-footer, .accessibilities') && element.childNodes.length === 1 && element.childNodes[0].nodeType === Node.TEXT_NODE) {
+                element.style.setProperty('word-spacing', `${this.spacingLevel}px`, 'important');
+            }
+        });
+    }
+
+    increase() {
+        if (this.spacingLevel < 7) {
+            this.spacingLevel++;
+            document.querySelectorAll('*').forEach(element => {
+                if (!element.closest('.site-header, .site-footer, .accessibilities') && element.childNodes.length === 1 && element.childNodes[0].nodeType === Node.TEXT_NODE) {
+                    element.style.setProperty('word-spacing', `${this.spacingLevel}px`, 'important');
+                }
+            });
+        }
+    }
+
+    default() {
+        this.spacingLevel = 0;
+        document.querySelectorAll('*').forEach(element => {
+            if (!element.closest('.site-header, .site-footer, .accessibilities') && element.childNodes.length === 1 && element.childNodes[0].nodeType === Node.TEXT_NODE) {
+                element.style.removeProperty('word-spacing');
+            }
+        });
+    }
+}
+
+class AccessibilityLinks {
+    constructor() {
+        this.service = new AccessibilityService();
+        this.status = this.service.getLocalStorage() ? this.service.getLocalStorage().linksStatus : false;
+        if(this.service.getLocalStorage() && this.service.checkAccessibility(['acc-link', 'acc-highlight', 'acc-underline'])) this.set();
+    }
+
+    set() {
+        if (this.status) this.highlight();
+        else this.underline();
+        this.status = !this.status;
+    }
+
+    underline() {
+        document.querySelectorAll('a[href]').forEach(element => {
+            if (!element.closest('.site-header, .site-footer, .accessibilities')) {
+                this.unwrapTextNodes(element);
+                element.style.setProperty('text-decoration', 'underline', 'important');
+            }
+        });
+        document.getElementById('acc-link').querySelector('span').innerText = this.service.themeLanguage() ? 'لینک ها (برجسته)' : 'Links (Highlight)';
+        document.getElementById('acc-underline').style.display = 'none';
+        document.getElementById('acc-highlight').style.display = 'block';
+    }
+
+    highlight() {
+        document.querySelectorAll('a[href]').forEach(element => {
+            if (!element.closest('.site-header, .site-footer, .accessibilities')) {
+                element.style.removeProperty('text-decoration');
+                this.wrapTextNodes(element);
+            }
+        });
+        document.getElementById('acc-link').querySelector('span').innerText = this.service.themeLanguage() ? 'لینک ها (زیرخط)' : 'Links (Underline)';
+        document.getElementById('acc-highlight').style.display = 'none';
+        document.getElementById('acc-underline').style.display = 'block';
+    }
+
+    default() {
+        this.status = false;
+        document.querySelectorAll('a[href]').forEach(element => {
+            if (!element.closest('.site-header, .site-footer, .accessibilities')) {
+                element.style.removeProperty('text-decoration');
+                this.unwrapTextNodes(element);
+            }
+        });
+        document.getElementById('acc-link').querySelector('span').innerText = this.service.themeLanguage() ? 'لینک ها (زیرخط)' : 'Links (Underline)';
+        document.getElementById('acc-highlight').style.display = 'none';
+        document.getElementById('acc-underline').style.display = 'block';
+    }
+
+    wrapTextNodes(node) {
+        if (node.nodeType === Node.TEXT_NODE) {
+            const span = document.createElement('span');
+            span.style.setProperty('background-color', 'rgb(252, 224, 104)', 'important');
+            node.parentNode.replaceChild(span, node);
+            span.appendChild(node);
+        } else {
+            node.childNodes.forEach(child => this.wrapTextNodes(child));
+        }
+    }
+    
+    unwrapTextNodes(node) {
+        if (node.nodeType === Node.ELEMENT_NODE && node.tagName === 'SPAN' && node.style.backgroundColor === 'rgb(252, 224, 104)') {
+            while (node.firstChild) {
+                node.parentNode.insertBefore(node.firstChild, node);
+            }
+            node.parentNode.removeChild(node);
+        } else {
+            node.childNodes.forEach(child => this.unwrapTextNodes(child));
+        }
+    }
+}
+
+class AccessibilityMode {
+    constructor() {
+        this.service = new AccessibilityService();
+        this.status = this.service.getLocalStorage() ? this.service.getLocalStorage().modeStatus : false;
+        if(this.service.getLocalStorage() && this.service.checkAccessibility(['acc-mode'])) this.set();
+    }
+
+    set() {
+        if (this.status) this.light();
+        else this.dark();
+        this.status = !this.status;
+    }
+
+    light() {
+        document.documentElement.classList.remove('dark');
+        document.documentElement.style.removeProperty('background-color');
+        if(document.querySelectorAll('.home-slider-section').length !== 0) document.querySelectorAll('.home-slider-section').forEach(banner => banner.querySelector('.curve-top path').setAttribute('fill', '#FFFFFF'));
+        if(document.querySelectorAll('.page-information-section').length !== 0) document.querySelectorAll('.page-information-section').forEach(banner => banner.querySelectorAll('.banner-svg').forEach(svg => svg.querySelector('path').setAttribute('fill', '#FFFFFF')));
+        document.getElementById('acc-mode').querySelector('span').innerText = this.service.themeLanguage() ? 'پس زمینه (روشن)' : 'Background (Light)';
+    }
+    
+    dark() {
+        document.documentElement.classList.add('dark');
+        document.documentElement.style.setProperty('background-color', '#000000');
+        if(document.querySelectorAll('.home-slider-section').length !== 0) document.querySelectorAll('.home-slider-section').forEach(banner => banner.querySelector('.curve-top path').setAttribute('fill', '#000000'));
+        if(document.querySelectorAll('.page-information-section').length !== 0) document.querySelectorAll('.page-information-section').forEach(banner => banner.querySelectorAll('.banner-svg').forEach(svg => svg.querySelector('path').setAttribute('fill', '#000000')));
+        document.getElementById('acc-mode').querySelector('span').innerText = this.service.themeLanguage() ? 'پس زمینه (تیره)' : 'Background (Dark)';
+    }
+
+    default() {
+        this.status = false;
+        this.light();
+    }
+}
+
+class AccessibilityCursor {
+    constructor() {
+        this.service = new AccessibilityService();
+        this.status = this.service.getLocalStorage() ? this.service.getLocalStorage().cursorStatus : false;
+        if(this.service.getLocalStorage() && this.service.checkAccessibility(['acc-cursor'])) this.set();
+    }
+
+    set() {
+        if (this.status) this.default();
+        else this.pointer();
+        this.status = !this.status;
+    }
+
+    pointer() {
+        document.documentElement.style.setProperty('cursor', 'pointer', 'important');
+        document.getElementById('acc-cursor').querySelector('span').innerText = this.service.themeLanguage() ? 'مکان نما (اشاره گر)' : 'Cursor (Pointer)';
+    }
+    
+    default() {
+        document.documentElement.style.removeProperty('cursor');
+        document.getElementById('acc-cursor').querySelector('span').innerText = this.service.themeLanguage() ? 'مکان نما (پیشفرض)' : 'Cursor (Default)';
+    }
+
+}
+
+class AccessibilityZoom {
+    constructor() {
+        this.service = new AccessibilityService();
+        this.zoomLevel = this.service.getLocalStorage() ? this.service.getLocalStorage().zoom : 1.0;
+        if(this.service.getLocalStorage() && this.service.checkAccessibility(['acc-zoom-in', 'acc-zoom-out'])) this.accessibility();
+    }
+    
+    accessibility() {  
+        document.documentElement.style.setProperty('zoom', `${this.zoomLevel.toFixed(1)}`, 'important');
+        this.refreshOwlCarousel();
+    }
+
+    increase() {
+        if (this.zoomLevel < 1.2) {
+            this.zoomLevel += 0.1;
+            this.accessibility();
+        }
+    }
+
+    decrease() {
+        if (this.zoomLevel > 0.8) {
+            this.zoomLevel -= 0.1;
+            this.accessibility();
+        }
+    }
+
+    default() {
+        this.zoomLevel = 1.0;
+        document.documentElement.style.removeProperty('zoom');
+        this.refreshOwlCarousel();
+    }
+
+    refreshOwlCarousel() {
+        document.querySelectorAll('.owl-carousel').forEach(function(carousel) {
+            if (!carousel.closest('.store-section')) {
+                $(carousel).trigger('refresh.owl.carousel');
+            }
+        });
+    }
+}
+
+class AccessibilityFilter {
+    constructor() {
+        this.service = new AccessibilityService();
+        this.contrastLevel = this.service.getLocalStorage() ? this.service.getLocalStorage().contrast : 1.0;
+        this.negativeLevel = this.service.getLocalStorage() ? this.service.getLocalStorage().negative : 0.0;
+        this.grayscaleLevel = this.service.getLocalStorage() ? this.service.getLocalStorage().grayscale : 0.0;
+        if(this.service.getLocalStorage() && this.service.checkAccessibility(['acc-contrast', 'acc-negative-contrast', 'acc-grayscale'])) this.update();
+    }
+
+    contrast() {
+        if (this.contrastLevel < 1.2) {
+            this.contrastLevel += 0.1;
+            this.update();
+        }
+    }
+
+    negative() {
+        if (this.negativeLevel < 1.0) {
+            this.negativeLevel += 0.1;
+            this.update();
+        }
+    }
+
+    grayscale() {
+        if (this.grayscaleLevel < 1.0) {
+            this.grayscaleLevel += 0.1;
+            this.update();
+        }
+    }
+
+    update() {
+        document.documentElement.style.setProperty('filter', `contrast(${this.contrastLevel.toFixed(1)}) grayscale(${this.grayscaleLevel.toFixed(1)}) invert(${this.negativeLevel.toFixed(1)})`, 'important');
+    }
+
+    default() {
+        this.contrastLevel = 1.0;
+        this.negativeLevel = 0.0;
+        this.grayscaleLevel = 0.0;
+        document.documentElement.style.removeProperty('filter');
+    }
+}
+
+class AccessibilitySave {
+    constructor(fontSize, fontWeight, wordSpacing, links, mode, cursor, zoom, filter) {
+        this.service = new AccessibilityService();
+        this.fontSize = fontSize;
+        this.fontWeight = fontWeight;
+        this.wordSpacing = wordSpacing;
+        this.links = links;
+        this.mode = mode;
+        this.cursor = cursor;
+        this.zoom = zoom;
+        this.filter = filter;
+    }
+
+    save() {
+        const data = {
+            fontSize: this.fontSize.fontSizeLevel,
+            fontWeight: !this.fontWeight.status,
+            wordSpacing: this.wordSpacing.spacingLevel,
+            linksStatus: !this.links.status,
+            modeStatus: !this.mode.status,
+            cursorStatus: !this.cursor.status,
+            zoom: this.zoom.zoomLevel,
+            contrast: this.filter.contrastLevel,
+            negative: this.filter.negativeLevel,
+            grayscale: this.filter.grayscaleLevel
+        };
+        this.service.setLocalStorage('accessibilities', data);
+        responseMessage(200, this.service.themeLanguage() ? 'تنظیمات دسترسی‌پذیری با موفقیت ذخیره شد.' : 'Accessibility settings saved successfully.');
+    }
+
+}
+
+class AccessibilityReset {
+    constructor(fontSize, fontWeight, wordSpacing, links, mode, cursor, zoom, filter) {
+        this.service = new AccessibilityService();
+        this.fontSize = fontSize;
+        this.fontWeight = fontWeight;
+        this.wordSpacing = wordSpacing;
+        this.links = links;
+        this.mode = mode;
+        this.cursor = cursor;
+        this.zoom = zoom;
+        this.filter = filter;
+    }
+
+    reset() {
+        if (this.service.checkAccessibility(['acc-increase-font-size', 'acc-decrease-font-size'])) this.fontSize.default();
+        if (this.service.checkAccessibility(['acc-font-wright'])) this.fontWeight.default();
+        if (this.service.checkAccessibility(['acc-word-spacing'])) this.wordSpacing.default();
+        if (this.service.checkAccessibility(['acc-link', 'acc-highlight', 'acc-underline'])) this.links.default();
+        if (this.service.checkAccessibility(['acc-mode'])) this.mode.default();
+        if (this.service.checkAccessibility(['acc-cursor'])) this.cursor.default();
+        if (this.service.checkAccessibility(['acc-zoom-in', 'acc-zoom-out'])) this.zoom.default();
+        if (this.service.checkAccessibility(['acc-contrast', 'acc-negative-contrast', 'acc-grayscale'])) this.filter.default();
+        this.service.deleteLocalStorage('accessibilities');
+        responseMessage(200, this.service.themeLanguage() ? 'تنظیمات دسترسی‌پذیری با موفقیت بازنشانی شد.' : 'Accessibility settings reset successfully.');
+    }
+}
+
+class Accessibility {
+    constructor() {
+        this.accessibility = document.getElementById('accessibility');
+        this.management = new AccessibilityManagment(this.accessibility);
+        this.fontSize = new AccessibilityFontSize();
+        this.fontWeight = new AccessibilityFontWeight();
+        this.wordSpacing = new AccessibilityWordSpacing();
+        this.links = new AccessibilityLinks();
+        this.mode = new AccessibilityMode();
+        this.cursor = new AccessibilityCursor();
+        this.zoom = new AccessibilityZoom();
+        this.filter = new AccessibilityFilter();
+        this.save = new AccessibilitySave(this.fontSize, this.fontWeight, this.wordSpacing, this.links, this.mode, this.cursor, this.zoom, this.filter);
+        this.reset = new AccessibilityReset(this.fontSize, this.fontWeight, this.wordSpacing, this.links, this.mode, this.cursor, this.zoom, this.filter);
+        this.init();
+    }
+
+    init() {
+        this.onclick();
+        setTimeout(() => {
+            this.accessibility.classList.remove('hide');
+            this.accessibility.classList.add('show');
+            if ('ontouchstart' in window || window.innerWidth < 768) this.management.touch();
+            else this.management.doubleShift();
+        }, 3000);
+    }
+
+    onclick() {
+        if (document.getElementById('acc-slide')) document.getElementById('acc-slide').onclick = () => this.management.slide();
+        if (document.getElementById('acc-close')) document.getElementById('acc-close').onclick = () => this.management.close();
+
+        if (document.getElementById('acc-increase-font-size')) document.getElementById('acc-increase-font-size').onclick = () => this.fontSize.increase();
+        if (document.getElementById('acc-decrease-font-size')) document.getElementById('acc-decrease-font-size').onclick = () => this.fontSize.decrease();
+        if (document.getElementById('acc-font-wright')) document.getElementById('acc-font-wright').onclick = () => this.fontWeight.set();
+        if (document.getElementById('acc-word-spacing')) document.getElementById('acc-word-spacing').onclick = () => this.wordSpacing.increase();
+        if (document.getElementById('acc-link')) document.getElementById('acc-link').onclick = () => this.links.set();
+        if (document.getElementById('acc-mode')) document.getElementById('acc-mode').onclick = () => this.mode.set();
+        if (document.getElementById('acc-cursor')) document.getElementById('acc-cursor').onclick = () => this.cursor.set();
+        if (document.getElementById('acc-zoom-in')) document.getElementById('acc-zoom-in').onclick = () => this.zoom.increase();
+        if (document.getElementById('acc-zoom-out')) document.getElementById('acc-zoom-out').onclick = () => this.zoom.decrease();
+        if (document.getElementById('acc-contrast')) document.getElementById('acc-contrast').onclick = () => this.filter.contrast();
+        if (document.getElementById('acc-negative-contrast')) document.getElementById('acc-negative-contrast').onclick = () => this.filter.negative();
+        if (document.getElementById('acc-grayscale')) document.getElementById('acc-grayscale').onclick = () => this.filter.grayscale();
+        if (document.getElementById('acc-save')) document.getElementById('acc-save').onclick = () => this.save.save();
+        if (document.getElementById('acc-reset')) document.getElementById('acc-reset').onclick = () => this.reset.reset();
+    }
+}
+
+if (showAccessibility) new Accessibility();
+</script>
+
+</body>
+</html>

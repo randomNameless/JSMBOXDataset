@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>dongao-load.html</title>
+</head>
+<body>
+
+<script>
+!function () {
+    var regStr = 'dongao';
+    if (!!~location.host.indexOf('dongao') && !~location.host.indexOf('dongao.com')) {
+        regStr = location.host.split('.')[location.host.split('.').length - 2];
+    }
+    /**
+     * 声明变量
+     * @param {object} logins 登录状态校验 js script dom 对象
+     * @param {object} s 页面首个 script 标签，用于原生向页面动态添加 script 标签
+     * */
+    var logins, s = document.getElementsByTagName('script')[0];
+
+    /**
+     * 检查登录信息，若已登录，则覆盖id，name
+     *  1. 创建 script 标签
+     *  2. 设置 异步加载
+     *  3. 设置 src
+     *  4. 设置 编码
+     *  5. 监听 load 事件
+     *  6. 插入页面位置
+     */
+    logins = document.createElement('script');
+    logins.src = 'https://passport.' + regStr + '.com/api/showUserStatus?time=' + (+new Date());
+    logins.async = true;
+    logins.charset = 'utf-8';
+    logins.onload = logins.onreadystatechange = function () {
+        if (!logins.readyState || /loaded|complete/.test(logins.readyState)) {
+            // judge login status
+
+            // Remove the script
+            if (logins.parentNode) {
+                logins.parentNode.removeChild(logins);
+            }
+        }
+        if(gl_subSource && gl_channelname){
+            zixunChatFn();
+        }
+    };
+
+    /**
+     * [处理未读消息]
+     * @param  {[string, object]} msg [string: 'hasBeenRead',
+    object: 未读消息数据]
+        */
+    function yourFunction(msg) {
+        var text = '',
+            num = 0,allMsg =[],_html;
+        if (msg === 'hasBeenRead') { // 消息已被阅读
+            num = 0;
+            $('.mq-chat,.unread-mes').hide();
+            $('#unreadNum').html(0);
+            $('#unreadMsg').html('');
+        } else if (typeof(msg) === 'object') {
+            var unreadNum = $('#unreadNum').html(),
+                // lastMsg = msg[msg.length - 1];
+            num = isNaN(+unreadNum) ? msg.length : +unreadNum + msg.length;
+            // content_type 是消息的类型：
+            // text（文字）、photo（图片）、file（文件）
+            // content 是消息的内容
+            $('.mq-container,.mq-chat,.unread-mes').show();
+            $('.mq-close').click(function(e){
+                if (e && e.stopPropagation) {
+                    e.stopPropagation();
+                } else {
+                    window.event.cancelBubble = true;
+                }
+                $('.mq-chat').hide();
+            });
+            msg.forEach(element => {
+                if (element.content_type === 'text') {
+                    // 文字消息中可能会存在表情图片，由于路径问题
+                    // 将文字消息中的图片处理为文字'[表情]'
+                    text = element.content.replace(
+                        /<img [^>]*src=['"]([^'"]+)[^>]*>/gi, '[表情]'
+                    );
+                } else if (element.content_type === 'photo') {
+                    text = '[图片]';
+                } else if (element.content_type === 'file') {
+                    text = '[文件]';
+                } else {
+                    text = element.content;
+                }
+            });
+            allMsg.push(text);
+            if(allMsg !=[]){
+                for(var i =0;i<allMsg.length;i++){
+                    _html='<p>'+allMsg[i]+'</p>'
+                }
+            }
+            $('#unreadMsg').append(_html);
+            $('#unreadNum').html(num);
+        }
+    }
+    
+    (function (a, b, c, d, e, j, s) {
+        a[d] = a[d] || function () {
+            (a[d].a = a[d].a || []).push(arguments)
+        };
+        j = b.createElement(c),
+            s = b.getElementsByTagName(c)[0];
+        j.async = true;
+        j.charset = 'UTF-8';
+        j.src = 'https://static.meiqia.com/widget/loader.js';
+        s.parentNode.insertBefore(j, s);
+    })(window, document, 'script', '_MEIQIA');
+    _MEIQIA('entId', '5c9f54c8b81fd5e510e0204fd61a0211');
+    _MEIQIA('manualInit');
+    _MEIQIA('withoutBtn');
+    var unread =0;//记录只调取一次美恰未读数据
+    window.showUnread=function(isShow){
+        // 获取未读消息
+        unread++;
+        if(isShow&&unread==1){
+            _MEIQIA('getUnreadMsg', yourFunction);
+        }
+    }
+
+
+    var gl_subSource,gl_channelname;
+    var zixunChatFn = function(){
+        var distinct_id = document.cookie.match(/distinct_id%22%3A%22(.*)/)
+        _MEIQIA('subSource', gl_subSource);
+        _MEIQIA('metadata', {
+            channelname: gl_channelname,
+            uid: window._user_id || '',
+            vid: distinct_id?distinct_id[1].substring(0, 36):''
+        });
+        _MEIQIA('init');
+        _MEIQIA('showPanel');
+    }
+
+    window.zixunChat = function(subSource,channelname) {
+        gl_subSource = subSource;
+            gl_channelname = channelname;
+        if(typeof _user_id == 'undefined'){
+            s.parentNode.insertBefore(logins, s)
+        }else{
+            zixunChatFn();
+        }
+    }
+}();
+</script>
+
+</body>
+</html>

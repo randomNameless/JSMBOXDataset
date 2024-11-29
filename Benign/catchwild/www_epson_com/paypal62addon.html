@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>paypal62addon.html</title>
+</head>
+<body>
+
+<script>
+/*
+ * [y] hybris Platform
+ *
+ * Copyright (c) 2000-2016 SAP SE or an SAP affiliate company.
+ * All rights reserved.
+ *
+ * This software is the confidential and proprietary information of SAP
+ * ("Confidential Information"). You shall not disclose such Confidential
+ * Information and shall use it only in accordance with the terms of the
+ * license agreement you entered into with SAP.
+ */
+$(function() {
+    if (window.opener != null && window.opener.PAYPAL != undefined){
+        window.opener.location = window.location;
+        window.opener.PAYPAL.apps.Checkout.closeFlow();
+    }
+    // paymentMethod();
+    // $('[name=paymentMethodSelection]').change(function() {
+    //     paymentMethod();
+    // });
+    if ($('#whatIsPayPalLink>a').length > 0){
+        $('#whatIsPayPalLink>a').on('click', function(){
+            newwindow=window.open($(this).attr('href'),'','height=768,width=1280,menubar=no,status=no');
+            if (window.focus) {newwindow.focus()}
+            return false;
+        });
+    }
+
+    /*$('.paypal-button-logo').on("click", function() {
+        var msgdiv = $('.js-pp-creditmessage iFrame');
+        if(msgdiv.length > 0 && msgdiv.contents().height() == 0)
+            loadCreditMsgSdk();
+    });*/
+
+    if($('.js-paypalcredit-sdk').length>0){
+        loadCreditMsgSdk();
+        if($('.js-pp-creditmessage').length>0 ){
+            var ppdivs = $('.js-pp-creditmessage');
+            var waitForSdk = setInterval(function () {
+            if((typeof paypal !== "undefined" && typeof paypal.Messages !== "undefined") || (typeof paypal2 !== "undefined" && typeof paypal2.Messages !== "undefined")){
+                clearInterval(waitForSdk);
+                ppdivs.each(function(){
+                    var includePrice = $(this).data("include-price");
+                    var placement = $(this).data("placement") || "";
+                    var ppDiv = $(this);
+                    ppDiv.addClass("pp-message");
+                    if("product_tile" === placement){
+                        placement = "";
+                    }
+                    if($('.pp-credit-banner'+placement).length > 0){
+                        $('.pp-credit-banner'+placement).each(function () {
+                            var price = includePrice == true ? $(this).data("price") : "0";
+                            var removeMsg = $(this).data("remove-msg");
+                            if(removeMsg !== true){
+                                var clazz = "pp-message-"+Math.floor((Math.random() * 100) + 1);
+                                $(this).addClass(clazz);
+                                loadPPBanner(price, ppDiv, clazz);
+                            }
+                        });
+                        ppDiv.remove();
+                    }
+                    else if($('.pp-credit-remove').length > 0){
+                        ppDiv.remove();
+                    }
+                    else{
+                        loadPPBanner("0", ppDiv, "pp-message");
+                    }
+                });
+            }
+            }, 200);
+        }
+    }
+});
+
+function loadCreditMsgSdk(){
+    if($('.js-paypalcredit-sdk').length>0){
+        var src = $('.js-paypalcredit-sdk').data("sdk-src");
+        if ($('script[src="'+ src + '"]').length == 0) {
+             var tag = document.createElement("script");
+             tag.src = src;
+             if($('script[src="https://www.paypalobjects.com/api/checkout.js"]').length > 0 )
+                tag.setAttribute("data-namespace", "paypal2");
+             document.getElementsByTagName("body")[0].appendChild(tag);
+        }
+
+    }
+}
+
+function loadPPBanner(price, ppDiv, clazz){
+    var obj = typeof paypal2 !== "undefined" ? paypal2 : paypal;
+    if(typeof obj.Messages !== "undefined"){
+        var plment = ppDiv.data("pp-placement") == "product Tile" ? "product" : ppDiv.data("pp-placement");
+        var lyout = ppDiv.data("pp-style-layout") == "" ? 'text' : ppDiv.data("pp-style-layout");
+        var color = ppDiv.data("pp-style-color") == "" ? 'blue': ppDiv.data("pp-style-color");
+        var ratio = ppDiv.data("pp-style-ratio") == "" ? '20X1': ppDiv.data("pp-style-ratio");
+        var textColor = ppDiv.data("pp-style-text-color") == "" ? 'black': ppDiv.data("pp-style-text-color");
+        var logoType = ppDiv.data("pp-style-logo-type") == "" ? 'primary' : ppDiv.data("pp-style-logo-type");
+        var logoPosition = ppDiv.data("pp-style-logo-position") == "" ? 'left' : ppDiv.data("pp-style-logo-position");
+        obj.Messages({
+                    amount: price,
+                    placement: plment,
+                    style: {
+                        layout: lyout,
+                        color:color,
+                        ratio:ratio,
+                        text: {
+                            color: textColor
+                        },
+                        logo: {
+                            type: logoType,
+                            position: logoPosition
+                        }
+                    }
+        })
+        .render('.'+clazz);
+    }
+}
+
+function paymentMethod() {
+          // $(document).ready(function(){
+          //       if($("#checkoutContentPanelPayment").hasClass("paymentDone")){
+          //           $("#checkoutContentPanelPayment").hide();
+          //           $('.payWithCardSection').show();
+          //           $("#paypalTab").click();
+          //       }else{
+          //           $("#cardTab").click();
+          //           $('.payWithCardSection').hide();
+          //           $("#checkoutContentPanelPayment").show();
+          //       }
+          // });
+
+
+         //  $(".paywithcard").click(function(){
+         //         if ($(".paywithcard").hasClass("active")){
+         //            $('.payWithCardSection').hide();
+         //            $(".paywithcard").removeClass("active")
+         //         }
+         //         else{
+         //            $(".paywithcard").addClass("active")
+         //            $('.payWithCardSection').show();
+         //         }
+         // });
+}
+
+</script>
+
+</body>
+</html>

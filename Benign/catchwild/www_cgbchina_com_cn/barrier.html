@@ -1,0 +1,2995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>barrier.html</title>
+</head>
+<body>
+
+<script>
+var ua = window.navigator.userAgent.toLowerCase();
+var ieF = ua.indexOf('msie') > -1;    //是否为IE浏览器
+var chromeF = ua.indexOf('chrome') > -1;  //是否为谷歌浏览器
+var isEdge = ua.indexOf('edge') > -1;   //是否为Edge浏览器
+var isie11 = ua.indexOf('rv:11') > -1;   //ie11
+var addr = window.location.href;
+var isSearch = addr.indexOf('fullSearch.go') > -1;  //是否为搜索结果页
+// 放大缩小按钮不同状态图片 amplify-放大  shink-缩小   default-默认  active-已放大或缩小   unclick-不可点击
+var amplify_default="url('/static/CN2/images/common/free_amplify_default.png')";
+var amplify_active="url('/static/CN2/images/common/free_amplify_active.png')";
+var amplify_unclick="url('/static/CN2/images/common/free_amplify_unclick.png')";
+var shink_default="url('/static/CN2/images/common/free_shink_default.png')";
+var shink_active="url('/static/CN2/images/common/free_shink_active.png')";
+var shink_unclick="url('/static/CN2/images/common/free_shink_unclick.png')";
+var oldHtml='', helpHtml='', screenHtml='';
+var Barrier = {};
+var sourceArr = [[], [], [], []];   //连读文本   0-正常语速    1-快语速     2-慢语速    3-文本
+var helpArr = [[], [], [], []], navArr = [[], [], [], []], navAllArr = [[], [], [], []];    //helpArr-帮助说明    navArr-当前区域文本     navAllArr-智能导盲文本
+var navNum = 0, moduNum = 0, navAllNum = 0;    //tab键切换时的下标
+var speeds = ['&sp=10', '&sp=13', '&sp=7'];
+
+
+
+// 参数集
+var barStor = localStorage.getItem('barrier') && JSON.parse(localStorage.getItem('barrier')) || {};
+var PARAMETER = {
+  colorNum: 4,   //配色  0-白底黑字    1-蓝底黄字    2-黄底黑字    3-黑底黄字    4-正常
+  amplifyNum: 0,   //网页放大  0-正常     1-1.2    2-1.4    3-1.6     4-1.8      5-2.0
+  mouseF: false,   //大鼠标
+  assistF: false,    //辅助线
+  screenF: false,    //辅屏
+  voiceF: true,   //false-关闭    true-开启
+  modeNum: 0,     //语音模式  0-指读     1-连读
+  speedNum: 0,    //语速模式  0-正常    1-快速   2-慢速
+  voiceLineNum: 0,   //连读时的下标
+  voiceNavAllNum: 0,   //智能导盲的下标
+  helpIndex: 0,    //帮助说明的下标
+  fanti: false,    //繁体    false-简体    true-繁体
+  speed: 10,      //请求语音的参数   10-正常  13-快速    7-慢速
+  clickF: false,   //是否点击无障碍服务按钮  false-未点击   true-已点击
+  modulLen: 0,   //当前窗口含有的有效内容长度
+  modulNum: 0,   //当前窗口的初始长度
+  lineF: false,   //是否触发连读模式
+  mapF: false,   //网点地图是否打开
+  joinF: false,   //加入我的基金弹框是否打开
+  dateBegF: false,   //开始日期选择框是否打开
+  dateEndF: false,   //结束日期选择框是否打开
+  initF: true,   //刚进入页面，什么都没操作
+  initTabF: false,     //进入页面未使用tab键
+  navCode: 0,   //智能导盲是否按下alt键
+  URL: window.location.host.indexOf('cgbchina.com') > -1 ? 'ht'+'tp://www.'+'cgbchina.com.cn/tts/tts' : 'ht'+'tp://'+window.location.host+'/tts/tts',    //语音请求链接
+}
+var colorArr = [    //配色对应的色值和文字
+  {color: '#fff_#333_#1B00FF', title: '白底黑字蓝链接'},
+  {color: '#1B00FF_#FEFF00_#fff', title: '蓝底黄字白链接'},
+  {color: '#FEFECC_#333_#1B00FF', title: '黄底黑字蓝链接'},
+  {color: '#000_#FEFF00_#fff', title: '黑底黄字白链接'},
+  {color: 'default', title: '页面原始配色'}
+]
+var colorLinks = ['white.css', 'blue.css', 'white.css', 'black.css', 'white.css'];
+var topArr = [90, 75, 64, 56, 50, 45];   //IE浏览器放大时的padding值
+var botArr = [170, 141, 121, 106, 94, 85];   //浏览器放大底部值
+var zifu = ['(', ')', '、', '.', '-', '（', '）','!', '&', '*', ';', ',','/','。','：',':','?','？','<','《','>','》','，','\\','_','——','|','；', '·', '”','“', '！','---', '[', ']', '”。'];   // 特殊字符
+var imgPar = ['.sment_service_content .left', '.company_service_content', '.metal_service_list', '.integral_left', '.content_yhua', '.loginanq', '.service_view', '.pertool', '.featureULs', '.product_zx', '.webNet', '.ebankad', '.right_title_icon', '.price_top_title', '#carsq_right', '.kasq_ka .prev', '.kasq_ka .next', '.right_title p', '.left_title p', '.yh_kx', '.aq_and_qs', '.tool li div a'];   //不读取图片的父元素类名
+
+function freeClick(){
+  if($('.free_entrance').attr('data-mark') === 'mark'){
+    Barrier.addMark();
+    $('.free_entrance').removeAttr('data-mark');
+    return;
+  }
+  $('.free_entrance').toggleClass('active');
+  if ($('.barrier-free').length > 0) {
+    Barrier.close();
+  } else {
+    $('.free_entrance').attr('title', '关闭无障碍服务(Shift + W)');
+    $('.barrier-free').remove();
+    Barrier.addPlayer();
+    PARAMETER.clickF = true;
+    Barrier.play('欢迎使用广发银行官方网站语音播报等无障碍浏览服务，您可点击语音图标开启语音播报服务');
+    Barrier.barrierShow(PARAMETER.amplifyNum);  //显示无障碍浏览工具条
+    localStorage.setItem('freeFlag', '1');
+    if(Barrier.i >= sourceArr[0].length && Barrier.i !== 0) {Barrier.i = -1;}
+  }
+}
+$('.free_entrance').on('click', freeClick);  //点击无障碍辅助浏览
+// 显示辅助浏览工具
+function freeInit() {
+  var freeFlag = localStorage.getItem('freeFlag') ? localStorage.getItem('freeFlag') : '0';   //是否显示无障碍浏览工具
+  if (+freeFlag === 1) {
+    setTimeout(function(){   //考虑部分页面动态请求的情况
+      Barrier.init(); 
+    }, 500)
+  } else {
+    $('.barrier-free').remove();
+    $('.free_entrance').attr('title', '开启无障碍服务(Shift + O)').removeClass('active');
+  }
+}
+Barrier.i = 0;
+Barrier.init = function () {   //初始化工具栏
+  $('.barrier-free').remove();
+  $('.free_entrance').attr('title', '关闭无障碍服务(Shift + W)').addClass('active');
+  Barrier.addPlayer();
+  if(addr.indexOf('setbar=barrier')===-1) {Barrier.play('欢迎使用广发银行官方网站语音播报等无障碍浏览服务，您可点击语音图标开启语音播报服务');}
+  barStor && barStor.old ? Barrier.barrierShow(+barStor.old, barStor) : Barrier.barrierShow(0, barStor);
+}
+Barrier.addPlayer = function(){  //添加音频播放器
+  if($('.videoPlay').length === 0) {$('body').append('<audio style="width:0; height:0;"  name="videoPlay" type="audio/mpeg" class="videoPlay" src=""></audio>');}
+}
+Barrier.play = function(text, url){   //播放音频
+  text === '' ? $('.videoPlay').attr('src', url)
+  : $('.videoPlay').attr('src', PARAMETER.URL+'?txt='+easyUTF8(text)+'&sp='+PARAMETER.speed);
+  $('.videoPlay')[0].play();
+}
+var barTimer = null;
+Barrier.barVoice = function(){   //工具栏读屏
+  Barrier.addPlayer();
+  var oldTxt = '';
+  if(ua.indexOf('iphone') === -1 && ua.indexOf('android') === -1){
+    $('.barrier-free').bind('mouseover.barEnter', function(e){
+      var txt = $(e.target).attr('title') || $(e.target).parents().attr('title'); 
+      try {  
+        if(txt.indexOf('Shift') > -1) {txt = txt.slice(0, txt.length-11);}   //工具栏不读快捷键
+        if(txt.indexOf('F11') > -1) {txt = txt.slice(0, txt.length-5);}
+      } catch (error) {}
+      if(txt === '' || txt === oldTxt || txt === undefined) {return;}
+      clearTimeout(barTimer);
+      barTimer = setTimeout(function(){  //发送语音请求间隔为0.5s
+        $('.videoPlay')[0].removeEventListener('ended', navend);
+        oldTxt = txt;
+        Barrier.play(txt);
+      }, 500)
+    });
+    $('.barrier-free').on('mouseleave', '.navi_item', function(){
+      oldTxt = '';
+    });
+  } else {    //兼容移动端无障碍辅助浏览读屏
+    $('.barrier-free').bind('click.barclick', function(e){
+      var txt = $(e.target).attr('title') || $(e.target).parents().attr('title'); 
+      if(txt.indexOf('Shift') > -1) {txt = txt.slice(0, txt.length-11);}   //工具栏不读快捷键
+      if(txt.indexOf('F11') > -1) {txt = txt.slice(0, txt.length-5);}
+      if(txt === '' || txt === oldTxt || txt === undefined)  {return;}
+      clearTimeout(barTimer);
+      oldTxt = txt;
+      Barrier.play(txt);
+    });
+  }
+}
+Barrier.barrierShow = function(num, obj){    //显示工具栏
+  $('body a, input[type="text"], input, button, select, textarea, option, .bottom-bar, .bottom-bar *').attr('tabindex', '-1');
+  if(sourceArr[0].length > 0) {
+    var numB = +$('.free_entrance').attr('data-linenum');
+    Barrier.changeText(numB,sourceArr,'关闭无障碍服务');
+  }
+  var datas = {
+    name: 'langs',
+    data: ''
+  }
+  $.ajax({   //是否需要转成繁体字
+    url: '/jsp/include/CN2/common/getsession.jsp',
+    data: datas,
+    dataType: 'text',
+    type: 'post',
+    success: function (res) {
+      var olds = '';
+      if(res.trim() === 'fan'){
+        olds = Traditionalized(oldHtml);
+        PARAMETER.fanti = true;
+      } else {
+        olds = oldHtml;
+        PARAMETER.fanti = false;
+      }
+      if(!!ieF){
+        if (num >= 0 && num <= 5){
+          $('body').prepend(olds).css({'padding-top': topArr[num] + 'px', 'margin-top': ''});
+        } else {
+          $('body').prepend(olds).css({'padding-top': '90px', 'margin-top': ''});
+        }
+        $('body').css('margin-top','');
+        $('.barrier-free').css('zoom', '1');
+      } else {
+        $('body').before(olds).css({'margin-top': '90px', 'padding-top': ''});
+      }
+      if (obj) {
+        if (+obj.old > 0){  //网页放大
+          $('.shrink_btn .avator').css('background', shink_default);
+          PARAMETER.amplifyNum = +obj.old;
+          $('.amplify_btn .avator').css('background', amplify_default);
+          if(PARAMETER.amplifyNum >=5 ) {$('.amplify_btn .avator').css('background', amplify_unclick);}
+          Barrier.zoom(PARAMETER.amplifyNum);
+        }
+        if (+obj.help === 1) {Barrier.help();}   //帮助说明
+        if (obj.mode === 1) {Barrier.modeToggle(1, true);}   //连读模式
+        if (obj.speed) {Barrier.speedToggle(+obj.speed);}  //语速调节
+        if (obj.voice !== 0) {  //开启/关闭声音
+          Barrier.barVoice(); 
+          Barrier.voiceOpen();
+        } else {
+          PARAMETER.voiceF = false;
+          $('.voiceopen_btn').removeClass('active').attr('title', '当前语音已关闭，点击开启语音(Shift + R)');
+        }
+        if (+obj.screen === 1) {Barrier.screenShow();}  //辅屏
+        if (+obj.assist === 1) {   //辅助线
+          Barrier.assist();   
+          PARAMETER.assistF = true;
+        }
+        if (+obj.color >=0 && +obj.color < 4) {Barrier.colorChange(+obj.color);}    //网页配色
+        if (+obj.mouse === 1) {   //大鼠标
+          $('.mouse_btn').addClass('active');
+          $('.mouse_btn').attr('title', '当前已开启大鼠标，点击关闭大鼠标模式(Shift + 4)');
+          PARAMETER.mouseF = true;
+          Barrier.mouseChange();
+        }
+        if (obj.navigate === 1) { Barrier.navigate();}  //进入智能导盲
+      } else {
+        Barrier.barVoice(); 
+        Barrier.voiceOpen();
+      }
+      if(ua.indexOf('iphone') > -1 || ua.indexOf('android') > -1) {
+        Barrier.addMark();
+        Barrier.removeLinkMark();
+      }
+    },
+  });
+  
+}
+Barrier.addMark = function(){
+  $('body a, .option_list>div').each(function(i, e){
+      $(e).attr('data-mark', 'mark');
+  });
+}
+Barrier.removeLinkMark = function(){
+  $('body').on('click', function(e){
+    if(e.target.nodeName === 'A' && $(e.target).attr('data-mark') && !$(e.target).hasClass('free_entrance')){
+      Barrier.addMark();
+      $(e.target).removeAttr('data-mark');
+      return false;  
+    } else if($(e.target).parents('a').length && $(e.target).parents('a').attr('data-mark')){
+      Barrier.addMark();
+      $(e.target).parents('a').removeAttr('data-mark');
+      return false;
+    }
+  });
+}
+Barrier.setItem = function (name, value) {   // 本地存储
+  var obj = localStorage.getItem('barrier') ? JSON.parse(localStorage.getItem('barrier')) : {};
+  obj[name] = value;
+  localStorage.setItem('barrier', JSON.stringify(obj));
+}
+Barrier.back = function () {   //后退
+  window.history.go(-1);
+}
+Barrier.go = function () {   //前进
+  window.history.go(1);
+}
+Barrier.reset = function () {   //重置
+  localStorage.removeItem('barrier');
+  if(addr.indexOf('barrier') === -1){
+    addr = addr.indexOf('?')> -1 ? addr+'&setbar=barrier' : addr + '?setbar=barrier';  //不重复读欢迎语
+  }
+  isSearch ? window.location.reload() : window.location.replace(addr);
+}
+Barrier.fullScreen = function () {     //全屏
+  var fullFlag = document.fullscreen || document.mozFullScreen || document.webkitIsFullScreen || document.msFullscreenElement || window.fullScreen;    //是否为全屏状态
+  if(ieF){
+    alert('请按F11切换全屏');
+  } else {
+    if(!fullFlag){
+      var el = document.documentElement;
+      var rfs = el.requestFullscreen || el.webkitRequestFullScreen || el.mozRequestFullScreen || el.msRequestFullScreen;
+      if (typeof rfs !== 'undefined' && rfs) {rfs.call(el);}
+      return;
+    } else {
+      if (document.exitFullscreen) {document.exitFullscreen();}
+      else if (document.mozCancelFullScreen) {document.mozCancelFullScreen();}
+      else if (document.webkitCancelFullScreen) {document.webkitCancelFullScreen();}
+      else if (document.msExitFullscreen) {document.msExitFullscreen();}
+      if (typeof cfs != 'undefined' && cfs) {cfs.call(el);}
+    }
+  }
+}
+Barrier.amplify = function () {     //放大
+  Barrier.helpClose();
+  if (PARAMETER.amplifyNum === 5) {return; }  //已经是最大
+  $('.shrink_btn .avator').css('background', shink_default);
+  PARAMETER.amplifyNum++;
+  Barrier.setItem('old', PARAMETER.amplifyNum);
+  Barrier.zoom(PARAMETER.amplifyNum);
+}
+Barrier.shrink = function () {    //缩小
+  Barrier.helpClose();
+  if (PARAMETER.amplifyNum <= 0) {
+    PARAMETER.amplifyNum = 0
+    return;   //已经最小
+  }
+  $('.amplify_btn .avator').css('background', amplify_default);
+  PARAMETER.amplifyNum--;
+  Barrier.setItem('old', PARAMETER.amplifyNum);
+  if (PARAMETER.amplifyNum <= 0) {
+    $('.shrink_btn').on('mouseover', function(){
+      $('.shrink_btn .avator').css('background', shink_active);
+    }).on('mouseleave', function(){
+      $('.shrink_btn .avator').css('background', shink_unclick);
+    });
+    if (!!ieF) {
+      $('body').removeClass('old_ie1').removeClass('old1').css({'padding-top': '90px', 'margin-top': '0'});
+      $('.side_bar').removeClass('oldside1');
+    } else {
+      if($('body').hasClass('old_ie1')){
+        $('body').removeClass('old_ie1').css({'padding-top': '90px', 'margin-top': '0'});
+      } else {
+        $('body').removeClass('old1');
+      }
+    }
+    $('.screen_btn').hasClass('active') ? $('body').css('padding-bottom', '170px') : $('body').css('padding-bottom', '');
+  } else {
+    Barrier.zoom(PARAMETER.amplifyNum);
+  }
+}
+Barrier.zoom = function(num){   //放大缩小操作
+  var curNum = num * 2;
+  if ((!!ieF) || isie11) {
+    document.querySelector('body').className='old_ie'+num;
+    if($('.side_bar').length > 0) {document.querySelector('.side_bar').className='oldside'+ num +' side_bar';}
+    if($('.right_float').length > 0) {document.querySelector('.right_float').className='oldside'+ num +' right_float';}
+    if($('.code_wrapper').length > 0) {document.querySelector('.code_wrapper').className='oldside'+ num +' code_wrapper';}
+    $('body').css({'padding-top': topArr[num] + 'px', 'margin-top': ''});
+  } else {
+    $('body').attr('class', 'old'+num);
+  }
+  $('.screen_btn').hasClass('active') ? $('body').css('padding-bottom', botArr[num] + 'px') : $('body').css('padding-bottom', '');
+  if($('.mouse_btn').hasClass('active')) {Barrier.mouseChange();}
+  if (num > 1) {
+    var width = +$('body').width();
+    if (width === 1280) {width = 1263;}    //兼容公司旧电脑屏幕
+    var innerWidth = +$('.inner').eq(1).width() || +$('.mains').width() || +$('.toplogo').width() || +$('.comm_width').width();   //内容区的宽度
+    var dec = (width - innerWidth) / 2;
+    $('html').css({    //放大后的内容居左显示
+      'position': 'relative',
+      'left': (-(dec / width * (curNum/10 + 1)-0.02) * 100) + '%'
+    });
+  } else {
+    $('html').css({
+      'position': '',
+      'left': ''
+    });
+  }
+  if($('.assist_btn').hasClass('active')){   //兼容移动端查看辅助线的位置显示
+    $('.light_x').css('height',100*((PARAMETER.amplifyNum*2)/10+1)+'vh');
+    $('.light_y').css('width', 100*((PARAMETER.amplifyNum*2)/10+1)+'vw');
+  }
+  $('.amplify_btn').on('mouseover', function(){
+    $('.amplify_btn .avator').css('background', amplify_active);
+  }).on('mouseleave', function(){
+    num===5 ? $('.amplify_btn .avator').css('background', amplify_unclick)
+    : $('.amplify_btn .avator').css('background', amplify_default);
+  });
+  $('.shrink_btn').on('mouseover', function(){
+    $('.shrink_btn .avator').css('background', shink_active);
+  }).on('mouseleave', function(){
+    $('.shrink_btn .avator').css('background', shink_default);
+  });
+}
+Barrier.close = function () {     //关闭无障碍服务
+  $('.free_entrance').attr('title', '开启无障碍服务(Shift + O)');
+  $('.barrier-free').remove();
+  localStorage.setItem('freeFlag', '0');
+  localStorage.removeItem('barrier');
+  addr = addr.indexOf('setbar=barrier') > -1 ? addr.replace('setbar=barrier','') : addr;   //关闭时去掉标志
+  isSearch ? window.location.reload() : window.location.replace(addr);
+}
+Barrier.assist = function (flag) {    //辅助线
+  !flag && $('.assist_btn').toggleClass('active');
+  if ($('.assist_btn').hasClass('active') || flag) {
+    $('.assist_btn').attr('title', '当前已开启辅助线，点击关闭辅助线(Shift + 3)');
+    var lightHtml = '<div class="light"><div class="light_x"></div><div class="light_y"></div></div>';
+    if (ieF) {
+      $('body').append(lightHtml);
+      $('.light').css('zoom', '1');
+    } else {
+      $('body').before(lightHtml);
+    }
+    $('.light_x').css('height',100*((PARAMETER.amplifyNum*2)/10+1)+'vh' );
+    $('.light_y').css('width', 100*((PARAMETER.amplifyNum*2)/10+1)+'vw');
+    $('body, .help_wrapper').mousemove(function (e) {
+      if($(e.target).hasClass('screen_wrapper') || $(e.target).parents('.screen_wrapper').length > 0) {return;}
+      var x = e.clientX + 10;
+      var y = e.clientY + 10;
+      $('.light_x').css('left', x + 'px');
+      $('.light_y').css('top', y + 'px');
+    });
+    Barrier.setItem('assist', '1');
+    PARAMETER.assistF = true;
+  } else {
+    $('.assist_btn').attr('title', '当前辅助线已关闭，点击开启辅助线(Shift + 3)');
+    $('.light').remove();
+    Barrier.setItem('assist', '0');
+    PARAMETER.assistF = false;
+  }
+}
+Barrier.colorChange = function (num) {
+  var value;
+  if(num){
+    PARAMETER.colorNum = num;
+  } else {
+    PARAMETER.colorNum + 1 >= 5 ? PARAMETER.colorNum = 0 : ++PARAMETER.colorNum;
+  }
+  Barrier.setItem('color', PARAMETER.colorNum);
+  value = colorArr[PARAMETER.colorNum].color;
+  $('.color_btn').attr('title', '当前为'+colorArr[PARAMETER.colorNum].title+'，点击更改页面配色(Shift + 2)');
+  //更改鼠标颜色
+  if ($('.mouse_btn').hasClass('active')) {Barrier.mouseChange();}
+  //更改选中文字对应的颜色
+  Barrier.selectColor();
+  var colorName = ['color_btn default_ barrier_item', 'color_btn white_ barrier_item', 'color_btn blue_ barrier_item', 'color_btn yellow_ barrier_item', 'color_btn black_ barrier_item'];
+  $('.color_btn')[0].className = colorName[PARAMETER.colorNum+1];
+  if (PARAMETER.colorNum < 4) {
+    Barrier.colorSet(value, PARAMETER.colorNum);
+  } else {
+    if(addr.indexOf('barrier') === -1){
+      addr = addr.indexOf('?')> -1 ? addr+'&setbar=barrier' : addr + '?setbar=barrier';
+    }
+    $('.barrier-free').remove();
+    isSearch ? window.location.reload() : window.location.replace(addr);
+  }
+}
+Barrier.colorSet = function (value, num) {   //改变背景色及文字颜色 
+  var colors = value.split('_');
+  var bgc = colors[0];   //背景色
+  var spanc = colors[1];   //字体颜色
+  var alinkc = colors[2];  //链接颜色
+  if ($('.help_wrapper').length > 0){  //处理帮助说明颜色
+    var classArr = ['barrier_help white', 'barrier_help blue', 'barrier_help yellow', 'barrier_help', 'barrier_help'];
+    $('.barrier_help')[0].className = classArr[num];
+  }
+  // 将部分背景图片直接置成背景色
+  $('body, .footRight, .lanMu_off div, #ebankProductContainer, .ebankad_bottm, .leftHelp, .surveyBj, .plateContent, .leftNav, .financesNew, .nbList li, .foreginpic_bottm, .adRight_bottm, span.login, .search_acon, .bus_nav li, .rightCon, .footer_nav p, .leftClass, .leftMenu li a, .border .share, .cityBox a, .lanmukjbj, .contact, .toolTitle, .leftNav h3, .boxRight, .content, .promotionsBeij, #proList ul li, .fontthree, .leftMidbox, .downloadBox, .revision, .whole ul li, .hot_nav li, .personBox, .table td, #newAdnHotTag>div, .content_yhua li a, .rtab_table th, .button2Nonselected, .webNet a input, .surveyBut input, .tab3_bg.jrphb, .bgContainer, .creditcard_wytw, .mobileButoff, .fwzl .knbsp_bg, .fwzl .knbsp_bg2, .adright3 a, .bottom-bar, input[type="text"], #popupMask, .business ul li, .scrollbarNei, .moneyMain, .problemBj, .calculatorBj, .aboutList li, .aboutBox, .loginad .adright a, .main3 .tab3_bg, .brand_history .title_tab .controler').not('.pageInput').css({ 'background': bgc });   
+  // 更改单个元素背景色及字体颜色
+  $('body').find('section, div, dl, dt, dd, ul, li, span, p, font, b, em, h1, h2, h3, h4, th, tr, td, select, option, td input, input[type=button], input[type=reset], .new_market button').not('.pagination, .imgTitle, .libiao_font, .toolTitle span, .fpNav, .netbank ul, .netbank li, .seledted .title, .nonseledted .title, .other_business, .other_business ul, .other_business li, .other_business li div, #nav, .box_title, .entrance, .entrance h2, input.search_btn, .share h2, .tab .nonseledted .end, #ratecontent .main,  #ratecontent .main p, div.controler, .tab_m2, .flex-control-nav li, .lineLeft>div, #popupContainer, #popupContainer *, #slideshow .btns *, .adImg, .js, .jsNav, .main, .aboutList, .aboutList li, #adDivCont>div, #adDivWebIdxUl, #adDivWebIdxUl li, .lmtx1t .lmtx1t_e, .xfmain, .xfmain *, .screen_wrapper, .screen_wrapper *, .help_wrapper, .barrier-free, .barrier-free *, .light, .light *, .nbsp, .select span, #slideshow, #slideshow *, .code_wrapper span, .rpleft *, .float_bg span, .wechat-qrcode, .wechat-qrcode .qrcode').css({
+    'background-color': bgc,
+    'color': spanc
+  });
+  // 对输入框做特殊处理
+  $('.search_wrapper .serch_text, .detail_top .jiantou').css({
+    'background': 'transparent',
+    'background-color': 'transparent',
+  });
+  $('body input, div.controler, .xfmain *, .rpleft *').css({ 'color': spanc });
+  // 更改链接的颜色
+  $('body a').css({'color': alinkc});
+  $('body a').children().css({'color': alinkc});
+  $('body a').not('.banner a, .imgTitle a, .libiao_font a, .toolTitle a, .free_entrance, .ftitle .more, .other_business .box a, .Shopping_title a, .financesQie li a, .float_bg a, .new_banner a, .flex-control-nav li a, #slideshow a, .personBox a, .vodplayTitle a').css({'background-color': bgc});
+
+  // 处理不同背景色下的图片显示
+  if (num === 1 || num === 3){
+    // logo图片
+    $('h1 a img, .toplogo a img').attr('src', '/static/pchome/svg/LOGO_CGB_black.png');
+    $('.comm_width .header .logos').attr('src', '/static/CN2/images/bingoPC/logo_black.png');
+    $('.mains .logo img').attr('src', '/static/CN2/images/creditcard2019/logo_black.png');
+    // tab栏切换的背景图片
+    $('.huankuanQie ul li, .dengluqie span, .nonseledted, .tab_nav li span, .fpNav li, .financesQie li, #myTab li, .price_top_title span, .tab>div, .tab .seledted .general, .nonseledted .general, .tab_m1off, .tab_m1on, .share h2 span, .wrap h2 span, #login p a, .collegeQie ul li, .jsunone, .metalTop li a').css('background', bgc);
+    $('.header .search_wrapper .search_btn, #header .search_wrapper .search_btn').css('background-image', 'url("/static/pchome/svg/search_black.png")');
+    $('.adv .adv_list, #side_bar.side_bar, .foot_nav_item').addClass('bar_yellow');     //新首页广告栏侧边栏及底部配色
+  } else {
+    $('h1 a img, .toplogo a img').attr('src', '/static/pchome/svg/LOGO_CGB.png');
+    $('.comm_width .header .logos').attr('src', '/static/CN2/images/bingoPC/logo.png');
+    $('.mains .logo img').attr('src', '/static/CN2/images/creditcard2019/logo.png');
+    $('.huankuanQie ul li, .dengluqie span, .nonseledted, .tab_nav li span, .fpNav li, .financesQie li, #myTab li, .price_top_title span, .tab>div, .tab .seledted .general, .nonseledted .general, .tab_m1off, .tab_m1on, .share h2 span, .wrap h2 span, #login p a, .collegeQie ul li').css('background', '');
+    $('.header .search_wrapper .search_btn, #header .search_wrapper .search_btn').css('background-image', '');
+    $('.adv .adv_list, #side_bar.side_bar, .foot_nav_item').removeClass('bar_yellow');
+  }
+}
+Barrier.mouse = function () {    //显示鼠标选项
+  $('.mouse_btn').toggleClass('active');
+  if ($('.mouse_btn').hasClass('active')) {
+    Barrier.setItem('mouse', '1');
+    $('.mouse_btn').attr('title', '当前已开启大鼠标，点击关闭大鼠标模式(Shift + 4)');
+    Barrier.mouseChange();
+    PARAMETER.mouseF = true;
+  } else {
+    Barrier.setItem('mouse', '0');
+    PARAMETER.mouseF = false;
+    $('.mouse_btn').attr('title', '当前大鼠标已关闭，点击开启大鼠标模式(Shift + 4)');
+    Barrier.clearMouse();
+  }
+}
+Barrier.mouseChange = function(){ //大鼠标颜色切换
+  if (PARAMETER.colorNum === 1 || PARAMETER.colorNum === 3){
+    (!!ieF) || (!!isEdge) 
+    ? $('body').addClass('mouse_black_ie').removeClass('mouse_default_ie')
+    : $('body, .help_wrapper').addClass('mouse_black').removeClass('mouse_default');
+  } else {
+    (!!ieF) || (!!isEdge)
+    ? $('body').addClass('mouse_default_ie').removeClass('mouse_black_ie')
+    : $('body, .help_wrapper').addClass('mouse_default').removeClass('mouse_black');
+  }
+}
+Barrier.clearMouse = function(){  //清除大鼠标
+  (!!ieF) || (!!isEdge)
+  ? $('body').removeClass('mouse_default_ie').removeClass('mouse_black_ie') 
+  : $('body, .help_wrapper').removeClass('mouse_default').removeClass('mouse_black');
+}
+Barrier.helpClose = function(){   //关闭帮助说明
+  if ($('.help_wrapper').length === 0) {return;}
+  $('.help_btn').removeClass('active');
+  $('.help_wrapper').remove();
+  $('body').css('overflow', '');
+  $('.help_btn').attr('title', '开启帮助说明(Shift + P)');
+  Barrier.setItem('help', '0');
+  $('.videoPlay')[0].removeEventListener('ended', helpEnded);
+  if(PARAMETER.voiceF && PARAMETER.modeNum === 1) {Barrier.voiceLine();}
+}
+Barrier.help = function(){   //帮助说明
+  if (!$('.help_wrapper').length > 0){
+    $('.help_btn').addClass('active');
+    var datas = {
+      name: 'langs',
+      data: ''
+    }
+    $.ajax({   //帮助说明是否要转成繁体
+      url: '/jsp/include/CN2/common/getsession.jsp',
+      data: datas,
+      dataType: 'text',
+      type: 'post',
+      success: function (res) {
+        var htmls = res.trim() === 'fan' ? Traditionalized(helpHtml) : helpHtml;
+        ieF ? $('body').append(htmls).css('overflow', 'hidden')
+        : $('body').after(htmls).css('overflow', 'hidden');
+        $('.help_btn').attr('title', '关闭帮助说明(Shift + P)');
+        if($('.mouse_btn').hasClass('active')) {Barrier.mouseChange();}
+        if($('.color_btn').hasClass('active')){  //帮助说明字体及背景色设置
+          var classArr = ['barrier_help white', 'barrier_help blue', 'barrier_help yellow', 'barrier_help', 'barrier_help'];
+          $('.barrier_help')[0].className = classArr[PARAMETER.colorNum];
+        }
+        if(!ieF) {   //非IE浏览器辅助线及辅屏的显示
+          $('.assist_btn').hasClass('active') && $('.help_wrapper').mousemove(function (e) {
+            var x = e.clientX + 10;
+            var y = e.clientY + 10;
+            $('.light_x').css('left', x + 'px');
+            $('.light_y').css('top', y + 'px');
+          });
+          $('.screen_btn').hasClass('active') && $('.help_wrapper').on('mouseover', function(e){
+            Barrier.bodyMouseOver(e.target);
+            Barrier.textUp(Barrier.screenText);    //辅屏字体大小
+            ($('.languages .fan').length > 0 && $('.languages .fan').hasClass('active')) || ($('.languages .fan').length === 0 && PARAMETER.fanti === true) ? $('.screen_box').text(Traditionalized(Barrier.screenText)) : $('.screen_box').text(Barrier.screenText);
+          });
+        }
+        if(PARAMETER.voiceF){
+          $('.videoPlay')[0].removeEventListener('ended', voiceEnded);
+          if($('.voicemode_btn').hasClass('mline')) {    //连读模式
+            Barrier.helpLine();
+          } else {
+            $('.free_content').unbind('mouseover.helphover');
+            $('.free_content').unbind('mouseover.helpend');
+            $('.videoPlay')[0].removeEventListener('ended', helpEnded);
+            Barrier.voicePoint();
+          }
+        }
+        Barrier.helpHeight();
+        Barrier.setItem('help', '1');
+      }
+    });
+  } else {
+    Barrier.helpClose();
+  }
+}
+Barrier.storText = function(text, arr){   //存储不同语速的内容
+  $.each(speeds, function(i, item){
+    arr[i].push(PARAMETER.URL+'?txt='+easyUTF8(text)+item);
+  });
+  arr[3].push(text);
+}
+Barrier.changeText = function(index, arr, text){   //内容发生变化时改变不同语速的内容
+  $.each(speeds, function(i, item){
+    arr[i][index] = PARAMETER.URL+'?txt='+easyUTF8(text)+item
+  });
+  arr[3][index] = text;
+}
+Barrier.helpLine = function(){  //帮助说明连读模式
+  var helpnum = 0;
+  helpArr = [[], [], [], []];
+  $('.free_content *').each(function(i, ele){
+    if($(ele)[0].children.length < 1){
+      var text = $(ele).text();
+      if(text === '') {return;}
+      Barrier.storText(text, helpArr);
+      $(ele).attr('data-helpnum', helpnum);
+      $(ele).addClass('helpnum'+helpnum);
+      helpnum++;
+    }
+  });
+  $('.free_content').bind('mouseover.helphover', function(e){
+    $('.free_content').unbind('mouseover.helpend');
+    helpOver(e);
+  });
+}
+Barrier.selectRange = function(dom){   //自动选中内容
+  if(!ieF){
+    var range = document.createRange();
+    range.selectNodeContents(dom);
+    var selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+  } else {
+    var range1 = document.body.createTextRange();
+    range1.moveToElementText(dom);
+    document.selection.empty();
+    range1.select();
+  }
+}
+Barrier.clearSelectRange = function(){   //清除自动选中的内容
+  try {
+    window.getSelection() ? window.getSelection().removeAllRanges() : document.selection.empty();
+  } catch (error) {}
+}
+var helpTimer = null, helpEndTimer = null;
+function helpOver(e){   //连读模式下鼠标移入帮助说明内容
+  if($(e.target).attr('data-helpnum') === undefined) {return;}
+  PARAMETER.helpIndex = +$(e.target).attr('data-helpnum');
+  clearTimeout(helpTimer);
+  helpTimer = setTimeout(function(){
+    if(!ieF){
+      var range = document.createRange();
+      range.selectNodeContents(e.target);
+      var selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+    } else {
+      var range1 = document.body.createTextRange();
+      range1.moveToElementText(e.target);
+      document.selection.empty();
+      range1.select();
+    }
+    var srcUrl = helpArr[PARAMETER.speedNum][PARAMETER.helpIndex];
+    Barrier.play('', srcUrl);
+    $('.videoPlay')[0].addEventListener('ended', helpEnded);
+  },500)
+}
+function helpEnded(){   //连读模式读完一项内容后的处理
+  $('.free_content').unbind('mouseover.helphover');
+  PARAMETER.helpIndex++;
+  if (PARAMETER.helpIndex >= helpArr[0].length) {
+    $('.free_content').unbind('mouseover.helphover');
+    $('.free_content').bind('mouseover.helphover', function(e){
+      $('.free_content').unbind('mouseover.helpend');
+      helpOver(e);
+    });
+    return;
+  }
+  var srcUrl = helpArr[PARAMETER.speedNum][PARAMETER.helpIndex];
+  var range = '', selection = '', range1 = '';
+  if(!ieF){   //文字自动选择
+    range = document.createRange();
+    selection = window.getSelection();
+  } else {
+    range1 = document.body.createTextRange();
+  }
+  $('.free_content').bind('mouseover.helpend', function(e){
+    if($(e.target).attr('data-helpnum') === undefined) {return;}
+    clearTimeout(helpEndTimer);
+    helpEndTimer = setTimeout(function(){  //发送语音请求时间间隔为0.5s
+      PARAMETER.helpIndex = +$(e.target).attr('data-helpnum')-1;
+      if(!ieF){
+        range.selectNodeContents(e.target);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      } else {
+        try {
+          range1.moveToElementText(e.target);
+          document.selection.empty();
+          range1.select();
+        } catch (error) {}
+      }
+    }, 500)
+  })
+  if(!ieF){
+    range.selectNodeContents($('.helpnum'+PARAMETER.helpIndex)[0]);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  } else {
+    try {
+      range1.moveToElementText($('.helpnum'+PARAMETER.helpIndex)[0]);
+      document.selection.empty();
+      range1.select();
+    } catch (error) {}
+  }
+  Barrier.play('', srcUrl);
+  if($('.screen_btn').hasClass('active')){
+    Barrier.textUp(helpArr[3][PARAMETER.helpIndex]);
+    ($('.languages .fan').length > 0 && $('.languages .fan').hasClass('active')) || ($('.languages .fan').length === 0 && PARAMETER.fanti === true) ? $('.screen_box').text(Traditionalized(helpArr[3][PARAMETER.helpIndex])) : $('.screen_box').text(helpArr[3][PARAMETER.helpIndex]);
+  }
+}
+Barrier.helpHeight = function(){   //帮助中心高度自动调整
+  var heightVal = '', padVal = '';
+  if ($(document).scrollTop() > 90){
+    heightVal = $('.screen_btn').hasClass('active') ? 'calc(100vh - 325px)' : 'calc(100vh - 165px)';
+    padVal = '40px';
+  } else {
+    heightVal = $('.screen_btn').hasClass('active') ? 'calc(100vh - 415px)' : '';
+  }
+  $('.help_wrapper').css('padding-top', padVal);
+  $('.barrier_help').css('height', heightVal);
+}
+Barrier.screenShow = function(flag){     //辅屏
+  if ($('.screen_wrapper').length > 0){
+    Barrier.screenClose();
+  } else {
+    PARAMETER.screenF = true;
+    $('.screen_btn').addClass('active');
+    Barrier.selectColor();
+    $('.screen_btn').attr('title', '当前已开启辅屏，点击关闭辅屏(Shift + M)');
+    var datas = {
+      name: 'langs',
+      data: ''
+    }
+    $.ajax({   //辅屏结构是否转为繁体
+      url: '/jsp/include/CN2/common/getsession.jsp',
+      data: datas,
+      dataType: 'text',
+      type: 'post',
+      success: function (res) {
+        Barrier.setItem('screen', '1');
+        if($('.barrier_navigate').css('display') === 'block' && (!flag)) {return;}
+        var screens = res.trim() === 'fan' ? Traditionalized(screenHtml) : screenHtml;
+        if(ieF){
+          $('body').append(screens);
+          $('.screen_wrapper').css('zoom', 1);
+        } else {
+          $('body').after(screens);
+        }
+        if (PARAMETER.amplifyNum >= 0 && PARAMETER.amplifyNum <= 5){
+          $('body').css('padding-bottom', botArr[PARAMETER.amplifyNum] + 'px');
+        } else {
+          $('body').css('padding-bottom', '170px');
+        }
+        $('.lanMu, .Branchcontent').length > 0 ? $('.side_bar').css('bottom', '310px') : $('.side_bar').css('bottom', '240px');
+        // var offsetWidth = +document.documentElement.offsetWidth;
+        // var clientWidth = +document.documentElement.clientWidth;
+        // var leftWidth = +$('body').css('left');
+        // window.console && console.log(offsetWidth);
+        // window.console && console.log(clientWidth);
+        // window.console && console.log(leftWidth);
+        // if(ieF && offsetWidth > (clientWidth+leftWidth)){
+        //   window.console && console.log(234);
+        //   $('.screen_wrapper').css('bottom', '17px');
+        // }
+        $('.screen_close').on('mouseover', function(){
+          if(!PARAMETER.voiceF) {return;}
+          Barrier.play('点击关闭辅屏');
+        });
+        $('body, .help_wrapper').on('mouseover', function(e){
+          if($(e.target).hasClass('screen_wrapper') || $(e.target).parents().hasClass('screen_wrapper') || $(e.target).hasClass('barrier-free') || $(e.target).parents().hasClass('barrier-free')) {return;}
+          if($(e.target).attr('data-linenum') !== undefined) {
+            Barrier.i = +$(e.target).attr('data-linenum');
+            if(PARAMETER.initF) {PARAMETER.initF = false;}
+            PARAMETER.initTabF = true;
+          } else if($(e.target).parents('.banner .slides a').length > 0 && e.target.nodeName === 'DIV'){
+            Barrier.i = +$(e.target).parents('a').attr('data-linenum');
+            if(PARAMETER.initF) {PARAMETER.initF = false;}
+            PARAMETER.initTabF = true;
+          }
+          Barrier.bodyMouseOver(e.target);
+          Barrier.textUp(Barrier.screenText);
+          var text = Barrier.screenText;
+          if(Barrier.screenText.indexOf('第') === 0){
+            text = Barrier.screenText.replace('、','/');
+          } else if(Barrier.screenText.indexOf('验证码') > -1){
+            text = Barrier.screenText.replace(/-/g,'');
+          }
+          ($('.languages .fan').length > 0 && $('.languages .fan').hasClass('active')) || ($('.languages .fan').length === 0 && PARAMETER.fanti === true) ? $('.screen_box').text(Traditionalized(text)) : $('.screen_box').text(text);
+        });
+      }
+    });
+    $('.onlineHelp, .code_wrapper').css('bottom', '210px');
+    $('#goTopBtn').css('bottom', '300px');
+    $('.right_float').css('top', '200px');
+
+    // 兼容IE9辅屏底部定位
+    var jsver = 0;
+    /* @cc_on  jsver = @_jscript_version; @*/
+    if (+jsver === 9) {
+      $('.screen_wrapper').addClass('ie9');
+    }
+  }
+  Barrier.helpHeight();    //调整帮助中心的高度
+}
+Barrier.screenClose = function(){    //关闭辅屏
+  $('.screen_btn').removeClass('active');
+  $('.screen_btn').attr('title', '当前辅屏已关闭，点击开启辅屏(Shift + M)');
+  $('.screen_wrapper').remove();
+  $('body').css('padding-bottom', '');
+  $('.side_bar, .onlineHelp, #goTopBtn, .code_wrapper').css('bottom', '');
+  $('.right_float').css('top', '');
+  Barrier.setItem('screen', '0');
+  PARAMETER.screenF = false;
+  if(!PARAMETER.voiceF) {$('body, .help_wrapper').off('mouseover');}
+  
+}
+Barrier.selectColor = function(){ //选中的文字配色
+  if($('.free_entrance').hasClass('active')) {$('.selection_style').attr('href', '/static/CN2/css/' + colorLinks[PARAMETER.colorNum]);}
+  else {$('.selection_style').attr('href', '/static/CN2/css/white_init.css');}
+}
+Barrier.bodyMouseOver = function(_target){   //指读模式或辅屏开启状态下，鼠标移入文字的样式
+  Barrier.screenText = '';
+  // 创建字体选择对象
+  var _nodeName = _target.nodeName;
+  var selection = '';
+  var range1 = '';
+  // 清空所有的选中效果
+  if(!ieF){
+    selection = window.getSelection()
+    selection.removeAllRanges();
+  } else {
+    document.selection.empty();
+  }
+  var range;
+  // 给选中的内容添加备注： 图片-图片链接  按钮  视频  输入框  下拉菜单  文字-链接
+  if (_nodeName === 'IMG') {
+    var altText = $(_target).attr('alt') ? $(_target).attr('alt').replace(/_/g, '') : '';
+    var linkNum = Barrier.testOutlink(_target);
+    if(linkNum === 2) {Barrier.screenText = '外部图片链接：' + altText;}
+    else if (linkNum === 1) {Barrier.screenText = '图片链接：' + altText;}
+    else {Barrier.screenText = '图片：' + altText;}
+    $.each(imgPar, function(i, e){
+      if($(_target).parents(e).length > 0) {Barrier.screenText = '';}
+    });
+    if(altText==='粤ICP备' || altText==='粤公网安备' || altText==='分期商户' || ($(_target).parents('.float_bg ').length > 0 && $(_target).parents('.f_show ').length === 0)) {Barrier.screenText = '';}
+    Barrier.imgSelect(_target);
+  } else if (_nodeName === 'BUTTON'){
+    Barrier.screenText = '按钮：' + _target.innerText;
+    Barrier.imgSelect(_target);
+  } else if (_nodeName === 'VIDEO'){
+    Barrier.screenText = '视频：' + $(_target).attr('title');
+    Barrier.imgSelect(_target);
+  } else if (_nodeName === 'INPUT') {
+    var _inputType = _target.type;
+    var typeName = "";
+    switch (_inputType){
+      case 'text': typeName="文本输入框";
+        break;
+      case 'button':
+      case 'reset':
+      case 'submit':  typeName = "按钮";
+        break;
+      default: typeName = "";
+        break;
+    }
+    var inputVal = _target.value && _target.value.trim() || "";
+    var idName = $(_target).attr('id');
+    Barrier.screenText = typeName !== '' && inputVal !== '' ?  typeName +'：' + inputVal : typeName;
+    if(idName === 'publishDate' || idName === 'begainDate' || idName === 'endDate'){
+      Barrier.screenText = Barrier.screenText.replace('文本输入框', '日期选择框');
+    } else if(inputVal !== '' && (idName === 'code' || idName === 'vcode' || idName === 'vCode' || idName === 'pic_vcode' || $(_target).hasClass('vertification'))){
+      Barrier.screenText = Barrier.screenText.replace('文本输入框', '文本输入框：验证码');
+    }
+    if($(_target).hasClass('search_btn')) {Barrier.screenText = '按钮：搜索';}
+    else if($(_target).hasClass('delete')) {Barrier.screenText = '按钮：删除';}
+    Barrier.imgSelect(_target);
+  } else if (_nodeName === 'SELECT'){
+    var val = _target.children[_target.selectedIndex].innerText, text;
+    text = _target.innerText=== '' ? _target.textContent.trim().replace(/\s+/g, "、") : _target.innerText.trim().replace(/\s+/g, "、");
+    Barrier.screenText = "下拉菜单：当前选中为" + val + "；" +  text.slice(0,182); 
+    Barrier.imgSelect(_target);
+  } else {
+    var oText = '';
+    Barrier.clearImgSelect(_target);
+    if($(_target).parents('.nav').length > 0){   //导航栏做特别处理
+      if(_target.children.length < 1 && _target.innerText.trim() !== ''){
+        oText = $(_target).attr('title') ? $(_target).attr('title').trim() : $(_target).text().trim();
+        var linkNum = Barrier.testOutlink(_target);
+        if(linkNum === 2) {Barrier.screenText = '外部链接：' + oText;}
+        else if (linkNum === 1) {Barrier.screenText = '链接：' + oText;}
+        else {Barrier.screenText = oText;}
+        textRange();
+      }
+    }else{
+      if($(_target).parents('.banner').length > 0 && $(_target).parents('.flex-control-nav').length === 0){
+        var _href = '', _title = '';
+        if(_nodeName === 'A' &&  $(_target).attr('href') !== undefined){
+          _href = $(_target).attr('href');
+          _title = $(_target).attr('title');
+        } else if(_nodeName === 'DIV' && $(_target).parents('a').attr('href') !== undefined){
+          _href = $(_target).parents('a').attr('href');
+          _title = $(_target).parents('a').attr('title');
+        }
+        Barrier.screenText = _href.indexOf('/') > -1 ? '图片链接：'+ _title :  '图片：'+ _title;
+        Barrier.imgSelect(_target);
+      }
+      else if((_nodeName === 'SPAN' && $(_target).parents('.field .select').length > 0) || $(_target).hasClass('ysrfc1')){
+        Barrier.screenText = "下拉菜单：当前选中为" + (Number(_target.innerText) ? _target.innerText + '年' : _target.innerText);
+      }
+      else if(_target.children.length === 1 && (_target.children[0].nodeName === "A" || _target.innerText === _target.children[0].innerText)){
+        Barrier.screenText = '';
+      } else if(_target.nodeName === 'I' && _target.parentNode.parentNode.className.indexOf('more') > -1){
+        Barrier.screenText = '链接：' + _target.parentNode.innerText;
+      } else if(($(_target).parents('.content_wrapper').length > 0 || $(_target).parents('.font_content').length > 0) && $(_target).parents('td').length > 0 && $(_target).parents('td').text().length > 50 && _target.children.length < 1){
+        Barrier.screenText = _target.innerText;
+      } else if(($(_target).parents('.content_wrapper').length > 0 || $(_target).parents('.font_content').length > 0) && $(_target).parents('td').length > 0 && $(_target).parents('td').text().length < 50){
+        Barrier.screenText = $(_target).parents('td').eq(0).text();
+      } else if($(_target).hasClass('xing_')){
+        Barrier.screenText = $(_target).attr('size')+'颗星';
+      } else if(_nodeName === 'A' && $(_target).parents('.search_list .msg_title').length > 0){  //新信用卡-搜索结果列表
+        Barrier.screenText = $(_target).text();
+      } else if(_nodeName === 'A' && ($(_target).hasClass('icon-qq') || $(_target).hasClass('icon-weibo') || $(_target).hasClass('icon-douban'))){   //优惠活动-分享
+        if($(_target).hasClass('icon-qq')) {Barrier.screenText = "外部链接：QQ分享";}
+        else if($(_target).hasClass('icon-weibo')) {Barrier.screenText = "外部链接：微博分享";}
+        else if($(_target).hasClass('icon-douban')) {Barrier.screenText = "外部链接：豆瓣分享";}
+      } else if(_target.children.length <= 1 && (!_target.lastElementChild || (_target.innerText.trim() !== ''))){
+        if(($(_target).parents('.content_wrapper').length > 0 || $(_target).parents('.font_content').length > 0) && $(_target).parents('td').length > 0) {return;}
+        oText = $(_target).attr('title')&&$(_target).attr('title').trim().length < 200 ? $(_target).attr('title').trim() : $(_target).text().trim();
+        if((_target.nodeName === 'I' && oText === '') || oText === '' || oText === '最新') {return;}
+        var linkNum = Barrier.testOutlink(_target);
+        if(linkNum === 2) {Barrier.screenText = '外部链接：' + oText;}
+        else if (linkNum === 1) {Barrier.screenText = '链接：' + oText;}
+        else {Barrier.screenText = oText;}
+      }
+      Barrier.screenText = Barrier.screenText.toLowerCase().indexOf('kg') > -1? Barrier.screenText : Barrier.screenText.replace(/[>*?]/g,'');
+      if(Barrier.screenText.indexOf('第') === 0) {Barrier.screenText = Barrier.screenText.replace('/','、');}
+      Barrier.screenText = Barrier.screenText.length > 200 ? Barrier.screenText.slice(0,200) : Barrier.screenText;
+      $.each(zifu,function(i, ele){
+        if (Barrier.screenText.trim() === ele) {
+          Barrier.screenText = '';
+          return true;
+        }
+      });
+      if (Barrier.screenText === '') {return;}
+      textRange();
+    }
+  }
+  function textRange(){   //动态选择文字
+    var children = _target.children[0];
+    if(!ieF){
+      range = document.createRange();
+      if(($(_target).parents('.content_wrapper').length > 0 || $(_target).parents('.font_content').length > 0) && $(_target).parents('td').length > 0 && $(_target).parents('td').text().length < 50){
+        range.selectNodeContents($(_target).parents('td').eq(0)[0]);
+      } else {range.selectNodeContents(_target);}
+      selection.addRange(range);
+      Barrier.childs(children);
+    } else {
+      if(_target.nodeName !== 'INPUT' && _target.nodeName !== 'SELECT' && _target.nodeName !== 'BUTTON' && _target.nodeName !== 'IMG'){
+        range1 = document.body.createTextRange();
+        if(($(_target).parents('.content_wrapper').length > 0 || $(_target).parents('.font_content').length > 0) && $(_target).parents('td').length > 0 && $(_target).parents('td').text().length < 50){
+          range1.moveToElementText($(_target).parents('td').eq(0)[0]);
+        } else {range1.moveToElementText(_target);}
+        range1.select();
+      }
+      Barrier.childs(children);
+    }
+  }
+}
+Barrier.imgSelect = function(_target){
+  var imgparF = false, altText = '';
+  if(_target.nodeName==='IMG') {
+    $.each(imgPar, function(i, e){
+      if($(_target).parents(e).length > 0) {imgparF = true;}
+    });
+    altText = $(_target).attr('alt');
+  }
+  if(imgparF || altText==='粤ICP备' || altText==='粤公网安备' || altText==='分期商户' || ($(_target).parents('.float_bg ').length > 0 && $(_target).parents('.f_show ').length === 0) || (_target.nodeName === 'INPUT' && ($(_target).attr('type') === 'radio' || $(_target).attr('type') === 'checkbox'))) {return;}
+  Barrier.clearImgSelect(_target);
+  if ((_target.nodeName==='A' || _target.nodeName==='DIV') && $(_target).parents('.banner').length > 0) {
+    $(_target).parents('.banner').addClass('_Hover');
+  } else if($(_target).parents('.loginosqy').length > 0) {
+    $(_target).parents('.loginosqy').addClass('_Hover');
+  } else if($(_target).parents('#slideshow .img').length > 0) {
+    $(_target).parents('#slideshow .img').addClass('_Hover');
+  } else if($(_target).parents('.lanMu ul li').length > 0 && _target.nodeName === 'IMG') {
+    $(_target).parents('.lanMu ul li').addClass('_Hover');
+  } else if($(_target).parents('.ad').length > 0) {
+    $(_target).parents('.ad').addClass('_Hover');
+  } else if($(_target).parents('#idTransformView2').length > 0) {
+    $(_target).parents('#idTransformView2').addClass('_Hover');
+  } else if($(_target).parents('.adv_bottom').length > 0) {
+    $(_target).parents('.adv_bottom').addClass('_Hover');
+  } else if($(_target).parents('.topic_banner').length > 0) {
+    $(_target).parents('.topic_banner').addClass('_Hover');
+  } else if($(_target).parents('#adDivWel').length > 0) {
+    $(_target).parents('#adDivWel').addClass('_Hover');
+  } else if($(_target).parents('.loginad .pic').length > 0) {
+    $(_target).parents('.loginad .pic').addClass('_Hover');
+  } else if(_target.nodeName==='IMG' && $(_target).parents('.foreginpic').length > 0) {
+    $(_target).parents('.foreginpic').addClass('_Hover');
+  } else if(_target.nodeName==='IMG' && $(_target).parents('.adRight_anq').length > 0) {
+    $(_target).parents('.adRight_anq').addClass('_Hover');
+  } else if(_target.nodeName==='IMG' && $(_target).parents('.rightColumnad .plateContent').length > 0) {  //基金-基金排行榜
+    $(_target).parents('.rightColumnad').addClass('_Hover');
+  } else if(_target.nodeName==='IMG' ||_target.nodeName==='INPUT' || _target.nodeName==='SELECT' || _target.nodeName==='VIDEO' || _target.nodeName==='BUTTON'){
+    $(_target).addClass('_Hover');
+  }
+}
+Barrier.clearImgSelect = function(_target){
+  $('img, input, select, button, video, .loginosqy, #slideshow .img, .lanMu ul li, .ad, .rightColumnad, #idTransformView2, .adv_bottom, .topic_banner, .banner, #adDivWel, .loginad .pic, .adRight_anq, .foreginpic').removeClass('_Hover');
+}
+Barrier.testOutlink = function(_target){   //判断外部链接、链接及普通
+  var _href = '';
+  if(_target.nodeName === "A" && $(_target).attr('href')) {_href = $(_target).attr('href');}
+  else if($(_target).parents('a').length > 0  && $(_target).parents('a').attr('href'))  {_href = $(_target).parents('a').attr('href');}
+  if(_href !== '' && ((_href.indexOf('http') > -1 && _href.indexOf('http://www.cgbchina.com') === -1 && _href.indexOf(window.location.origin) === -1 && _href.indexOf('http://card.cgbchina.com') === -1) || _href.indexOf('mailto') > -1)){   //外部链接
+    return 2;
+  } else if (_target.nodeName === "A"  || ($(_target).parents('a').length > 0 && (!$(_target).parents('a').hasClass('icon-wechat')))) {   //链接
+    return 1;
+  } else {    //普通
+    return 0;
+  }
+}
+Barrier.textUp = function(text){   //辅屏字数限制及字体大小
+  if(!text) {return;}
+  if (text.length < 17) {
+    $('.screen_box').css({
+      'font-size': '70px',
+      'line-height': '92px'
+    });
+  } else if (text.length < 36) {
+    $('.screen_box').css({
+      'font-size': '56px',
+      'line-height': '70px'
+    });
+  } else if (text.length < 76) {
+    $('.screen_box').css({
+      'font-size': '40px',
+      'line-height': '50px'
+    });
+  } else if (text.length < 160){
+    $('.screen_box').css({
+      'font-size': '30px',
+      'line-height': '36px'
+    });
+  } else if (text.length < 180){
+    $('.screen_box').css({
+      'font-size': '26px',
+      'line-height': '40px'
+    });
+  } else {
+    $('.screen_box').css({
+      'font-size': '18px',
+      'line-height': '30px'
+    });
+  }
+}
+Barrier.childs = function(children){   //递归查询层级
+  if (children && children.children && children.children.length === 1 ) {
+    Barrier.childs(children.children[0]);
+  } else if (children && children.children && children.children.length > 1 ){
+    Barrier.screenText = '';
+    Barrier.clearSelectRange();
+  }
+}
+var pointTimer = null; 
+Barrier.voicePoint = function(){    //语音指读模式
+  if(!PARAMETER.voiceF) {return;}
+  Barrier.selectColor();
+  Barrier.stopHelpVoice();
+  Barrier.stopLineVoice();
+  $('body, .help_wrapper').unbind('mouseover.pointover');
+  $('body, .help_wrapper').bind('mouseover.pointover', function(e){
+    clearTimeout(pointTimer);
+    var _target = e.target;
+    pointTimer = setTimeout(function(){
+      if($(e.target).hasClass('screen_wrapper') || $(e.target).parents().hasClass('screen_wrapper') || $(e.target).hasClass('barrier-free') || $(e.target).parents().hasClass('barrier-free')) {return;}
+      if($('.screen_wrapper').length === 0) {Barrier.bodyMouseOver(e.target);}
+      Barrier.screenText = Barrier.screenText.indexOf('下拉菜单') > -1 || Barrier.screenText.toLowerCase().indexOf('kg') > -1 || $(e.target).parents('.key-sqbk').length > 0 || $(e.target).parents('.carddetail .detail_btm').length > 0 || $(e.target).hasClass('_times') ? Barrier.screenText : Barrier.screenText.replace(/[>*&?]/g,'').replace(/\s+/g, ' ').replace(/[○〇]/g, '0');
+      if($(e.target).hasClass('daima') && Barrier.screenText.trim() !== '') {
+        Barrier.screenText = "代码：" + Barrier.screenText;
+      }
+      if(($(e.target).parents('.youbian').length > 0 && e.target.nodeName === 'TD' && e.target.innerText.trim() !== '95508' && Number(e.target.innerText)) || ($(e.target).hasClass('youbian') && e.target.children.length === 0)) {
+        Barrier.screenText = "邮编：" + Barrier.screenText;
+      }
+      if($(e.target).hasClass('free_entrance')) {Barrier.screenText = Barrier.screenText.slice(0, Barrier.screenText.length - 9);}
+      if(Barrier.screenText === '') {return;}
+      Barrier.screenText = $(e.target).parents('.year_select, .tabConUl, ._year').length > 0 && Number(Barrier.screenText) && Barrier.screenText.trim() !== '' ? Barrier.screenText.trim() + '年' : Barrier.screenText;
+      if($(e.target).parents('.year_line').length > 0) {Barrier.screenText += '年';}
+      !!Barrier.screenText.trim() && Barrier.play(Barrier.screenText);
+      if($(_target).attr('data-linenum') !== undefined) {
+        Barrier.i = +$(_target).attr('data-linenum');
+        if(PARAMETER.initF) {PARAMETER.initF = false;}
+        PARAMETER.initTabF = true;
+      } else if($(_target).parents('.banner .slides a').length > 0 && _target.nodeName === 'DIV'){
+        Barrier.i = +$(_target).parents('a').attr('data-linenum');
+        if(PARAMETER.initF) {PARAMETER.initF = false;}
+        PARAMETER.initTabF = true;
+      }
+      if(!($(_target).nodeName === 'INPUT' && $(_target).attr('type') === 'text')){
+        if(document.activeElement.nodeName === 'INPUT'){
+          if($(document.activeElement).attr('type') === 'text'){
+            var actEle = document.activeElement;
+            var numB = +$(actEle).attr('data-linenum');
+            var idName = $(actEle).attr('id');
+            if(idName === 'publishDate' || idName === 'begainDate' || idName === 'endDate'){
+              Barrier.changeText(numB,sourceArr,'日期选择框：'+$(actEle).val());
+            } else if($(actEle).val().trim() !== '' && (idName === 'code' || idName === 'vcode' || idName === 'vCode' || idName === 'pic_vcode' || $(actEle).hasClass('vertification'))){
+              Barrier.changeText(numB,sourceArr,'文本输入框：验证码：'+$(actEle).val());
+            } else {
+              Barrier.changeText(numB,sourceArr,'文本输入框：'+$(actEle).val());
+            }
+          }
+          $(document.activeElement).blur();
+        }
+      }
+    }, 500)
+  });
+  Barrier.setInitKey();
+}
+var lineTimer = null;
+Barrier.voiceLine = function(){  //语音连读模式
+  if(!PARAMETER.voiceF) {return;}
+  if($('.help_btn').hasClass('active')) {Barrier.helpLine();}
+  $('body').unbind('mouseover.endedover');
+  Barrier.stopPointVoice();
+  Barrier.selectColor();
+  if(sourceArr[0].length === 0) {Barrier.setLinenum('line');}
+  $('body').bind('mouseover.lineover', function(e){
+    $(document).unbind('keydown.initkey');
+    PARAMETER.lineF = true;
+    if($(e.target).parents('.help_wrapper').length > 0) {return;}
+    if(!($(e.target).attr('data-linenum') !== undefined || ($(e.target).parents('.banner .slides a').length > 0 && e.target.nodeName === 'DIV'))) {return;}
+    clearTimeout(lineTimer);
+    Barrier.imgSelect(e.target);
+    lineTimer = setTimeout(function(){
+      Barrier.i = +$(e.target).attr('data-linenum');
+      if($(e.target).parents('.banner .slides a').length > 0 && e.target.nodeName === 'DIV'){
+        Barrier.i = +$(e.target).parents('a').attr('data-linenum');
+      }
+      if(PARAMETER.initF) {PARAMETER.initF = false;}
+      if(e.target.nodeName !== 'INPUT' && e.target.nodeName !== 'SELECT' && e.target.nodeName !== 'BUTTON' && e.target.nodeName !== 'IMG'){
+        if(!ieF){
+          var range = document.createRange();
+          range.selectNodeContents(e.target);
+          var selection = window.getSelection();
+          try {
+            selection.removeAllRanges();
+            selection.addRange(range);
+          } catch (error) {}
+        } else {
+          var range1 = document.body.createTextRange();
+          try {
+            range1.moveToElementText(e.target);
+            document.selection.empty();
+            range1.select();
+          } catch (error) {}
+        }
+      } else {
+        Barrier.clearSelectRange();
+      }
+      if($(e.target).hasClass('ysrfc1')) {$('.ysrfc1sub1').show();}
+      var srcUrl = '';
+      srcUrl = sourceArr[PARAMETER.speedNum][Barrier.i];
+      Barrier.play('', srcUrl);
+      $('.videoPlay')[0].addEventListener('ended', voiceEnded);
+    },500)
+  });
+}
+function voiceEnded(){
+  $('body').unbind('mouseover.lineover');
+  Barrier.i++;
+  if (Barrier.i >= sourceArr[0].length) {
+    Barrier.voiceLine();
+    return;
+  } 
+  var srcUrl = sourceArr[PARAMETER.speedNum][Barrier.i];
+  
+  var timer = null;
+  var range = '', selection = '', range1 = '';
+  if(!ieF){
+    range = document.createRange();
+    selection = window.getSelection();
+  } else {
+    range1 = document.body.createTextRange();
+  }
+  $('body').unbind('mouseover.endedover');
+  $('body').bind('mouseover.endedover', function(e){
+    if($(e.target).attr('data-linenum') === undefined) {return;}
+    clearTimeout(timer);
+    timer = setTimeout(function(){
+      if(ieF) {
+        try {
+          document.selection.empty();
+        } catch (error) {}
+      }
+      Barrier.i = +$(e.target).attr('data-linenum')-1;
+      // 鼠标移入显示下拉框
+      if($(e.target).parents('.field').length === 0 && $('.field ul').length > 0) {
+        $('.field ul').addClass('hide');
+        $('.select').removeClass('selecting');
+      }
+      
+      if($(e.target).hasClass('ysrfc1')) {$('.ysrfc1sub1').show();}
+      if($(e.target).parents('.select').length > 0){
+        $('.field ul').addClass('hide');
+        $('.select').removeClass('selecting');
+        $(e.target).parents('.select').addClass('active').siblings('ul').removeClass('hide');
+      }
+      else if($(e.target).parents('.nav_list').length === 0) {
+        $('.nav_item_content').css('display', 'none');
+        $('.nav_item').removeClass('nav_hover');
+        $('section.sub_nav').css('display', 'none');
+      }
+      else if($(e.target).parents('.hover').length === 0 && ($('.col.mobile').hasClass('hover') || $('.col.wechact').hasClass('hover') || $('.col.yundian').hasClass('hover'))){
+        $('.col.mobile').removeClass('hover');
+        $('.col.wechact').removeClass('hover');
+        $('.col.yundian').removeClass('hover');
+      }
+      else if($('.service_inner').hasClass('service_hover') && $(e.target).parents('.service_inner').length === 0) {$('.service_inner').removeClass('service_hover');}
+      else if($('.linkbox').hasClass('link_hover') && $(e.target).parents('.linkbox').length === 0) {$('.linkbox').removeClass('link_hover');}
+      else if($('.col.online').hasClass('link_hover') && $(e.target).parents('.col.online').length === 0) {$('.col.online').removeClass('link_hover');}
+      else if($(e.target).parents('.showhide').length === 0 && $('.showhide').length > 0) {$('.showhide').hide();}
+      if(e.target.nodeName !== 'INPUT' && e.target.nodeName !== 'SELECT' && e.target.nodeName !== 'BUTTON' && e.target.nodeName !== 'IMG' && $(e.target).attr('data-mark') === undefined){
+        if(!ieF){
+          try {
+            range.selectNodeContents(e.target);
+            selection.removeAllRanges();
+            selection.addRange(range);
+          } catch (error) {}
+        } else {
+          try {
+            range1.moveToElementText(e.target);
+            document.selection.empty();
+            range1.select();
+          } catch (error) {}
+        }
+      }else{
+        Barrier.clearSelectRange();
+      }
+    }, 500)
+  });
+  // 选中文字效果
+  Barrier.voiceTextSelect('linenum', Barrier.i);
+  Barrier.play('', srcUrl);
+}
+Barrier.voiceTextSelect = function(markName, textInd){  //连读及智能导盲模式下读到的文字选中效果
+  var range = '', selection = '', range1 = '';
+  if(!ieF){
+    range = document.createRange();
+    selection = window.getSelection();
+  } else {
+    range1 = document.body.createTextRange();
+  }
+  $('body *').each(function(i, ele){
+    if($(ele).attr('data-'+markName) === undefined) {return;}
+    var lineInd = +$(ele).attr('data-'+markName);
+    if(lineInd === textInd) {
+      if(ieF) {
+        try {
+          document.selection.empty();
+        } catch (error) {}
+      }
+      var dom = $(ele)[0];
+      var _nodeName = dom.nodeName;
+      // 首页下拉框自动展示
+      Barrier.clearShow(ele);  
+      if($(ele).parents('.select').length > 0){
+        $(ele).parents('.select').addClass('selecting').siblings('ul').removeClass('hide');
+      } else if($(ele).parents('.field ul').length > 0 && $(ele).parents('.field ul').hasClass('hide')){
+        $(ele).parents('.field ul').removeClass('hide');
+        $(ele).parents('.field ul').siblings('.select').addClass('selecting');
+      }
+      if(($('.inner.nav_list .nav_item').eq(0).hasClass('active') || $(ele).parents('.nav_item').hasClass('active')) && dom.nodeName === 'A' && $(ele).parents('span').length > 0 && $(ele).parents('.nav_item').length > 0){
+        $('.nav_item_content').css('display', 'none');
+        $('.nav_item').removeClass('nav_hover');
+        $('section.sub_nav').css('display', 'none');
+        $(ele).parents('.nav_item').addClass('nav_hover').find('.nav_item_content').css('display', 'block');
+        $(ele).parents('.nav_item').addClass('nav_hover').find('section.sub_nav').css('display', 'block');
+      } else if($(ele).parents('.nav_item_content').length > 0 || $(ele).parents('section.sub_nav').length > 0){
+        $('.nav_item_content').hide();
+        $('section.sub_nav').hide();
+        $(ele).parents('.nav_item').addClass('nav_hover').siblings('.nav_item').removeClass('nav_hover');
+        $(ele).parents('.nav_item_content').show();
+        $(ele).parents('section.sub_nav').show();
+      }
+      
+      
+      // tab栏自动切换
+      if($(ele).parents('.p-login').length > 0){   //新首页登录框
+        $('.login .person').addClass('active').siblings('.enterprise').removeClass('active');
+        $('.p-login').css('display', 'block');
+        $('.e-login').css('display', 'none');
+      } else if($(ele).parents('.e-login').length > 0){ 
+        $('.login .enterprise').addClass('active').siblings('.person').removeClass('active');
+        $('.p-login').css('display', 'none');
+        $('.e-login').css('display', 'block');
+      } else if($(ele).parents('.col').length > 0 && $(ele).parents('.col').css('display') === 'none'){  //新首页新闻切换
+        var colName = $(ele).parents('.col')[0].className.slice(4);
+        var hrefLink = '';
+        if($(ele).parents('.news').length > 0) {hrefLink = $(ele).parents('.col').attr('data-href');}
+        $(ele).parents('.col').css('display', 'block').siblings('.col').css('display', 'none');
+        $('.'+colName+'_title').addClass('active').siblings('span').removeClass('active');
+        hrefLink && $(ele).parents('.news').find('.more_list a').attr('href', hrefLink);
+      } else if($(ele).parents('.doff').length > 0){   //关于广发
+        $(ele).parents('.newData').removeClass('doff').siblings('.newData').addClass('doff');
+        var ind = $(ele).parents('.newData').index()-2;
+        $('.newTitle li').eq(ind).addClass('on').siblings('li').removeClass('on');
+      } else if($(ele).parents('.metalCol').length > 0){   //旧版贵金属、白银、外汇切换
+        $(ele).parents('.metalCol').css('display', 'block').siblings('.metalCol').css('display', 'none');
+        if($(ele).parents('#metalExchange').length > 0){
+          $('#metalMetals01').addClass('metalMetalsoff').removeClass('metalMetals');
+          $('#metalExchange01').addClass('metalExchangeoff').removeClass('metalExchange');
+        } else {
+          $('#metalMetals01').addClass('metalMetals').removeClass('metalMetalsoff');
+          $('#metalExchange01').addClass('metalExchange').removeClass('metalExchangeoff');
+        }
+      } else if($(ele).parents('.personLogin').length > 0){   //旧版登录框
+        var inds = $(ele).parents('.personLogin').index();
+        $(ele).parents('.personLogin').css('display', 'block').siblings().css('display', 'none');
+        if(inds === 0){
+          $('#person').addClass('personOn').removeClass('personoff');
+          $('#companies').addClass('companiesOff').removeClass('companiesOn');
+        } else {
+          $('#person').addClass('personoff').removeClass('personOn');
+          $('#companies').addClass('companiesOn').removeClass('companiesOff');
+        }
+      } else if($(ele).parents('.tabcontent').length > 0 && $(ele).parents('.tabcontent').css('display') === 'none'){   //基金首页
+        $(ele).parents('.tabcontent').css('display', 'block').siblings('.tabcontent').css('display', 'none');
+        var ind = $(ele).parents('.tabcontent').index();
+        $('#newAdnHotTag>div').eq(ind).addClass('selected').removeClass('nonselected').siblings().addClass('nonselected').removeClass('selected');
+      } else if($(ele).parents('.bondCol').length > 0){     //债券首页
+        $(ele).parents('.bondCol').css('display', 'block').siblings('.bondCol').css('display', 'none');
+        var ind = $(ele).parents('.bondCol').index();
+        if(ind === 0){
+          $('#bond0').addClass('bond01on').removeClass('bond01off');
+          $('#bond1').addClass('bond02').removeClass('bond02on');
+        } else {
+          $('#bond0').addClass('bond01off').removeClass('bond01on');
+          $('#bond1').addClass('bond02on').removeClass('bond02');
+        }
+      } else if($(ele).parents('.qList').length > 0 && $(ele).parents('.qList').css('display') === 'none'){     //黄金首页
+        $(ele).parents('.qList').css('display', 'block').siblings('.qList').css('display', 'none');
+        var ind = $(ele).parents('.qList').index()-2;
+        $('.qType a').eq(ind).addClass('on').siblings('a').removeClass('on');
+      } else if($(ele).parents('.goldCol').length > 0 && $(ele).parents('.goldCol').css('display') === 'none'){
+        $(ele).parents('.goldCol').css('display', 'block').siblings('.goldCol').css('display', 'none');
+        var ind = $(ele).parents('.goldCol').index();
+        $('#myTab li').eq(ind).addClass('active').removeClass('normal').siblings('li').addClass('normal').removeClass('active');
+      } else if($(ele).parents('.vodlist').length > 0 && $(ele).parents('.vodlist').css('display') === 'none'){   //关于广发-企业形象
+        $(ele).parents('.vodlist').show().siblings('.vodlist').hide();
+        var ind = $(ele).parents('.vodlist').index();
+        $('#tabComposite>div').eq(ind).addClass('seledted').removeClass('nonseledted').siblings('div').addClass('nonseledted').removeClass('seledted');
+        if(ind === 0){
+          $('#tabComposite').css('border-left', '1px solid rgb(186, 16, 33)');
+          $('#tabComposite .seledted>div').eq(1).addClass('general');
+        } else{
+          $('#tabComposite').css('border-left', '1px solid rgb(204, 204, 204)');
+          $('.nonseledted div:last-child').addClass('general').removeClass('neighboring');
+          $('.seledted').prev().children().eq(1).addClass('neighboring').removeClass('general');
+          $('#tabComposite .seledted').children().eq(1).addClass('neighboring').addClass('general');
+        }
+      } else if($(ele).parents('.showhide').length > 0 && $(ele).parents('.showhide').css('display') === 'none'){   //投资者关系-监事会-查看照片及简历
+        $('.showhide').hide();
+        $(ele).parents('.showhide').css({
+          'display': 'block',
+          'top': '342px'
+        });
+      } else if($(ele).parents('.tab_change').length > 0 && $(ele).parents('.tab_change').css('display') === 'none'){  //网点查询
+        var ind = $(ele).parents('.tab_change').index();
+        $(ele).parents('.tab_change').show().siblings('.tab_change').hide();
+        if (ind === 0) {
+          $('#huankuan0').addClass('huankuan01on').removeClass('huankuan01off');
+          $('#huankuan1').addClass('huankuan02').removeClass('huankuan02on');
+          $('#huankuan2').addClass('huankuan03').removeClass('huankuan03on');
+        } else if (ind ===1){
+          $('#huankuan0').addClass('huankuan01off').removeClass('huankuan01on');
+          $('#huankuan1').addClass('huankuan02on').removeClass('huankuan02');
+          $('#huankuan2').addClass('huankuan03').removeClass('huankuan03on');
+        } else if (ind === 2){
+          $('#huankuan0').addClass('huankuan01off').removeClass('huankuan01on');
+          $('#huankuan1').addClass('huankuan02').removeClass('huankuan02on');
+          $('#huankuan2').addClass('huankuan03on').removeClass('huankuan03');
+        }
+      } else if($(ele).parents('.links').length > 0 && $(ele).parents('.links').css('display') === 'none'){   //网站地图
+        $(ele).parents('.links').show().siblings('.links').hide();
+        var ind = $(ele).parents('.links').index();
+        $('.mapclass li').eq(ind).addClass('active').siblings('li').removeClass('active');
+      } else if($(ele).parents('.tableContainer').length > 0 && $(ele).parents('.tableContainer').css('display') === 'none'){   //基金-基金详情
+        $(ele).parents('.tableContainer').show().siblings('.tableContainer').hide();
+        var ind = $(ele).parents('.tableContainer').index();
+        $(ele).parents('.tLine9').find('.tabLine>div>div').eq(ind).attr('class','simpleTagSelected').siblings('div').attr('class','simpleTagNoSelected');
+      } else if($(ele).parents('.index_act_list').length > 0 && $(ele).parents('.index_act_list').css('display') === 'none'){   //新信用卡首页-优惠活动
+        $(ele).parents('.index_act_list').show().siblings('.index_act_list').hide();
+        var ind = $(ele).parents('.index_act_list').index()-1;
+        $('.title_tab li').eq(ind).addClass('on').siblings('li').removeClass('on');
+      } else if($(ele).parents('.navContent').length > 0 && $(ele).parents('.navContent').css('display') === 'none'){   //新信用卡-帮助中心详情
+        $('.nav_a_frist').removeClass('a_frist_enter');
+        $(ele).parents('.navContent').prev().addClass('a_frist_enter');
+        $(ele).parents('.navContent').show().siblings('.navContent').hide();
+      } else if($(ele).parents('#cxtDiv0').length > 0 && $(ele).parents('#cxtDiv0').css('display') === 'none'){   //投资者关系--财务评级
+        $('#tabConUl01 li .tab_m1off').eq(0).addClass('tab_m1on');
+        $('#tabConUl01 li .tab_m2').eq(0).css('display', 'block');
+        $('#tabConUl01 li .tab_m1off').eq(1).removeClass('tab_m1on');
+        $('#tabConUl01 li .tab_m2').eq(1).css('display', 'none');
+        $('#cxtDiv0').css('display', 'block');
+        $('#cxtDiv1').css('display', 'none');
+      } else if($(ele).parents('#cxtDiv1').length > 0 && $(ele).parents('#cxtDiv1').css('display') === 'none'){   //投资者关系--财务评级
+        $('#tabConUl01 li .tab_m1off').eq(1).addClass('tab_m1on');
+        $('#tabConUl01 li .tab_m2').eq(1).css('display', 'block');
+        $('#tabConUl01 li .tab_m1off').eq(0).removeClass('tab_m1on');
+        $('#tabConUl01 li .tab_m2').eq(0).css('display', 'none');
+        $('#cxtDiv1').css('display', 'block');
+        $('#cxtDiv0').css('display', 'none');
+      } else if($(ele).parents('.rplist .rpleft .hide').length > 0 && $(ele).parents('.hide').css('display') === 'none'){     //投资者关系--年度报告
+        $(ele).parents('.hide').css('display', 'block');
+      } else if($(ele).parents('.rpright').length > 0){
+        $('.rplist .rpleft .hide').css('display', '');
+      } else if($(ele).parents('.f_show').length > 0){   //信用卡新首页-侧边栏
+        $(ele).parents('.float_bg').addClass('hover');
+      } else if($(ele).parents('.search_history').length > 0 && $(ele).parents('.search_history').css('display') === 'none'){   //搜索历史
+        $(ele).parents('.search_history').show();
+      } else if($(ele).parents('#faqList dd').length > 0 && dom.nodeName === 'EM'){   //常见问题
+        $(ele).parents('dl').addClass('on');
+      } else if(($(ele).parents('.ysrfc1sub1').length > 0  && $(ele).parents('.ysrfc1sub1').css('display') === 'none') || $(ele).hasClass('ysrfc1')){   //投资者关系-旧版年份选择
+        $(ele).parents('.ysrfc1sub1').show();
+      } else if($(ele).parents('.tap_list').length > 0 && $(ele).parents('.list').css('display') === 'none'){   //旧版信用卡首页-扫一扫
+        $(ele).parents('.list').show().siblings('.list').hide();
+        var ind = $(ele).parents('.list').index();
+        $('.tabhover div').eq(ind).addClass('current').siblings('div').removeClass('current');
+      } else if($(ele).parents('#financesNew01').length > 0 && $(ele).parents('ul').length > 0 && $(ele).parents('ul').css('display') === 'none'){   //旧版信用卡首页-促销切换
+        $(ele).parents('ul').show().siblings('ul').hide();
+        var ind = $(ele).parents('ul').index();
+        if(ind === 0){
+          $('#finances0').attr('class', 'finances01on');
+          $('#finances1').attr('class', 'finances02');
+          $('#finances2').attr('class', 'finances03');
+        }else if(ind === 1){
+          $('#finances0').attr('class', 'finances01off');
+          $('#finances1').attr('class', 'finances02on');
+          $('#finances2').attr('class', 'finances03');
+        }else if(ind === 2){
+          $('#finances0').attr('class', 'finances01');
+          $('#finances1').attr('class', 'finances02off');
+          $('#finances2').attr('class', 'finances03on');
+        }
+      } else if($(ele).parents('.wechat-qrcode').length > 0){   //微信分享二维码
+        $(ele).parents('.wechat-qrcode').show();
+      } else if($(ele).parents('#code_img2').length > 0){
+        $(ele).parents('#code_img2').show();
+      } else if($(ele).parents('#code_img').length > 0){
+        $(ele).parents('#code_img').show();
+      } else if($(ele).parents('.help_search_list').length > 0 ){  //常见问题-下拉选项
+        $(ele).parents('.help_search_list').show();
+        $('#type').addClass('active');
+      } else if($(ele).parents('.hot_list').length > 0 && $(ele).parents('.hot_list').css('display') === 'none'){   //常见问题-切换
+        $(ele).parents('.hot_list').show().siblings('.hot_list').hide();
+        var ind = $(ele).parents('.hot_list').index();
+        $('.hot_nav li').eq(ind-1).addClass('active').siblings('li').removeClass('active');
+      } else if($(ele).parents('.assist_list').length > 0 && $(ele).parents('.assist_list').css('display') === 'none'){   //帮助中心首页-切换
+        $(ele).parents('.assist_list').show().siblings('.assist_list').hide();
+        var ind = $(ele).parents('.assist_list').index();
+        $('#assist_tab>ul li').eq(ind-1).addClass('active').siblings('li').removeClass('active');
+      } else if($(ele).parents('.vedio_list').length > 0 && $(ele).parents('.vedio_list').css('display') === 'none'){   //关于广发-视频播放
+        $(ele).parents('.vedio_list').show().siblings('.vedio_list').hide();
+      } else if($(ele).parents('#idSlider2').length > 0){   //旧信用卡首页-热门推荐
+        $(ele).parents('li').css('z-index', 1).siblings('li').css('z-index', 0);
+        var ind = $(ele).parents('li').index();
+        $('#idNum2 li').eq(ind).addClass('on').siblings('li').removeClass('on');
+      } else if($(ele).parents('.slides_item').length > 0){   //旧信用卡首页-信用卡申请
+        $(ele).parents('.slides_item').css('visibility', 'visible').siblings('.slides_item').css('visibility', 'hidden');
+      } else if($(ele).parents('.fun_tab_list_item').length > 0 && !$(ele).parents('.fun_tab_list_item').hasClass('active')){   //新基金详情-20230608
+        $(ele).parents('.fun_tab_list_item').addClass('active').siblings('.fun_tab_list_item').removeClass('active');
+        var ind = $(ele).parents('.fun_tab_list_item').index();
+        $('.fun_tab_item').eq(ind).addClass('active').siblings('li').removeClass('active');
+      }
+
+      
+      if($(ele).parents('.service_inner').length > 0){   //侧边栏-快捷服务
+        $(ele).parents('.service_inner').addClass('service_hover');
+      } else if($('.service_inner').hasClass('service_hover')){
+        $('.service_inner').removeClass('service_hover');
+      } else if($(ele).parents('.linkbox').length > 0 || $(ele).parents('.link_list').length > 0 ){ //侧边栏-在线客服
+        $(ele).parents('.linkbox').length > 0 && $(ele).parents('.linkbox').addClass('link_hover');
+        $(ele).parents('.col.online').length > 0 && $(ele).parents('.col.online').addClass('link_hover');
+      } else if($('.link_hover').length > 0){
+        $('.linkbox').removeClass('link_hover');
+        $('.col.online').removeClass('link_hover');
+      }
+      // 快捷服务自动切换及银行二维码显示
+      if(dom.nodeName === 'IMG' && $(ele).parents('.col_inner').length > 0){
+        $(ele).parents('.col').addClass('hover');
+      } else if($('.col.mobile').hasClass('hover') || $('.col.wechact').hasClass('hover') || $('.col.yundian').hasClass('hover')){
+        $('.col.mobile').removeClass('hover');
+        $('.col.wechact').removeClass('hover');
+        $('.col.yundian').removeClass('hover');
+      }
+      if($(ele).parents('.service_list').length > 0){
+        var ind = $(ele).parents('.service_list').index();
+        var len = $('.service_list').length;
+        $(ele).parents('.service_list').addClass('swiper-slide-visible').addClass('swiper-slide-active').siblings('.service_list').removeClass('swiper-slide-visible').removeClass('swiper-slide-active');
+        ieF ? $(ele).parents('.swiper-wrapper').css('transform', 'translate('+ (-ind*156) +'px, 0px)')
+        : $(ele).parents('.swiper-wrapper').css('transform', 'translate3d('+ (-ind*156) +'px, 0px, 0px)');
+        $('.controller-pagination .now').text(ind+1);
+        if(ind === 0){
+          $('.controller .swiper-prev i').css('border-left', '9px solid rgb(170, 170, 170)');
+          $('.controller .swiper-next i').css('border-left', '9px solid rgb(51, 51, 51)');
+        } else if(ind === len - 1){
+          $('.controller .swiper-prev i').css('border-left', '9px solid rgb(51, 51, 51)');
+          $('.controller .swiper-next i').css('border-left', '9px solid rgb(170, 170, 170)');
+        } else {
+          $('.controller .swiper-prev i').css('border-left', '9px solid rgb(51, 51, 51)');
+          $('.controller .swiper-next i').css('border-left', '9px solid rgb(51, 51, 51)');
+        }
+        var lineN = +$('.controller-pagination .now').attr('data-'+markName);
+        var num = $('.controller-pagination .now').text();
+        if (markName === 'linenum'){
+          Barrier.changeText(lineN, sourceArr, num);
+        } else{
+          var index = $('.navigate_.active .now').attr('data-navallnum') - $('.navigate_.active').attr('data-navallnum');
+          Barrier.changeText(index-1, navArr, num);
+          Barrier.changeText(lineN, navAllArr, num);
+        } 
+      }
+      
+      Barrier.setScrollTop(dom, markName);   //定位
+      setTimeout(function(){
+        if(_nodeName !== 'INPUT' && _nodeName !== 'SELECT' && _nodeName !== 'BUTTON' && _nodeName !== 'IMG' && $(ele).attr('data-mark') === undefined){
+          if(!ieF){
+            try {
+              range.selectNodeContents(dom);
+              selection.removeAllRanges();
+              selection.addRange(range);
+            } catch (error) {}
+          } else {
+            var ind, num;
+            if($(ele).parents('.service_list').length > 0){
+              ind = $(ele).parents('.service_list').index()+1;
+              num = +$('.controller-pagination .now').text();
+            }
+            if(!($(ele).parents('.service_list').length > 0 && ind !== num)){
+              try {
+                range1.moveToElementText(dom);
+                document.selection.empty();
+                range1.select();
+              } catch (e) {}
+            }
+          }
+        } else {
+          Barrier.clearSelectRange();
+        }
+        Barrier.imgSelect(dom);
+      }, 3)
+      if($('.screen_btn').hasClass('active')){
+        var text = sourceArr[3][lineInd];
+        Barrier.textUp(text);
+        if(text.indexOf('验证码') > -1){
+          text = text.replace(/-/g,'');
+        }
+        ($('.languages .fan').length > 0 && $('.languages .fan').hasClass('active')) || ($('.languages .fan').length === 0 && PARAMETER.fanti === true) ? $('.screen_box').text(Traditionalized(text)) : $('.screen_box').text(text);
+      }
+    }
+  });
+}
+Barrier.setScrollTop = function(dom, markName){    // 选中文字自动定位
+  var amplifyNum = 1 + PARAMETER.amplifyNum;
+  if ($(dom).parents('.loginad').length > 0 || $(dom).parents('#slideshow').length > 0) {
+    $(document).scrollTop(0);
+  }
+  var offHeight = 0, num1 = 400, num2 = 260;
+  if($('.screen_wrapper').length > 0 && $('#nav .mains').length > 0) {
+    num1 = 260; 
+  } else if($('.screen_wrapper').length > 0){
+    num1 = 260; num2 = 150;
+  }
+  if(markName === 'navallnum' && $(dom).parents('.modular_').length > 0) {offHeight = $(dom).parents('.modular_')[0].offsetHeight;}
+  if(dom.offsetTop !== undefined && dom.offsetTop !== null && (markName === 'linenum' || $(dom).parents('.textContent').length > 0 || $(dom).parents('.top_fund').length > 0 || $(dom).parents('.imgbox_').length > 0 || $(dom).parents('.r_c_def').length > 0 || $(dom).parents('.rightColumnad #disaplayProfit').length > 0 || $(dom).parents('.rightColumnad #profitDetail').length > 0 || (offHeight > 500 && PARAMETER.navCode !== 0) || PARAMETER.navCode === 0)){
+    var scrollNum = 0;
+    if($(dom).parents('.side_bar').length > 0 || $(dom).parents('.showhide').length > 0 || $(dom).parents('.right_float').length > 0 || $(dom).parents('.rpleft').length > 0 || $(dom).parents('.actlist_box .act_right').length > 0 || $(dom).parents('.tabConUl').length > 0 || $(dom).parents('.huankuangg').length > 0 || $(dom).parents('.con_right table').length > 0 || $(dom).parents('.calculatorMain .jsqList').length > 0 || (PARAMETER.navCode === 0 && offHeight < 500 && $('.barrier_navigate').length > 0 && $('.barrier_navigate').css('display') !== 'none' && (!($(dom).hasClass('modular_') || $(dom).hasClass('navigate_'))))){ 
+      // 不动
+    } else {
+      if($(dom).parents('.bgContainer .tableContainer').length > 0){   //基金详情
+        scrollNum = $(dom).parents('.tableContainer')[0].offsetTop - num2;
+      } else if($(dom).parents('.bgContainer .lineRight').length > 0){   //基金详情
+        scrollNum = $(dom).parents('.lineRight')[0].offsetTop - num2;
+      } else if ($(dom).parents('.other_service').length > 0 ) {   //新信用卡首页-便捷工具
+        if($(dom).parents('.other_service')[0].offsetTop > num1 ) {scrollNum = dom.offsetTop + $(dom).parents('.other_service')[0].offsetTop - num2;}
+      } else if ($(dom).parents('.index_public').length > 0 ) {   //新信用卡首页-卡片世界
+        if($(dom).parents('.index_public')[0].offsetTop > num1 ) {scrollNum = dom.offsetTop + $(dom).parents('.index_public')[0].offsetTop - num2;}
+      } else if ($(dom).parents('.con_advs').length > 0 ) {   //新信用卡首页-帮助中心
+        scrollNum = $(dom).parents('.con_advs')[0].offsetTop + 100;
+      } else if ($(dom).parents('.cardlist_con').length > 0 ) {   //新信用卡-信用卡申请
+        scrollNum = $(dom).parents('.cardlist_con li')[0].offsetTop + 100;
+      } else if ($(dom).parents('.footer_gg').length > 0 ) {   //旧信用卡首页-底部图片
+        scrollNum = 3000;
+      } else if ($(dom).parents('.right.border.merch').length > 0 ) {   //旧信用卡首页-优惠商户列表
+        scrollNum = dom.offsetTop + $(dom).parents('.merch')[0].offsetTop - num2;
+      } else if ($(dom).parents('#idSlider2 li').length > 0 ) {   //旧信用卡首页-热门推荐
+        scrollNum = $(dom).parents('.Shopping')[0].offsetTop + 42;
+      } else if ($(dom).parents('.mcxtcl_c11').length > 0) {
+        scrollNum = $(dom).parents('.m_cxt_c')[0].offsetTop - num2;
+      } else if(dom.offsetParent && dom.offsetParent.className.indexOf('copy-right') > -1){  //底部导航定位
+        if( dom.offsetTop + $(dom).parents('.bottom-bar')[0].offsetTop > num1 || $(document).scrollTop() > num2) {scrollNum = dom.offsetTop + $(dom).parents('.bottom-bar')[0].offsetTop - num2;}
+      } else if($(dom).parents('.login').length > 0 && $(dom).parents('.inner').length > 0) {  // 登录
+        if($(document).scrollTop() > num1) {scrollNum = 0;}
+      } else if($(dom).parents('.bottom-bar').length > 0){   // 新首页-底部
+        if($(dom).parents('.bottom-bar')[0].offsetTop > num1) {scrollNum = $(dom).parents('.bottom-bar')[0].offsetTop - 100;}
+      } else if($(dom).parents('.inner').length > 0){   // 新首页
+        if( $(dom).parents('.inner')[0].offsetTop > num1 || $(document).scrollTop() > num2) {scrollNum = $(dom).parents('.inner')[0].offsetTop - 100;}
+      } else if($(dom).parents('.height445.toolstable tr td').length > 0){  //理财计算器
+        scrollNum =$(dom).parents('.height445.toolstable')[0].offsetTop + $(dom).parents('tr').find('td')[0].offsetTop - 100;
+      } else if($(dom).parents('.fun_box.modular_').length > 0 && $(dom).parents('.fun_table_list td').length > 0) {   //基金列表(智能导盲)-2023
+        scrollNum = $(dom).parents('.fun_table_list')[0].offsetTop + $(dom).parents('td')[0].offsetTop + $(dom).parents('.fun_box.modular_')[0].offsetTop - num2;
+      } else if($(dom).parents('.fun_table_list td').length > 0){  //基金列表-2023
+        scrollNum =$(dom).parents('.fun_table_list')[0].offsetTop + $(dom).parents('td')[0].offsetTop - num2;
+      } else if($(dom).parents('.report').length > 0){
+        if($(dom).parents('.report')[0].offsetTop > num1 || $(document).scrollTop() > num2) {scrollNum = $(dom).parents('.aboutList')[0].offsetTop - num2;}
+      } else if($(dom).parents('.rplist').length > 0){
+        if($(dom).parents('.m_cxt_c')[0].offsetTop + $(dom).parents('.rplist')[0].offsetTop > num1 || $(document).scrollTop() > num2) {scrollNum = $(dom).parents('.m_cxt_c')[0].offsetTop + $(dom).parents('.rplist')[0].offsetTop - num2;}
+      } else if($(dom).parents('.rtab_table').length > 0){   //基金-基金排行榜
+        if(dom.nodeName === 'TD' || dom.nodeName === 'TH' ){
+          scrollNum = $(dom).parents('dl').find('dt')[0].offsetTop + $(dom).parents('.fund_list')[0].offsetTop + $(dom).parents('.fund_list tr')[0].offsetTop + dom.offsetTop;
+        } else {
+          scrollNum = $(dom).parents('dl').find('dt')[0].offsetTop + $(dom).parents('.fund_list')[0].offsetTop + $(dom).parents('.fund_list tr')[0].offsetTop + dom.offsetParent.offsetTop;
+        }
+      } else if($(dom).parents('.lanMu_off>div').length > 0){   //电子银行
+        scrollNum = $(dom).parents('.lanMu')[0].offsetTop - num2;
+      } else if($(dom).parents('.pRightlist').length > 0){   //个人网银
+        scrollNum = $(dom).parents('.pRight')[0].offsetTop - num2;
+      } else if(dom.offsetParent && (dom.offsetParent.className.indexOf('ljxq') > -1 || dom.offsetParent.className.indexOf('textContent_inner') > -1 || dom.offsetParent.nodeName === 'TD')){
+        if( (dom.offsetTop + dom.offsetParent.offsetTop + dom.offsetParent.offsetParent.offsetTop > num1) || $(document).scrollTop() > num2) {scrollNum = dom.offsetTop + dom.offsetParent.offsetTop + dom.offsetParent.offsetParent.offsetTop - num2;}
+      } else if($(dom).parents('.featureULs').length > 0 ) {
+        if( $(dom).parents('.scrollbars')[0].offsetTop > num1 ) {scrollNum = $(dom).parents('.scrollbars')[0].offsetTop - num2;}
+      } else if($(dom).parents('#monthDetail').length > 0 ) {   //基金详情-净值
+        if( $(dom).parents('#monthDetail')[0].offsetTop > num1 ) {scrollNum = dom.offsetTop + $(dom).parents('#monthDetail')[0].offsetTop - num2;}
+      } else if($(dom).parents('.main3a.modular_').length > 0 ) {   //基金中心
+        if($(dom).parents('.main3a.modular_')[0].offsetTop > 300 ) {
+          if($(dom).parents('tr').length > 0)  {scrollNum = $(dom).parents('tr')[0].offsetTop + $(dom).parents('.main3a.modular_')[0].offsetTop - num1;}
+          else  {scrollNum = dom.offsetTop + $(dom).parents('.main3a.modular_')[0].offsetTop - num2;}
+        }
+      } else if($(dom).parents('.modular_').length > 0 && dom.offsetParent && $('.barrier_navigate').css('display') !== 'none' && offHeight > 500){
+        var top = 30 > Math.abs($(dom).parents('.modular_')[0].offsetTop - dom.offsetParent.offsetTop) ? dom.offsetTop + dom.offsetParent.offsetTop : dom.offsetTop + dom.offsetParent.offsetTop +$(dom).parents('.modular_')[0].offsetTop;
+        if(top > num1 || $(document).scrollTop() > num2) {scrollNum = top - num2;}
+      } else if(($(dom).hasClass('modular_') || $(dom).hasClass('navigate_')) && PARAMETER.navCode === 0){   //智能导盲未按alt键
+        if((!($(dom).hasClass('side_bar') || $(dom).hasClass('login_wrapper') || $(dom).hasClass('right_float'))) && $(dom)[0].offsetTop !== undefined && $(dom)[0].offsetTop !== null) {
+          if($(dom).hasClass('pRight') && $(dom).find('.vodlist').length > 0) {scrollNum = $(dom).parents('.main')[0].offsetTop  - 100;}
+          else if($(dom).hasClass('height445') && $(dom).hasClass('toolstable') && $(dom).find('.content2').length > 0) {scrollNum = 300;}
+          else if($(dom).hasClass('m_cxt_c_l')) {scrollNum = 360;}
+          else if(($(dom).hasClass('new_banners') && $(dom).find('.new_banner').length > 0) || ($(dom).hasClass('promotions') && $(dom).find('.im_promotionsUl').length > 0) ) {scrollNum = 200;}
+          else {scrollNum = $(dom)[0].offsetTop  - 200;}
+        }
+      } else if($(dom).parents('.wechat-qrcode').length > 0 && $('.screen_wrapper').length > 0){
+        scrollNum = 120;
+      } else if(dom.offsetParent){
+        if((dom.offsetTop + dom.offsetParent.offsetTop > num1) || $(document).scrollTop() > num2) {scrollNum = dom.offsetTop + dom.offsetParent.offsetTop - num2;}
+      }
+      $(document).scrollTop(scrollNum*amplifyNum);
+    } 
+  } else if(markName === 'navallnum' && $(dom).parents('.market').length > 0 && $(dom).parents('.more').length > 0){
+    $(document).scrollTop(($(dom).parents('.modular_')[0].offsetTop - 200)*amplifyNum);
+  }
+  // 自动滚动
+  if($(dom).parents('.field ul').length){
+    var scrollNum = dom.offsetTop;
+    var liHeight = $('.field ul li').eq(0).height();
+    var allHeight = liHeight * $('.field ul li').length;
+    var height = $(dom).parents('.field ul')[0].offsetHeight;
+    if(scrollNum < allHeight-height + liHeight*3) {
+      $(dom).parents('.field ul').scrollTop(scrollNum-liHeight*5);
+    } else {
+      $(dom).parents('.field ul').scrollTop(allHeight-height + liHeight*3);
+    }
+  } else if($(dom).parents('.jjjz_table').length){   //新基金详情-基金净值列表
+    var scrollNum = dom.offsetTop;
+    var liHeight = $('.jjjz_table li').eq(0).height();
+    var allHeight = liHeight * $('.jjjz_table li').length;
+    var height = $(dom).parents('.jjjz_table')[0].offsetHeight;
+    if(scrollNum < allHeight-height + liHeight*3) {
+      $(dom).parents('.jjjz_table').scrollTop(scrollNum-liHeight*5);
+    } else {
+      $(dom).parents('.jjjz_table').scrollTop(allHeight-height + liHeight*3);
+    }
+  }
+}
+Barrier.speedToggle = function(num){
+  if(num) {
+    PARAMETER.speedNum = num;
+  } else {
+    PARAMETER.speedNum++;
+    if(PARAMETER.speedNum === 3) {PARAMETER.speedNum = 0;}
+  }
+  Barrier.setItem('speed', PARAMETER.speedNum);
+  if (PARAMETER.speedNum === 0){  //正常语速
+    $('.voicespeed_btn').addClass('snormal').removeClass('sslow').removeClass('squick');
+    $('.voicespeed_btn').attr('title', '当前为正常语速，点击切换至快语速(Shift + Q)');
+    PARAMETER.speed = 10;
+  } else if (PARAMETER.speedNum === 1){   //快语速
+    $('.voicespeed_btn').addClass('squick').removeClass('snormal').removeClass('sslow');
+    $('.voicespeed_btn').attr('title', '当前为快语速，点击切换至慢语速(Shift + Q)');
+    PARAMETER.speed = 13;
+  } else {   //慢语速
+    $('.voicespeed_btn').addClass('sslow').removeClass('squick').removeClass('snormal');
+    $('.voicespeed_btn').attr('title', '当前为慢语速，点击切换至正常语速(Shift + Q)');
+    PARAMETER.speed = 7;
+  }
+}
+Barrier.modeToggle = function(num, flag){   //切换指读/连读模式
+  if(num) {
+    PARAMETER.modeNum = +num;
+  } else {
+    PARAMETER.modeNum = PARAMETER.modeNum === 0 ? 1 : 0;
+  }
+  Barrier.setItem('mode', PARAMETER.modeNum);
+  if (PARAMETER.modeNum === 0){  //指读模式
+    if($('.voicemode_btn').hasClass('mpoint')) {return;}
+    $('.voicemode_btn').addClass('mpoint').removeClass('mline');
+    $('.voicemode_btn').attr('title', '当前为指读模式，点击切换至连读模式(Shift + G)');
+    PARAMETER.lineF = false;
+    Barrier.voicePoint();
+    $('body').unbind('mouseover.lineover');
+    $('.videoPlay')[0].removeEventListener('ended', voiceEnded);
+  } else {   //连读模式
+    if($('.voicemode_btn').hasClass('mline')) {return;}
+    $('.voicemode_btn').addClass('mline').removeClass('mpoint');
+    $('.voicemode_btn').attr('title', '当前为连读模式，点击切换至指读模式(Shift + G)');
+    PARAMETER.lineF = false;
+    if(PARAMETER.voiceF && !flag) {Barrier.voiceLine();} 
+  }
+  Barrier.initKey();
+}
+Barrier.setLinenum = function(dataName){  //连读模式时的标记
+  $('.content-inner li').length > 4 && $('.content-inner li').each(function(i, ele){
+    if(i >=$('.content-inner li').length - 4) {$(ele).attr('data-carsoul', 'carsoul');}
+  });
+  $('.topic_banner li').length > 1 && $('.topic_banner li').each(function(i, ele){
+    if(i >=$('.topic_banner li').length - 2) {$(ele).attr('data-carsoul', 'carsoul');}
+  });
+  $('.reportList li').length >= 3 && $('.reportList li').each(function(i, ele){
+    if(i === 0 || i === $('.reportList li').length - 1) {$(ele).attr('data-carsoul', 'carsoul');}
+  });
+  $('#slideshow span a').length > 1 && $('#slideshow span a').each(function(i, ele){
+    if(i === $('#slideshow span a').length - 1) {$(ele).attr('data-carsoul', 'carsoul');}
+  });
+  $('.adv_inner .adv_item').length > 1 && $('.adv_inner .adv_item').each(function(i, ele){
+    if(i === $('.adv_inner .adv_item').length - 1) {$(ele).attr('data-carsoul', 'carsoul');}
+  });
+  $('#banner a').length > 1 && $('#banner a').each(function(i, ele){
+    if(i=== 0 || i === $('#banner a').length-1) {$(ele).attr('data-carsoul', 'carsoul');}
+  });
+  $('body *').each(function(i,ele){
+    var name = $(ele)[0].nodeName;
+    if(name === 'SCRIPT' || name === 'HEAD' || $(ele)[0].parentNode.nodeName === 'HEAD' || name === 'LINK' || name === 'STYLE' || (name === 'INPUT' && $(ele).attr('type')==='hidden') || $(ele).hasClass('barrier-free') || $(ele).parents().hasClass('barrier-free') || $(ele).hasClass('screen_wrapper') || $(ele).parents().hasClass('screen_wrapper') || ($(ele).parents('.cpfl_table').length && $(ele).parents('.cpfl_table').css('display') === 'none' && name === 'TH')) {return;}
+    var text = '';
+    if (dataName === 'line') {     //连读模式下的文本
+      text = Barrier.voiceLineText($(ele)[0], 'linenum');
+      if(!text) {return true;}
+      Barrier.storText(Simplized(text), sourceArr);
+    } else if (dataName === 'navigate') {    //智能导盲模式下的文本
+      text = Barrier.voiceLineText($(ele)[0], 'navigate');
+      if(!text) {return true;}
+      Barrier.storText(Simplized(text), navAllArr);
+    }
+  });
+  navNum = 0; moduNum = 0;
+}
+Barrier.clearLinenum = function(dataName){  //清除连读模式时的标记
+  $('body *').each(function(i,ele){
+    if($(ele).attr('data-'+dataName) === undefined) {return;}
+    $(ele).attr('data-'+dataName,'');
+    dataName === 'linenum' ? $(ele).removeClass('linenum'+$(ele).attr('data-linenum')) : $(ele).removeClass('navall_');
+  });
+  if (dataName === 'linenum') {
+    sourceArr = [[], [], [], []];
+    PARAMETER.voiceLineNum = 0;
+  } else {
+    navAllArr = [[], [], [], []];
+    PARAMETER.voiceNavAllNum = 0;
+  }
+}
+Barrier.voiceLineText = function(_target, dataName){   //连读模式下的文本
+  if($(_target).parents('.help_wrapper').length > 0 || $(_target).hasClass('clearfix') || $(_target).hasClass('new_more') || $(_target).hasClass('annual_fee') || (_target.nodeName === 'FONT' && $(_target).parents('.search_list').length > 0) || (_target.nodeName === 'H1' && $(_target).parent().css('display') === 'none') || $(_target).find('.top-bar').length > 0 || $(_target).parents('.flex-control-nav').length > 0 || ($(_target).parents('.btns').length > 0 && $(_target).parents('#slideshow').length > 0) || ($(_target).parents('#all.wrap .box').length > 0 && $(_target).parents('#pdf_product').length === 0 && $(_target).parents('#pdf_risk').length === 0) || $(_target).parents('.right table#myTb').length > 0 || $(_target).hasClass('hot_key') || $(_target).attr('id') === 'carsq_right' || ($(_target).parents('#timephase').length > 0 && $(_target).parents('#timephase').css('display') === 'none') || $(_target).hasClass('prev2') || $(_target).hasClass('next2') || ($(_target).hasClass('prevNew') || $(_target).hasClass('nextNew')) || $(_target).parents('.bg9 #msgbox1').length > 0 || $(_target).parents('.bg9 #msgbox5').length > 0 || $(_target).parents('.teihui td').length > 0 || ($(_target).parents('.toolstable').length > 0 && $(_target).parents('.toolstable').css('display') === 'none') || $(_target).parents('.search_history').length > 0 || $(_target).parents('.creditcard_wytw').length > 0) {return '';}
+  Barrier.screenText = '';
+  // 创建字体选择对象
+  var _nodeName = _target.nodeName;
+  if ($(_target).attr('data-mark') !== undefined && (dataName === 'navigate')) {
+    Barrier.screenText = Barrier.calc(_target);
+  }
+  else if ($(_target).parents().attr('data-carsoul') === 'carsoul' || $(_target).parents('li').attr('data-carsoul') === 'carsoul' || $(_target).attr('data-carsoul') === 'carsoul' || $(_target).parents('ul#List2').length > 0 || $(_target).parents('.clone').length > 0 || $(_target).hasClass('qBtmore')) {
+    Barrier.screenText = '';
+  }
+  else if (_nodeName === 'IMG') {
+    var altText = $(_target).attr('alt') ? $(_target).attr('alt').replace(/_/g, '') : '';
+    if (altText==='粤ICP备' || altText==='粤公网安备' || altText==='分期商户' || ($(_target).parents('.float_bg').length > 0 && $(_target).parents('.f_show').length === 0)){
+      Barrier.screenText = '';
+    } else {
+      // Barrier.screenText = $(_target).parents('a').length > 0  && $(_target).parents('a').attr('href').indexOf('/') > -1 ? '图片链接：'+ altText : '图片：'+ altText;
+      // Barrier.screenText = $(_target).parents('a').length > 0 ? '图片链接：'+ altText : '图片：'+ altText;
+      var linkNum = Barrier.testOutlink(_target);
+      if(linkNum === 2) {Barrier.screenText = '外部图片链接：' + altText;}
+      else if (linkNum === 1) {Barrier.screenText = '图片链接：' + altText;}
+      else {Barrier.screenText = '图片：' + altText;}
+    }
+    $.each(imgPar, function(i, e){
+      if($(_target).parents(e).length > 0) {Barrier.screenText = '';}
+    });
+  } else if (_nodeName === 'BUTTON'){
+    Barrier.screenText = '按钮：' + _target.innerText;
+  } else if (_nodeName === 'VIDEO'){
+    Barrier.screenText =$(_target).attr('title') ? '视频：' + $(_target).attr('title') : '';
+  } else if (_nodeName === 'INPUT') {
+    if($(_target).css('display') === 'none') {return;}
+    var _inputType = _target.type;
+    var typeName = "";
+    switch (_inputType){
+      case 'text': typeName="文本输入框";
+        break;
+      case 'button':
+      case 'reset':
+      case 'submit':  typeName = "按钮";
+        break;
+      default: typeName = "";
+        break;
+    }
+    var inputVal = _target.value && _target.value.trim() || "";
+    var idName = $(_target).attr('id');
+    Barrier.screenText = typeName !== '' && inputVal !== '' ?  typeName +'：' + inputVal : typeName;
+    if(idName === 'publishDate' || idName === 'begainDate' || idName === 'endDate'){
+      Barrier.screenText = Barrier.screenText.replace('文本输入框', '日期选择框');
+    } else if(inputVal !== '' && (idName === 'code' || idName === 'vcode' || idName === 'vCode' || idName === 'pic_vcode' || $(_target).hasClass('vertification'))){
+      Barrier.screenText = Barrier.screenText.replace('文本输入框', '文本输入框：验证码');
+    }
+    if($(_target).hasClass('search_btn')) {Barrier.screenText = '按钮：搜索';}
+    else if($(_target).hasClass('delete')) {Barrier.screenText = '按钮：删除';}
+  } else if (_nodeName === 'SELECT'){
+    var val = _target.children[_target.selectedIndex] && _target.children[_target.selectedIndex].innerText || '';
+    var text = _target.innerText=== '' ? _target.textContent.trim().replace(/\s+/g, "、") : _target.innerText.trim().replace(/\s+/g, "、");
+    Barrier.screenText = "下拉菜单：当前选中为" + val + "；" +  text.slice(0,182); 
+  } else if (_nodeName === 'OPTION'){
+    return '';
+  } else {
+    var oText = '';
+    if(($(_target).parents('.content_wrapper').length > 0 || $(_target).parents('.section').length > 0 || $(_target).parents('.p_content').length > 0) && _nodeName === 'TD' ) {
+      Barrier.screenText = _target.innerText;
+      if(_target.innerText.length > 50 || ($(_target).hasClass('t_l') && $(_target).children().length > 1)) {return '';}
+    } else if($(_target).hasClass('nav_item') && $(_target).find('.nav_item_content').length === 0) {   //IE浏览器没有二级导航时
+      return '';
+    } else if((_nodeName === 'SPAN' && $(_target).parents('.field .select').length > 0) || $(_target).hasClass('ysrfc1')){
+      Barrier.screenText = "下拉菜单：当前选中为" + (Number(_target.innerText) ? _target.innerText + '年' : _target.innerText);
+    } else if(_target.nodeName === 'A' && $(_target).parents('.banner').length > 0 && $(_target).attr('href') !== undefined){   //新首页banner图
+      Barrier.screenText = $(_target).attr('href').indexOf('/') > -1 ? '图片链接：'+$(_target).attr('title') : '图片：'+$(_target).attr('title');
+    } else if(!$('.inner.nav_list .nav_item').eq(0).hasClass('active') && $(_target).parents('.nav_item_content').length > 0 && !$(_target).parents('.nav_item').hasClass('active') && _nodeName === 'A'){   //除首页之外的二级导航读取
+      return '';
+    }
+    else if((_target.children.length === 1 && (_target.children[0].nodeName === "A" || _target.innerText === _target.children[0].innerText)) || $(_target).parents('.select-city').length > 0 || ($(_target).parents('.pagination').length > 0 && $(_target).parents('.mains').length === 0 && $(_target).parents('.toolselect').length === 0 && !$(_target).hasClass('numPage')) || $(_target).css('display') === 'none' || ($(_target).hasClass('btn_86') && ($(_target).parents('span.clearSelect').length > 0 || $(_target).parents('span#clearSelect2').length > 0)) || $(_target).parents('#pager_select_bottom').length > 0 || ($(_target).parents('#timephase').length > 0 && $(_target).parents('#timephase').css('display') === 'none') || (_nodeName === 'B' && $(_target).parents('.toolstable').length > 0 && $(_target).parents('.bgContainer').length === 0)){
+      Barrier.screenText = '';
+    } else if(($(_target).parents('.content_wrapper').length > 0 || $(_target).parents('.section').length > 0 || $(_target).parents('.p_content').length > 0) && ($(_target).parents('td').length > 0 && $(_target).parents('td').text().length > 50 && _target.children.length < 1)){   //整合td
+        Barrier.screenText = _target.innerText;
+    } else if($(_target).hasClass('xing_')){
+      Barrier.screenText = $(_target).attr('size')+'颗星';
+    } else if(_nodeName === 'A' && $(_target).parents('.search_list .msg_title').length > 0){  //新信用卡-搜索结果列表
+      Barrier.screenText = $(_target).text();
+    } else if(_nodeName === 'A' && ($(_target).hasClass('icon-qq') || $(_target).hasClass('icon-weibo') || $(_target).hasClass('icon-douban'))){   //优惠活动-分享
+      if($(_target).hasClass('icon-qq')) {Barrier.screenText = "外部链接：QQ分享";}
+      else if($(_target).hasClass('icon-weibo')) {Barrier.screenText = "外部链接：微博分享";}
+      else if($(_target).hasClass('icon-douban')) {Barrier.screenText = "外部链接：豆瓣分享";}
+    } else if(_target.children.length <= 1 && (!_target.lastElementChild || (_target.innerText.trim() !== ''))){
+      if(($(_target).parents('.content_wrapper').length > 0 || $(_target).parents('.section').length > 0 || $(_target).parents('.p_content').length > 0) && $(_target).parents('td').length > 0) {return '';}
+      oText = $(_target).attr('title')&&$(_target).attr('title').trim().length < 200 ? $(_target).attr('title').trim() : $(_target).text().trim();
+      if(_target.children.length === 1 && _target.innerText === _target.children[0].innerText) {
+        oText = '';
+        if( _target.children[0].children && _target.children[0].children.length === 1 && _target.children[0].innerText === _target.children[0].children[0].innerText) {oText = '';}
+      }
+      if(_target.children.length === 1 && (_target.nodeName === 'TD' || _target.nodeName === 'TH' || _target.nodeName === 'TR')) {return '';}
+      if($(_target).hasClass('search_result')) {oText = $(_target).text();}
+      if(_target.nodeName === 'FONT' && $(_target).parents('.search_result').length > 0) {return '';}
+      if($(_target).children('.fontthree').length > 0 || ($(_target).parents('.inner').length > 0 && _target.className === 'title')) {return '';}
+      if((_target.nodeName === 'I' && oText === '') || $(_target).find('.moreDetail').length > 0 || $(_target).parents('.moreDetail').length > 0 || $(_target).hasClass('imgRight') || oText === '' || oText === '最新') {return;}
+      // Barrier.screenText = (_target.nodeName === "A" && $(_target).attr('href') && $(_target).attr('href').indexOf('/') > -1) || ($(_target).parents('a').length > 0 && $(_target).parents('a').attr('href') && $(_target).parents('a').attr('href').indexOf('/') > -1) ? '链接：' + oText : oText;
+      // Barrier.screenText = _target.nodeName === "A" || $(_target).parents('a').length > 0 ? '链接：' + oText : oText;
+      var linkNum = Barrier.testOutlink(_target);
+      if(linkNum === 2) {Barrier.screenText = '外部链接：' + oText;}
+      else if (linkNum === 1) {Barrier.screenText = '链接：' + oText;}
+      else {Barrier.screenText = oText;}
+      Barrier.childs(_target.children[0]);
+    }
+  }
+  Barrier.screenText = Barrier.screenText.indexOf('下拉菜单') > -1 || Barrier.screenText.toLowerCase().indexOf('kg') > -1 || $(_target).parents('.key-sqbk').length > 0 || $(_target).parents('.carddetail .detail_btm').length > 0 || $(_target).hasClass('_times') ? Barrier.screenText : Barrier.screenText.replace(/[>*&?]/g,'').replace(/\s+/g, ' ').replace(/[○〇]/g, '0');
+  if(Barrier.screenText.indexOf('第') === 0) {Barrier.screenText = Barrier.screenText.replace('/','、');}
+  Barrier.screenText = Barrier.screenText.length > 200 ? Barrier.screenText.slice(0,200) : Barrier.screenText;
+  $.each(zifu,function(i, e){
+    if (Barrier.screenText.trim() === e) {
+      Barrier.screenText = '';
+      return true;
+    }
+  });
+  if($(_target).hasClass('daima') && Barrier.screenText.trim() !== '') {
+    Barrier.screenText = "代码：" + Barrier.screenText;
+  }
+  if(($(_target).parents('.youbian').length > 0 && _target.nodeName === 'TD' && _target.innerText.trim() !== '95508' && Number(_target.innerText)) || ($(_target).hasClass('youbian') && _target.children.length === 0)) {
+    Barrier.screenText = "邮编：" + Barrier.screenText;
+  }
+  if($(_target).hasClass('free_entrance')) {Barrier.screenText = Barrier.screenText.slice(0, Barrier.screenText.length - 9);}    //无障碍服务浏览不读后面的快捷键
+  Barrier.screenText = Barrier.screenText === '-' || Barrier.screenText === '/' ? '' : Barrier.screenText;
+  if (Barrier.screenText !== ''){
+    var textNum = 0;
+    if(dataName === 'linenum'){
+      textNum = ++PARAMETER.voiceLineNum;
+      $(_target).attr('data-'+dataName, textNum-1);
+      $(_target).addClass(dataName + (textNum-1));
+    } else if(dataName === 'navigate') {  //全部的导盲内容
+      PARAMETER.voiceNavAllNum++;
+      $(_target).attr('data-navallnum', PARAMETER.voiceNavAllNum-1);
+      $(_target).addClass('navall_');
+    }
+    Barrier.screenText = $(_target).parents('.year_select, .tabConUl, ._year').length > 0 && Number(Barrier.screenText) && Barrier.screenText.trim() !== '' ? Barrier.screenText.trim() + '年' : Barrier.screenText;
+    if($(_target).parents('.year_line').length > 0) {Barrier.screenText += '年';}
+    return Barrier.screenText;
+  }
+}
+Barrier.voiceToggle = function(){
+  $('.voiceopen_btn').toggleClass('active');
+  $('.voiceopen_btn').hasClass('active') ? Barrier.voiceOpen() : Barrier.voiceClose();
+}
+Barrier.voiceOpen = function(){
+  $('.voiceopen_btn').attr('title', '当前语音已开启，点击关闭语音(Shift + R)');
+  Barrier.addPlayer();
+  Barrier.setItem('voice', 1);
+  Barrier.barVoice();
+  PARAMETER.voiceF = true;
+  var speedNames = ['正常语速、', '快语速、', '慢语速、']; 
+  var modeNames = ['指读模式', '连读模式'];
+  PARAMETER.modeNum === 1 ? Barrier.voiceLine() : Barrier.voicePoint();
+  Barrier.play('语音播报服务已开启，当前为'+ speedNames[PARAMETER.speedNum] + modeNames[PARAMETER.modeNum]);
+}
+Barrier.voiceClose = function(){
+  Barrier.clearSelectRange();
+  Barrier.clearImgSelect();
+  PARAMETER.voiceF = false;
+  Barrier.setItem('voice', 0);
+  $('.voiceopen_btn').attr('title', '当前语音已关闭，点击开启语音(Shift + R)');
+  $('.videoPlay')[0].pause();
+  $('.barrier-free').unbind('mouseover.barEnter');
+  Barrier.stopPointVoice();
+  Barrier.stopLineVoice();
+  Barrier.stopHelpVoice();
+  Barrier.clearShow();
+  Barrier.initKey();
+}
+Barrier.clearShow = function(ele){    // 关闭自动展示的内容
+  if(ele){
+    if($(ele).parents('.nav_item_content').length === 0 ) {
+      $('.nav_item_content').hide(); 
+      if($('.nav_hover').length > 0 && $(ele).parents('.nav').length === 0)  {$('.nav_item').removeClass('nav_hover');}
+    }
+    if($(ele).parents('section.sub_nav').length === 0) {$('section.sub_nav').hide();}  
+    $('.field ul').length > 0 && $('.field ul').addClass('hide');
+    $('.select').length > 0 && $('.select').removeClass('selecting');
+    if($(ele).parents('.showhide').length === 0 && $('.showhide').length > 0) {$('.showhide').hide();}
+    if($(ele).parents('.wechat-qrcode').length === 0 && $('.wechat-qrcode').length > 0) {$('.wechat-qrcode').hide();}
+    if($(ele).parents('.search_history').length === 0 && $('.search_history').length > 0) {$('.search_history').hide();}
+    if(($(ele).parents('.ysrfc1sub1').length === 0 && !$(ele).hasClass('ysrfc1')) && $('.ysrfc1sub1').length > 0) {$('.ysrfc1sub1').hide();}
+    if($(ele).parents('.f_show').length === 0 && $('.float_bg.hover').length > 0) {$('.float_bg').removeClass('hover');}
+    if($('#code_img2').length > 0 && $(ele).parents('#code_img2').length === 0) {$('#code_img2').hide();}
+    if($('#code_img').length > 0 && $(ele).parents('#code_img').length === 0) {$('#code_img').hide();}
+    if($('.help_search_list').length > 0 && $(ele).parents('.help_search_list').length === 0) {$('.help_search_list').hide();}
+    $('#__calendarPanel').length > 0 && $('#__calendarPanel').css('visibility', 'hidden');
+  }else{
+    $('.nav_item_content').hide();
+    $('section.sub_nav').hide();
+    $('#__calendarPanel').css('visibility', 'hidden');
+    $('.nav_item').removeClass('nav_hover');
+    $('.yundian, .mobile, .wechact').removeClass('hover');
+    $('.service_inner').removeClass('service_hover');
+    $('.linkbox').length > 0 && $('.linkbox').removeClass('link_hover');
+    $('.col.online').length > 0 && $('.col.online').removeClass('link_hover');
+    $('.field ul').length > 0 && $('.field ul').addClass('hide');
+    $('.select').length > 0 && $('.select').removeClass('selecting');
+    $('.ysrfc1sub1').length > 0 && $('.ysrfc1sub1').hide();
+    $('.rplist .rpleft .hide').length > 0 && $('.rplist .rpleft .hide').css('display', '');
+    $('.float_bg.hover').length > 0 && $('.float_bg').removeClass('hover');
+  }
+  
+}
+// 停止声音
+Barrier.stopPointVoice = function(){   
+  $('body, .help_wrapper').unbind('mouseover.pointover');
+  clearTimeout(pointTimer);
+}
+Barrier.stopLineVoice = function(){
+  $('body').unbind('mouseover.endedover');
+  $('.videoPlay')[0].removeEventListener('ended', voiceEnded);
+  $('body').unbind('mouseover.lineover');
+  clearTimeout(lineTimer);
+}
+Barrier.stopHelpVoice = function(){
+  $('.free_content').unbind('mouseover.helphover');
+  $('.free_content').unbind('mouseover.helpend');
+  $('.videoPlay')[0].removeEventListener('ended', helpEnded);
+  clearTimeout(helpTimer);
+  clearTimeout(helpEndTimer);
+}
+Barrier.stopBarVoice = function(){
+  $('.barrier-free').unbind('mouseover.barEnter');
+  $('.barrier-free').unbind('click.barclick');
+  clearTimeout(barTimer);
+}
+var initTimer = null;
+Barrier.initKey = function(){   //初始化tab键功能
+  $(document).bind('keydown.initkey', function(e){
+    if((PARAMETER.modeNum !== 0 && PARAMETER.lineF && PARAMETER.voiceF) || ($('.barrier_navigate').length > 0 && $('.barrier_navigate').css('display') !== 'none')) {return;}
+    clearTimeout(initTimer);
+    initTimer = setTimeout(function(){
+      if (e.shiftKey && e.keyCode === 9){   //在当前区循环读取-上一项
+        if(Barrier.i <= 0) {return;}
+        PARAMETER.initTabF = true;
+        --Barrier.i;
+        Barrier.tabKey(Barrier.i, 'linenum');
+        Barrier.voiceTextSelect('linenum', Barrier.i);
+        if(PARAMETER.voiceF && $('.free_entrance').hasClass('active')) {Barrier.play('', sourceArr[PARAMETER.speedNum][Barrier.i]);}
+        return false;
+      } else if (e.keyCode === 9) {
+        PARAMETER.initTabF = true;
+        if(Barrier.i >= sourceArr[0].length - 1) {
+          Barrier.clearImgSelect();
+          Barrier.clearSelectRange();
+          return;
+        }
+        if(!PARAMETER.initF) {Barrier.i++;}
+        Barrier.tabKey(Barrier.i, 'linenum');
+        Barrier.voiceTextSelect('linenum', Barrier.i);
+        if(PARAMETER.voiceF && $('.free_entrance').hasClass('active')) {Barrier.play('', sourceArr[PARAMETER.speedNum][Barrier.i]);}
+        if(PARAMETER.initF) {PARAMETER.initF = false;}
+        return false;
+      } else if(e.keyCode === 13) {
+        if(!PARAMETER.initTabF || $(e.target).hasClass('serch_text')) {return;}
+        var dom = '';
+        $('body *').each(function(i, ele){
+          if($(ele).attr('data-linenum') !== undefined && +$(ele).attr('data-linenum') === Barrier.i) {dom = ele;}
+        });
+        if(($(dom).attr('href') && ($(dom).attr('href').indexOf('/') > -1 || $(dom).attr('href').indexOf('mailto') > -1)) || ($(dom).parents('a').attr('href') && $(dom).parents('a').attr('href').indexOf('/') > -1) || (dom && dom.nodeName === 'LI' && dom.className === 'link_item')){
+          var link = dom.nodeName === 'LI' ? $(dom).children('a').attr('href') : $(dom).attr('href') || $(dom).parents('a').attr('href');
+          if($(dom).attr('target')==='_blank' || $(dom).parents('a').attr('target') === '_blank' || (dom.nodeName === 'LI' && $(dom).children('a').attr('target') === '_blank')){
+            window.open(link);
+            $('.videoPlay').length && $('.videoPlay')[0].pause();
+          } else {
+            window.location.href = link;
+          }
+        } else if(dom.nodeName === 'A') {
+          if($(dom).attr('href') && $(dom).attr('href').indexOf('java') > -1 && ($(dom).text().indexOf('页') > -1 || Number($(dom).text()))){
+            (new Function($(dom).attr('href').split(':')[1].replace(';', '')))();
+            // if($(dom).parents('.fun_box .pages, .fun_box .sort_list').length){
+            //   window.console && console.log('-------------------');
+            //   setTimeout(() => {
+            //     Barrier.changeAllText($(dom), $('.fun_box'), true);
+            //   }, 6000);
+            // }
+          } else if(($(dom).parents('.ATMxx h2').length > 0 || $(dom).parents('.scrollLmu2').length > 0)){    //分行网点-地图
+            PARAMETER.mapF ? hidePopWin(false) : (new Function($(dom).attr('onclick')))();
+            PARAMETER.mapF = !PARAMETER.mapF;
+          } else if($(dom).parents('.controler').length > 0){   //详情页 大 中 小
+            changeSize(dom);
+          } else if($(dom).parents('.textRight').length > 0) {   //收藏 - 打印 - 关闭
+            if($(dom).attr('onclick')) {(new Function($(dom).attr('onclick')))();} 
+            else {(new Function($(dom).attr('href').replace('javascript:', '')))();}
+          } else if($(dom).attr('href') && $(dom).attr('href').indexOf('javascript') > -1){
+            (new Function($(dom).attr('href')))();
+            if($(dom).parents('.key-sqbk').length > 0){
+              setTimeout(function(){
+                Barrier.changeAllText($(dom), $('._yuyue'));
+              }, 100)
+            }
+          }
+        } else if($(dom).parents('#join_merchant_ul_0 .merchant a').length > 0){
+          (new Function($(dom).parents('a').attr('onclick').replace('javascript:', '')))();
+        } 
+        Barrier.enterKey($(dom));  //非链接下的enter键
+        return false;
+      }
+    }, 300)
+    if(e.keyCode === 9 || e.keyCode === 13) {return false;}
+  });
+}
+function easyUTF8(txt){
+  txt = Simplized(txt);
+  txt = txt.indexOf('POS') === -1 ? txt : txt.toLocaleLowerCase();
+  txt = txt.replace(/d-/ig,'D-').replace(/bbb-/ig,'BBB-').replace(/ba1/ig,'ba1').replace(/ba2/ig,'ba2').replace(/ba3/ig,'ba3').replace(/baa3\/p-3/ig,'Baa3/P-3').replace(/baa2(cr)\/p-2(cr)/ig,'Baa2(cr)/P-2(cr)');
+  return encodeURIComponent(txt).replace(/\(/g,'%28').replace(/\)/,'%29');
+}
+
+//键盘控制
+$(document).bind('keydown.dockeydown', function (e) {
+  e.returnVal = false;
+  if (e.shiftKey && e.keyCode === 79) {freeClick();}  //shift+O 打开
+  if ($('.barrier-free').length === 0) {return;}
+  if (e.shiftKey) {
+    if($('.barrier_list').css('display') === 'none') {
+      switch (e.keyCode){
+        case 55:   //Shift+7 后退
+        case 103:
+          var len = window.history.length;
+          len <= 1 ? window.close() : window.history.go(-1);
+          // Barrier.back();
+          break;
+        case 66:
+          Barrier.navigateBack();
+          break;
+        default:
+          break;
+      }
+    }
+    else if($('.barrier_list').css('display') === 'block'){
+      switch (e.keyCode) {
+        case 50:   //Shift+2 配色
+        case 98:
+          Barrier.colorChange();
+          break;
+        case 51:   //Shift+3 辅助线
+        case 99:
+          Barrier.assist();
+          break;
+        case 52:   //Shift+4 鼠标样式
+        case 100:
+          Barrier.mouse();
+          break;
+        case 53:   //Shift+5 放大
+        case 101:
+          $('.shrink_btn .avator').css('background', shink_default);
+          if(PARAMETER.amplifyNum>=4){
+            $('.amplify_btn .avator').css('background', amplify_unclick);
+          }else{
+            $('.amplify_btn .avator').css('background', amplify_default);
+          }
+          Barrier.amplify();
+          break;
+        case 54:   //Shift+6 缩小
+        case 102:
+          $('.amplify_btn .avator').css('background', amplify_default);
+          if(PARAMETER.amplifyNum<=1){
+            $('.shrink_btn .avator').css('background', shink_unclick);
+          }else{
+            $('.shrink_btn .avator').css('background', shink_default);
+          }
+          Barrier.shrink();
+          break;
+        case 55:   //Shift+7 后退
+        case 103:
+          Barrier.back();
+          break;
+        case 56:   //Shift+8 前进
+        case 104:
+          Barrier.go();
+          break;
+        case 78:   //Shift+N 进入智能导盲
+          Barrier.navigate();
+          break;
+        case 48:   //Shift+0 重置
+        case 96:
+          Barrier.reset();
+          break;
+        case 80:   //Shift+P 帮助中心
+          Barrier.help();
+          break;
+        case 87:   //Shift+W 关闭
+          Barrier.close();
+          break;
+        case 77:   //Shift+M 辅屏
+          Barrier.screenShow();
+          break;
+        case 82:   //Shift+R 语音开关
+          Barrier.voiceToggle();
+          break;
+        case 71:   //Shift+G 指读/连读模式
+          Barrier.modeToggle();
+          break;
+        case 81:   //Shift+Q 快语速
+          Barrier.speedToggle();
+          break;
+        default:
+          break;
+      }
+    }
+  }
+});
+// 进入页面即可通过tab键浏览信息
+setTimeout(function(){
+  if($('.barrier_navigate').length === 0 || (!PARAMETER.voiceF) || ($('.barrier_navigate').length > 0 && PARAMETER.modeNum === 0 && $('.barrier_navigate').css('display') === 'none')){
+    Barrier.setInitKey();
+  }
+}, 300)
+// 放大缩小按钮样式
+$('html').on('click', '.amplify_btn', function(){
+  Barrier.amplify();
+});
+$('html').on('click', '.shrink_btn', function(){
+  Barrier.shrink();
+});
+
+// 监听网页的显示/关闭
+document.addEventListener('visibilitychange', function(){
+  if(document.visibilityState === 'hidden') {
+    $('.videoPlay').length && $('.videoPlay')[0].pause();
+  } else if (document.visibilityState === 'visible') {
+    $('.videoPlay').length && PARAMETER.modeNum === 1 && PARAMETER.voiceF && $('.videoPlay')[0].play();
+  }
+});
+$(document).on('click', function(e){
+  Barrier.clearImgSelect();
+  if(!ieF || $(e.target).parents('.barrier-free').length > 0) {return;}
+  $('.videoPlay').length && $('.videoPlay')[0].pause();
+  if($('.barrier_list').css('display') === 'block' && PARAMETER.modeNum === 1 && PARAMETER.voiceF){
+    clearTimeout(lineTimer);
+    $('.videoPlay')[0].removeEventListener('ended', voiceEnded);
+    Barrier.voiceLine();
+  }
+});
+
+// 兼容移动端鼠标移入效果
+if(ua.indexOf('iphone') === -1 && ua.indexOf('android') === -1) {
+  $('.barrier_style').after('<link rel="stylesheet" href="/static/CN2/css/barrier_pc.css">');
+}
+// 兼容IE11滚轮导致定位偏移
+var _jsver = 0;
+/* @cc_on
+    _jsver = @_jscript_version;
+@*/
+if (+_jsver === 11) {
+  document.addEventListener('wheel', function(event){
+    if ($('.help_btn').hasClass('active')) {return;}
+    if(PARAMETER.amplifyNum > 0){
+      event.preventDefault();
+      var wd = event.deltaY;
+      var csp = window.document.documentElement.scrollTop;
+      window.scrollTo(0, wd+csp);
+    }
+  });
+  $(window).scroll(function(){
+    if(PARAMETER.amplifyNum > 0){
+  　　var scrollTop = $(this).scrollTop();
+  　　var scrollHeight = $(document).height();
+  　　var windowHeight = $(this).height();
+  　　if(scrollTop + windowHeight > scrollHeight){
+      　$('.barrier-free').css('top', '17px');
+  　　} else {
+        $('.barrier-free').css('top', '0');
+      }
+    } else {
+      $('.barrier-free').css('top', '0');
+    }
+  });
+  
+}
+// 动态更新内容
+var seletClick = false;
+$('body').on('click', '.nonseledted', function(){  //基金详情
+  if($('#profitDetail').length === 0) {return;}
+  var $this = $(this);
+  var time = $this.text().trim() === '基金管理人' ? 1000 : 400;
+  setTimeout(function(){
+    Barrier.colorSet(colorArr[PARAMETER.colorNum].color, PARAMETER.colorNum);
+    Barrier.changeAllText($this, $('.rightColumnad'));
+  }, time)
+});
+$('body').on('click', '.add, .delete,.guarantee_main .code_img', function(){  //国内保函查询
+  var $this = $(this);
+  setTimeout(function(){
+    Barrier.colorSet(colorArr[PARAMETER.colorNum].color, PARAMETER.colorNum);
+    Barrier.changeAllText($this, $('.guarantee_main'));
+  }, 200)
+});
+$('body').on('click', '#v_img, .button1.m-r, .key-sqbk a', function(){  //网点预约-验证码
+  var $this = $(this);
+  setTimeout(function(){
+    Barrier.changeAllText($this, $('._yuyue'));
+  }, 200)
+});
+$('body').on('click', '#vimg', function(){  //信用卡促销-验证码
+  var $this = $(this);
+  $('.email_box').length > 0 && setTimeout(function(){
+    Barrier.changeAllText($this, $('.email_box'));
+  }, 200)
+});
+$('body').on('change', 'select', function(){
+  if($(this).hasClass('fund_search') || $(this).hasClass('serch_text') || $(this).parents('.pages').length) {return};
+  if($('.modular_').length > 0) {Barrier.changeAllText($(this), $(this).parents('.modular_'));}
+  else {Barrier.changeAllText($(this));}
+  seletClick = true;
+});
+$('html').on('click', '.controller .swiper-next, .controller .swiper-prev', function(){  //首页-快捷服务
+  Barrier.changeAllText($(this).find('i').eq(0), $('.side_bar'));
+});
+$('body').on('click', '.search_history li', function(){
+  Barrier.changeAllText($('.search_history'), $('#header'));
+  Barrier.colorSet(colorArr[PARAMETER.colorNum].color, PARAMETER.colorNum);
+});
+$('body').on('click', '.clacButton', function(){
+  Barrier.colorSet(colorArr[PARAMETER.colorNum].color, PARAMETER.colorNum);
+  Barrier.changeAllText($(this), $('.toolstable'));
+});
+$('body').on('click', '#popupControls a', function(){
+  PARAMETER.mapF = false;
+});
+// 基金筛选-清空
+$('body').on('click', '.btns_reset', function(){
+  var text = '---请选择其他基金公司---';
+  var $span = $('.filter_item span');
+  changeFilterText(text, $span);
+});
+// 点击基金筛选下拉菜单-修改文本
+$('body').on('click', '.field ul li', function(){
+  var text = $(this).text();
+  var $span = $(this).parents('.field').find('span');
+  changeFilterText(text, $span);
+});
+function changeFilterText(text, $span){
+  var numB = +$span.attr('data-linenum');
+  var numA = +$span.attr('data-navallnum');
+  if(numB){
+    Barrier.changeText(numB,sourceArr,'下拉菜单：当前选中为'+text+ "；");
+  }
+  if(numA){
+    Barrier.changeText(numA,navAllArr,'下拉菜单：当前选中为'+text+ "；");
+  }
+}
+Barrier.changeAllText = function($this,$parent, flag){
+  if(sourceArr[0].length !== 0){
+    Barrier.clearLinenum('linenum');
+    Barrier.setLinenum('line');
+    if(flag){  //通过enter改变
+      Barrier.i = $this.hasClass('delete') ? +$this.attr('data-linenum') - 2 : +$this.attr('data-linenum');
+    } else {  //通过按钮点击改变
+      if(!($('.barrier_navigate').length > 0 && $('.barrier_navigate').css('display') === 'block')) {Barrier.i = +$this.attr('data-linenum');}
+      if($this.hasClass('delete')) {Barrier.i = +$this.attr('data-linenum') - 2;}
+      if($this.hasClass('claStep')) {Barrier.i = +$('.height445 .infoTitle').attr('data-linenum');}
+      if($this.hasClass('search_history')) {Barrier.i = +$('.serch_text').attr('data-linenum');}
+    }
+  }
+  if(navAllArr[0].length !== 0){
+    Barrier.clearLinenum('navallnum');
+    Barrier.setLinenum('navigate');
+    if($this.hasClass('delete')) {navAllNum = +$this.attr('data-navallnum') - 2;}
+    else if($this.hasClass('claStep')) {navAllNum = +$('.height445 .infoTitle').attr('data-navallnum');}
+    else if($this.hasClass('search_history')) {navAllNum = +$('.serch_text').attr('data-navallnum');}
+    else {navAllNum = +$this.attr('data-navallnum');}
+    if($('.barrier_navigate').length > 0 && $('.barrier_navigate').css('display') === 'block'){
+      PARAMETER.modulLen = $parent.find('.navall_').length;
+      PARAMETER.modulNum = +$parent.attr('data-navallnum');
+      if(!$parent.hasClass('active')){
+        $('.navigate_, .modular_').removeClass('active');
+        $parent.addClass('active');
+      }
+    }
+  }
+  if(ua.indexOf('iphone') > -1 || ua.indexOf('android') > -1) {
+    Barrier.addMark();
+  }
+}
+
+
+
+// 导航区列表
+var navList = ['.top-bar', '.nav', '.sub_nav', '.foot_nav', '.bottom-bar', '.side_bar', '#footer', '.tool', '.scrollbarNeis', '.bus_nav', '.leftNav', '.m_cxt_c_r', '.top.comm_width', '.right_float', '.footer.comm_width', '.left_nav_list', '.onlineHelp', '#header', '.header.comm_width', '.location', '.location_top .mains'];    
+// 视窗区列表
+var moduList = ['.banner', '.adv', '.login_wrapper', '.irl_message', '.huankuanQie', '.p_search', '.finProduct', '.gg_list', '.main .login', '.login_wrapper .login', '.rightContainer', '.lanMu', '#slideshow', '.new_discript', '.promotions', '.new_icowyly', '.hotSale_list', '.topic_banner', '.guarantee_main', '.ad', '.textContent', '.hrt_banner', '.hrt_content', '.leftHelp', '.adRight', '.plate', '.image1', '.image', '.dlad', '.rightColumnad', '.main3a', '.msgs', '.pRight', '.finances', '.financesNew', '.bond_ziliao_title', '.bond_ziliao_content', '.scrollbar', '.moneyMetal .money', '.moneyMetal .metal', '.conter_right_switch', '.conter_right_price', '.question', '.platehg', '.aboutList', '.vodlist', '#tabComposite', '.siderbar', '.idea .content', '.topline', '.training', '.salaries', '.m_cxt_c_l', '#adDivCont', '.left .service', '.main .ATM', '.mapclass', '.mRight', '.calc_img', '.font_content', '.textContent2 .innerCon', '.netbank', '.imgbox_', '.wrap', '.linkcontet', '.smallAd', '#ebankProductContainer', '.selfhelpbank_adv', '.left .contact', '.onlinePay', '.product_name .main1', '.searchDiv', '.articleList', '.ad2', '.right_golddetail', '.problem', '.calculator', '.con_advs', '.index_card', '.other_service', '.index_activity', '.index_stage', '.index_integral', '.index_shop', '.cardlist_top', '.cardlist', '.actlist', '.stagedlist', '.staged_detail', '.apply_guide', '.use_guide', '.func_list', '.card_interest', '.card_coupon', '.faq', '.btm_recommand', '.carddetail', '.newcard_act', '.act_top', '.act_detail', '#Lefts_on', '#bjfwes', '#coop_link', '.footer_gg', '#adright', '.juloubu', '.right_gg', '.border.Shopping', '.tehuish', '#coop_link', '.right.border', '.Left_ccontents', '.xykhk_ad', '.yhgg', '.wdcx', '.wrap', '.txtBox', '.fLayout', '.brand_history', '.gglist .gg_left', '.gglist .comm_right', '.adv_bottom', '#loginad', '.loginad', '.new_banners', '.daiKuankj', '.search_con', '.img', '.questionnaire', '.reward', '.jlb', '.xyk_center', '.lanmuRight1', '.main .business', '.help_search', '#tabs.hot', '.guild', '#content .login', '.index_news', '.code_wrapper', '.credit_card', '#content>.assist', '#content>.service', '#content>.consult', '#tabs1', '.tool_img', '.savecont', '.center_detail .right_content', '.boxRight', '.rightContainer._yuyue', '.fun_box', '.plate_new', '.jj_market', '.footersm_wrapper'];
+// 视窗标志
+Barrier.mark = function(){
+  // 导航区标志  data-mark="nav"   data-marktitle="导航区"
+  $.each(navList, function(i, e){
+    if(!(e==='.onlineHelp' && $(e).find('img').length === 0)) {$(e).attr('data-mark', 'nav').addClass('navigate_').attr('data-marktitle', '导航区');}
+  });
+  if($('#sub_nav').hasClass('sub_nav')) {$('.sub_nav').removeClass('navigate_').removeAttr('data-mark').removeAttr('data-marktitle');}   //投资者关系的二级菜单
+  else if($('.tool').hasClass('tool_img')) {$('.tool').removeClass('navigate_').removeAttr('data-mark').removeAttr('data-marktitle');}   
+  else if($('.location_top .location').length > 0) {$('.location').removeClass('navigate_').removeAttr('data-mark').removeAttr('data-marktitle');}
+
+  // 模块区标志  data-mark="modular"   data-marktitle="视窗区"
+  $('.inner').each(function(i, e){
+    if($(e).find('.names').length > 0){
+      $(e).parent().attr('data-marktitle', '视窗区').attr('data-mark', 'modular').addClass('modular_');
+    }
+  });
+  $.each(moduList, function(i, e){
+    if(!($(e).children().length === 0 || (e==='#slideshow' && $(e).find('img').length === 0))) {$(e).attr('data-mark', 'modular').addClass('modular_').attr('data-marktitle', '视窗区');}
+  });
+  $('.Left_toppic').length > 0 && $('.Left_toppic').parent().attr('data-mark', 'modular').addClass('modular_').attr('data-marktitle', '视窗区');  //旧版信用卡首页
+  $('.remind').length > 0 && $('.remind').parents('.center').attr('data-mark', 'modular').addClass('modular_').attr('data-marktitle', '视窗区');  //搜索结果页
+
+
+  var $dom, $dom1, $dom2, $dom3, $dom4;  //同一个页面的多个情况
+  if($('.login_wrapper .login, .login .login').length > 0) {$dom = $('.login').eq(0);}
+  else if($('.rightContainer .p_search, .rightContainer .textContent').length > 0 && $('.rightContainer._yuyue').length === 0) {$dom = $('.rightContainer');}
+  else if($('.ad #slideshow').length > 0) {$dom = $('.ad');}
+  else if($('.reportList .scrollbar').length > 0) {$dom = $('.scrollbar');}
+  else if($('.pRight .vodlist').length > 0) {$dom = $('.vodlist');}
+  else if($('.siderbar .siderbar').length > 0) {$dom = $('.siderbar .siderbar');}
+  else if($('.pRight .articleList').length > 0) {$dom = $('.pRight .articleList');}
+  else if($('.rightColumnad .plate').length > 0) {$dom = $('.rightColumnad .plate');}
+  else if($('.textContent .fLayout').length > 0) {$dom = $('.fLayout');}
+  else if($('.yhgg .finances').length > 0) {$dom = $('.yhgg');}
+  else if($('.imgbox_ .img').length > 0) {$dom = $('.img');}
+  else if($('#adDivCont img').length === 0) {$dom = $('#adDivCont');}
+
+  if($('.m_cxt_c_l .textContent').length > 0) {$dom1 = $('.textContent');}
+  else if($('.topline .content').length > 0) {$dom1 = $('.content').eq(1);}
+  else if($('.textContent .p_search').length > 0) {$dom1 = $('.textContent .p_search');}
+  else if($('.ATM .huankuanQie').length > 0) {$dom1 = $('.huankuanQie');}
+  else if($('#loginad #slideshow').length > 0) {$dom1 = $('#loginad');}   //信用卡旧页面-轮播图
+  
+
+  if($('.staged_detail .mains .adv').length > 0) {$dom2 = $('.adv');}
+  else if($('#Lefts_on .Left_ccontents').length > 0) {$dom2 = $('.Left_ccontents');}
+  else if($('.login .netbank').length > 0) {$dom2 = $('.netbank');}
+  else if($('._yuyue .textContent').length > 0) {$dom2 = $('.textContent');}
+  else if($('.toolstable .savecont').length > 0) {$dom2 = $('.savecont');}
+  else if($('.banner a, .banner img').length === 0) {$dom2 = $('.banner');}
+  
+  if($('#slideshow .img').length > 0) {$dom3 = $('.img');}   //信用卡旧页面
+  else if($('.index_news .faq').length > 0) {$dom3 = $('.faq');}   //信用卡首页-公告
+  if($('.finances .financesNew').length > 0) {$dom4 = $('.financesNew');}   //债券首页、信用卡旧页面
+  
+  $dom && $dom.removeClass('modular_').removeAttr('data-mark').removeAttr('data-marktitle');
+  $dom1 && $dom1.removeClass('modular_').removeAttr('data-mark').removeAttr('data-marktitle');
+  $dom2 && $dom2.removeClass('modular_').removeAttr('data-mark').removeAttr('data-marktitle');
+  $dom3 && $dom3.removeClass('modular_').removeAttr('data-mark').removeAttr('data-marktitle');
+  $dom4 && $dom4.removeClass('modular_').removeAttr('data-mark').removeAttr('data-marktitle');
+}
+var screenF = false, ampliNum = 0;
+Barrier.navigate = function(){
+  Barrier.clearImgSelect();
+  Barrier.clearSelectRange();
+  Barrier.helpClose();
+  Barrier.zoom(0);
+  Barrier.clearMouse();
+  $('.light').remove();
+  $(document).unbind('keydown.initkey');
+  if($('.screen_wrapper').length > 0 || PARAMETER.screenF){
+    Barrier.screenClose();
+    Barrier.setItem('screen', '1');
+    screenF = true;
+  } else {
+    screenF = false;
+  }
+  if(!PARAMETER.voiceF) {Barrier.barVoice();}
+  Barrier.selectColor();
+  $('.barrier_list').hide();  $('.barrier_navigate').show();   //进入智能导盲
+  Barrier.setItem('navigate', 1);
+  if($('.modular_').length === 0) {Barrier.mark();}    //如未有视窗区标志则标志
+  var navN = $('.navigate_').length, moduN = $('.modular_').length;   //统计导航区及视窗区的数量
+  $('.navi_daoh span').text('('+navN+')');
+  $('.navi_shic span').text('('+moduN+')');
+  $('.videoPlay')[0].pause();
+  clearTimeout(barTimer);
+  // 禁掉无障碍的声音
+  Barrier.stopPointVoice();
+  Barrier.stopLineVoice();
+  Barrier.stopHelpVoice();
+  Barrier.clearShow();
+
+  // 整合内容
+  Barrier.setLinenum('navigate');
+  Barrier.textArr = [
+    '您已开启智能导盲服务',
+    '本页面由'+ navN +'个导航区',
+    moduN +'个视窗区',
+    '共计'+ (navN + moduN) +'个区域组成',
+    '切换导航区Alt+1，切换视窗区Alt+2',
+    '按Tab键浏览下一项信息，按Shift+Tab键浏览上一项信息',
+    '按enter键打开当前链接，按Shift+7关闭当前页面'
+  ];
+  
+  Barrier.textInd = 0;
+  setTimeout(function(){
+    Barrier.play(Barrier.textArr[Barrier.textInd]);
+    $('.videoPlay')[0].addEventListener('ended', navend);
+  }, 30)
+  navAllNum = 0;
+  Barrier.navKeydown(navAllNum);
+}
+function navend(){  //进入智能导盲的语音
+  if(Barrier.textInd >= Barrier.textArr.length) {return;}
+  Barrier.textInd++;
+  Barrier.play(Barrier.textArr[Barrier.textInd]);
+}
+var navTimer = null;
+Barrier.navKeydown = function(){
+  var srcUrl = '', tabF = false, lastF = false, firstF = true;
+  $(document).bind('keydown.navkeydow', function (e) {
+    clearTimeout(navTimer);
+    if($('.barrier_navigate').length > 0 && $('.barrier_navigate').css('display') === 'none') {return;}
+    navTimer = setTimeout(function(){
+      if(e.keyCode === 9 && PARAMETER.navCode === 0){      //按tab键切换读屏信息，从头到尾读
+        if(navAllNum >= $('.navall_').length){
+          Barrier.clearImgSelect(); 
+          return;
+        }
+        if(tabF) {navAllNum++;}
+        tabF = true;
+        Barrier.navVoiceAll();
+        $('.videoPlay')[0].removeEventListener('ended', navend);
+      } else if (e.shiftKey && e.keyCode === 9 && PARAMETER.navCode !== 0){   //在当前区循环读取-上一项
+        tabF = true; lastF = false;
+        navAllNum--;
+        if(navAllNum <= PARAMETER.modulNum && !lastF) {
+          navAllNum = PARAMETER.modulNum+PARAMETER.modulLen;
+          firstF = true;
+        } else {firstF = false;}
+        Barrier.navVoiceMode();
+      } else if ((e.keyCode === 9 || e.keyCode === 40) && PARAMETER.navCode !== 0){   //在当前区循环读取-下一项
+        tabF = true; 
+        if(navAllNum >= (PARAMETER.modulNum+PARAMETER.modulLen)) {
+          navAllNum = PARAMETER.modulNum;
+          lastF = true;
+        } else {lastF = false;}
+        navAllNum++;
+        Barrier.navVoiceMode();
+      } else if (e.altKey){   
+        var $dom, srcNum;
+        if(e.keyCode === 49) { //alt + 1，导航区跳转
+          PARAMETER.navCode = 1;  //moduNum = 0;  //视窗区从头
+          Barrier.clearShow();
+          $('.navigate_, .modular_').removeClass('active');  
+          $dom = $('.navigate_').eq(navNum);
+          $dom.addClass('active');
+          if(++navNum === $('.navigate_').length) {navNum = 0;}
+          $('.videoPlay')[0].removeEventListener('ended', navend);
+        } else if (e.keyCode === 50){   //alt + 2，视窗区跳转
+          PARAMETER.navCode = 2;  //navNum = 0;
+          Barrier.clearShow();
+          $('.navigate_, .modular_').removeClass('active');  
+          $dom = $('.modular_').eq(moduNum);
+          $dom.addClass('active');
+          if(++moduNum === $('.modular_').length) {moduNum = 0;}
+          $('.videoPlay')[0].removeEventListener('ended', navend);
+        }
+        if($dom){
+          // 获取当前区的内容
+          navArr = [[], [], [], []];
+          $dom.find('*').each(function(i, ele){
+            var text = Barrier.voiceLineText($(ele)[0], 'navnum');
+            if(!text) {return true;}
+            Barrier.storText(Simplized(text), navArr);
+          });
+          if((!($dom.hasClass('side_bar') || $dom.hasClass('login_wrapper') || $dom.hasClass('right_float'))) && $dom[0].offsetTop !== undefined && $dom[0].offsetTop !== null) {
+            if($dom.hasClass('pRight') && $dom.find('.vodlist').length > 0) {$(document).scrollTop($dom.parents('.main')[0].offsetTop  - 100);}
+            else if($dom.hasClass('height445') && $dom.hasClass('toolstable') && $dom.find('.content2').length > 0) {$(document).scrollTop(300);}
+            else if($dom.hasClass('m_cxt_c_l')) {$(document).scrollTop(360);}
+            else if(($dom.hasClass('new_banners') && $dom.find('.new_banner').length > 0) || ($dom.hasClass('promotions') && $dom.find('.im_promotionsUl').length > 0) ) {$(document).scrollTop(200);}
+            else {$(document).scrollTop($dom[0].offsetTop  - 200);}
+          }
+          if($dom.parents('.loginright').length > 0) {$(document).scrollTop(0);}
+          PARAMETER.modulNum = navAllNum = srcNum = +$dom.attr('data-navallnum');
+          if($dom.hasClass('loginad') && $dom.find('.adright').length > 0 && $dom.find('.navall_').length !== $dom.find('a').length){
+            PARAMETER.modulLen = $dom.find('a').length;
+          } else {
+            PARAMETER.modulLen = $dom.find('.navall_').length;
+          }
+          srcUrl = navAllArr[PARAMETER.speedNum][srcNum];
+          Barrier.play('', srcUrl);
+          Barrier.clearSelectRange();
+          Barrier.clearImgSelect();
+          return false;
+        }
+      } else if(e.keyCode === 13){    //按enter键跳转链接
+        if(!tabF) {return;}
+        if(PARAMETER.navCode !== 0 && !firstF && (navAllNum >= (PARAMETER.modulNum+PARAMETER.modulLen))) {
+          navAllNum = PARAMETER.modulNum;
+          lastF = true;
+        } else {lastF = false;}
+        if(PARAMETER.navCode !== 0 && navAllNum <= PARAMETER.modulNum){
+          navAllNum = PARAMETER.modulNum+PARAMETER.modulLen;
+          firstF = true;
+        } else {firstF = false;}
+        var dom = '';
+        $('body *').each(function(i, ele){
+          if($(ele).attr('data-navallnum') !== undefined && ((!lastF && $(ele).attr('data-navallnum') == navAllNum) || (lastF && $(ele).attr('data-navallnum') == (PARAMETER.modulNum+PARAMETER.modulLen)))) {dom = ele;}
+        });
+        if(($(dom).attr('href') && ($(dom).attr('href').indexOf('/') > -1 || $(dom).attr('href').indexOf('mailto') > -1)) || ($(dom).parents('a').attr('href') && $(dom).parents('a').attr('href').indexOf('/') > -1) || (dom && dom.nodeName === 'LI' && dom.className === 'link_item')){
+          var link = dom.nodeName === 'LI' ? $(dom).children('a').attr('href') : $(dom).attr('href') || $(dom).parents('a').attr('href');
+          if($(dom).attr('target')==='_blank' || $(dom).parents('a').attr('target') === '_blank' || (dom.nodeName === 'LI' && $(dom).children('a').attr('target') === '_blank')) {
+            $('.videoPlay').length && $('.videoPlay')[0].pause();
+            window.open(link);
+          } else {
+            window.location.href = link;
+          }
+        } else if(dom.nodeName === 'A') {
+          if($(dom).attr('href') && $(dom).attr('href').indexOf('java') > -1 && ($(dom).text().indexOf('页') > -1 || Number($(dom).text()))){
+            (new Function($(dom).attr('href').split(':')[1].replace(';', '')))();
+          } else if(($(dom).parents('.ATMxx h2').length > 0 || $(dom).parents('.scrollLmu2').length > 0)){    //分行网点-地图
+            PARAMETER.mapF ? hidePopWin(false) : (new Function($(dom).attr('onclick')))();
+            PARAMETER.mapF = !PARAMETER.mapF;
+          } else if($(dom).parents('.controler').length > 0){   //详情页 大 中 小
+            changeSize(dom);
+          } else if($(dom).parents('.textRight').length > 0) {   //收藏 - 打印 - 关闭
+            if($(dom).attr('onclick')) {(new Function($(dom).attr('onclick')))();} 
+            else {(new Function($(dom).attr('href').replace('javascript:', '')))();}
+          } else if($(dom).attr('href') && $(dom).attr('href').indexOf('javascript') > -1){
+            (new Function($(dom).attr('href')))();
+            if($(dom).parents('.key-sqbk').length > 0){
+              setTimeout(function(){
+                Barrier.changeAllText($(dom), $('._yuyue'));
+              }, 100)
+            }
+          }
+        } else if($(dom).parents('#join_merchant_ul_0 .merchant a').length > 0){
+          (new Function($(dom).parents('a').attr('onclick').replace('javascript:', '')))();
+        } 
+        Barrier.enterKey($(dom));  //非链接下的enter键
+        return false;
+      } 
+    }, 300)
+    if(e.keyCode === 9 || e.keyCode === 38 || e.keyCode === 40 || e.keyCode === 13) {return false;}
+  });
+}
+Barrier.navVoiceAll = function(){     //智能导盲-读取所有内容
+  var srcUrl = navAllArr[PARAMETER.speedNum][navAllNum];
+  Barrier.tabKey(navAllNum, 'navallnum');
+  if(navAllArr[3][navAllNum].indexOf('您已进入') > -1) {
+    $('.navigate_, .modular_').removeClass('active');
+    $('.navall_').eq(navAllNum).addClass('active');
+    if(!$('.navall_').eq(navAllNum).hasClass('side_bar') && !!$('.navall_').eq(navAllNum).hasClass('right_float')) {$(document).scrollTop($('.navall_').eq(navAllNum)[0].offsetTop  - 450);}
+  }
+  Barrier.play('', srcUrl);
+  Barrier.voiceTextSelect('navallnum', navAllNum);
+}
+Barrier.navVoiceMode = function(){  //智能导盲-读取区域内容
+  Barrier.tabKey(navAllNum, 'navallnum');
+  var srcUrl = navAllArr[PARAMETER.speedNum][navAllNum];
+  Barrier.play('', srcUrl);
+  Barrier.voiceTextSelect('navallnum', navAllNum);
+}
+Barrier.tabKey = function(num, dataName){  //tab键的其它功能
+  var $dom, text;
+  text = dataName === 'navallnum' ? navAllArr[3][num] : sourceArr[3][num];
+  // $('body *').each(function(i, ele){
+  //   if($(ele).attr('data-'+dataName) !== undefined && Number($(ele).attr('data-'+dataName)) === num) $dom = $(ele);
+  // });
+  if((text === '按钮：搜索' || text === '95508') && $('.serch_text, .fund_search').length > 0) {      //搜索框的值
+    if($('.serch_text').val().trim() === '' || $('.serch_text').val().trim() === '站内搜索') {$('.serch_text').val('站内搜索').css('color', '#777');}
+    if($('.fund_search').length && ($('.fund_search').val().trim() === '' || $('.fund_search').val().trim() === '产品名称或代码')) {$('.fund_search').val('产品名称或代码').css('color', '#777');}
+    PARAMETER.colorNum !== 4 && Barrier.colorSet(colorArr[PARAMETER.colorNum].color, PARAMETER.colorNum);
+  }
+  if($(document.activeElement).attr('type') === 'text'){
+    var actEle = document.activeElement;
+    var numB = +$(actEle).attr('data-linenum');
+    var idName = $(actEle).attr('id');
+    if(numB) {
+      if(idName === 'publishDate' || idName === 'begainDate' || idName === 'endDate'){
+        Barrier.changeText(numB,sourceArr,'日期选择框：'+$(actEle).val());
+      } else if($(actEle).val().trim() !== '' && (idName === 'code' || idName === 'vcode' || idName === 'vCode' || idName === 'pic_vcode' || $(actEle).hasClass('vertification'))){
+        Barrier.changeText(numB,sourceArr,'文本输入框：验证码：'+$(actEle).val());
+      } else {
+        Barrier.changeText(numB,sourceArr,'文本输入框：'+$(actEle).val());
+      }
+    }
+    var numA = +$(actEle).attr('data-navallnum');
+    if(numA) {
+      if(idName === 'publishDate' || idName === 'begainDate' || idName === 'endDate'){
+        Barrier.changeText(numA,navAllArr,'日期选择框：'+$(actEle).val());
+      } else if($(actEle).val().trim() !== '' && (idName === 'code' || idName === 'vcode' || idName === 'vCode' || idName === 'pic_vcode' || $(actEle).hasClass('vertification'))){
+        Barrier.changeText(numA,navAllArr,'文本输入框：验证码：'+$(actEle).val());
+      } else {
+        Barrier.changeText(numA,navAllArr,'文本输入框：'+$(actEle).val());
+      }
+    }
+    $(actEle).blur();
+  }
+}
+Barrier.enterKey = function($dom){  //Enter键的其它功能
+  // 下拉菜单选项选中
+  var _nodeName = $dom[0] && $dom[0].nodeName;
+  if($dom.attr('data-id') !== undefined && $dom.parents('.market').length > 0 && !$dom.parents('.new_market').length){  //首页
+    var id = $dom.attr('data-id');
+    var text = $dom.html();
+    $dom.addClass('weight').siblings().removeClass('weight');
+    $dom.parents('.fund_select').find('span').attr('data-id', id).html(text);
+    $dom.parents('.field').find('ul').addClass('hide');
+    $dom.parents('.field').find('.selecting').removeClass('selecting');
+    var text = $dom.text();
+    var $span = $dom.parents('.field').find('span');
+    changeFilterText(text, $span);
+  } 
+  // 新基金筛选-下拉菜单-2023
+  else if($dom.attr('data-id') !== undefined && $dom.parents('.filter_item').length){
+    changeSelect($dom[0]);
+    var text = $dom.text();
+    var $span = $dom.parents('.field').find('span');
+    changeFilterText(text, $span);
+  }
+  else if($dom.attr('data-value') !== undefined && $dom.parents('.fin_market').length > 0){  //财经频道
+    var value = $dom.attr('data-value');
+    var text = $dom.html();
+    if($dom.parents('.exchange_select').length > 0){
+      $dom.parents('.exchange_select').find('span').attr('data-value', value).html(text);
+      $('.exchange_img').attr('src', value);
+    }
+    if($dom.parents('.hotproduct_item_info').length > 0) {$dom.parents('.info_list').find('span').attr('data-value', value).html(text);}
+    $dom.addClass('weight').siblings().removeClass('weight');
+    $dom.parents('.field').find('ul').addClass('hide');
+    $dom.parents('.field').find('.selecting').removeClass('selecting');
+  } else if($dom.parents('.year_option').length > 0){  //投资者关系-定期公告
+    var value = $dom.text().trim();
+    value = value === '全部' ? '' : value;
+    $('#selYear').attr('value', value);
+    $('#querygglistFrom').submit();
+  } else if($dom.parents('.ysrfc1sub1').length > 0){   //投资者关系-公司公告
+    (new Function($dom.attr('onclick')))();
+  } else if($dom.hasClass('updown')){   //结构性存款产品-排序
+    (new Function($dom.parents('th').attr('onclick')))();
+  } else if($dom.hasClass('small') && $dom.hasClass('btn')){ // 首页跳转筛选基金
+    jumpToFilterResult('fundCompany,nav,fundType,navSize,fundStyle');
+  } else if($dom.hasClass('fin_search_btn')){  //财经频道-选择理财计算器
+    var text = $('#fundType').text();
+    var url = $('#fundType').attr('data-value');
+    text !== "请选择" ? window.location.href = url : alert('请选择一个计算器！');
+  } else if($dom.parents('.search_history').length > 0){
+    clickHistory($dom[0]);
+    Barrier.changeAllText($dom, $('.header'), true);
+    if(navAllArr[0].length !== 0) {navAllNum = Number($('.serch_text').attr('data-navallnum'))-1;}
+    if(sourceArr[0].length !== 0) {Barrier.i = Number($('.serch_text').attr('data-linenum'))-1;}
+  } else if($dom.parents('.help_search_list').length > 0){  //常见问题
+    liClick($dom);
+  } else if($dom.parents('.height445.toolstable').length > 0 && $dom.attr('onclick')){   //理财计算器
+    (new Function($dom.attr('onclick').replace('javascript:', '')))();
+    Barrier.changeAllText($dom, $('.toolstable'), true);
+    Barrier.colorSet(colorArr[PARAMETER.colorNum].color, PARAMETER.colorNum);
+  } else if($dom.attr('id') === 'joinFund'){    //基金详情-加入我的基金
+    PARAMETER.joinF ? $dom.parents('.plateContent').find('#msgbox3').css('display', 'none') : (new Function($dom.attr('onclick')))();
+    PARAMETER.joinF = !PARAMETER.joinF;
+  } else if($dom.parents('.collegeQie').length > 0 && _nodeName === 'LI'){    //旧版信用卡-信用卡申请
+    (new Function($dom.attr('onclick')))();
+  }
+  else if($dom.hasClass('free_entrance')) {freeClick(); }  //无障碍服务
+  else if($dom.parents('.controller .swiper-prev').length > 0) { //快捷服务-上一页
+    swiperPrev(); 
+    var num = $('.controller-pagination .now').text();
+    var indL = +$('.controller-pagination .now').attr('data-linenum');
+    var indN = +$('.controller-pagination .now').attr('data-navallnum');
+    indL && Barrier.changeText(indL, sourceArr, num);
+    indN && Barrier.changeText(indN, navAllArr, num);  
+  }
+  else if($dom.parents('.controller .swiper-next').length > 0) { //快捷服务-下一页
+    swiperNext();   
+    var num = $('.controller-pagination .now').text();
+    var indL = +$('.controller-pagination .now').attr('data-linenum');
+    var indN = +$('.controller-pagination .now').attr('data-navallnum');
+    indL && Barrier.changeText(indL, sourceArr, num);
+    indN && Barrier.changeText(indN, navAllArr, num);
+  }
+  // 简繁体转换
+  else if($dom.parents('.fan').length > 0 && !$dom.parents('.fan').hasClass('active'))  {jiantofan();}
+  else if($dom.parents('.jian').length > 0 && !$dom.parents('.jian').hasClass('active')) {fantojian();}
+  // 输入框聚焦
+  else if(_nodeName === 'INPUT' && $dom.attr('type') === 'text'){
+    if($dom.attr('id') === 'begainDate'){  //开始日期
+      if($('#__calendarPanel').css('visibility') === 'hidden' || !PARAMETER.dateBegF){
+        new Calendar().show($dom[0]);
+        PARAMETER.dateBegF = true;
+      } else {
+        $('#__calendarPanel').css('visibility', 'hidden');
+        PARAMETER.dateBegF = false;
+      }
+    } else if($dom.attr('id') === 'endDate'){   //结束日期
+      if($('#__calendarPanel').css('visibility') === 'hidden' || !PARAMETER.dateEndF){
+        new Calendar().show($dom[0]);
+        PARAMETER.dateEndF = true;
+      } else {
+        $('#__calendarPanel').css('visibility', 'hidden');
+        PARAMETER.dateEndF = false;
+      }
+    }
+    else {$dom[0].focus();}
+  }
+  // 新基金筛选-2023
+  else if($dom.parents('.fundCorp').length && _nodeName === 'BUTTON'){
+    corpClick($dom[0]);
+  }
+  else if($dom.parents('.fund_list, .fund_lists').length && _nodeName === 'BUTTON'){
+    toggleClick($dom[0]);
+  }
+  // 按钮提交
+  else if(((_nodeName === 'INPUT' && ($dom.attr('type') === 'button' || $dom.attr('type') === 'submit')) || _nodeName === 'BUTTON') && $dom.attr('onclick')) {
+    if($dom.hasClass('add') && $dom.parents('.write_text').length > 0) {  //公司金融-国内保函查询-增加
+      addInput($dom[0]);   
+      Barrier.changeAllText($dom, $('.guarantee_main'), true);
+      Barrier.colorSet(colorArr[PARAMETER.colorNum].color, PARAMETER.colorNum);
+    } else if($dom.hasClass('delete') && $dom.parents('.write_text').length > 0) {  //公司金融-国内保函查询-删除
+      removeInput($dom[0]);   
+      setTimeout(function(){
+        Barrier.changeAllText($dom, $('.guarantee_main'), true);
+      }, 100)
+    } else {
+      (new Function($dom.attr('onclick').replace('javascript:', '')))();
+      if($dom.parents('.key-sqbk').length > 0 && $dom.val() === '立即取号'){
+        setTimeout(function(){
+          Barrier.changeAllText($dom, $('._yuyue'));
+        }, 100)
+      } else if($dom.parents('.btns').length && $dom.hasClass('btns_reset')){  //清空基金筛选
+        var text = '---请选择其他基金公司---';
+        var $span = $('.filter_item span');
+        changeFilterText(text, $span);
+      }
+    }
+  }
+  // 重置按钮
+  else if(_nodeName === 'INPUT' && $dom.attr('type') === 'reset'){   
+    if($dom.parents('.select_btn')) {$('.card_select input[type=checkbox]').removeAttr('checked');}   //新信用卡-智能选卡-重置
+  }
+  else if($dom.parents('#profitDetail #tabProfitDetail').length > 0){   //基金详情-tab栏切换
+    changeTab($dom[0],$dom.index());
+    setTimeout(function(){
+      Barrier.colorSet(colorArr[PARAMETER.colorNum].color, PARAMETER.colorNum);
+      Barrier.changeAllText($dom, $('.rightColumnad'), true);
+    }, 200)
+  } else if(_nodeName === 'LABEL'){   
+    if($dom.parents('#type_changed').length > 0){    //基金中心 - 基金筛选 - 单选
+      $dom.siblings('label').find('input').removeAttr('checked');
+      $dom.find('input').prop('checked', 'checked');
+    }
+  }
+  // 验证码
+  else if(_nodeName === 'IMG' && $dom.attr('onclick') !== undefined){   
+    (new Function($dom.attr('onclick').replace('javascript:', '')))();
+    setTimeout(function(){
+      if($('.modular_').length > 0) {Barrier.changeAllText($dom, $dom.parents('.modular_'));}
+      else {Barrier.changeAllText($dom);}
+    }, 200);
+  }
+}
+Barrier.calc = function(_target){  //计算链接及图片数量
+  var title = $(_target).attr('data-marktitle');
+  var text= '', ind = 0;
+  if($(_target).hasClass('navigate_')){
+    ind = ++navNum;
+  } else if($(_target).hasClass('modular_')) {
+    ind = ++moduNum;
+  }
+  var linkLen = 0, imgLen = 0, viLen = $('video').length;
+  if($(_target).hasClass('banner') && ($(_target).find('div.pagination').length > 0 || $(_target).find('ul.slides').length > 0)){   //banner图统计
+    $(_target).find('a').each(function(i, e){
+      if($(e).parents('.flex-control-nav').length === 0 && $(e).attr('data-carsoul') !== 'carsoul' && $(e).attr('href') && $(e).attr('href').indexOf('/') > -1 && $(e).parents('.clone').length === 0) {
+        linkLen++;
+        imgLen++;
+      }
+      if($(e).parents('.flex-control-nav').length === 0 && $(e).attr('data-carsoul') !== 'carsoul' && $(e).attr('href') && $(e).attr('href').indexOf('/') === -1 && $(e).parents('.clone').length === 0) {imgLen++;}
+    })
+  } else {
+    $(_target).find('a').each(function(i, e){   //去掉轮播类重复的情况
+      if($(_target).find('.nav_item').length > 0 && !$(_target).find('.nav_item').eq(0).hasClass('active') && $(e).parents('.nav_item_content').length > 0 && !$(e).parents('.nav_item').hasClass('active')) {  //二级导航统计
+        linkLen=linkLen;
+      } else if(!($(e).parents().attr('data-carsoul') === 'carsoul' || $(e).parents('li').attr('data-carsoul') === 'carsoul' || $(e).attr('data-carsoul') === 'carsoul')) {
+        linkLen++;
+      }
+      if($(e).hasClass('icon-wechat') || (($(e).hasClass('prev') || $(e).hasClass('next')) && ($(e).find('img').length > 0 || $(e).parents('#slideshow').length > 0)) || ($(e).hasClass('prev2') || $(e).hasClass('next2')) || ($(e).hasClass('prevNew') || $(e).hasClass('nextNew')) || ($(e).hasClass('roll_l') || $(e).hasClass('roll_r')) || ($(e).parents('.show_btm .card_img').length > 0 && $(e).find('img').length === 0) || $(e).parents('.creditcard_wytw').length > 0|| $(e).parents('.teihui td').length > 0) {linkLen--;}
+    });
+    $(_target).find('img').each(function(i, e){   //去掉轮播类重复的情况
+      var altText = $(e).attr('alt') ? $(e).attr('alt').replace(/_/g, '') : '';
+      $.each(imgPar, function(index, ele){
+        if($(e).parents(ele).length > 0) {imgLen--;}
+      });
+      if(!($(e).parents().attr('data-carsoul') === 'carsoul' || $(e).parents('li').attr('data-carsoul') === 'carsoul' || $(e).attr('data-carsoul') === 'carsoul' || altText==='粤ICP备' || altText==='粤公网安备' || altText==='分期商户' || ($(e).parents('.float_bg').length > 0 && $(e).parents('.f_show').length === 0))) {imgLen++;}
+    });
+  }
+  if (linkLen > 0 && imgLen > 0) {
+    text = '您已进入' + title + ind +'，本区域包含'+ linkLen +'个链接，' + imgLen + '张图片' + '，按Tab键浏览信息，按enter键打开当前链接';
+    if (viLen) {
+      text = '您已进入' + title + ind +'，本区域包含'+ linkLen +'个链接，' + imgLen + '张图片，' + viLen + '个视频' +'，按Tab键浏览信息，按enter键打开当前链接，按O键播放或暂停视频，按左右箭头后退或前进，按上下箭头增加或降低音量';
+    }
+  } else if (linkLen > 0 && imgLen <= 0) {
+    text = '您已进入' + title + ind +'，本区域包含'+ linkLen +'个链接' + '，按Tab键浏览信息，按enter键打开当前链接';
+  } else if (linkLen <= 0 && imgLen > 0) {
+    text = '您已进入' + title + ind +'，本区域包含'+ imgLen + '张图片' + '，按Tab键浏览信息';
+  } else {
+    text = '您已进入' + title + ind + '，按Tab键浏览信息';
+  }
+  return text;
+}
+Barrier.navigateBack = function(){
+  Barrier.clearSelectRange();
+  Barrier.clearImgSelect();
+  $('.modular_, .navigate_').removeClass('active');   //清除区域标志
+  navNum = 0; moduNum = 0;
+  Barrier.clearLinenum('navallnum'); //清除元素标志
+  $(document).unbind('keydown.navkeydow');
+  clearTimeout(barTimer);
+  $('.barrier_list').show();  $('.barrier_navigate').hide();    //返回无障碍浏览工具条
+  if(PARAMETER.modeNum === 0 && PARAMETER.voiceF){
+    Barrier.voicePoint();
+  }else if(PARAMETER.modeNum === 1 && PARAMETER.voiceF){
+    Barrier.voiceLine();
+  } else{
+    Barrier.setInitKey();
+  }
+  $('.videoPlay')[0].removeEventListener('ended', navend);
+  $('.videoPlay')[0].pause();
+  if(ua.indexOf('iphone') > -1 || ua.indexOf('android') > -1){
+    setTimeout(function(){
+      $('.videoPlay')[0].pause();
+    }, 30)
+  }
+  Barrier.setItem('navigate', 0);
+  Barrier.clearShow();
+  if(screenF) {Barrier.screenShow(true);}
+  if(PARAMETER.amplifyNum > 0) {Barrier.zoom(PARAMETER.amplifyNum);}
+  if(PARAMETER.mouseF) {Barrier.mouseChange();}
+  if(PARAMETER.assistF) {Barrier.assist(true);}
+  $('.barrier-free').unbind('mouseover.barEnter');
+  PARAMETER.voiceF && setTimeout(function() {
+    Barrier.barVoice();
+  }, 100); 
+}
+Barrier.setInitKey = function(){
+  Barrier.clearLinenum('linenum');
+  Barrier.setLinenum('line');
+  Barrier.selectColor();
+  Barrier.initKey();
+}
+
+// 无障碍辅助浏览结构
+oldHtml='<div class="barrier-free"><div class="barrier-free_content"> ' +
+'  <div class="inner"> ' +
+'    <div class="clearfix barrier_list" style="display:block"> ' +
+'      <div class="barrier_title"><h2>辅助<br />浏览</h2></div> ' +
+// '      <div class="barrier_interval"></div> ' +
+'      <div class="voiceopen_btn barrier_item active" onclick="Barrier.voiceToggle();" title="当前语音已开启，点击关闭语音(Shift + R)"> ' +
+'        <div class="avator"></div><span>语音</span></div> ' +
+'      <div class="voicespeed_btn snormal barrier_item" onclick="Barrier.speedToggle();" title="当前为正常语速，点击切换至快语速(Shift + Q)"> ' +
+'        <div class="avator"></div><span>语速</span></div> ' +
+'      <div class="voicemode_btn mpoint barrier_item" onclick="Barrier.modeToggle();" title="当前为指读模式，点击切换至连读模式(Shift + G)" onclick="Barrier.back();"> ' +
+'        <div class="avator"></div><span>阅读方式</span></div> ' +
+'      <div class="color_btn default_ barrier_item" onclick="Barrier.colorChange();" title="当前为页面原始配色，点击更改页面配色(Shift + 2)"> ' +
+'        <div class="avator"></div><span>配色</span></div> ' +
+'      <div class="assist_btn barrier_item" title="当前辅助线已关闭，点击开启辅助线(Shift + 3)" onclick="Barrier.assist();"> ' +
+'        <div class="avator"></div><span>辅助线</span></div> ' +
+'      <div class="mouse_btn barrier_item" title="当前大鼠标已关闭，点击开启大鼠标模式(Shift + 4)" onclick="Barrier.mouse();"> ' +
+'        <div class="avator"></div><span>鼠标</span></div> ' +
+'      <div class="screen_btn barrier_item" title="当前辅屏已关闭，点击开启辅屏(Shift + M)" onclick="Barrier.screenShow();"> ' +
+'        <div class="avator"></div><span>辅屏</span></div> ' +
+'      <div class="refresh_btn barrier_item" title="全屏(F11)" onclick="Barrier.fullScreen();"> ' +
+'        <div class="avator"></div><span>全屏</span></div> ' +
+'      <div class="amplify_btn barrier_item" title="放大整个页面(Shift + 5)"> ' +
+'        <div class="avator"></div><span>放大</span></div> ' +
+'      <div class="shrink_btn barrier_item" title="缩小整个页面(Shift + 6)"> ' +
+'        <div class="avator"></div><span>缩小</span></div> ' +
+'      <div class="back_btn barrier_item" title="返回(Shift + 7)" onclick="Barrier.back();"> ' +
+'        <div class="avator"></div><span>后退</span></div> ' +
+'      <div class="go_btn barrier_item" title="前进(Shift + 8)" onclick="Barrier.go();"> ' +
+'        <div class="avator"></div><span>前进</span></div> ' +
+'      <div class="reset_btn barrier_item" title="重置选项(Shift + 0)" onclick="Barrier.reset();"><div class="avator"></div><span>重置</span></div> ' +
+'      <div class="naviga_btn barrier_item" title="当前智能导盲服务已关闭，点击开启智能导盲(Shift + N)" onclick="Barrier.navigate();"> ' +
+'        <div class="avator"></div><span>智能导盲</span></div> ' +
+'       <div class="help_btn barrier_item" title="开启帮助说明(Shift + P)" onclick="Barrier.help();"> ' +
+'         <div class="avator"></div><span>帮助</span></div> ' +
+'       <div class="free_close_btn barrier_item" title="关闭无障碍服务(Shift + W)" onclick="Barrier.close();"> ' +
+'         <div class="avator"></div><span>关闭</span></div> ' +
+'    </div> ' +
+'    <div class="clearfix barrier_navigate" style="display:none"> ' +
+'      <div class="navigate_title"><h2>智能导盲<br />区域指引</h2></div> ' +
+'      <div class="navigate_title navi_daoh"><h2>导航区<span>(4)</span><br /><i>ALT+1</i></h2></div> ' +
+'      <div class="navigate_title navi_shic"><h2>视窗区<span>(5)</span><br /><i>ALT+2</i></h2></div> ' +
+'      <div class="naviback_btn navi_item" title="点击退出智能导盲服务(Shift + B)" onclick="Barrier.navigateBack();"> ' +
+'         <div class="avator"></div><span>返回</span></div> ' +
+'    </div> ' +
+'  </div></div></div> ' ;
+// 帮助说明内容
+helpHtml = '<div class="help_wrapper"><div class="barrier_help">' +
+    '<div class="help_close" title="关闭帮助说明(Shift + P)" onclick="Barrier.help();"></div>' +
+    '<div class="free_content">' +
+        '<h2>无障碍服务浏览说明</h2>' +
+        '<p><span>为贯彻落实《工业和信息化部办公厅关于进一步抓好互联网应用适老化及无障碍改造专项行动实施工作的通知》（工信厅信管函〔2021〕67号）</span><span>《中国银保监会办公厅关于银行保险机构切实解决老年人运用智能技术困难的通知》（银保监办发〔2021〕40号），</span><span>以及广东省通信管理局《关于组织开展互联网应用适老化及无障碍改造专项行动的通知》（粤通函〔2021〕143号）要求，</span><span>让盲人、老年人、弱视人群等特殊群体能够平等地、方便地、无障碍地访问本网站，</span><span>从信息技术中获益，</span><span>根据《信息无障碍身体机能差异人群网站设计无障碍技术要求》等相关标准，</span><span>本网站实现语音播报、页面换色、浏览辅助线、大鼠标、页面缩放等无障碍服务，</span><span>以方便上述特殊群体便捷的访问本网站。</span></p>' +
+        '<div class="fast_click">' +
+            '<p><span>1.无障碍服务浏览开关。</span><br><span>即开启</span><b>（快捷键：Shift + O）</b>、<span>关闭</span><b>（快捷键：Shift + W）</b><span>无障碍浏览辅助工具。</span></p>' +
+            '<p><span>2.页面换色功能</span><b>(快捷键：Shift + 2)</b>。<br><span>可将网页的前景内容、链接，</span><span>以及背景色对比换成适合弱视用户能够清晰访问的</span><span>白底黑字蓝链接，蓝底黄字白链接，黄底黑字蓝链接，黑底黄字白链接等模式，</span><span>为弱视用户访问网页内容提供了帮助 。 </span></p>' +
+            '<p><span>3.浏览辅助线</span><b>(快捷键：Shift + 3)</b>。<br><span>浏览辅助线是横竖两条红色的基准线，为视力障碍用户校对阅读的位置提供了帮助。</span></p>' +
+            '<p><span>4.大鼠标模式</span><b>(快捷键：Shift + 4)</b>。<br><span>提供大鼠标箭头浏览模式，为视力障碍用户浏览网页信息提供帮助。</span></p>' +
+            '<p><span>5.页面放大</span><b>(快捷键：Shift + 5)</b>、<span>缩小</span><b>(快捷键：Shift + 6)</b><span>功能。</span><br><span>网站浏览者可根据浏览需求自行调整网页界面的大小。</span><span>其中，界面放大是将页面显示比例放大，界面放大后网页内容也会随之变大；</span><span>界面缩小将网站页面显示比例缩小，界面缩小后网页内容也会随之变小。</span></p>' +
+            '<p><span>6.页面前进</span><b>(快捷键：Shift + 8)</b>、<span>后退</span><b>(快捷键：Shift + 7)</b><span>功能。</span><br><span>即快速进入下一页面或回退到上一页面。</span></p>' +
+            '<p><span>7.页面全屏功能</span><b>(快捷键：F11)</b>。<br><span>即页面全屏浏览。</span></p>' +
+            '<p><span>8.页面辅屏功能</span><b>(快捷键：Shift + M)</b>。<br><span>即在辅助屏中显示浏览的内容。</span></p>' +
+            '<p><span>9.页面重置功能</span><b>(快捷键：Shift + 0)</b>。<br><span>即页面初始化，</span><span>用户在使用辅助功能更改页面后，单击重置按钮，可将页面恢复到页面初始状态，即默认状态。</span></p>' +
+            '<p><span>10.无障碍服务帮助功能</span><b>(快捷键：Shift + P)</b>。<br><span>即无障碍服务浏览工具的功能介绍及快捷键操作说明。</span></p>' +
+            '<p><span>11.语音播报功能</span><b>(快捷键：Shift + R)</b>。<br><span>即提供语音指读（播报鼠标选择内容）和连读（连续播报页面内容）功能 （</span><b>快捷键：Shift + G</b><span>可切换指读和连读），以及调节语音播报速度功能（</span><b>快捷键：Shift + Q</b><span>可切换正常语速、快语速和慢语速）。</span></p>' +            
+            '<p><span>12.智能导盲功能</span><b>(快捷键：Shift + N)</b>。<br><span>即提供智能导盲服务，盲人用户可以通过语音播报和快捷键操作获取网页内容。</span><span>快捷键操作说明如下：切换导航区（</span><b>快捷键：Alt + 1</b><span>）；切换视窗区（</span><b>快捷键：Alt + 2</b><span>）；浏览下一项信息（</span><b>快捷键：Tab</b><span>）；浏览上一项信息（</span><b>快捷键：Shift + Tab</b><span>）；打开当前链接（</span><b>快捷键：Enter</b><span>），退出智能导盲功能（</span><b>快捷键：Shift + B</b>），关闭当前页面（</span><b>快捷键：Shift + 7</b>）。</p>' +
+        '</div>' +
+    '</div></div></div>';
+
+// 辅屏结构
+screenHtml ='<div class="screen_wrapper"> ' +
+'    <div class="screen_content"> ' +
+'      <table cellspacing="0" cellpadding="0" width="100%"> ' +
+'        <tbody> ' +
+'          <tr> ' +
+'            <td class="screen_box" valign="middle" align="center" ></td> ' +
+'          </tr> ' +
+'        </tbody> ' +
+'      </table> ' +
+'    </div> ' +
+'    <div class="screen_control"> ' +
+// '      <span class="screen_jian active" onclick="Barrier.chineseChange(0)">简</span> ' +
+// '      <span class="screen_fan" onclick="Barrier.chineseChange(1)">繁</span> ' +
+'      <span class="screen_close" onclick="Barrier.screenClose();">关闭</span> ' +
+'    </div></div> ';
+</script>
+
+</body>
+</html>

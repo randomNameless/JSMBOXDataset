@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>csrf.html</title>
+</head>
+<body>
+
+<script>
+/**
+ * Rationale:
+ *   Server-generated HTML is cached, so it's not possible to insert valid csrf tokens into HTML on the server.
+ *
+ * Solution:
+ *   If client has no CSRF cookie set, this script performs an AJAX request to a view which sets the cookie.
+ *   When the CSRF cookie is present, it is appended to forms (on submit) as a hidden input, and to AJAX requests as
+ *   a HTTP header.
+ *
+ * Usage:
+ *  on document ready, add csrf.init()
+ */
+
+(function($) {
+    var csrf = window.csrf = {
+        settings: { 
+            COOKIE_NAME: 'csrftoken',
+            COOKIE_URL: '/',
+            FORM_FIELD_NAME: 'csrfmiddlewaretoken',
+            FORM_NO_CSRF_ATTRIBUTE: 'no-csrf-token'
+        },
+
+        token: null,
+        initialized: false,
+        callbacksQueue: [],
+
+        /** Initialize CSRF token handler (usually on load)
+         *
+         * @param options object : optional, with keys corresponding to csrf.settings
+         */
+        init: function(options) {
+            if (options) {
+                $.extend(csrf.settings, options);
+            }
+            csrf.install(true);
+        },
+
+        queue: function(callback) {
+            if (csrf.initialized) {
+                callback(csrf.token);
+            } else {
+                csrf.callbacksQueue.push(callback);
+            }
+        },
+
+        getToken: function(initial) {
+            var csrfCookie = $.cookie(csrf.settings.COOKIE_NAME);
+
+            if (!csrfCookie) {
+                if (!initial) {
+                    return;
+                }
+                // this AJAX call must set CSRF cookie
+                $.get(csrf.settings.COOKIE_URL).done(csrf.install);
+                return;
+            }
+            csrf.token = csrfCookie;
+            csrf.initialized = true;
+            return csrf.token;
+        },
+
+        /** Install the CSRF token into AJAX request headers and form input, when the CSRF cookie is present
+         *
+         */
+        install: function(initial) {
+            var token = csrf.getToken(initial),
+                callback;
+
+            if (!token) {
+                return;
+            }
+            csrf.addCSRFTokenRequestHeaderToAJAX(token);
+            $('body').on('submit', 'form', function() {
+                var frm = this;
+                try {
+                    return csrf.addCSRFTokenToForm(token, frm);
+                } catch (ex) {
+                    return false;
+                }
+            });
+
+            while (csrf.callbacksQueue.length > 0) {
+                callback = csrf.callbacksQueue.shift();
+                callback(token);
+            }
+        },
+
+        addCSRFTokenRequestHeaderToAJAX: function(token) {
+            $.ajaxSetup({
+                beforeSend: function (xhr, settings) {
+                    if (!(/^http[s]?:/.test(settings.url))) {
+                        // Only send the token to relative URLs i.e. locally.
+                        xhr.setRequestHeader("X-CSRFToken", token);
+                    }
+                }
+            });
+        },
+
+        addCSRFTokenToForm: function(token, form) {
+            if (form.method.toUpperCase() === 'GET' || form.hasAttribute(csrf.FORM_NO_CSRF_ATTRIBUTE)) {
+                return true;
+            }
+            var formToken = form[csrf.settings.FORM_FIELD_NAME];
+            if (!formToken || formToken != token) {
+                var csrfField = $("<input type=hidden name=" + csrf.settings.FORM_FIELD_NAME + ">");
+                csrfField.val(token);
+                $(form).append(csrfField);
+            }
+            return true;
+        }
+    };
+
+})(jQuery);
+
+</script>
+
+</body>
+</html>

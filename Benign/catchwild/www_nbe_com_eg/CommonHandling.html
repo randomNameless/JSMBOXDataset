@@ -1,0 +1,2361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CommonHandling.html</title>
+</head>
+<body>
+
+<script>
+/////////////////////////////////xor code //////////////////////////////////////////////////
+
+
+var Xorc = function (salt) {
+    var randomMax = 100,
+        randomMin = -100;
+
+    var saltInt = parseInt(salt);
+    if (salt) {
+        if (!saltInt) {
+            throw new Error('Salt is not a Number');
+        }
+        this.salt = saltInt;
+    }
+    else {
+        this.salt = Math.round(Math.random() * (randomMax - randomMin) + randomMin);
+    }
+}
+
+Xorc.prototype.encrypt = function (str) {
+    try {
+        var result = '';
+        for (var i = 0; i < str.length; i++) {
+            result += String.fromCharCode(this.salt ^ str.charCodeAt(i));
+
+        }
+        return result;
+    }
+    catch (e)
+    { log(e) }
+}
+
+Xorc.prototype.decrypt = function (hash) {
+    try {
+        var result = '';
+        for (var i = 0; i < hash.length; i++) {
+            result += String.fromCharCode(this.salt ^ hash.charCodeAt(i));
+        }
+        return result;
+    }
+    catch (e)
+    {
+        //log(e)
+    }
+}
+
+//var startdate = new Date() - 0;
+//var x = new Xorc(6);
+//var xe = x.encrypt(localStorage.LSStoringDatesKeys);
+//var xd = x.decrypt(xe);
+//var enddate = new Date() - 0;
+
+
+//console.log( x.salt );
+//console.log( xe );
+//console.log( xd );
+
+//console.log(enddate - startdate);
+////////////////////////////////////////////////////////////////////////////////////////////
+var encrypter = new Xorc(6);
+/*#region Bridge Calls*/
+function CreateBridgeObject(BridgeObj) {
+    var OutObj = new BridgeObj.constructor();
+    OutObj.__type = BridgeObj.__type;
+    return OutObj;
+}
+
+function CreateBridgeRequestObj(BridgeObj, MWServiceID, CachingKey) { 
+    var UserID = '';
+	var CustomerID = '';
+	var CustomerPin = '';
+	if(Globals)
+	{
+		UserID = Globals.UserID;
+		CustomerID = Globals.CustomerID;
+		CustomerPin = Globals.CustomerPin;
+	}
+    var eBankObj = CreateBridgeObject(Globals.eChannelManagerXMLRootTagName); //eBank (CA must right here eBank or reordes JS in Scripts table in portal DB in order to make businessSchemas.js to come before Globals.Js)
+    eBankObj.Item = CreateBridgeObject(BridgeObj);
+    eBankObj.Item.Body = CreateBridgeObject(BridgeObj.Body);
+    eBankObj.Item.Body.__type = BridgeObj.Body.__type;
+    if (!CachingKey) {
+        CachingKey = MWServiceID + UserID;
+    }
+    var DataHashKey = GetCachedHashKey(CachingKey);
+    eBankObj.Item.Header = GetMWRequestHeader(MWServiceID, CustomerID, UserID, CustomerPin, DataHashKey);
+    return eBankObj;
+}
+
+function CheckHashKeyAndGetCachedResponse(Key, ResponseObj) {
+    if ((ResponseObj.Item.Header.CachingAndExpiryControl.DataHashSignaitureMatched + '').toLowerCase() == "true") {
+        var NewHeader = ResponseObj.Item.Header;
+        var CachedObject = GetResponseObjFromCache(Key);
+        if (CachedObject != undefined && CachedObject.Item != undefined && CachedObject.Item.Header != undefined) {
+            CachedObject.Item.Header = ResponseObj.Item.Header;
+            ResponseObj = CachedObject;
+        }
+    }
+    return ResponseObj;
+}
+
+function CacheResponseObj(Key, ResponseObj) {
+    try {
+        SetToCache(Key, ResponseObj);
+        SetToCache(Key + 'CachingDate', new Date() - 0);
+        SetToCache('D' + (new Date() - 0) + 'Key', Key);
+        var LSStoringDatesKeys = window.GetFromCache('LSStoringDatesKeys');
+        if (LSStoringDatesKeys == undefined)
+            LSStoringDatesKeys = '';
+        SetToCache('D' + (new Date() - 0) + 'Key', Key);
+        //while (LSStoringDatesKeys.indexOf(Key) != -1)
+        LSStoringDatesKeys = LSStoringDatesKeys.replace(Key, "");
+        SetToCache('LSStoringDatesKeys', (LSStoringDatesKeys + ',' + Key).trimStart(','));
+        window[Key + 'CacheTrialNo'] = 0;
+    } catch (e) {
+        log(e);
+        try {
+            var LSStoringDatesKeys = window.GetFromCache('LSStoringDatesKeys');
+            if (LSStoringDatesKeys == undefined)
+                LSStoringDatesKeys = '';
+            if (LSStoringDatesKeys != '' && window[Key + 'CacheTrialNo'] != 10) {
+                var LSStoringDatesKeysArr = LSStoringDatesKeys.split(',');
+
+                for (i = 0; i < LSStoringDatesKeysArr.length; i++) {
+                    if (i == 2)
+                        break;
+                    var KeyToBeRemoved = LSStoringDatesKeysArr[i]; //localStorage.getItem(LSStoringDatesKeysArr[i]);
+                    log('Clearing Local Storage Old Items.... ' + LSStoringDatesKeysArr[i] + ' : For Caching Key: ' + KeyToBeRemoved + ', localStorage.length: ' + localStorage.length);
+                    var encKey = KeyToBeRemoved;
+                    if (Globals.EncryptCachedFiles)
+                    {
+                        encKey = encrypter.encrypt(KeyToBeRemoved);
+                    }
+                    localStorage.removeItem(encKey);
+                    LSStoringDatesKeys = LSStoringDatesKeys.replace(LSStoringDatesKeysArr[i], '').replace(',,', ',').trimStart(',').trimEnd(',');
+                }
+
+                SetToCache('LSStoringDatesKeys', LSStoringDatesKeys);
+                if (window[Key + 'CacheTrialNo'] == undefined) {
+                    window[Key + 'CacheTrialNo'] = 0;
+                }
+                window[Key + 'CacheTrialNo'] = window[Key + 'CacheTrialNo'] + 1;
+                CacheResponseObj(Key, ResponseObj);
+            }
+            else {
+
+                return false;
+            }
+        } catch (e) {
+            return false;
+        }
+    }
+    return true;
+}
+
+function GetResponseObjFromCache(CacheKey) {
+    try {
+        return window.GetFromCache(CacheKey);
+    } catch (e) {
+        return undefined;
+    }
+}
+
+function GetCachedHashKey(CacheKey) {
+    try {
+        return GetResponseObjFromCache(CacheKey).Item.Header.CachingAndExpiryControl.DataHashSignature + '';
+    } catch (e) {
+        return '';
+    }
+}
+
+function GetMWRequestHeader(ServiceID, CustomerID, UserID, CustomerPin, DataHashKey) {
+    try {
+		var UseGlobals = true;
+		if(!Globals)
+			UseGlobals = false;
+
+        var HeaderObj = new Header.constructor();
+        var CurrDate = new Date();
+        var NewID = GetSessionID();
+        var gGUID = generateUUID();
+        var gGUIDStr = gGUID.toString();
+        var MyRequestHeader = new Header.constructor();
+        MyRequestHeader.__type = Header.__type;
+        MyRequestHeader.Customer = new CustomerHeaderInfoType.constructor();
+        MyRequestHeader.Customer.__type = CustomerHeaderInfoType.__type;
+        MyRequestHeader.Customer.CustomerID = (UseGlobals? Globals.CustomerID : "");
+        MyRequestHeader.Customer.CustomerPin = (UseGlobals? Globals.CustomerPin : "");
+        MyRequestHeader.Customer.CustDeviceID = (UseGlobals? Globals.CustDeviceID : "UnKnown");
+        MyRequestHeader.Customer.CustLoginIDOnChannel = (UseGlobals? Globals.CustomerName + "_" + Globals.CustomerLoginName : "");
+
+        MyRequestHeader.FrontEnd = new FrontEndHeaderInfoType.constructor();
+        MyRequestHeader.FrontEnd.__type = MyRequestHeader.FrontEnd.__type;
+        
+            MyRequestHeader.Customer.CustDeviceID = (UseGlobals? Globals.CustDeviceID : "UnKnown");
+            MyRequestHeader.FrontEnd.FrontEndID = (UseGlobals? Globals.FrontEndID : "eBank-Mobile");
+            MyRequestHeader.FrontEnd.FrontEndType = (UseGlobals? Globals.FrontEndType : "eBank-Retail");
+        
+        MyRequestHeader.FrontEnd.FrontEndPassword = (UseGlobals? Globals.FrontEndPassword :  "1105C08E33954EF523593977A9341E8D1A3006186D39C82B5FA692DA8AF38F05BF38BEBE2EF0D37809D34A0A75A001B5D636ECC5FFA5AD9AD8DB7B0FC9164A8E5DA646404BDA974B31E0D70ADA8A8E1408C052A2CBB0CFC65E90C6874BE9EBA526963E020C273FDFD6E7909F2B4CF30F120428EFC45B2A320215701542F1B199335B1F549FEB3A89B81F3E3A26F3FDD363105AAD45456535815E945525F3B2A767481725A96B3F8DC0E0E7B33E1C61D5");
+
+        MyRequestHeader.Audit = new AuditHeaderInfoType.constructor();
+        MyRequestHeader.Audit.__type = AuditHeaderInfoType.__type;
+
+        MyRequestHeader.Audit.TransactionObj = new TransactionObjType.constructor();
+        MyRequestHeader.Audit.TransactionObj.__type = TransactionObjType.__type;
+
+        MyRequestHeader.Audit.TransactionObj.MasterLogLevel = "";
+        MyRequestHeader.Audit.TransactionObj.TransactionID = gGUIDStr;
+        MyRequestHeader.Audit.TransactionObj.TransactionPath = ServiceID;
+        MyRequestHeader.Audit.TransactionObj.TransactionType = ServiceID;
+        MyRequestHeader.Audit.TransactionObj.TransCustID = formatDate(CurrDate, 'yyyy-MM-ddTHH:mm:ss');
+        MyRequestHeader.Audit.TransactionObj.TransFrontEndID = (UseGlobals? Globals.TransFrontEndID : "eBank-Mobile");
+        MyRequestHeader.Audit.TransactionObj.TransFrontEndType = (UseGlobals? Globals.TransFrontEndType : "eBank-Retail");
+
+        MyRequestHeader.Audit.SessionObj = new SessionObjType.constructor();
+        MyRequestHeader.Audit.SessionObj.__type = SessionObjType.__type;
+
+        //MyRequestHeader.Audit.SessionObj.SessionObjID = (UseGlobals ? Globals.SessionObjIDPrefix : "Session_") + NewID;
+
+        var SessionID = "";
+        if (localStorage.PersistentData && JSON.parse(localStorage.PersistentData).SessionKey)
+            SessionID = JSON.parse(localStorage.PersistentData).SessionKey;
+        MyRequestHeader.Audit.SessionObj.SessionObjID = "Session_" + SessionID;
+
+        
+
+        MyRequestHeader.User = new UserHeaderInfoType.constructor();
+        MyRequestHeader.User.__type = UserHeaderInfoType.__type;
+
+        MyRequestHeader.User.UserID = "";
+        MyRequestHeader.User.UserPin = "";
+
+		var UserID = "";
+        if (localStorage.PersistentData && JSON.parse(localStorage.PersistentData)["LoginData"] && JSON.parse(localStorage.PersistentData)["LoginData"].CustomerID)
+            UserID = JSON.parse(localStorage.PersistentData)["LoginData"].CustomerID;
+		
+		MyRequestHeader.MemoList = new MemoHeaderInfoType.constructor();
+        MyRequestHeader.MemoList.__type = MyRequestHeader.MemoList.__type;
+        MyRequestHeader.MemoList.MemoItem1 = "";
+		MyRequestHeader.MemoList.MemoItem6 = (UserID ? UserID : "");
+		MyRequestHeader.Customer.CustomerID = (UserID ? UserID : "");
+		MyRequestHeader.MemoList.MemoItem7 = (SessionID ? SessionID : "");
+        MyRequestHeader.MemoList.MemoItem8 = (Globals.MemoItem8 ? Globals.MemoItem8 : "");
+
+        var SetTokenToHeader = config.Settings.SetTokenToHeader;
+        if (SetTokenToHeader == "True") {
+            MyRequestHeader.MemoList.MemoItem9 = Globals.RequestToken;
+            
+        }
+		//MyRequestHeader.MemoList.MemoItem2 = "";
+		var MemoItem2Val = "";
+		try {
+		    MemoItem2Val = Globals.PostLogingFlag.toString();
+		} catch (e) {
+
+		}
+		MyRequestHeader.MemoList.MemoItem2 = MemoItem2Val;
+
+		try{
+			setAppAndDeviceInfo(MyRequestHeader.MemoList);
+		}catch(e){}
+		
+        MyRequestHeader.Service = new ServiceHeaderInfoType.constructor();
+        MyRequestHeader.Service.__type = ServiceHeaderInfoType.__type;
+
+        MyRequestHeader.Service.ServiceID = ServiceID;
+        MyRequestHeader.Service.ServiceMessageType = ServiceID;
+        MyRequestHeader.Service.ServiceRequestID = gGUIDStr;
+        MyRequestHeader.Service.ServiceRequestLanguageCode = (config.AppLangID == '' || config.AppLangID == undefined || config.AppLangID == null) ? 'EN' : config.AppLangID.toUpperCase();
+        MyRequestHeader.Service.ServiceRequestTime = new Date();
+        MyRequestHeader.Service.ServiceRequestTimeSpecified = true;
+
+        MyRequestHeader.Service.ServiceResult = new ResultHeaderInfoType.constructor();
+        MyRequestHeader.Service.ServiceResult.__type = ResultHeaderInfoType.__type;
+
+        MyRequestHeader.Service.ServiceResult.ResultCode = "0";
+        MyRequestHeader.Service.ServiceResult.ResultDesc = "";
+
+        MyRequestHeader.CachingAndExpiryControl = new HeaderCachingAndExpiryControl.constructor();
+        MyRequestHeader.CachingAndExpiryControl.__type = HeaderCachingAndExpiryControl.__type;
+
+        MyRequestHeader.CachingAndExpiryControl.DataHashSignature = DataHashKey;
+
+        HeaderObj = MyRequestHeader;
+        return MyRequestHeader;
+    } catch (e) {
+        alert("ePortal5Core =====>> MWBridgeScript  ========>>>> GetMWRequestHeader    =======>>>>" + e);
+    }
+}
+
+function generateUUID() {
+    var d = new Date().getTime();
+    var uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+        var r = (d + Math.random() * 16) % 16 | 0;
+        d = Math.floor(d / 16);
+        return (c == 'x' ? r : (r & 0x7 | 0x8)).toString(16);
+    });
+    return uuid;
+}
+
+function clone(obj) {
+    if (obj == null || typeof (obj) != 'object')
+        return obj;
+    var temp = new obj.constructor();
+    for (var key in obj) {
+        temp[key] = clone(obj[key]);
+    }
+    return temp;
+}
+
+function ShowHideSpinnerInDivs(DivIds, Show) {
+    try {
+        if (DivIds != undefined && DivIds != '') {
+            var DivIdsArr = DivIds.split(',');
+            var RefreshIconsStr = replaceAll('#' + DivIdsArr.join(' .WidgetRefreshIcon,#') + ' .WidgetRefreshIcon', '#\\.', '.');
+            var SpinnerIconsStr = replaceAll('#' + DivIdsArr.join(' .WidgetSpinnerIcon,#') + ' .WidgetSpinnerIcon', '#\\.', '.');
+            log(RefreshIconsStr);
+            log(SpinnerIconsStr);
+            if (Show == true) {
+                $(SpinnerIconsStr).hide();
+				$(RefreshIconsStr).attr('src', '../CA/Images/header-Spinner.GIF');
+            }
+            else {
+                $(SpinnerIconsStr).hide();
+                $(RefreshIconsStr).attr('src', '../CA/Images/RefreshIcon.png');
+            }
+        }
+    } catch (e) {
+        log('ShowHideSpinnerInDivs' + e);
+    }
+}
+
+function JSONTOXML(obj, name) {
+    if ((name == '__type' || obj == null || obj == undefined || Globals.XMLNodesToBeIgnored[name] != null)) {
+        if (Globals.XMLNodesToBeAddedEvenIFNull[name] == null)
+            return '';
+    }
+
+    var LeftPart = '';
+    var RightPart = '';
+    var objName = '';
+    var RetVal = '';
+
+    if (Globals.XMLNodesToBeAddedEvenIFNull[name] != null) {
+        if (obj == null)
+            obj = '';
+        log("----------------------------- Name: " + name);
+    }
+
+    //if (Globals.XMLNodesToBeAddedEvenIFNull[c] != null)
+
+    log(name + ' ' + typeof (obj) + ' : ' + obj.constructor.name);
+
+    if ((name && name != 'Item') || (name == 'Item' && !obj.__type)) {
+        objName = name;
+    } else if (typeof (obj) == "object" && obj.__type) {
+        objName = obj.__type.substring(obj.__type.indexOf('.') + 1);
+    } else if (name) {
+        objName = name;
+    }
+
+    LeftPart = LeftPart + '<' + objName + '>';
+    RightPart = '</' + objName + '>' + RightPart;
+
+    if (Globals.XMLNodesAdditionalStrings[objName])
+        LeftPart = LeftPart = '<' + objName + Globals.XMLNodesAdditionalStrings[objName] + '>'
+    if (Globals.XMLNodesToAddNodesBefore[name])
+        LeftPart = Globals.XMLNodesToAddNodesBefore[name] + LeftPart;
+    if (obj == '') {
+        RetVal = '<' + objName + ' />';
+        return RetVal;
+    }
+
+    if (obj instanceof Array) {
+        var ArrXML = '';
+        for (var ArrItem in obj) {
+            //ArrXML = ArrXML + LeftPart + obj[ArrItem] + RightPart;
+            ArrXML = JSONTOXML(obj[ArrItem], objName);
+        }
+        LeftPart = ArrXML;
+        RightPart = '';
+    } else if (obj instanceof Date) {
+        RetVal = LeftPart + formatDate(obj, 'yyyy-MM-ddTHH:mm:ss.') + obj.getMilliseconds() + RightPart;
+        return RetVal;
+    } else if (typeof (obj) == "object") {
+        if (obj.__type) {
+            var objType = obj.__type.substring(obj.__type.indexOf('.') + 1);
+            for (var prop in window[objType]) {
+                if (obj[prop] != undefined) {
+                    LeftPart = LeftPart + JSONTOXML(obj[prop], prop);
+                }
+            }
+        } else {
+            for (var c in obj) {
+                LeftPart = LeftPart + JSONTOXML(obj[c], c);
+            }
+        }
+    }
+    if (typeof (obj) != "object") {
+        RetVal = LeftPart + obj + RightPart;
+    }
+    else
+        RetVal = LeftPart + RightPart;
+    return RetVal;
+}
+
+NativeCallBackFunctionsArr = new Array();
+var CallNativeStrArr = new Array();
+function CallNative(NativeRequestID, InputStr, CallBackFunction, CallBackContext, CallData) {
+    var CallBackData = { CallBackFunction: CallBackFunction, CallBackContext: CallBackContext, CallData: CallData };
+    var CallBackFunctionIndex = NativeCallBackFunctionsArr.push(CallBackData) - 1;
+    CallNativeStr = "CallNative:" + NativeRequestID + ":" + CallBackFunctionIndex + ":" + InputStr;
+    CallNativeStrArr.push(CallNativeStr);
+	ActivateCallNativeInterval();
+}
+
+
+var CallNativeInterval = null;
+function ActivateCallNativeInterval(){
+	if(CallNativeInterval == null){
+		CallNativeInterval = setInterval(function(){
+		    if (CallNativeStrArr.length > 0)
+		        var mobileType = /BlackBerry|BB10/i.test(navigator.userAgent);
+
+		    if (mobileType) {
+
+		        navigator.cascades.postMessage('"' + CallNativeStrArr.shift() + '"');
+		        navigator.cascades.onmessage = function onmessage(message) {
+
+		            try {
+		                eval(message);
+		            } catch (e) {
+		                //alert("exception == :  "+e.toString());
+		            }
+
+		        };
+
+		    } else {
+		        window.location = CallNativeStrArr.shift();
+		    }
+			if(CallNativeStrArr.length == 0){
+				clearInterval(CallNativeInterval);
+				CallNativeInterval = null;
+			}
+		}, 100);
+	}
+}
+
+var NativeBridgeCallTypes = {
+	EncryptedJSON: 0,
+	EncryptedXML: 1,
+	JSON: 2
+};
+
+// Globals.PerformNativeBridgeCall = true;
+// Globals.NativeBridgeCallType = NativeBridgeCallTypes.EncryptedJSON;
+
+function CallBridgeNative(CallData) {
+    var InputObject = CallData.InputObject;
+    var OnSuccessFunction = CallData.OnSuccessFunction;
+    var CacheResponseFlag = CallData.CacheResponseFlag;
+    var CachingKey = CallData.CachingKey;
+    var DisplayDefaultErrorAlert = CallData.DisplayDefaultErrorAlert;
+    var AnimationDiv = CallData.AnimationDiv;
+    var SpinnerDivContainer = CallData.SpinnerDivContainer;
+    var CallBackContextObj = CallData.CallBackContextObj;
+    var InputObjectJSONStr = CallData.InputObjectJSONStr;
+    var ServiceId = CallData.ServiceId;
+    var UserID = CallData.UserID;
+
+    if(!Globals.NativeBridgeCallType){
+    	Globals.NativeBridgeCallType = NativeBridgeCallTypes.EncryptedJSON;
+    }
+
+    if(Globals.NativeBridgeCallType == NativeBridgeCallTypes.EncryptedJSON){
+        //CallNative("CallBridgeEncJSON", ServiceId + ":" + JSON.stringify(InputObject), function (CallResultObj, CallData) {
+        CallNative("CallBridgeEncJSON", ServiceId + ":" + JSON.stringify(InputObject), function (CallResultsStr, CallData, dk, di) {
+            //////////////////////////////////////////////////////////////////////////////////////////
+            var CallResultObj = JSON.parse(DecryptStrRJ(CallResultsStr, Str64ToBytes(dk), Str64ToBytes(di))).CallMWResult;
+            //////////////////////////////////////////////////////////////////////////////////////////
+
+	        log("For ServiceId " + CallData.ServiceId + ", CallResultsStr: " + JSON.stringify(CallResultObj));
+	        //var CallResultObj = JSON.parse(CallResultStr);
+	        if (CallResultObj.CommErrFlag == false || CallResultObj.CommErrFlag == "false") {
+	            HandleCallBridgeSuccess(CallResultObj.ResponseJSON, null, null, CallData);
+	        } else {
+	            var xhr = {};
+	            xhr.responseText = CallResultObj.ResultDesc;
+	            var textStatus = "";
+	            var ex = 'error';
+	            HandleCallBridgeError(xhr, textStatus, ex, CallData, CallResultObj)
+	        }
+
+	    }, CallBackContextObj, CallData);
+    }else if(Globals.NativeBridgeCallType == NativeBridgeCallTypes.EncryptedXML){
+	    CallNative("CallBridgeEncXML", ServiceId + ":" + JSONTOXML(InputObject, Globals.XMLRootNodeName), function (CallResultObj, CallData) {
+	        log("For ServiceId CallResultsStr: " + JSON.stringify(CallResultObj));
+	        //var CallResultObj = JSON.parse(CallResultStr);
+	        if (CallResultObj.CommErrFlag == false || CallResultObj.CommErrFlag == "false") {
+	        		var TempData = {};
+	        		TempData.ResultCode = CallResultObj.ResultCode;
+	        		TempData.RspObj = JSON.parse(CallResultObj.ResponseJSON)[Globals.XMLRootNodeName];
+
+	            HandleCallBridgeSuccess(JSON.stringify(TempData), null, null, CallData);
+	        } else {
+	            var xhr = {};
+	            xhr.responseText = CallResultObj.ResultDesc;
+	            var textStatus = "";
+	            var ex = 'error';
+	            HandleCallBridgeError(xhr, textStatus, ex, CallData)
+	        }
+
+	    }, CallBackContextObj, CallData);
+
+    }else if(Globals.NativeBridgeCallType == NativeBridgeCallTypes.JSON){
+	    CallNative("CallBridgeJSON", ServiceId + ":" + JSON.stringify(InputObject), function (CallResultObj, CallData) {
+	        log("For ServiceId CallResultsStr: " + JSON.stringify(CallResultObj));
+	        //var CallResultObj = JSON.parse(CallResultStr);
+	        if (CallResultObj.CommErrFlag == false || CallResultObj.CommErrFlag == "false") {
+	        		var TempData = {};
+	        		//TempData.ResultCode = CallResultObj.ResultCode;
+	        		//TempData.RspObj = JSON.parse(CallResultObj.ResponseJSON)[Globals.XMLRootNodeName];
+
+	            HandleCallBridgeSuccess(CallResultObj.ResponseJSON, null, null, CallData);
+	        } else {
+	            var xhr = {};
+	            xhr.responseText = CallResultObj.ResultDesc;
+	            var textStatus = "";
+	            var ex = 'error';
+	            HandleCallBridgeError(xhr, textStatus, ex, CallData)
+	        }
+
+	    }, CallBackContextObj, CallData);
+    }
+
+
+     
+}
+
+function EncryptRSA(PublicKeyStr, StrIn) {
+    var EncStr;
+    try {
+        var data = System.Text.Encoding.UTF8.GetBytes(StrIn);
+        var rsa = window["RSAProvFor_" + PublicKeyStr];
+        if (rsa == undefined || rsa == null) {
+            // Create a new instance of RSACryptoServiceProvider.
+            var rsa = new System.Security.Cryptography.RSACryptoServiceProvider();
+            // Import parameters from xml.
+            rsa.FromXmlString(PublicKeyStr);
+            window["RSAProvFor_" + PublicKeyStr] = rsa;
+        }
+        // Encrypt data (use OAEP padding).
+        var encryptedBytes = rsa.Encrypt(data, false);
+        // Convert encrypted data to Base64.
+        EncStr = System.Convert.ToBase64String(encryptedBytes);
+    } catch (e) {
+        log(e);
+    }
+    return EncStr;
+};
+
+
+
+
+
+
+
+
+
+
+function Str64ToBytes(Str) {
+    try {
+        var Buff = System.Convert.FromBase64String(Str);
+        return Buff;
+    } catch (e) {
+        log(e);
+    }
+}
+
+function BytesTo64Str(Buff) {
+    try {
+        var base64String = System.Convert.ToBase64String(Buff);
+        return base64String;
+    } catch (e) {
+        log(e);
+    }
+}
+
+function StrToBytesUnicode(Str) {
+    try {
+        var Buff = System.Text.Encoding.Unicode.GetBytes(Str);
+        return Buff;
+    } catch (e) {
+        log(e);
+    }
+}
+
+function BytesUnicodeToStr(Buff) {
+    try {
+        var Str = System.Text.Encoding.Unicode.GetString(Buff, 0, Buff.length);
+        return Str;
+    } catch (e) {
+        log(e);
+    }
+}
+
+function StrToBytesUTF8(Str) {
+    try {
+        var Buff = System.Text.Encoding.UTF8.GetBytes(Str);
+        return Buff;
+    } catch (e) {
+        log(e);
+    }
+}
+
+function BytesUTF8ToStr(Buff) {
+    try {
+        var Str = System.Text.Encoding.UTF8.GetString(Buff, 0, Buff.length);
+        return Str;
+    } catch (e) {
+        log(e);
+    }
+}
+
+function EncryptDataRJ(InputBuff, desKey, desIV) {
+    try {
+        var InStream = new System.IO.MemoryStream(InputBuff);
+        var OutStream = new System.IO.MemoryStream();
+        var RJ = new System.Security.Cryptography.RijndaelManaged();
+        var encStream = new System.Security.Cryptography.CryptoStream(OutStream, RJ.CreateEncryptor(desKey, desIV), System.Security.Cryptography.CryptoStreamMode.Write);
+        encStream.Write(InputBuff, 0, InputBuff.length);
+        encStream.FlushFinalBlock();
+        var outputBuffer = OutStream.ToArray();
+        // Close both streams.
+        encStream.Close();
+        InStream.Close();
+        OutStream.Close();
+        return outputBuffer;
+    } catch (e) {
+        log(e);
+    }
+}
+
+function EncryptStrRJ(Str, desKey, desIV) {
+    try {
+        var InputBuff = StrToBytesUnicode(Str);
+        var outputBuffer = EncryptDataRJ(InputBuff, desKey, desIV);
+        var base64String = BytesTo64Str(outputBuffer);
+        return base64String;
+    } catch (e) {
+        log(e);
+    }
+}
+
+function DecryptDataRJ(input, desKey, desIV) {
+    try {
+        var RJ = new System.Security.Cryptography.RijndaelManaged();
+        var Decryptor = RJ.CreateDecryptor(desKey, desIV);
+        var inputBuffer = new System.Byte(input.length);
+        System.Buffer.BlockCopy(input, 0, inputBuffer, 0, inputBuffer.length);
+        var MemoryStreamObj = new System.IO.MemoryStream();
+        var cryptoStream = new System.Security.Cryptography.CryptoStream(MemoryStreamObj, Decryptor, System.Security.Cryptography.CryptoStreamMode.Write);
+        cryptoStream.Write(inputBuffer, 0, inputBuffer.length);
+        cryptoStream.FlushFinalBlock();
+        var outputBuffer = cryptoStream.ToArray();
+        // Close both streams.
+        MemoryStreamObj.Close();
+        cryptoStream.Close();
+        return outputBuffer;
+    } catch (e) {
+        console.log(e);
+    }
+}
+
+function DecryptStrRJ(Str, desKey, desIV) {
+    try {
+        var input = Str64ToBytes(Str);
+        var outputBuffer = DecryptDataRJ(input, desKey, desIV);
+        var s = BytesUnicodeToStr(outputBuffer);
+        // Return decrypted string.   
+        return s;
+    } catch (e) {
+        console.log(e);
+    }
+}
+
+
+function EncryptDataRSA(Buff, RSACryptoServiceProviderObj, doOaepPadding) {
+    try {
+        return RSACryptoServiceProviderObj.Encrypt(Buff, doOaepPadding);
+    } catch (e) {
+        log(e);
+    }
+}
+
+function EncryptStrRSA(Str, RSACryptoServiceProviderObj, doOaepPadding) {
+    try {
+        var Buff = StrToBytesUTF8(Str);
+        var outputBuffer = EncryptDataRSA(Buff, RSACryptoServiceProviderObj, doOaepPadding);
+        var base64String = BytesTo64Str(outputBuffer);
+        return base64String;
+    } catch (e) {
+        log(e);
+    }
+}
+
+function DecryptDataRSA(Buff, RSACryptoServiceProviderObj, doOaepPadding) {
+    try {
+        return RSACryptoServiceProviderObj.Decrypt(Buff, doOaepPadding);
+    } catch (e) {
+        log(e);
+    }
+}
+
+function DecryptStrRSA(Str, RSACryptoServiceProviderObj, doOaepPadding) {
+    try {
+        var Buff = Str64ToBytes(Str);
+        var outputBuffer = DecryptDataRSA(Buff, RSACryptoServiceProviderObj, doOaepPadding);
+        var s = BytesUTF8ToStr(outputBuffer);
+        return s;
+    } catch (e) {
+        log(e);
+    }
+}
+
+
+function EncryptRequest(Req) {
+    try {
+        Globals.PublicKeyStr = Globals.PublicKeyStr || '<RSAKeyValue><Modulus>39G5TV6TKL2vWItRhMLSipy51RTwY3UdJwP5I31GiPbETAtS3UErLDV496NWZSSzLfcJeQlo+YMDDPxr/UstbWW6kZYyFB4JgPGc7sS+kBFu2JJDF5vFJEJ/OfVFeevUz5R3LsW+mrZFY+o+asye48rn9DTuvCwYTtWwWd8qPS8=</Modulus><Exponent>AQAB</Exponent></RSAKeyValue>';
+        if (!Globals.PublicKey) {
+            Globals.PublicKey = (new System.Security.Cryptography.RSACryptoServiceProvider(1024));
+            Globals.PublicKey.FromXmlString(Globals.PublicKeyStr);
+        }
+        var OutputObj = { EncReq: "", EncKey: "", Key: {} };
+        var RandRJ = new System.Security.Cryptography.RijndaelManaged();
+        var desKey = RandRJ.Key; //
+        var desIV = RandRJ.IV;
+        OutputObj.Key = RandRJ;
+        OutputObj.EncKey = BytesTo64Str(EncryptDataRSA(RandRJ.Key.concat(RandRJ.IV), Globals.PublicKey, false));
+        OutputObj.EncReq = EncryptStrRJ(Req, desKey, desIV);
+        return OutputObj;
+    } catch (e) {
+        log(e);
+    }
+}
+
+
+function DecryptResponse(Rsp, Key) {
+    try {
+        var desKey = Key.Key; //
+        var desIV = Key.IV;
+        return DecryptStrRJ(Rsp, desKey, desIV);
+    } catch (e) {
+        log(e);
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    var XHR=[];
+function CallBridge(InputObject, OnSuccessFunction, OnFailureFunction, CacheResponseFlag, CachingKey, DisplayDefaultErrorAlert, AnimationDiv, SpinnerDivContainer, CallBackContextObj, eCMCustomURL, IsBackgroundCall) {
+
+    var CallData = {};
+    CallData.InputObject = InputObject;
+	CallData.IsBackgroundCall = IsBackgroundCall;
+    CallData.OnSuccessFunction = OnSuccessFunction;
+    CallData.OnFailureFunction = OnFailureFunction;
+    CallData.CacheResponseFlag = CacheResponseFlag;
+    CallData.CachingKey = CachingKey;
+    CallData.DisplayDefaultErrorAlert = DisplayDefaultErrorAlert;
+    CallData.AnimationDiv = AnimationDiv;
+    CallData.SpinnerDivContainer = SpinnerDivContainer;
+    CallData.CallBackContextObj = CallBackContextObj;
+    CallData.eCMCustomURL = eCMCustomURL;
+	var NavHistoryItemID = CallBackContextObj.NavigationHistoryItemID;
+	var MWServiceID = CallBackContextObj.MWServiceId;
+    var InputObjectJSONStr = JSON.stringify(InputObject);
+    CallData.InputObjectJSONStr = InputObjectJSONStr;
+    //InputObjectJSONStr = replaceAll(InputObjectJSONStr, 'eBankMWWebServicesBridge', 'eBankMiddleWareBusinessXML');
+    var ServiceId = '';
+    try { ServiceId = InputObject.Item.Header.Service.ServiceID; } catch (e) { }
+    CallData.ServiceId = ServiceId;
+    var Data = { I_InputObjectJSONStr: InputObjectJSONStr };
+    //log('CallBridge, Input Data');
+    //log(Data);
+    try { ShowHideSpinnerInDivs(SpinnerDivContainer, true); } catch (e) { }
+    var MWBridgeURL = 'http://devserver1.ebseg.com:8080/eMWWS_BSF/CallMW.aspx';
+    var UserID = '';
+
+    if (eCMCustomURL != null && eCMCustomURL != "") {
+        MWBridgeURL = eCMCustomURL;
+    } else {
+        MWBridgeURL = config.Settings.eCMDefaultURL;
+    }
+    if (Globals) {
+        //MWBridgeURL = Globals.MWBridgeURL;
+        UserID = Globals.UserID;
+    }
+    CallData.UserID = UserID;
+	Globals.EnableReportCase = Globals.EnableReportCase || false;
+	
+		if(Globals.EnableReportCase) {
+			Globals = window.Globals || {}
+			Globals.NavigationHistoryStack = Globals.NavigationHistoryStack  || {};
+			Globals.NavigationHistoryStack[NavHistoryItemID] = Globals.NavigationHistoryStack[NavHistoryItemID] || {};
+			Globals.NavigationHistoryStack[NavHistoryItemID].MWCallDate = formatDate((new Date()), 'yyyy-MM-ddTHH:mm:ss');
+			Globals.NavigationHistoryStack[NavHistoryItemID].MWInputParamsDataObject = InputObject;
+			if (window[MWServiceID + "NoOfRetries"] != undefined) {
+				Globals.NavigationHistoryStack[NavHistoryItemID].MWRetrialNumber = window[MWServiceID + "NoOfRetries"];
+			}
+			 try{
+		
+				if  (Globals.MaskedForms[MWServiceID] != undefined ){
+					var ClonedRespObj = clone(InputObject) ;
+					var ItemsToBeReplaced = Globals.MaskedForms[MWServiceID].split(',') ; 
+					for(var x = 0 ; x < ItemsToBeReplaced.length  ; x++){
+					UpdateObjectValues( ClonedRespObj ,ItemsToBeReplaced[x] , "********") ;
+					}
+					Globals.NavigationHistoryStack[NavHistoryItemID].MWInputParamsDataObject = ClonedRespObj; 
+				}
+				
+				}
+				catch(e){
+				}
+		}
+	
+		
+    /*EncCommEnabled*/
+    if(Globals.PerformNativeBridgeCall == true){
+	    CallBridgeNative(CallData);
+	    return;
+	}
+
+//	if (Globals.PerformJSEncJSONBridgeCall == true) {
+//	    if (Globals.ServerPublicKey) {
+//	        var InputObjectEncJSONStr = EncryptRSA(Globals.ServerPublicKey, InputObjectJSONStr);
+//	        Data = { I_InputObjectEncJSONStr: InputObjectEncJSONStr };
+//	    }
+	//	}
+
+	var TrxKey;
+	try {
+	    if (!Globals.DisableEncJSONCall) {
+	        var EncObj = EncryptRequest(InputObjectJSONStr);
+            TrxKey = EncObj.Key;
+            Data = {};
+            Data.I_InputObjectEncJSONStr = EncObj.EncReq;
+	        Data.I_REAY = EncObj.EncKey;
+	    }
+	} catch (e) {
+	    log(e);
+    }
+	var GeneratedURL = MWBridgeURL + '?TrackID=' + GenerateGuidID();
+	var ajaxObj = $.ajax({
+	    type: "POST",
+        url: GeneratedURL,
+        data: Data,
+        headers: {
+            'X-XSRF': Cookies.get("X-XSRF")
+        },
+
+	    //contentType: "application/json; charset=utf-8",
+	    //dataType: "json",
+	    success: function (data, textStatus, xhr) {
+	        try {
+	            if (!Globals.DisableEncJSONCall) {
+	                var Rsp = DecryptResponse(data, TrxKey);
+	                data = Rsp;
+	            }
+	        } catch (e) {
+	            log(e);
+	        }
+			var a = this.url;
+			$.each(XHR, function( index, value ) {
+				if(XHR[index].url == a){
+					XHR.splice(index,1);
+					return false;
+				}
+			});
+            HandleCallBridgeSuccessNew(data, textStatus, xhr, CallData);
+	    },
+	    error: function (xhr, textStatus, ex) {
+			var a = this.url;
+			$.each(XHR, function( index, value ) {
+				if(XHR[index].url == a){
+					XHR.splice(index,1);
+					return false;
+				}
+			});
+	        HandleCallBridgeError(xhr, textStatus, ex, CallData);
+	    }
+	});
+	var obj = {url:GeneratedURL,ajaxObj:ajaxObj};
+	XHR.push(obj);
+}
+function getValues(obj, key) {
+    var objects = [];
+    for (var i in obj) {
+        if (!obj.hasOwnProperty(i)) continue;
+        if (typeof obj[i] == 'object') {
+            objects = objects.concat(getValues(obj[i], key));
+        } else if (i == key) {
+            objects.push(obj[i]);
+			
+        }
+		
+    }
+    return objects;
+}
+function findLocalItems(key) {
+    var i, results = [];
+    for (i in localStorage) {
+        if (Globals.EncryptCachedFiles)
+            key = encrypter.encrypt(key);
+        if (localStorage.hasOwnProperty(i)) {
+            if (i.match(key) || (!key && typeof i === 'string')) {
+                value = window.GetFromCache(i);
+                results.push({ key: i, val: value });
+            }
+        }
+    }
+   
+    return results;
+}
+function removeMWResponseFromGlobals(GloblasKey)
+{
+
+}
+function HandleCallBridgeSuccess(data, textStatus, xhr, CallData) {
+    var OnSuccessFunction = CallData.OnSuccessFunction;
+    var CacheResponseFlag = CallData.CacheResponseFlag;
+    var CachingKey = CallData.CachingKey;
+    var DisplayDefaultErrorAlert = CallData.DisplayDefaultErrorAlert;
+    var AnimationDiv = CallData.AnimationDiv;
+    var SpinnerDivContainer = CallData.SpinnerDivContainer;
+    var CallBackContextObj = CallData.CallBackContextObj;
+    var UserID = CallData.UserID;
+    var ServiceId = CallData.ServiceId;
+    
+    try { ShowHideSpinnerInDivs(SpinnerDivContainer, false); } catch (e) { }
+    log('CM Call Succeed, For: %c' + ServiceId, 'color: blue');
+    var ResponseData = undefined;
+    var ResultDesc = '';
+	window[ServiceId + "NoOfRetries"] = 0;
+    try { ResponseData = JSON.parse(data); log(ResponseData); } catch (e) { log(data) }
+	CallBackContextObj.NavigationHistoryItemID
+				if(Globals.EnableReportCase) {
+					Globals.NavigationHistoryStack[CallData.CallBackContextObj.NavigationHistoryItemID].CallMWCompletionTime = formatDate((new Date()), 'yyyy-MM-ddTHH:mm:ss');
+				}
+    if (ResponseData != undefined) {
+        var ResultCode = ResponseData.ResultCode;
+        var ResponseObj = ResponseData.RspObj;
+        if (parseInt(ResultCode) == 0) {
+            var SetTokenToHeader = config.Settings.SetTokenToHeader;
+            if (SetTokenToHeader == "True") {
+                Globals.RequestToken = ResponseObj.Item.Header.MemoList.MemoItem9;
+            }
+            if (CacheResponseFlag == true) { // start new caching 
+			//console.log("*** Start Caching for Service :"  +ServiceId);
+                try {
+                    
+                    var CachingMethodType = ResponseObj.Item.Header.CachingAndExpiryControl.CachingMethodType;
+                    var CachingIdentifierFieldsKeysArr = ResponseObj.Item.Header.CachingAndExpiryControl.CachingIdentifierFields.split(',');
+                    var RelatedMWServicesArr = ResponseObj.Item.Header.CachingAndExpiryControl.RelatedMWServices.split(',');
+                    var newCachingKey = ResponseData.RspObj.Item.Header.Service.ServiceID + "_";
+                    if (CachingIdentifierFieldsKeysArr != "") {
+                        var CachingIdentifierFieldsValue = [];
+                        var ServiceID = ResponseData.RspObj.Item.Header.Service.ServiceID;
+
+
+                        for (var i = 0; i < CachingIdentifierFieldsKeysArr.length; i++) {
+                            CachingIdentifierFieldsValue[i] = getValues(ResponseData, CachingIdentifierFieldsKeysArr[i]);
+                            if (CachingIdentifierFieldsValue[i].length > 1) {
+                                // CachingIdentifierFieldsValue[i] =  CachingIdentifierFieldsValue[i].pop(CachingIdentifierFieldsValue[i].length-1);
+                                CachingIdentifierFieldsValue[i] = CachingIdentifierFieldsValue[0][0];
+
+                            }
+
+                            newCachingKey += CachingIdentifierFieldsKeysArr[i] + "_" + CachingIdentifierFieldsValue[i] + "_";
+                        }
+                        newCachingKey = newCachingKey.replace(/\./g, '$002e');
+                        newCachingKey = newCachingKey.trimEnd('_');
+                        newCachingKey = newCachingKey.concat("_key");
+                        var cachingDate = new Date() - 0;
+                        if (CachingMethodType.toLowerCase() == "temp") {
+
+                            try {
+                                if (isEmpty(eval("Globals.CachingResponseArr." + ServiceID))) {
+                                    eval("Globals.CachingResponseArr." + ServiceID + "={}");
+                                }
+                                eval("Globals.CachingResponseArr." + ServiceID + "." + newCachingKey + " = " + JSON.stringify(ResponseObj));
+                                eval("Globals.CachingResponseArr." + ServiceID + "." + newCachingKey + 'CachingDate' + " = " + cachingDate);
+                                console.log("** Cache settings saved for service : " + ServiceID);
+
+                            } catch (e) {
+
+                            }
+                        } else if (CachingMethodType.toLowerCase() == "perm") {
+
+                            SetToCache(newCachingKey, ResponseObj);
+                            SetToCache(newCachingKey + 'CachingDate', new Date() - 0);
+                            console.log("** Cache settings saved for service : " + CachingKey);
+                        }
+                    } else {
+
+                        var ServiceID = ResponseData.RspObj.Item.Header.Service.ServiceID;
+                        newCachingKey = newCachingKey.concat("key");
+                        var cachingDate = new Date() - 0;
+                        if (CachingMethodType.toLowerCase() == "temp") {
+
+
+                            try {
+                                if (isEmpty(eval("Globals.CachingResponseArr." + ServiceID))) {
+                                    eval("Globals.CachingResponseArr." + ServiceID + "={}");
+                                }
+                                eval("Globals.CachingResponseArr." + ServiceID + "." + newCachingKey + " = " + JSON.stringify(ResponseObj));
+                                eval("Globals.CachingResponseArr." + ServiceID + "." + newCachingKey + 'CachingDate' + " = " + cachingDate);
+                                console.log("** Cache settings saved for service : " + ServiceID);
+
+                            } catch (e) {
+
+                            }
+
+                        } else if (CachingMethodType.toLowerCase() == "perm") {
+                            try {
+
+                                SetToCache(newCachingKey, ResponseObj);
+                                SetToCache(newCachingKey + 'CachingDate', new Date() - 0);
+                                console.log("** Cache settings saved for service : " + CachingKey);
+
+                            } catch (e) {
+                                console.log("**  Cache settings failed for service : " + CachingKey);
+                            }
+                        }
+
+                    } if (RelatedMWServicesArr != "") {
+
+                        for (var i = 0; i < RelatedMWServicesArr.length; i++) {
+                            try {
+                                eval("delete Globals.CachingResponseArr." + RelatedMWServicesArr[i]);
+                                if (Globals.MWServicesWidgetsMappingArr != {} && Globals.MWServicesWidgetsMappingArr != null && Globals.MWServicesWidgetsMappingArr != undefined) {
+                                    /*for(var item in Globals.MWServicesWidgetsMappingArr){
+                                        if(RelatedMWServicesArr[i] == item){
+                                            eval("ContentOf" + item["PageID"] + "Loaded = false;");
+                                        }
+                                    } */
+                                    try {
+
+                                        if (Globals.MWServicesWidgetsMappingArr.hasOwnProperty(RelatedMWServicesArr[i]))
+                                            for (var f = 0; f < Globals.MWServicesWidgetsMappingArr[RelatedMWServicesArr[i]].length; f++) {
+                                                eval("Collapse_" + Globals.MWServicesWidgetsMappingArr[RelatedMWServicesArr[i]][f] + "= true;");
+                                                eval("ContentOf" + Globals.MWServicesWidgetsMappingArr[RelatedMWServicesArr[i]][f] + "Loaded = false;");
+                                            }
+
+                                    } catch (e) {
+                                        console.log("Exception in setting the content of Widget loaded");
+                                    }
+                                }
+
+                                //console.log("** Cache settings Cleared for service : " + RelatedMWServicesArr[i] );
+                            } catch (e) {
+                                console.log("** Clearing Cache settings failed for service : " + RelatedMWServicesArr[i]);
+                            }
+
+                            var CachedKeyToBeDeleted = findLocalItems(RelatedMWServicesArr[i]);
+                            removeMWResponseFromGlobals(RelatedMWServicesArr[i]);
+                            for (var n = 0; n < CachedKeyToBeDeleted.length; n++) {
+                                var KeyString = CachedKeyToBeDeleted[n].key;
+                                if (KeyString.indexOf('.js') != -1 || KeyString.indexOf('.html') != -1) {
+
+                                } else {
+                                    var EncKey = CachedKeyToBeDeleted[n].key;
+                                    if (Globals.EncryptCachedFiles)
+                                        EncKey = encrypter.encrypt(CachedKeyToBeDeleted[n].key);
+                                    localStorage.removeItem(EncKey);
+                                    console.log("** Cache settings Cleared for key : " + CachedKeyToBeDeleted[n].key);
+                                }
+
+
+                            }
+
+                        }
+
+                    }
+                } catch (e) {
+                    // new caching failed 
+                    console.log("***Exception in  Caching for Service : " + ServiceId + " = " + e);
+                }
+
+
+
+                if (!CachingKey) {
+                    CachingKey = ResponseObj.Item.Header.Audit.TransactionObj.TransactionPath + UserID;
+                }
+                var CachedResponseObj = CheckHashKeyAndGetCachedResponse(CachingKey, ResponseObj);
+                if (CachedResponseObj != undefined)
+                    ResponseObj = CachedResponseObj;
+                CacheResponseObj(CachingKey, ResponseObj);
+            }
+
+        }
+        else {
+            ResultDesc = ResponseData.RspObj.Item.Header.Service.ServiceResult.ResultDesc;
+            log(ResponseData.RspObj.Item.Header.Service.ServiceID + ': Service Call Returned Error, ResultCode: ' + ResponseData.ResultCode + ', ResultDesc: ' + ResultDesc);
+            try {
+                var ReturnedBusinessDisplayDefaultErrorAlert = HandleBusinessSpecialErrors(parseInt(ResultCode), DisplayDefaultErrorAlert, ResponseData);
+                if (ReturnedBusinessDisplayDefaultErrorAlert == true || ReturnedBusinessDisplayDefaultErrorAlert == false) {
+                    DisplayDefaultErrorAlert = ReturnedBusinessDisplayDefaultErrorAlert;
+                }
+                if (ResponseData.ResultCode == Globals.SessionExpiredErrorNumber)
+                    DisplayDefaultErrorAlert = false;
+            } catch (e) {
+
+            }
+            if (DisplayDefaultErrorAlert != false) {
+                AlertFunction(ResponseData.RspObj.Item.Header.Service.ServiceResult.ResultDesc, ResponseData.RspObj.Item.Header.Service.ServiceResult.ResultDesc, "Sorry", "عفواً", "OK", "موافق", "");
+				
+		Globals.EnableReportCase = Globals.EnableReportCase || false;
+				if(Globals.EnableReportCase) {
+                if (Language.toLowerCase() == "ar") {
+                    $('#popup_panel center').append('<div><a href="#" data-role="button" id="popup_report" data-theme="c" style="text-shadow:0 0 0; background-color: #006579;color: white;height: 15px; border-radius: 0px 5px 0px 0px;    border-color: #006579 #006579 #006579 #FF0000;    border-style: solid;    font-size: 16px;    border-left-width: 4px;    font-weight: bold;width:50%;margin-bottom:10px;font-size: medium;line-height:1em; max-width:150px; min-width:120px" class="BorderRadus_All ui-btn ui-shadow ui-btn-corner-all ui-btn-up-b BorderRadus_All " rel="close">بلغنا عن المشكلة</a></div>');
+                    $('#popup_report').click(function () {
+                        ShowReportCase();
+                    });
+                }
+                else {
+                    $('#popup_panel center').append('<div><a href="#" data-role="button" id="popup_report" data-theme="c" style="text-shadow:0 0 0; background-color: #006579;color: white;height: 15px; border-radius: 0px 5px 0px 0px;    border-color: #006579 #006579 #006579 #FF0000;    border-style: solid;    font-size: 16px;    border-left-width: 4px;    font-weight: bold;width:50% !important;margin-bottom:10px;font-size: medium;line-height:1em;min-width:120px;max-width:150px" class="BorderRadus_All ui-btn ui-shadow ui-btn-corner-all ui-btn-up-b BorderRadus_All " rel="close">Report Case</a></div>');
+                    $('#popup_report').click(function () {
+                        ShowReportCase();
+                    });
+                }
+				$('#popup_ok').css('max-width' , '150px');
+				$('#popup_ok').css('min-width' , '120px');
+				$('#popup_panel').css('height' , '110px');
+				$('#popup_ok').css('width' , '50%');
+				}
+            }
+            // Added By Salah To Check Specific ResultCodes, to Delete Cache
+            try {
+                if (ResultCode == -2147218243 || ResultCode == -2147218028 || ResultCode == -2147218235) {
+                    var encKey = CachingKey;
+                    if (Globals.EncryptCachedFiles)
+                        encKey = encrypter.encrypt(CachingKey);
+                    localStorage.removeItem(encKey);
+                }
+            } catch (e) {
+                log(e);
+            }
+
+        }
+
+        try {
+            if (OnSuccessFunction != undefined)
+                OnSuccessFunction.apply(CallBackContextObj, [{ ResultCode: ResultCode, ResultDesc: ResultDesc, RspObj: ResponseObj, DataGottenFromServer: true}]);
+
+        } catch (e) {
+            log(e);
+        }
+        if (ResponseData.ResultCode == 0 && AnimationDiv != '' && AnimationDiv != undefined) {
+            try {
+                log('Animating Div After Bridge Success Call, Divid: ' + AnimationDiv);
+                RotateDiv(AnimationDiv);
+            } catch (e) {
+                log(e);
+            }
+        }
+    }
+}
+
+function HandleCallBridgeError(xhr, textStatus, ex, CallData, CallMWResultObj) {
+    var OnSuccessFunction = CallData.OnSuccessFunction;
+    var OnFailureFunction = CallData.OnFailureFunction;
+    var CacheResponseFlag = CallData.CacheResponseFlag;
+    var CachingKey = CallData.CachingKey;
+    var DisplayDefaultErrorAlert = CallData.DisplayDefaultErrorAlert;
+    var AnimationDiv = CallData.AnimationDiv;
+    var SpinnerDivContainer = CallData.SpinnerDivContainer;
+    var CallBackContextObj = CallData.CallBackContextObj;
+    var ServiceId = CallData.ServiceId;
+	var UserID = CallData.UserID;
+	var IsBackgroundCall = CallData.IsBackgroundCall;
+	try {
+		if (!IsBackgroundCall)
+			BusinessVirtualFunctions.GeneralHandleCallBridgeError();
+    } catch (e) {
+
+    }
+    log("HandleCallBridgeError, CallBridge Error: ");
+    log(xhr);
+    log(textStatus);
+    log(ex);
+
+    log("HandleCallBridgeError, CallData == null: " + (CallData == null));
+	if(Globals.EnableReportCase) {
+		Globals.NavigationHistoryStack[CallData.CallBackContextObj.NavigationHistoryItemID].CallMWErrorTime = formatDate((new Date()), 'yyyy-MM-ddTHH:mm:ss');
+		if(CallMWResultObj)
+			Globals.NavigationHistoryStack[CallData.CallBackContextObj.NavigationHistoryItemID].CallMWErrorObject = CallMWResultObj;
+		else
+			Globals.NavigationHistoryStack[CallData.CallBackContextObj.NavigationHistoryItemID].CallMWErrorObject = xhr;
+	}
+    //try { ShowHideSpinnerInDivs(SpinnerDivContainer, false); } catch (e) { }
+    var response = xhr.responseText;
+    if (response && response.length > 11 && response.substr(0, 11) === '{"Message":' && response.charAt(response.length - 1) === '}') {
+        log(response);
+        var exInfo = JSON.parse(response);
+        var text = "Message=" + exInfo.Message + "\r\n" +
+                       "Exception: " + exInfo.ExceptionType;
+        log("Error Occurred")
+        log(text);
+
+    } else {
+        log("CallBridge error: ServiceId: " + ServiceId + ', CachingKey: ' + CachingKey);
+    }
+    if (ex != "abort") {
+
+        
+        var ServerErrorOccurredWithoutRetrying = false;
+		var ServerErrorOccurred = false;
+		var TechnicalErrorOccuredWithoutRetrying = false;
+		var TechnicalErrorOccured = false;
+        try {
+            if (CallMWResultObj) {
+				var StatusCode = CallMWResultObj.ErrorStatusCode;
+                if (CallMWResultObj.ServerErrorOccurred == true || CallMWResultObj.ServerErrorOccurred == "true") {
+					if(Globals.StatusCodesToBeNotRepeated.indexOf(parseInt(StatusCode)) != -1)
+						ServerErrorOccurredWithoutRetrying = true;
+					else
+						ServerErrorOccurred = true;
+                }else if(CallMWResultObj.CommErrFlag == "true" || CallMWResultObj.CommErrFlag == true){
+					if(Globals.StatusCodesToBeNotRepeated.indexOf(parseInt(StatusCode)) != -1)
+						TechnicalErrorOccuredWithoutRetrying = true;
+					else
+						TechnicalErrorOccured = true;
+				} 
+            }
+        } catch (e) {
+            log(e);
+        }
+
+        if (ServerErrorOccurredWithoutRetrying) {
+			try { ShowHideSpinnerInDivs(SpinnerDivContainer, false); } catch (e) { }
+			try {
+				if (OnFailureFunction != undefined)
+					OnFailureFunction.apply(CallBackContextObj, [{ Error: text, XHR: xhr, Status: textStatus}]);
+			} catch (e) {
+					log(e);
+			}
+            var ErrorCode;
+            try {
+                ErrorCode = CallMWResultObj.ErrorStatusCode;
+            } catch (e) {
+                log(e);
+			}
+			if (!IsBackgroundCall)
+				DisplayServerError(ErrorCode);
+        } else if(TechnicalErrorOccuredWithoutRetrying){
+			try { ShowHideSpinnerInDivs(SpinnerDivContainer, false); } catch (e) { }
+			try {
+				if (OnFailureFunction != undefined)
+					OnFailureFunction.apply(CallBackContextObj, [{ Error: text, XHR: xhr, Status: textStatus}]);
+			} catch (e) {
+					log(e);
+			}
+			if (!IsBackgroundCall)
+				DisplayTechnicalErrors(CallMWResultObj);
+		} else {
+			if(Globals.MWRetrialsInfo != undefined && Globals.MWRetrialsInfo != null && JSON.stringify(Globals.MWRetrialsInfo) != "{}"){
+				if(window[ServiceId + "NoOfRetries"] != parseInt(eval('Globals.MWRetrialsInfo["' + ServiceId + '"].RetrialsNo' )) && parseInt(eval('Globals.MWRetrialsInfo["' + ServiceId + '"].RetrialsNo' )) != 0){
+					if (window[ServiceId + "NoOfRetries"] == undefined) {
+						window[ServiceId + "NoOfRetries"] = 0;
+					}
+					window[ServiceId + "NoOfRetries"] = window[ServiceId + "NoOfRetries"] + 1;
+					if(Globals.EnableReportCase) {
+						CallData.CallBackContextObj.NavigationHistoryItemID = CallData.CallBackContextObj.NavigationHistoryItemID + 1;
+					}
+					CallBridge(CallData.InputObject, CallData.OnSuccessFunction, CallData.OnFailureFunction, CallData.CacheResponseFlag, CallData.CachingKey, CallData.DisplayDefaultErrorAlert, CallData.AnimationDiv, CallData.SpinnerDivContainer, CallData.CallBackContextObj, IsBackgroundCall)
+					
+				}else{
+					try { ShowHideSpinnerInDivs(SpinnerDivContainer, false); } catch (e) { }
+					try {
+						if (OnFailureFunction != undefined)
+							OnFailureFunction.apply(CallBackContextObj, [{ Error: text, XHR: xhr, Status: textStatus}]);
+					} catch (e) {
+							log(e);
+					}
+					if(ServerErrorOccurred){
+						if(eval('Globals.MWRetrialsInfo["' + ServiceId + '"].DisplayCommErrFlag' ).toString().toLowerCase() == 'true'){
+							var ErrorCode;
+							try {
+								ErrorCode = CallMWResultObj.ErrorStatusCode;
+							} catch (e) {
+								log(e);
+							}
+							if (!IsBackgroundCall)
+								DisplayServerError(ErrorCode);
+						}
+					} else if(TechnicalErrorOccured){
+						if (eval('Globals.MWRetrialsInfo["' + ServiceId + '"].DisplayCommErrFlag').toString().toLowerCase() == 'true') {
+							if (!IsBackgroundCall)
+								DisplayTechnicalErrors(CallMWResultObj);
+						}
+					}
+					else{
+						if (eval('Globals.MWRetrialsInfo["' + ServiceId + '"].DisplayCommErrFlag').toString().toLowerCase() == 'true') {
+							if (!IsBackgroundCall)
+								DisplayCommunicationError();
+						}
+					}
+					
+					window[ServiceId + "NoOfRetries"] = 0;
+				}
+			} else if(ServerErrorOccurred){
+				
+				try { ShowHideSpinnerInDivs(SpinnerDivContainer, false); } catch (e) { }
+				try {
+					if (OnFailureFunction != undefined)
+						OnFailureFunction.apply(CallBackContextObj, [{ Error: text, XHR: xhr, Status: textStatus}]);
+				} catch (e) {
+						log(e);
+				}
+	            var ErrorCode;
+	            try {
+	                ErrorCode = CallMWResultObj.ErrorStatusCode;
+	            } catch (e) {
+	                log(e);
+				}
+				if (!IsBackgroundCall)
+					DisplayServerError(ErrorCode);
+			} else {
+				if (!IsBackgroundCall)
+					DisplayCommunicationError();
+				try {
+					if (OnFailureFunction != undefined)
+						OnFailureFunction.apply(CallBackContextObj, [{ Error: text, XHR: xhr, Status: textStatus}]);
+				} catch (e) {
+						log(e);
+				}
+			}
+        }
+    }
+    else {
+		try { ShowHideSpinnerInDivs(SpinnerDivContainer, false); } catch (e) { }
+        log("For Service ID " + ServiceId + "; CallBridge ajax call abort");
+    }
+}
+
+function DisplayCommunicationError(DisplayEvenIfCurrentlyDisplayed, CallResultsObj) {
+    if (window['CommunicationErrorCurrentlyDisplayed'] != true || DisplayEvenIfCurrentlyDisplayed == true) {
+        window.Globals = window.Globals || {};
+        Globals.CommunicationErrorEN = Globals.CommunicationErrorEN || "Technical problem has encountered, Please try again later. (1)"; //"Not able to connect to the system, Please try again later";
+        Globals.CommunicationErrorAR = Globals.CommunicationErrorAR || "<div style='direction:rtl'> خطأ فني في الخدمة. الرجاء المحاولة مرة أخرى (1)</div>"; //"لا يمكن الاتصال بالنظام، الرجاء المحاولة فى وقت لاحق";
+        Globals.CheckAndDisplayMWTimeOut = Globals.CheckAndDisplayMWTimeOut || false;
+        Globals.TimeoutErrorEN = Globals.TimeoutErrorEN || "Timeout waiting for server response, Please try again later";
+        Globals.TimeoutErrorAR = Globals.TimeoutErrorAR || "لم يتم استلام رد من النظام، الرجاء المحاولة فى وقت لاحق";
+        var DisplayTimeoutError = false;
+        
+        try {
+            if (Globals.CheckAndDisplayMWTimeOut = true) {
+                if (CallResultsObj.ErrorStatus.toLowerCase().indexOf("time") != -1 && CallResultsObj.ErrorStatus.toLowerCase().indexOf("out") != -1) {
+                    AlertFunction(Globals.TimeoutErrorEN, Globals.TimeoutErrorAR, "Sorry", "عفواً", "OK", "موافق", "");
+					
+		Globals.EnableReportCase = Globals.EnableReportCase || false;
+                 if(Globals.EnableReportCase) {
+				 if (Language.toLowerCase() == "ar") {
+                    $('#popup_panel center').append('<div><a href="#" data-role="button" id="popup_report" data-theme="c" style="text-shadow:0 0 0; background-color: #006579;color: white;height: 15px; border-radius: 0px 5px 0px 0px;    border-color: #006579 #006579 #006579 #FF0000;    border-style: solid;    font-size: 16px;    border-left-width: 4px;    font-weight: bold;width:50%;margin-bottom:10px;font-size: medium;line-height:1em; max-width:150px; min-width:120px" class="BorderRadus_All ui-btn ui-shadow ui-btn-corner-all ui-btn-up-b BorderRadus_All " rel="close">بلغنا عن المشكلة</a></div>');
+                    $('#popup_report').click(function () {
+                        ShowReportCase();
+                    });
+                }
+                else {
+                    $('#popup_panel center').append('<div><a href="#" data-role="button" id="popup_report" data-theme="c" style="text-shadow:0 0 0; background-color: #006579;color: white;height: 15px; border-radius: 0px 5px 0px 0px;    border-color: #006579 #006579 #006579 #FF0000;    border-style: solid;    font-size: 16px;    border-left-width: 4px;    font-weight: bold;width:50% !important;margin-bottom:10px;font-size: medium;line-height:1em;min-width:120px;max-width:150px" class="BorderRadus_All ui-btn ui-shadow ui-btn-corner-all ui-btn-up-b BorderRadus_All " rel="close">Report Case</a></div>');
+                    $('#popup_report').click(function () {
+                        ShowReportCase();
+                    });
+                }
+				$('#popup_ok').css('max-width' , '150px');
+				$('#popup_ok').css('min-width' , '120px');
+				$('#popup_panel').css('height' , '110px');
+				$('#popup_ok').css('width' , '50%');
+				}
+                }
+            }
+        } catch (e) {
+            log(e);
+        }
+
+        Globals.CheckAndDisplayBrowserNotOnlineWhenCommErr = Globals.CheckAndDisplayBrowserNotOnlineWhenCommErr || false;
+        Globals.BrowserNotOnlineCommErrEN = Globals.BrowserNotOnlineCommErrEN || "Not able to connect to the internet, Please check your internet connection and try again";
+        Globals.BrowserNotOnlineCommErrAR = Globals.BrowserNotOnlineCommErrAR || "لا يمكن الإتصال بالإنترنت الرجاء التحقق واعادة المحاولة";
+
+        var DisplayBrowserNotOnline = false;
+        try {
+            if (Globals.CustomCheckedNavIsOnlie == undefined)
+                Globals.CustomCheckedNavIsOnlie = true;
+            if ((navigator.onLine == false || Globals.CustomCheckedNavIsOnlie == false) && Globals.CheckAndDisplayBrowserNotOnlineWhenCommErr == true)
+                DisplayBrowserNotOnline = true;
+        } catch (e) {
+            log(e);
+        }
+
+        if (DisplayBrowserNotOnline == true) {
+            AlertFunction(Globals.BrowserNotOnlineCommErrEN, Globals.BrowserNotOnlineCommErrAR, "Sorry", "عفواً", "OK", "موافق", "");
+        
+		Globals.EnableReportCase = Globals.EnableReportCase || false;
+		if(Globals.EnableReportCase) {
+		if (Language.toLowerCase() == "ar") {
+                    $('#popup_panel center').append('<div><a href="#" data-role="button" id="popup_report" data-theme="c" style="text-shadow:0 0 0; background-color: #006579;color: white;height: 15px; border-radius: 0px 5px 0px 0px;    border-color: #006579 #006579 #006579 #FF0000;    border-style: solid;    font-size: 16px;    border-left-width: 4px;    font-weight: bold;width:50%;margin-bottom:10px;font-size: medium;line-height:1em; max-width:150px; min-width:120px" class="BorderRadus_All ui-btn ui-shadow ui-btn-corner-all ui-btn-up-b BorderRadus_All " rel="close">بلغنا عن المشكلة</a></div>');
+                    $('#popup_report').click(function () {
+                        ShowReportCase();
+                    });
+                }
+                else {
+                    $('#popup_panel center').append('<div><a href="#" data-role="button" id="popup_report" data-theme="c" style="text-shadow:0 0 0; background-color: #006579;color: white;height: 15px; border-radius: 0px 5px 0px 0px;    border-color: #006579 #006579 #006579 #FF0000;    border-style: solid;    font-size: 16px;    border-left-width: 4px;    font-weight: bold;width:50% !important;margin-bottom:10px;font-size: medium;line-height:1em;min-width:120px;max-width:150px" class="BorderRadus_All ui-btn ui-shadow ui-btn-corner-all ui-btn-up-b BorderRadus_All " rel="close">Report Case</a></div>');
+                    $('#popup_report').click(function () {
+                        ShowReportCase();
+                    });
+                }
+				$('#popup_ok').css('max-width' , '150px');
+				$('#popup_ok').css('min-width' , '120px');
+				$('#popup_panel').css('height' , '110px');
+				$('#popup_ok').css('width' , '50%');
+				}
+        } else {
+            AlertFunction(Globals.CommunicationErrorEN, Globals.CommunicationErrorAR, "Sorry", "عفواً", "OK", "موافق", "");
+			
+			Globals.EnableReportCase = Globals.EnableReportCase || false;
+			if(Globals.EnableReportCase) {
+            if (Language.toLowerCase() == "ar") {
+                    $('#popup_panel center').append('<div><a href="#" data-role="button" id="popup_report" data-theme="c" style="text-shadow:0 0 0; background-color: #006579;color: white;height: 15px; border-radius: 0px 5px 0px 0px;    border-color: #006579 #006579 #006579 #FF0000;    border-style: solid;    font-size: 16px;    border-left-width: 4px;    font-weight: bold;width:50%;margin-bottom:10px;font-size: medium;line-height:1em; max-width:150px; min-width:120px" class="BorderRadus_All ui-btn ui-shadow ui-btn-corner-all ui-btn-up-b BorderRadus_All " rel="close">بلغنا عن المشكلة</a></div>');
+                    $('#popup_report').click(function () {
+                        ShowReportCase();
+                    });
+                }
+                else {
+                    $('#popup_panel center').append('<div><a href="#" data-role="button" id="popup_report" data-theme="c" style="text-shadow:0 0 0; background-color: #006579;color: white;height: 15px; border-radius: 0px 5px 0px 0px;    border-color: #006579 #006579 #006579 #FF0000;    border-style: solid;    font-size: 16px;    border-left-width: 4px;    font-weight: bold;width:50% !important;margin-bottom:10px;font-size: medium;line-height:1em;min-width:120px;max-width:150px" class="BorderRadus_All ui-btn ui-shadow ui-btn-corner-all ui-btn-up-b BorderRadus_All " rel="close">Report Case</a></div>');
+                    $('#popup_report').click(function () {
+                        ShowReportCase();
+                    });
+                }
+				$('#popup_ok').css('max-width' , '150px');
+				$('#popup_ok').css('min-width' , '120px');
+				$('#popup_panel').css('height' , '110px');
+				$('#popup_ok').css('width' , '50%');
+				}
+        }
+//        AlertFunction('There appears to be a communication error between your device and our system. Try again later',
+//                 'تعثر الإتصال بالنظام, الرجاء المحاولة فى وقت لاحق', "Un-Expected Error", "عفواً", "OK", "موافق", "window['CommunicationErrorCurrentlyDisplayed'] = false;");
+    }
+}
+
+function DisplayServerError(ErrorCode) {
+    try {
+        window.Globals = window.Globals || {};
+        Globals.ServerErrorEN = Globals.ServerErrorEN || "Technical problem has encountered, Please try again later. (#ErrCode#)"; //"Server error occurred, Please try again later";
+        Globals.ServerErrorAR = Globals.ServerErrorAR || "<div style='direction:rtl'> خطأ فني في الخدمة. الرجاء المحاولة مرة أخرى (#ErrCode#)</div>"; //"خطأ بالنظام، الرجاء المحاولة فى وقت لاحق";
+        Globals.DisplayServerErrorStatus = Globals.DisplayServerErrorStatus || true;
+        //Globals.ServerErrorStatusPrefixEN = Globals.ServerErrorStatusPrefixEN || "<br>Error Code: ";
+        //Globals.ServerErrorStatusPrefixAR = Globals.ServerErrorStatusPrefixAR || "<br>رقم الخطأ: ";
+        var ErrorEN = Globals.ServerErrorEN;
+        var ErrorAR = Globals.ServerErrorAR;
+        if (Globals.DisplayServerErrorStatus == true && ErrorCode) {
+            ErrorEN = ErrorEN.replace("#ErrCode#", ErrorCode); // + Globals.ServerErrorStatusPrefixEN + ErrorCode;
+            ErrorAR = ErrorAR.replace("#ErrCode#", ErrorCode); // + Globals.ServerErrorStatusPrefixAR + ErrorCode;
+        } else {
+            ErrorEN = ErrorEN.replace("(#ErrCode#)", "").replace("#ErrCode#", ""); // + Globals.ServerErrorStatusPrefixEN + ErrorCode;
+            ErrorAR = ErrorAR.replace("(#ErrCode#)", "").replace("#ErrCode#", ""); // + Globals.ServerErrorStatusPrefixAR + ErrorCode;
+        }
+        AlertFunction(ErrorEN, ErrorAR, "Sorry", "عفواً", "OK", "موافق", "");
+		
+		Globals.EnableReportCase = Globals.EnableReportCase || false;
+		if(Globals.EnableReportCase) {
+        if (Language.toLowerCase() == "ar") {
+                    $('#popup_panel center').append('<div><a href="#" data-role="button" id="popup_report" data-theme="c" style="text-shadow:0 0 0; background-color: #006579;color: white;height: 15px; border-radius: 0px 5px 0px 0px;    border-color: #006579 #006579 #006579 #FF0000;    border-style: solid;    font-size: 16px;    border-left-width: 4px;    font-weight: bold;width:50%;margin-bottom:10px;font-size: medium;line-height:1em; max-width:150px; min-width:120px" class="BorderRadus_All ui-btn ui-shadow ui-btn-corner-all ui-btn-up-b BorderRadus_All " rel="close">بلغنا عن المشكلة</a></div>');
+                    $('#popup_report').click(function () {
+                        ShowReportCase();
+                    });
+                }
+                else {
+                    $('#popup_panel center').append('<div><a href="#" data-role="button" id="popup_report" data-theme="c" style="text-shadow:0 0 0; background-color: #006579;color: white;height: 15px; border-radius: 0px 5px 0px 0px;    border-color: #006579 #006579 #006579 #FF0000;    border-style: solid;    font-size: 16px;    border-left-width: 4px;    font-weight: bold;width:50% !important;margin-bottom:10px;font-size: medium;line-height:1em;min-width:120px;max-width:150px" class="BorderRadus_All ui-btn ui-shadow ui-btn-corner-all ui-btn-up-b BorderRadus_All " rel="close">Report Case</a></div>');
+                    $('#popup_report').click(function () {
+                        ShowReportCase();
+                    });
+                }
+				$('#popup_ok').css('max-width' , '150px');
+				$('#popup_ok').css('min-width' , '120px');
+				$('#popup_panel').css('height' , '110px');
+				$('#popup_ok').css('width' , '50%');
+				}
+    } catch (e) {
+        log(e);
+    }
+}
+
+function DisplayTechnicalErrors(pCallMWResultObj) {
+    try {
+		var StatusCode = "";
+        if(Globals.MWErrorsDescriptions != null){
+			for(var m=0; m<Globals.MWErrorsDescriptions.length; m++){
+				if(pCallMWResultObj.ResultDesc.toLowerCase().indexOf(Globals.MWErrorsDescriptions[m].ErrorDesc.toLowerCase()) != -1){
+					StatusCode = Globals.MWErrorsDescriptions[m].ErrorCode;
+				}
+				else if(pCallMWResultObj.CallBackReturnedErrStr.toLowerCase().indexOf(Globals.MWErrorsDescriptions[m].ErrorDesc.toLowerCase()) != -1){
+					StatusCode = Globals.MWErrorsDescriptions[m].ErrorCode;
+				}
+			}
+			window.Globals = window.Globals || {};
+			Globals.ServerErrorEN = Globals.ServerErrorEN || "Technical problem has encountered, Please try again later. (#ErrCode#)"; 
+			Globals.ServerErrorAR = Globals.ServerErrorAR || "<div style='direction:rtl'> خطأ فني في الخدمة. الرجاء المحاولة مرة أخرى (#ErrCode#)</div>"; 
+			var ErrorEN = Globals.ServerErrorEN;
+			var ErrorAR = Globals.ServerErrorAR;
+			if(StatusCode != ""){
+				ErrorEN = ErrorEN.replace("#ErrCode#", StatusCode); 
+				ErrorAR = ErrorAR.replace("#ErrCode#", StatusCode); 
+				AlertFunction(ErrorEN, ErrorAR, "Sorry", "عفواً", "OK", "موافق", "");
+				
+				Globals.EnableReportCase = Globals.EnableReportCase || false;
+				if(Globals.EnableReportCase) {
+				if (Language.toLowerCase() == "ar") {
+                    $('#popup_panel center').append('<div><a href="#" data-role="button" id="popup_report" data-theme="c" style="text-shadow:0 0 0; background-color: #006579;color: white;height: 15px; border-radius: 0px 5px 0px 0px;    border-color: #006579 #006579 #006579 #FF0000;    border-style: solid;    font-size: 16px;    border-left-width: 4px;    font-weight: bold;width:50%;margin-bottom:10px;font-size: medium;line-height:1em; max-width:150px; min-width:120px" class="BorderRadus_All ui-btn ui-shadow ui-btn-corner-all ui-btn-up-b BorderRadus_All " rel="close">بلغنا عن المشكلة</a></div>');
+                    $('#popup_report').click(function () {
+                        ShowReportCase();
+                    });
+                }
+                else {
+                    $('#popup_panel center').append('<div><a href="#" data-role="button" id="popup_report" data-theme="c" style="text-shadow:0 0 0; background-color: #006579;color: white;height: 15px; border-radius: 0px 5px 0px 0px;    border-color: #006579 #006579 #006579 #FF0000;    border-style: solid;    font-size: 16px;    border-left-width: 4px;    font-weight: bold;width:50% !important;margin-bottom:10px;font-size: medium;line-height:1em;min-width:120px;max-width:150px" class="BorderRadus_All ui-btn ui-shadow ui-btn-corner-all ui-btn-up-b BorderRadus_All " rel="close">Report Case</a></div>');
+                    $('#popup_report').click(function () {
+                        ShowReportCase();
+                    });
+                }
+				$('#popup_ok').css('max-width' , '150px');
+				$('#popup_ok').css('min-width' , '120px');
+				$('#popup_panel').css('height' , '110px');
+				$('#popup_ok').css('width' , '50%');
+				}
+			}else{
+				DisplayCommunicationError();
+			}
+		}
+		else{
+			DisplayCommunicationError();
+		}
+    } catch (e) {
+        log(e);
+    }
+}
+
+function DisplayProcessingRequestError() {
+    try {
+        Globals.DisplayProcessingRequestError = Globals.DisplayProcessingRequestError || false;
+        Globals.ProcessingRequestErrorEN = Globals.ProcessingRequestErrorEN || "Technical problem has encountered, Please try again later (3)"; //"There is a problem processing your request, please try again later";
+        Globals.ProcessingRequestErrorAR = Globals.ProcessingRequestErrorAR || "<div style='direction:rtl'> خطأ فني في الخدمة. الرجاء المحاولة مرة أخرى (3)</div>"; //"حدث خطأ عند محاولة تنفيذ طلبك، الرجاء المحاولة فى وقت لاحق";
+        if (Globals.DisplayProcessingRequestError == true) {
+            AlertFunction(Globals.ProcessingRequestErrorEN, Globals.ProcessingRequestErrorAR, "Sorry", "عفواً", "OK", "موافق", "");
+			
+			Globals.EnableReportCase = Globals.EnableReportCase || false;
+			if(Globals.EnableReportCase) {
+				if (Language.toLowerCase() == "ar") {
+						$('#popup_panel center').append('<div><a href="#" data-role="button" id="popup_report" data-theme="c" style="text-shadow:0 0 0; background-color: #006579;color: white;height: 15px; border-radius: 0px 5px 0px 0px;    border-color: #006579 #006579 #006579 #FF0000;    border-style: solid;    font-size: 16px;    border-left-width: 4px;    font-weight: bold;width:50%;margin-bottom:10px;font-size: medium;line-height:1em; max-width:150px; min-width:120px" class="BorderRadus_All ui-btn ui-shadow ui-btn-corner-all ui-btn-up-b BorderRadus_All " rel="close">بلغنا عن المشكلة</a></div>');
+						$('#popup_report').click(function () {
+							ShowReportCase();
+						});
+					}
+					else {
+						$('#popup_panel center').append('<div><a href="#" data-role="button" id="popup_report" data-theme="c" style="text-shadow:0 0 0; background-color: #006579;color: white;height: 15px; border-radius: 0px 5px 0px 0px;    border-color: #006579 #006579 #006579 #FF0000;    border-style: solid;    font-size: 16px;    border-left-width: 4px;    font-weight: bold;width:50% !important;margin-bottom:10px;font-size: medium;line-height:1em;min-width:120px;max-width:150px" class="BorderRadus_All ui-btn ui-shadow ui-btn-corner-all ui-btn-up-b BorderRadus_All " rel="close">Report Case</a></div>');
+						$('#popup_report').click(function () {
+							ShowReportCase();
+						});
+					}
+				$('#popup_ok').css('max-width' , '150px');
+				$('#popup_ok').css('min-width' , '120px');
+				$('#popup_panel').css('height' , '110px');
+				$('#popup_ok').css('width' , '50%');
+			}
+		}
+    } catch (e) {
+        log(e);
+    }
+}
+
+function DisplayProcessingResponsetError() {
+    try {
+        Globals.DisplayProcessingResponsetError = Globals.DisplayProcessingResponsetError || false;
+        Globals.ProcessingResponseEN = Globals.ProcessingResponseEN || "Technical problem has encountered, Please try again later (2)"; //"Technical Problem processing response data, please try again later";
+        Globals.ProcessingResponseAR = Globals.ProcessingResponseAR || "<div style='direction:rtl'> خطأ فني في الخدمة. الرجاء المحاولة مرة أخرى (2)</div>"; //"خطأ فني عند محاولة استخراج البيانات ، الرجاء المحاولة فى وقت لاحق";
+        if (Globals.DisplayProcessingResponsetError == true) {
+            AlertFunction(Globals.ProcessingResponseEN, Globals.ProcessingResponseAR, "Sorry", "عفواً", "OK", "موافق", "");
+			
+		Globals.EnableReportCase = Globals.EnableReportCase || false;
+			if(Globals.EnableReportCase) {
+           if (Language.toLowerCase() == "ar") {
+                    $('#popup_panel center').append('<div><a href="#" data-role="button" id="popup_report" data-theme="c" style="text-shadow:0 0 0; background-color: #006579;color: white;height: 15px; border-radius: 0px 5px 0px 0px;    border-color: #006579 #006579 #006579 #FF0000;    border-style: solid;    font-size: 16px;    border-left-width: 4px;    font-weight: bold;width:50%;margin-bottom:10px;font-size: medium;line-height:1em; max-width:150px; min-width:120px" class="BorderRadus_All ui-btn ui-shadow ui-btn-corner-all ui-btn-up-b BorderRadus_All " rel="close">بلغنا عن المشكلة</a></div>');
+                    $('#popup_report').click(function () {
+                        ShowReportCase();
+                    });
+                }
+                else {
+                    $('#popup_panel center').append('<div><a href="#" data-role="button" id="popup_report" data-theme="c" style="text-shadow:0 0 0; background-color: #006579;color: white;height: 15px; border-radius: 0px 5px 0px 0px;    border-color: #006579 #006579 #006579 #FF0000;    border-style: solid;    font-size: 16px;    border-left-width: 4px;    font-weight: bold;width:50% !important;margin-bottom:10px;font-size: medium;line-height:1em;min-width:120px;max-width:150px" class="BorderRadus_All ui-btn ui-shadow ui-btn-corner-all ui-btn-up-b BorderRadus_All " rel="close">Report Case</a></div>');
+                    $('#popup_report').click(function () {
+                        ShowReportCase();
+                    });
+                }
+				$('#popup_ok').css('max-width' , '150px');
+				$('#popup_ok').css('min-width' , '120px');
+				$('#popup_panel').css('height' , '110px');
+				$('#popup_ok').css('width' , '50%');
+				}
+        }
+    } catch (e) {
+        log(e);
+    }
+}
+
+
+function CallBridgeAfterCheckCache(InputObject, OnSuccessFunction, OnFailureFunction, CacheResponseFlag, CachingKey, DisplayDefaultErrorAlert, AnimationDiv, SpinnerDivContainer, CallBackContextObj ,newCachingKey ) {
+	
+	try{
+		if(newCachingKey != "" || newCachingKey != undefined){
+            var MustCallBridge = false;
+            
+		try{
+			if(window.GetFromCache(newCachingKey) != null){
+				var CachedObj = GetResponseObjFromCache(newCachingKey);
+					//console.log("** Cache settings found for service : " + CachingKey );
+
+			} else if (Boolean(eval("Globals.CachingResponseArr." + CachingKey  + "." + newCachingKey ))){
+				
+				var CachedObj =   eval("Globals.CachingResponseArr." + CachingKey  + "." + newCachingKey )  ;
+				//console.log("** Cache settings found for service : " + CachingKey );
+			}
+			 try {
+            if (OnSuccessFunction != undefined && CachedObj != undefined){
+				                OnSuccessFunction.apply(CallBackContextObj, [{ ResultCode: 0, RspObj: CachedObj, DataGottenFromServer: false ,CachedDataBinded : true }]);
+//console.log("** Cache settings Successful for service : " + CachingKey );
+			} else {
+					MustCallBridge = true;
+					
+			}
+				 
+			 
+			   
+        } catch (e) {
+			//console.log("**Exception in  Cache settings  for service : " + CachingKey + "=" + e );
+			MustCallBridge = true;
+         
+        }
+			
+		} catch (e){
+			//console.log("**Exception in  Cache settings  for service : " + CachingKey + "=" + e );
+			MustCallBridge = true;
+		}
+		
+	} else {
+		 var CachedObj = GetResponseObjFromCache(CachingKey);
+    var MustCallBridge = false;
+    var CachingDate = window.GetFromCache(CachingKey + 'CachingDate');
+    if (CachedObj != undefined && CachingDate != undefined) {
+        var CachedSince = new Date() - CachingDate;
+        var AutoUpdateExpiryPeriod = CachedObj.Item.Header.CachingAndExpiryControl.AutoUpdateExpiryPeriodMinutes * 60 * 1000;
+        if (CachedSince >= AutoUpdateExpiryPeriod) {
+            MustCallBridge = true
+        }
+        //else {
+        try {
+            if (OnSuccessFunction != undefined)
+                OnSuccessFunction.apply(CallBackContextObj, [{ ResultCode: 0, RspObj: CachedObj, DataGottenFromServer: false }]);
+        } catch (e) {
+            log(e);
+        }
+        //}
+    }
+    else {
+        MustCallBridge = true;
+    }
+    log('DataCachedSince: ' + CachedSince + ', AutoUpdateExpiryPeriod: ' + AutoUpdateExpiryPeriod);
+	}
+	} catch(e){
+		MustCallBridge  = true;
+	}
+   
+
+    if (MustCallBridge) {
+        //log('Will Call Bridge');
+		CallBridge(InputObject, OnSuccessFunction, OnFailureFunction, CacheResponseFlag, CachingKey, DisplayDefaultErrorAlert, AnimationDiv, SpinnerDivContainer, CallBackContextObj, IsBackgroundCall);
+    }
+
+}
+
+function CallMWBridge(data) {
+    //log('Start CallMWBridge');
+    log('CallMWBridge input data: ', data);
+    try {
+        if (data == undefined) {
+            alert('input params not defined');
+            return;
+        }
+        var MWServiceID = data.MWServiceId , InputObject = data.InputObject, OnSuccessFunction = data.OnSuccessFunction, OnFailureFunction = data.OnFailureFunction,  GetFromCache ,
+         CacheResponseFlag = data.CacheResponseFlag, CachingKey = data.CachingKey, DisplayDefaultErrorAlert = data.DisplayDefaultErrorAlert,
+         AnimationDiv = data.AnimationDiv, SpinnerDivContainer = data.SpinnerDivContainer, NavHistoryItemID = data.NavigationHistoryItemID, CallBackContextObj = data.CallBackContextObj;
+        // check if service is cached 
+		
+		if(!Globals.ForceGetFreshData){
+			GetFromCache = false ;
+			
+try{
+ 
+	var MWServicesInfo;
+    if (config.MWServicesInfo)
+        MWServicesInfo = config.MWServicesInfo;
+    else
+        MWServicesInfo = {};
+		 CachingKey = InputObject.Item.Header.Service.ServiceID;
+		var newCachingKey = CachingKey + "_"   ;
+		 var CachingIdentifierFieldsValue = [];
+		for(var i=0; i< MWServicesInfo.length - 1 ;i++){
+			
+			if (MWServicesInfo[i].MWServiceID == CachingKey){ // if called service matched with cached MWS table in initServ
+			console.log("** Start checking Cache settings for service : " + CachingKey);
+				var CachingIdentifierFieldsKeysArr = MWServicesInfo[i].MW_CachingIdentifierFields.split(',') ;  // get Identfiers to gen key
+				 var CachingMethodType = MWServicesInfo[i].MW_CachingMethodType ; // get caching method type for later
+			 if(CachingIdentifierFieldsKeysArr!=""){
+				 		for (var x = 0; x < CachingIdentifierFieldsKeysArr.length; x++) { 
+	  CachingIdentifierFieldsValue[x]  = getValues(InputObject,CachingIdentifierFieldsKeysArr[x])  ; 
+	  if(CachingIdentifierFieldsValue[x].length>1){
+		  // CachingIdentifierFieldsValue[x] =  CachingIdentifierFieldsValue[x].pop(CachingIdentifierFieldsValue[x].length-1);
+		  		   CachingIdentifierFieldsValue[x] = CachingIdentifierFieldsValue[0][0];
+
+	  }  
+	
+	  newCachingKey +=    CachingIdentifierFieldsKeysArr[x] + "_" + CachingIdentifierFieldsValue[x] + "_"  ;	
+}	
+			newCachingKey =  newCachingKey.trimEnd('_').concat("_");
+			} else {
+				 	 
+				 }
+				  
+      newCachingKey = newCachingKey.replace(/\./g, '$002e');
+     
+      newCachingKey =  newCachingKey.concat("key");
+      var CachingDateKey = newCachingKey.concat("CachingDate");
+	  if(CachingMethodType.toLowerCase() == "perm"){
+	   
+		  var CachedOldDate = window.GetFromCache(CachingDateKey);
+	  } else if(CachingMethodType.toLowerCase() == "temp") {
+		  
+		  var CachedOldDate = eval("Globals.CachingResponseArr." + CachingKey  + "." + CachingDateKey );
+	  }   
+	   var CachedSince = new Date() - CachedOldDate;
+	           var AutoUpdateExpiryPeriod = MWServicesInfo[i].MW_AutoUpdateExpiryPeriodMinutes * 60 * 1000;
+			    if (CachedSince >= AutoUpdateExpiryPeriod) {
+            GetFromCache = false ;
+			break;
+        } else {
+			GetFromCache = true;
+			if(CachingMethodType.toLowerCase() == "perm"){
+				newCachingKey = newCachingKey ;
+}
+			 
+			break;
+		}
+
+	  
+  
+			} 
+			
+		}	
+} catch (e) {
+	console.log("** Exception in  checking Cache settings for service : " + CachingKey + "=" + e);
+	 
+	GetFromCache = true;
+		} }
+		
+        if (GetFromCache == true || GetFromCache == undefined ) {
+			Globals.EnableReportCase = Globals.EnableReportCase || false;
+			if(Globals.EnableReportCase) {
+				Globals = window.Globals || {}
+				Globals.NavigationHistoryStack = Globals.NavigationHistoryStack  || {};
+				Globals.NavigationHistoryStack[NavHistoryItemID].MWCallDate = formatDate((new Date()), 'yyyy-MM-ddTHH:mm:ss');
+				Globals.NavigationHistoryStack[NavHistoryItemID].MWInputParamsDataObject = InputObject;
+				 try{
+			
+					if  (Globals.MaskedForms[MWServiceID] != undefined ){
+						var ClonedRespObj = clone(InputObject) ;
+						var ItemsToBeReplaced = Globals.MaskedForms[MWServiceID].split(',') ; 
+						for(var x = 0 ; x < ItemsToBeReplaced.length  ; x++){
+						UpdateObjectValues( ClonedRespObj ,ItemsToBeReplaced[x] , "********") ;
+						}
+						Globals.NavigationHistoryStack[NavHistoryItemID].MWInputParamsDataObject = ClonedRespObj; 
+					}
+					
+					}
+					catch(e){
+					}
+			}
+            CallBridgeAfterCheckCache(InputObject, OnSuccessFunction, OnFailureFunction, CacheResponseFlag, CachingKey, DisplayDefaultErrorAlert, AnimationDiv, SpinnerDivContainer, CallBackContextObj , newCachingKey);
+			Globals.ForceGetFreshData = false ;
+        }
+        else {
+			CallBridge(InputObject, OnSuccessFunction, OnFailureFunction, CacheResponseFlag, CachingKey, DisplayDefaultErrorAlert, AnimationDiv, SpinnerDivContainer, CallBackContextObj, IsBackgroundCall);
+			Globals.ForceGetFreshData = false ;
+        }
+    } catch (e) {
+        log('CallMWBridge: ' + e);
+    }
+}
+
+function GetPageHTMLAndData(Options) {
+    try {
+        if (Options == undefined) {
+            alert('GetPageHTMLAndData undefined Options');
+            return;
+        }
+
+        var opt = { PageId: null, DisplayHTMLDirectlyAfterGotten: true, OnGetPageHTMLSuccessFunction: null, OnGetPageHTMLFailureFunction: null, OnGetDataSuccessFunction: null
+            , OnGetDataFailureFunction: null, DisableHTMLGottenAnimation: true, BridgeCallInputData: {}, BridgeCallerFunction: null, GetPageHTMLAndDataFinishedFunction: null
+        };
+
+        var PageId = Options.PageId == undefined ? '' : Options.PageId;
+        var DisplayHTMLDirectlyAfterGotten = (Options.DisplayHTMLDirectlyAfterGotten == undefined) ? true : Options.DisplayHTMLDirectlyAfterGotten;
+        Options.DisplayHTMLDirectlyAfterGotten = DisplayHTMLDirectlyAfterGotten;
+        var DisplayHTMLAfterHTMLAndDataGotten = (Options.DisplayHTMLAfterHTMLAndDataGotten == undefined) ? true : Options.DisplayHTMLAfterHTMLAndDataGotten;
+        var GetHTMLFinished = false;
+        var GetDataFinished = false;
+        var GetSecondServiceDataFinished = false;
+        var GetHTMLFailed = false;
+        var GetDataFailed = false;
+        var GetSecondServiceDataFailed = false;
+        var GetHTMLSuccessInfo = {};
+        var GetHTMLFailureInfo = {};
+        var GetDataSuccessInfo = {};
+        var GetSecondServiceDataSuccessInfo = {};
+        var GetDataFailureInfo = {};
+        var GetSecondServiceDataFailureInfo = {};
+        var GetHTMLAndDataInfo = {};
+        var DisplayDefaultErrorAlert = (Options.DisplayDefaultErrorAlert == undefined) ? true : Options.DisplayDefaultErrorAlert;
+        var DisplayDefaultErrorAlertForSecondService = (Options.DisplayDefaultErrorAlertForSecondService == undefined) ? true : Options.DisplayDefaultErrorAlertForSecondService;
+
+        try {
+            //$('#' + PageId).find('.HFBGT').show().find('.VFBGT').hide();
+        } catch (e) {
+            log(e);
+        }
+
+        var CheckIfGetBothHTMLAndGetDataFinished = function (data) {
+            try {
+                ShowHideSpinner(PageId, true);
+                if (GetHTMLFinished) {
+                    if (GetHTMLFailed == false && DisplayHTMLDirectlyAfterGotten == true) {
+                        $('#' + PageId + '_Widget_Content_Data').html(GetHTMLSuccessInfo.AjaxCallInfoObj.RespHtml).show(); //.find('.HFBGT').hide().find('.VFBGT').show();
+                        $('#' + PageId).find('.HFBGT').hide().find('.VFBGT').show();
+                        $(".ui-page").trigger("create");
+                    }
+                }
+                if ((GetHTMLFinished || PageId == '') && (GetDataFinished || Options.PrepareRequestFunction == undefined) && (GetSecondServiceDataFinished || Options.PrepareSecondServiceRequestFunction == undefined)) {
+                    ShowHideSpinner(PageId, false);
+                    try {
+                        if (GetHTMLFailed == false && DisplayHTMLAfterHTMLAndDataGotten == true) {
+                            if (GetDataSuccessInfo.ResultCode == 0)
+                                $('#' + PageId + '_Widget_Content_Data').html(GetHTMLSuccessInfo.AjaxCallInfoObj.RespHtml).show(); //.find('.HFBGT').hide().find('.VFBGT').show();
+                            $('#' + PageId).find('.HFBGT').hide().find('.VFBGT').show();
+                            $(".ui-page").trigger("create");
+                        }
+
+
+                        //alert('GetPageHTMLAndDataFinishedFunction:- ' + 'GetHTMLFinished: ' + GetHTMLFinished + 'GetDataFinished: ' + GetDataFinished);
+
+                        GetPageHTMLAndDataFinishedFunction();
+
+                        if ((GetDataFinished == true && GetDataFailed == false && GetDataSuccessInfo.DataGottenFromServer == true)
+                        && (Option.PrepareSecondServiceRequestFunction == undefined || (GetSecondServiceDataFinished == true && GetSecondServiceDataFailed == false && GetSecondServiceDataSuccessInfo.DataGottenFromServer == true))) {// || (Options.PrepareRequestFunction == undefined && GetHTMLFinished && GetHTMLFailed == false)) {
+                            AnimatePage(PageId);
+                        }
+                    } catch (e) {
+                        alert('GetPageHTMLAndDataFinishedFunction:' + e);
+                    }
+                }
+            } catch (e) {
+                alert(e);
+            }
+        };
+
+        var OnGetPageHTMLSuccessFunction = (Options.OnGetPageHTMLSuccessFunction == undefined) ? function () { GetHTMLFinished = true; GetHTMLFailed = false; CheckIfGetBothHTMLAndGetDataFinished(); }
+        : function () { GetHTMLFinished = true; GetHTMLFailed = false; Options.OnGetPageHTMLSuccessFunction(GetHTMLSuccessInfo); CheckIfGetBothHTMLAndGetDataFinished(); };
+
+        var OnGetPageHTMLFailureFunction = (Options.OnGetPageHTMLFailureFunction == undefined) ? function () { GetHTMLFinished = true; GetHTMLFailed = true; CheckIfGetBothHTMLAndGetDataFinished(); }
+        : function () { GetHTMLFinished = true; GetHTMLFailed = true; Options.OnGetPageHTMLFailureFunction(GetHTMLFailureInfo); CheckIfGetBothHTMLAndGetDataFinished(); };
+
+
+
+        var OnGetDataSuccessFunction = (Options.OnGetDataSuccessFunction == undefined) ? function () { GetDataFinished = true; GetDataFailed = false; CheckIfGetBothHTMLAndGetDataFinished(); }
+        : function () { GetDataFinished = true; GetDataFailed = false; Options.OnGetDataSuccessFunction(GetDataSuccessInfo); CheckIfGetBothHTMLAndGetDataFinished(); };
+
+        var OnGetDataFailureFunction = (Options.OnGetDataFailureFunction == undefined) ? function () { GetDataFinished = true; GetDataFailed = true; CheckIfGetBothHTMLAndGetDataFinished(); }
+        : function () { GetDataFinished = true; GetDataFailed = true; Options.OnGetDataFailureFunction(GetDataFailureInfo); CheckIfGetBothHTMLAndGetDataFinished(); };
+
+        var OnGetSecondServiceDataSuccessFunction = (Options.OnGetSecondServiceDataSuccessFunction == undefined) ? function () { GetSecondServiceDataFinished = true; GetSecondServiceDataFailed = false; CheckIfGetBothHTMLAndGetDataFinished(); }
+        : function () { GetSecondServiceDataFinished = true; GetSecondServiceDataFailed = false; Options.OnGetSecondServiceDataSuccessFunction(GetSecondServiceDataSuccessInfo); CheckIfGetBothHTMLAndGetDataFinished(); };
+
+        var OnGetSecondServiceDataFailureFunction = (Options.OnGetSecondServiceDataFailureFunction == undefined) ? function () { GetSecondServiceDataFinished = true; GetSecondServiceDataFailed = true; CheckIfGetBothHTMLAndGetDataFinished(); }
+        : function () { GetSecondServiceDataFinished = true; GetSecondServiceDataFailed = true; Options.OnGetSecondServiceDataFailureFunction(GetSecondServiceDataFailureInfo); CheckIfGetBothHTMLAndGetDataFinished(); };
+
+        var DisableHTMLGottenAnimation = (Options.DisableHTMLGottenAnimation == undefined) ? true : Options.DisableHTMLGottenAnimation;
+        Options.DisableHTMLGottenAnimation = DisableHTMLGottenAnimation;
+
+        GetPageHTML(PageId, '', false, false, '', '', false, false, {
+            OnCallSuccessFunction: function (data) { GetHTMLSuccessInfo = data; OnGetPageHTMLSuccessFunction(); },
+            OnCallFailureFunction: function (data) { GetHTMLFailureInfo = data; OnGetPageHTMLFailureFunction(); },
+            DisableAnimation: DisableHTMLGottenAnimation
+        });
+
+        /*
+        var BridgeCallInputData = (Options.BridgeCallInputData == undefined) ? {} : Options.BridgeCallInputData;
+        Options.BridgeCallInputData = BridgeCallInputData;
+
+        var BridgeCallerFunction = (Options.BridgeCallerFunction == undefined) ? function () { }
+        : function () {
+        Options.BridgeCallerFunction({ InputData: BridgeCallInputData, OnCallSuccessFunction: function (data) { GetDataSuccessInfo = data; OnGetDataSuccessFunction(); }
+        , OnCallFailureFunction: function (data) { GetDataFailureInfo = data; OnGetDataFailureFunction(); }
+        })
+        };
+        */
+
+        var GetPageHTMLAndDataFinishedFunction = (Options.GetPageHTMLAndDataFinishedFunction == undefined) ? function () { }
+        : function () {
+            GetHTMLAndDataInfo = { GetHTMLFailed: GetHTMLFailed, GetDataFailed: GetDataFailed, GetSecondServiceDataFailed: GetSecondServiceDataFailed,
+                GetHTMLSuccessInfo: GetHTMLSuccessInfo, GetHTMLFailureInfo: GetHTMLFailureInfo, GetDataSuccessInfo: GetDataSuccessInfo, GetDataFailureInfo: GetDataFailureInfo
+          , GetSecondServiceDataSuccessInfo: GetSecondServiceDataSuccessInfo, GetSecondServiceDataFailureInfo: GetSecondServiceDataFailureInfo
+            };
+
+            window['GetHTMLAndDataInfo_' + PageId] = GetHTMLAndDataInfo;
+            log('GetHTMLAndDataInfo_' + PageId + ': ');
+            log(GetHTMLAndDataInfo);
+
+            Options.GetPageHTMLAndDataFinishedFunction(GetHTMLAndDataInfo);
+        };
+        //BridgeCallerFunction();
+
+        var FreshData = Options.FreshData == undefined ? false : Options.FreshData;
+        var CacheResponse = Options.CacheResponse == undefined ? false : Options.CacheResponse;
+        var CacheSecondServiceResponse = Options.CacheSecondServiceResponse == undefined ? false : Options.CacheSecondServiceResponse;
+        var InputRequestInputData = Options.InputRequestInputData == undefined ? {} : Options.InputRequestInputData;
+        var SecondServiceInputRequestInputData = Options.SecondServiceInputRequestInputData == undefined ? {} : Options.SecondServiceInputRequestInputData;
+        var PrepareRequestFunction = Options.PrepareRequestFunction;
+        var PrepareSecondServiceRequestFunction = Options.PrepareSecondServiceRequestFunction;
+        var CachingKey = Options.CachingKey;
+        var SecondServiceCachingKey = Options.SecondServiceCachingKey;
+        var GetDataSuccessInfoArr = new Array();
+        if (PrepareRequestFunction != undefined) {
+            CallMWBridge({
+                InputObject: PrepareRequestFunction(InputRequestInputData),
+                OnSuccessFunction: function (data) { GetDataSuccessInfo = data; GetDataSuccessInfoArr[GetDataSuccessInfoArr.length] = data; log(PageId + ' GetDataSuccessInfoArr: '); log(GetDataSuccessInfoArr); OnGetDataSuccessFunction(); }, OnFailureFunction: function (data) { GetDataFailureInfo = data; OnGetDataFailureFunction(); },
+                GetFromCache: !FreshData, CacheResponseFlag: CacheResponse, CachingKey: CachingKey,
+                DisplayDefaultErrorAlert: DisplayDefaultErrorAlert
+            });
+        }
+
+        if (PrepareSecondServiceRequestFunction != undefined) {
+            CallMWBridge({
+                InputObject: PrepareSecondServiceRequestFunction(SecondServiceInputRequestInputData),
+                OnSuccessFunction: function (data) { GetSecondServiceDataSuccessInfo = data; OnGetSecondServiceDataSuccessFunction(); }, OnFailureFunction: function (data) { GetSecondServiceDataFailureInfo = data; OnGetSecondServiceDataFailureFunction(); },
+                GetFromCache: !FreshData, CacheResponseFlag: CacheResponse, CachingKey: SecondServiceCachingKey,
+                DisplayDefaultErrorAlert: DisplayDefaultErrorAlertForSecondService
+            });
+        }
+
+
+    } catch (e) {
+        alert('GetPageHTMLAndData: ' + e);
+    }
+}
+
+
+
+
+
+
+
+function ShowLoadingSpinner() { }
+function HideLoadingSpinner() { }
+
+function GetSessionID() {
+    return Globals.SessionID;
+}
+
+var CachingCMArr = {};
+function CallMWBridgeNew(data) {
+    //log('Start CallMWBridge');
+    //log('CallMWBridge input data: ', data);
+    try {
+        if (data == undefined) {
+            alert('input params not defined');
+            return;
+        }
+        var MWServiceID = data.MWServiceId, InputObject = data.InputObject, OnSuccessFunction = data.OnSuccessFunction, OnFailureFunction = data.OnFailureFunction, GetFromCache,
+			CacheResponseFlag = data.CacheResponseFlag, CachingKey = data.CachingKey, DisplayDefaultErrorAlert = data.DisplayDefaultErrorAlert, IsBackgroundCall = data.IsBackgroundCall,
+            AnimationDiv = data.AnimationDiv, SpinnerDivContainer = data.SpinnerDivContainer, NavHistoryItemID = data.NavigationHistoryItemID, CallBackContextObj = data.CallBackContextObj, eCMCustomURL = data.eCMCustomURL;
+        var CMConfig;
+        // check if service is cached 
+        try {
+            CachingKey = InputObject.Item.Header.Service.ServiceID;
+            
+            //if (CMConfig && CMConfig.CachingKey.length > 0) {
+            //    newCachingKey = CMConfig.CachingKey;
+            //}
+        } catch (e) {
+            console.log("** Exception in  checking Cache settings for service : " + CachingKey + "=" + e);
+            GetFromCache = true;
+        }
+        if (GetFromCache == true || GetFromCache == undefined) {
+            Globals.EnableReportCase = Globals.EnableReportCase || false;
+            if (Globals.EnableReportCase) {
+                Globals = window.Globals || {}
+                Globals.NavigationHistoryStack = Globals.NavigationHistoryStack || {};
+                Globals.NavigationHistoryStack[NavHistoryItemID].MWCallDate = formatDate((new Date()), 'yyyy-MM-ddTHH:mm:ss');
+                Globals.NavigationHistoryStack[NavHistoryItemID].MWInputParamsDataObject = InputObject;
+                try {
+
+                    if (Globals.MaskedForms[MWServiceID] != undefined) {
+                        var ClonedRespObj = clone(InputObject);
+                        var ItemsToBeReplaced = Globals.MaskedForms[MWServiceID].split(',');
+                        for (var x = 0; x < ItemsToBeReplaced.length; x++) {
+                            UpdateObjectValues(ClonedRespObj, ItemsToBeReplaced[x], "********");
+                        }
+                        Globals.NavigationHistoryStack[NavHistoryItemID].MWInputParamsDataObject = ClonedRespObj;
+                    }
+
+                }
+                catch (e) {
+                }
+            }
+			CallBridgeAfterCheckCacheNew(InputObject, OnSuccessFunction, OnFailureFunction, CacheResponseFlag, CachingKey, DisplayDefaultErrorAlert, AnimationDiv, SpinnerDivContainer, CallBackContextObj, eCMCustomURL, IsBackgroundCall);
+            Globals.ForceGetFreshData = false;
+        }
+        else {
+			CallBridge(InputObject, OnSuccessFunction, OnFailureFunction, CacheResponseFlag, CachingKey, DisplayDefaultErrorAlert, AnimationDiv, SpinnerDivContainer, CallBackContextObj, eCMCustomURL, IsBackgroundCall);
+            Globals.ForceGetFreshData = false;
+        }
+    } catch (e) {
+        log('CallMWBridge: ' + e);
+    }
+}
+
+function CallBridgeAfterCheckCacheNew(InputObject, OnSuccessFunction, OnFailureFunction, CacheResponseFlag, CachingKey, DisplayDefaultErrorAlert, AnimationDiv, SpinnerDivContainer, CallBackContextObj, eCMCustomURL, IsBackgroundCall) {
+    var MustCallBridge = true;
+    var CachedObj;
+    var CMConfig = GetCMCachingConfig(CachingKey, InputObject);
+    if (CMConfig && CMConfig.CachingKey.length > 0) {
+        var CachingType = CMConfig.CMConfig.MW_CachingMethodType;
+        if (CachingType == 'temp') {
+            CachedObj = CachingCMArr[CMConfig.CachingKey];
+        }
+        else {
+            var CachedObjectOptions = clone(GetFromCacheOptions);
+            CachedObjectOptions.Type = CachingTypes.LocalStorage;
+            CachedObjectOptions.Key = CMConfig.CachingKey;
+            var tempValue = GetObjectFromCache(CachedObjectOptions);
+            if (tempValue && tempValue.Value)
+                CachedObj = tempValue.Value;
+        }
+        try {
+            if (OnSuccessFunction != undefined && CachedObj) {
+                OnSuccessFunction.apply(CallBackContextObj, [{ ResultCode: 0, RspObj: CachedObj, DataGottenFromServer: false }]);
+                MustCallBridge = false;
+            }
+        } catch (e) {
+            log(e);
+        }
+    }
+
+    if (MustCallBridge) {
+        //log('Will Call Bridge');
+		CallBridge(InputObject, OnSuccessFunction, OnFailureFunction, CacheResponseFlag, CachingKey, DisplayDefaultErrorAlert, AnimationDiv, SpinnerDivContainer, CallBackContextObj, eCMCustomURL, IsBackgroundCall);
+    }
+
+}
+
+function SetCMCaching(CMConfig,CMResponse) {
+    var CachedObj;
+    if (CMConfig && CMConfig.CachingKey.length > 0) {
+        var CachingType = CMConfig.CMConfig.MW_CachingMethodType;
+        if (CachingType == 'temp') {
+            CachingCMArr[CMConfig.CachingKey] = CMResponse;
+        }
+        else {
+            var ToBeCachedObject = clone(SetToCacheOptions);
+            ToBeCachedObject.Type = CachingTypes.LocalStorage;
+            ToBeCachedObject.Key = CMConfig.CachingKey;
+            ToBeCachedObject.Value = CMResponse;
+            ToBeCachedObject.ExpirationInMinutes = CMConfig.CMConfig.MW_AutoUpdateExpiryPeriodMinutes;
+            CacheObject(ToBeCachedObject);
+        }
+    }
+}
+function HandleCallBridgeSuccessNew(data, textStatus, xhr, CallData) {
+    var OnSuccessFunction = CallData.OnSuccessFunction;
+    var CacheResponseFlag = CallData.CacheResponseFlag;
+    var CachingKey = CallData.CachingKey;
+    var DisplayDefaultErrorAlert = CallData.DisplayDefaultErrorAlert;
+    var AnimationDiv = CallData.AnimationDiv;
+    var SpinnerDivContainer = CallData.SpinnerDivContainer;
+    var CallBackContextObj = CallData.CallBackContextObj;
+    var UserID = CallData.UserID;
+    var ServiceId = CallData.ServiceId;
+    try { ShowHideSpinnerInDivs(SpinnerDivContainer, false); } catch (e) { }
+    log('CM Call Succeed, For: %c' + ServiceId, 'color: blue');
+    var ResponseData = undefined;
+    var ResultDesc = '';
+    window[ServiceId + "NoOfRetries"] = 0;
+    try { ResponseData = JSON.parse(data); log(ResponseData); } catch (e) { log(data) }
+    CallBackContextObj.NavigationHistoryItemID
+    if (Globals.EnableReportCase) {
+        Globals.NavigationHistoryStack[CallData.CallBackContextObj.NavigationHistoryItemID].CallMWCompletionTime = formatDate((new Date()), 'yyyy-MM-ddTHH:mm:ss');
+    }
+    if (ResponseData != undefined) {
+        var ResultCode = ResponseData.ResultCode;
+        var ResponseObj = ResponseData.RspObj;
+        if (parseInt(ResultCode) == 0) {
+            var SetTokenToHeader = config.Settings.SetTokenToHeader;
+            if (SetTokenToHeader == "True") {
+                Globals.RequestToken = ResponseObj.Item.Header.MemoList.MemoItem9;
+            }
+            if (CacheResponseFlag == true) { // start new caching 
+                //console.log("*** Start Caching for Service :"  +ServiceId);
+                try {
+                    var CMConfig = GetCMCachingConfig(ServiceId, ResponseData);
+                    SetCMCaching(CMConfig, ResponseObj);
+                    //var CachingMethodType = ResponseObj.Item.Header.CachingAndExpiryControl.CachingMethodType;
+                    //var CachingIdentifierFieldsKeysArr = ResponseObj.Item.Header.CachingAndExpiryControl.CachingIdentifierFields.split(',');
+                    //var RelatedMWServicesArr = ResponseObj.Item.Header.CachingAndExpiryControl.RelatedMWServices.split(',');
+                    //var newCachingKey = ResponseData.RspObj.Item.Header.Service.ServiceID + "_";
+                    //if (CachingIdentifierFieldsKeysArr != "") {
+                    //    var CachingIdentifierFieldsValue = [];
+                    //    var ServiceID = ResponseData.RspObj.Item.Header.Service.ServiceID;
+
+
+                    //    for (var i = 0; i < CachingIdentifierFieldsKeysArr.length; i++) {
+                    //        CachingIdentifierFieldsValue[i] = getValues(ResponseData, CachingIdentifierFieldsKeysArr[i]);
+                    //        if (CachingIdentifierFieldsValue[i].length > 1) {
+                    //            // CachingIdentifierFieldsValue[i] =  CachingIdentifierFieldsValue[i].pop(CachingIdentifierFieldsValue[i].length-1);
+                    //            CachingIdentifierFieldsValue[i] = CachingIdentifierFieldsValue[0][0];
+
+                    //        }
+
+                    //        newCachingKey += CachingIdentifierFieldsKeysArr[i] + "_" + CachingIdentifierFieldsValue[i] + "_";
+                    //    }
+                    //    newCachingKey = newCachingKey.replace(/\./g, '$002e');
+                    //    newCachingKey = newCachingKey.trimEnd('_');
+                    //    newCachingKey = newCachingKey.concat("_key");
+                    //    var cachingDate = new Date() - 0;
+                    //    if (CachingMethodType.toLowerCase() == "temp") {
+
+                    //        try {
+                    //            if (isEmpty(eval("Globals.CachingResponseArr." + ServiceID))) {
+                    //                eval("Globals.CachingResponseArr." + ServiceID + "={}");
+                    //            }
+                    //            eval("Globals.CachingResponseArr." + ServiceID + "." + newCachingKey + " = " + JSON.stringify(ResponseObj));
+                    //            eval("Globals.CachingResponseArr." + ServiceID + "." + newCachingKey + 'CachingDate' + " = " + cachingDate);
+                    //            console.log("** Cache settings saved for service : " + ServiceID);
+
+                    //        } catch (e) {
+
+                    //        }
+                    //    } else if (CachingMethodType.toLowerCase() == "perm") {
+
+                    //        SetToCache(newCachingKey, ResponseObj);
+                    //        SetToCache(newCachingKey + 'CachingDate', new Date() - 0);
+                    //        console.log("** Cache settings saved for service : " + CachingKey);
+                    //    }
+                    //} else {
+
+                    //    var ServiceID = ResponseData.RspObj.Item.Header.Service.ServiceID;
+                    //    newCachingKey = newCachingKey.concat("key");
+                    //    var cachingDate = new Date() - 0;
+                    //    if (CachingMethodType.toLowerCase() == "temp") {
+
+
+                    //        try {
+                    //            if (isEmpty(eval("Globals.CachingResponseArr." + ServiceID))) {
+                    //                eval("Globals.CachingResponseArr." + ServiceID + "={}");
+                    //            }
+                    //            eval("Globals.CachingResponseArr." + ServiceID + "." + newCachingKey + " = " + JSON.stringify(ResponseObj));
+                    //            eval("Globals.CachingResponseArr." + ServiceID + "." + newCachingKey + 'CachingDate' + " = " + cachingDate);
+                    //            console.log("** Cache settings saved for service : " + ServiceID);
+
+                    //        } catch (e) {
+
+                    //        }
+
+                    //    } else if (CachingMethodType.toLowerCase() == "perm") {
+                    //        try {
+
+                    //            SetToCache(newCachingKey, ResponseObj);
+                    //            SetToCache(newCachingKey + 'CachingDate', new Date() - 0);
+                    //            console.log("** Cache settings saved for service : " + CachingKey);
+
+                    //        } catch (e) {
+                    //            console.log("**  Cache settings failed for service : " + CachingKey);
+                    //        }
+                    //    }
+
+                    //}
+                    if (RelatedMWServicesArr != "") {
+
+                        for (var i = 0; i < RelatedMWServicesArr.length; i++) {
+                            try {
+                                eval("delete Globals.CachingResponseArr." + RelatedMWServicesArr[i]);
+                                if (Globals.MWServicesWidgetsMappingArr != {} && Globals.MWServicesWidgetsMappingArr != null && Globals.MWServicesWidgetsMappingArr != undefined) {
+                                    /*for(var item in Globals.MWServicesWidgetsMappingArr){
+                                        if(RelatedMWServicesArr[i] == item){
+                                            eval("ContentOf" + item["PageID"] + "Loaded = false;");
+                                        }
+                                    } */
+                                    try {
+
+                                        if (Globals.MWServicesWidgetsMappingArr.hasOwnProperty(RelatedMWServicesArr[i]))
+                                            for (var f = 0; f < Globals.MWServicesWidgetsMappingArr[RelatedMWServicesArr[i]].length; f++) {
+                                                eval("Collapse_" + Globals.MWServicesWidgetsMappingArr[RelatedMWServicesArr[i]][f] + "= true;");
+                                                eval("ContentOf" + Globals.MWServicesWidgetsMappingArr[RelatedMWServicesArr[i]][f] + "Loaded = false;");
+                                            }
+
+                                    } catch (e) {
+                                        console.log("Exception in setting the content of Widget loaded");
+                                    }
+                                }
+
+                                //console.log("** Cache settings Cleared for service : " + RelatedMWServicesArr[i] );
+                            } catch (e) {
+                                console.log("** Clearing Cache settings failed for service : " + RelatedMWServicesArr[i]);
+                            }
+
+                            var CachedKeyToBeDeleted = findLocalItems(RelatedMWServicesArr[i]);
+                            removeMWResponseFromGlobals(RelatedMWServicesArr[i]);
+                            for (var n = 0; n < CachedKeyToBeDeleted.length; n++) {
+                                var KeyString = CachedKeyToBeDeleted[n].key;
+                                if (KeyString.indexOf('.js') != -1 || KeyString.indexOf('.html') != -1) {
+
+                                } else {
+                                    var EncKey = CachedKeyToBeDeleted[n].key;
+                                    if (Globals.EncryptCachedFiles)
+                                        EncKey = encrypter.encrypt(CachedKeyToBeDeleted[n].key);
+                                    localStorage.removeItem(EncKey);
+                                    console.log("** Cache settings Cleared for key : " + CachedKeyToBeDeleted[n].key);
+                                }
+
+
+                            }
+
+                        }
+
+                    }
+                } catch (e) {
+                    // new caching failed 
+                    //console.log("***Exception in  Caching for Service : " + ServiceId + " = " + e);
+                }
+
+
+
+                //if (!CachingKey) {
+                //    CachingKey = ResponseObj.Item.Header.Audit.TransactionObj.TransactionPath + UserID;
+                //}
+                //var CachedResponseObj = CheckHashKeyAndGetCachedResponse(CachingKey, ResponseObj);
+                //if (CachedResponseObj != undefined)
+                //    ResponseObj = CachedResponseObj;
+                //CacheResponseObj(CachingKey, ResponseObj);
+            }
+
+        }
+        else {
+            ResultDesc = ResponseData.RspObj.Item.Header.Service.ServiceResult.ResultDesc;
+            log(ResponseData.RspObj.Item.Header.Service.ServiceID + ': Service Call Returned Error, ResultCode: ' + ResponseData.ResultCode + ', ResultDesc: ' + ResultDesc);
+            try {
+                var ReturnedBusinessDisplayDefaultErrorAlert;
+                if (window.HandleBusinessSpecialErrors)
+                    ReturnedBusinessDisplayDefaultErrorAlert = HandleBusinessSpecialErrors(parseInt(ResultCode), DisplayDefaultErrorAlert, ResponseData);
+                if (ReturnedBusinessDisplayDefaultErrorAlert == true || ReturnedBusinessDisplayDefaultErrorAlert == false) {
+                    DisplayDefaultErrorAlert = ReturnedBusinessDisplayDefaultErrorAlert;
+                }
+                if (ResponseData.ResultCode == Globals.SessionExpiredErrorNumber)
+                    DisplayDefaultErrorAlert = false;
+            } catch (e) {
+
+            }
+            if (DisplayDefaultErrorAlert != false) {
+                AlertFunction(ResponseData.RspObj.Item.Header.Service.ServiceResult.ResultDesc, ResponseData.RspObj.Item.Header.Service.ServiceResult.ResultDesc, "Sorry", "عفواً", "OK", "موافق", "");
+
+                Globals.EnableReportCase = Globals.EnableReportCase || false;
+                if (Globals.EnableReportCase) {
+                    if (Language.toLowerCase() == "ar") {
+                        $('#popup_panel center').append('<div><a href="#" data-role="button" id="popup_report" data-theme="c" style="text-shadow:0 0 0; background-color: #006579;color: white;height: 15px; border-radius: 0px 5px 0px 0px;    border-color: #006579 #006579 #006579 #FF0000;    border-style: solid;    font-size: 16px;    border-left-width: 4px;    font-weight: bold;width:50%;margin-bottom:10px;font-size: medium;line-height:1em; max-width:150px; min-width:120px" class="BorderRadus_All ui-btn ui-shadow ui-btn-corner-all ui-btn-up-b BorderRadus_All " rel="close">بلغنا عن المشكلة</a></div>');
+                        $('#popup_report').click(function () {
+                            ShowReportCase();
+                        });
+                    }
+                    else {
+                        $('#popup_panel center').append('<div><a href="#" data-role="button" id="popup_report" data-theme="c" style="text-shadow:0 0 0; background-color: #006579;color: white;height: 15px; border-radius: 0px 5px 0px 0px;    border-color: #006579 #006579 #006579 #FF0000;    border-style: solid;    font-size: 16px;    border-left-width: 4px;    font-weight: bold;width:50% !important;margin-bottom:10px;font-size: medium;line-height:1em;min-width:120px;max-width:150px" class="BorderRadus_All ui-btn ui-shadow ui-btn-corner-all ui-btn-up-b BorderRadus_All " rel="close">Report Case</a></div>');
+                        $('#popup_report').click(function () {
+                            ShowReportCase();
+                        });
+                    }
+                    $('#popup_ok').css('max-width', '150px');
+                    $('#popup_ok').css('min-width', '120px');
+                    $('#popup_panel').css('height', '110px');
+                    $('#popup_ok').css('width', '50%');
+                }
+            }
+            // Added By Salah To Check Specific ResultCodes, to Delete Cache
+            try {
+                if (ResultCode == -2147218243 || ResultCode == -2147218028 || ResultCode == -2147218235) {
+                    var encKey = CachingKey;
+                    if (Globals.EncryptCachedFiles)
+                        encKey = encrypter.encrypt(CachingKey);
+                    localStorage.removeItem(encKey);
+                }
+            } catch (e) {
+                log(e);
+            }
+
+        }
+
+        try {
+            if (OnSuccessFunction != undefined)
+                OnSuccessFunction.apply(CallBackContextObj, [{ ResultCode: ResultCode, ResultDesc: ResultDesc, RspObj: ResponseObj, DataGottenFromServer: true }]);
+
+        } catch (e) {
+            log(e);
+        }
+        if (ResponseData.ResultCode == 0 && AnimationDiv != '' && AnimationDiv != undefined) {
+            try {
+                log('Animating Div After Bridge Success Call, Divid: ' + AnimationDiv);
+                RotateDiv(AnimationDiv);
+            } catch (e) {
+                log(e);
+            }
+        }
+    }
+}
+</script>
+
+</body>
+</html>

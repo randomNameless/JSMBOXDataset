@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>rc-gp-sp.v3.html</title>
+</head>
+<body>
+
+<script>
+/*!
+Rakuten Group Portal For Smartphone
+@copyright Rakuten, inc.
+@version 3
+ */
+(function () {
+  "use strict";
+
+  /*
+  JSONP Class
+  */
+  var GroupCampaign,
+    GroupPortal,
+    GroupPortalList,
+    Jsonp,
+    embedBeacon,
+    getTimestamp,
+    onceAppear,
+    extend = function (child, parent) {
+      for (var key in parent) {
+        if (hasProp.call(parent, key)) child[key] = parent[key];
+      }
+      function ctor() {
+        this.constructor = child;
+      }
+      ctor.prototype = parent.prototype;
+      child.prototype = new ctor();
+      child.__super__ = parent.prototype;
+      return child;
+    },
+    hasProp = {}.hasOwnProperty,
+    indexOf =
+      [].indexOf ||
+      function (item) {
+        for (var i = 0, l = this.length; i < l; i++) {
+          if (i in this && this[i] === item) return i;
+        }
+        return -1;
+      },
+    currentScript =
+      document.currentScript ||
+      (function () {
+        var i, len, scriptTag, scriptTags;
+        scriptTags = document.getElementsByTagName("script");
+        for (i = 0, len = scriptTags.length; i < len; i++) {
+          scriptTag = scriptTags[i];
+          if (scriptTag.src.lastIndexOf("rc-gp-sp") !== -1) {
+            return scriptTag;
+          }
+        }
+      })(),
+    initialize;
+
+  Jsonp = (function () {
+    //  Required properties
+    _Class.prototype.path = "";
+
+    _Class.prototype.callbackName = "";
+
+    _Class.prototype.loaderTmpl =
+      '<div class="rc-gp-loader-block">\n  <div class="rc-gp-loader">\n    <div></div><div></div><div></div><div></div><div></div><div></div>\n    <div></div><div></div><div></div><div></div><div></div><div></div>\n  </div>\n</div>';
+
+    // Required method
+    _Class.prototype.callback = function () {};
+
+    // Inferited method
+    function _Class() {
+      this.scriptTag = currentScript;
+    }
+
+    _Class.prototype.send = function (externalCallback) {
+      var original, script;
+      if (externalCallback) {
+        this.externalCallback = externalCallback;
+      }
+      if (this.beforeSend) {
+        this.beforeSend();
+      }
+      original = window[this.callbackName];
+      window[this.callbackName] = function () {
+        this.jsonpCallback.apply(this, arguments);
+        if (original === undefined) {
+          // Clean up callback function of JSONP.
+          delete window[this.callbackName];
+        } else {
+          // Restore original global object.
+          window[this.callbackName] = original;
+        }
+      }.bind(this);
+      script = document.createElement("script");
+      script.setAttribute("charset", "UTF-8");
+      script.setAttribute("src", this.path);
+      document.getElementsByTagName("head")[0].appendChild(script);
+    };
+
+    _Class.prototype.jsonpCallback = function (response) {
+      this.callback(response);
+      if (this.externalCallback) {
+        this.externalCallback(response);
+      }
+    };
+
+    return _Class;
+  })();
+
+  /*
+  GroupCampaign Class
+  */
+
+  GroupCampaign = (function (superClass) {
+    var elementId, htmlTmpl, path, process;
+
+    extend(_Class, superClass);
+
+    _Class.prototype.callbackName = "grpCpnCallback";
+
+    elementId = "rc-gp-banner";
+
+    path = "//jp.rakuten-static.com/1/js/grp/cpn/banner.jsonp";
+
+    htmlTmpl =
+      '<a href="{{url}}">\n  <img src="{{src}}" alt="{{alt}}"></a>\n</a>';
+
+    function _Class() {
+      _Class.__super__.constructor.call(this);
+      this.element = document.getElementById(elementId);
+      if (this.element) {
+        this.element.innerHTML = this.loaderTmpl;
+      }
+    }
+
+    process = function (data) {
+      var html, item, property, result;
+      item = data[parseInt(Math.random() * data.length)];
+      html = "";
+      result = htmlTmpl;
+      for (property in item) {
+        result = result.replace(
+          new RegExp("{{" + property + "}}", "gi"),
+          item[property]
+        );
+      }
+      html += result;
+      return html;
+    };
+
+    _Class.prototype.beforeSend = function () {
+      this.path = path;
+      if (window.location.protocol === "https:") {
+        this.path = this.path.replace(/^http:/, "https:");
+      }
+      this.path += "?cache=" + getTimestamp();
+    };
+
+    _Class.prototype.callback = function (response) {
+      if (this.element) {
+        this.element.innerHTML = process.call(this, response.data);
+      }
+    };
+
+    return _Class;
+  })(Jsonp);
+
+  /*
+  GroupPortalList Class
+  */
+
+  GroupPortalList = (function (superClass) {
+    var path;
+
+    extend(_Class, superClass);
+
+    function _Class() {
+      return _Class.__super__.constructor.apply(this, arguments);
+    }
+
+    _Class.prototype.callbackName = "grpPrtlListCallback";
+
+    path = "//jp.rakuten-static.com/1/js/grp/prtl/grpPrtlList.jsonp";
+    // path = "/grpPrtlList.jsonp"
+    _Class.prototype.beforeSend = function () {
+      this.path = path + ("?cache=" + getTimestamp());
+    };
+
+    return _Class;
+  })(Jsonp);
+
+  /*
+  GroupPortal Class
+  */
+
+  GroupPortal = (function (superClass) {
+    var appendSCID,
+      displayList,
+      elementId,
+      excludeList,
+      fillerList,
+      getIdList,
+      getPath,
+      htmlTmpl,
+      iconNum,
+      pathTmpl,
+      priorityList,
+      process,
+      scidTmpl;
+
+    extend(_Class, superClass);
+
+    _Class.prototype.callbackName = "grpPrtlCallback";
+
+    _Class.prototype.timer = null;
+
+    _Class.prototype.timeout = 2000;
+
+    _Class.prototype.embedDefault = function () {
+      this.serviceId = this.scriptTag.dataset.service;
+      if (this.scriptTag.dataset.priority) {
+        priorityList = this.scriptTag.dataset.priority.split(",");
+      }
+      var idList = getIdList.call(this);
+      this.embed(idList);
+    };
+
+    iconNum = 6;
+
+    elementId = "rc-gp-links";
+
+    // pathTmpl =
+    //   "https://grp10.api.rp.rakuten.co.jp/geap/v1/grp/recommend_cross_service.json?sid=040-001&q=iid:{{target_name}}";
+    pathTmpl =
+      "https://rp.rakuten.co.jp/v2/cross_service/recommend/cross_service_sp?id={{target_name}}";
+    scidTmpl = "scid=wi_grp_gmx_{{to}}_grpportal_{{from}}_sp";
+    htmlTmpl =
+      '<li><a href="{{url}}">\n<span class="rc-gp-migrate-icon rc-gp-migrate-icon-{{id}}"></span>\n<em>{{label}}</em>{{text}}\n</a></li>';
+
+    priorityList = [];
+    //  Comes from data-priority attribute
+
+    displayList = [];
+    //  Final output list after all
+
+    fillerList = [
+      //  Inserted when icons are less than
+      "ich",
+      "boo",
+      "trv",
+      "rtc",
+      "pay",
+      "papp",
+    ];
+
+    excludeList = [
+      "gra",
+      "drm",
+      "ifs_manga",
+      "sec_op",
+      "sec_fx",
+      "sha",
+      "egl",
+      "min",
+      "bbk",
+      "blg",
+      "din",
+      "bnk_fx",
+      "rkb",
+      "gtw",
+      "rfm",
+      "hkn",
+      "dnw",
+      "vik",
+      "stl",
+      "vis",
+      "sim_global",
+      "prm",
+      "rmusic",
+      "rmagazine"
+    ];
+
+    function _Class() {
+      _Class.__super__.constructor.call(this);
+      this.element = document.getElementById(elementId);
+      if (this.element) {
+        this.element.innerHTML = this.loaderTmpl;
+      }
+    }
+
+    // Make_source_code
+    process = function (idList) {
+      var counter, html, id, item, j, len, property, result;
+      counter = 0;
+      html = "<ul class='rc-gp-migrate-list'>";
+      for (j = 0, len = idList.length; j < len; j++) {
+        id = idList[j];
+        item = this.masterList[id];
+        if (!item) {
+          continue;
+        }
+        displayList.push(id);
+        item.id = id;
+        item.url = appendSCID(item.url, scidTmpl, this.serviceId, item.id);
+        result = htmlTmpl;
+        for (property in item) {
+          result = result.replace(
+            new RegExp("{{" + property + "}}", "gi"),
+            item[property]
+          );
+        }
+        html += result;
+        if (++counter >= iconNum) {
+          break;
+        }
+      }
+      html += "</ul>";
+      return html;
+    };
+
+    getIdList = function (apiList) {
+      var concatedList, excludedList, filteredList;
+      if (apiList == null) {
+        apiList = [];
+      }
+      concatedList = priorityList.concat(apiList.concat(fillerList));
+      filteredList = concatedList.filter(function (x, i, self) {
+        return self.indexOf(x) === i;
+      });
+      excludedList = filteredList.filter(function (x) {
+        if (indexOf.call(excludeList, x) < 0) {
+          return true;
+        } else {
+          return false;
+        }
+      });
+      return excludedList;
+    };
+
+    appendSCID = function (url, tmpl, from, to) {
+      var scid;
+      scid = tmpl;
+      scid = scid.replace(new RegExp("{{from}}", "gi"), from);
+      scid = scid.replace(new RegExp("{{to}}", "gi"), to);
+      if (url.lastIndexOf("?") === -1) {
+        scid = "?" + scid;
+      } else {
+        scid = "&" + scid;
+      }
+      return url + scid;
+    };
+
+    getPath = function () {
+      var callback, path;
+      path = pathTmpl.replace(
+        new RegExp("{{target_name}}", "gi"),
+        this.serviceId
+      );
+      if (path.lastIndexOf("?") === -1) {
+        callback = "?callback=" + this.callbackName;
+      } else {
+        callback = "&callback=" + this.callbackName;
+      }
+      path += callback;
+      path += "&cache=" + getTimestamp();
+      return path;
+    };
+
+    _Class.prototype.setMasterList = function (list) {
+      this.masterList = list;
+    };
+
+    _Class.prototype.beforeSend = function () {
+      this.serviceId = this.scriptTag.dataset.service;
+      if (this.scriptTag.dataset.priority) {
+        priorityList = this.scriptTag.dataset.priority.split(",");
+      }
+      this.path = getPath.call(this);
+      this.setTimer();
+    };
+
+    _Class.prototype.setTimer = function () {
+      this.timer = setTimeout(
+        (function (_this) {
+          return function () {
+            var idList;
+            idList = getIdList.call(_this);
+            _this.embed(idList);
+          };
+        })(this),
+        this.timeout
+      );
+    };
+
+    _Class.prototype.clearTimer = function () {
+      clearTimeout(this.timer);
+      this.timer = null;
+    };
+
+    _Class.prototype.embed = function (idList) {
+      this.clearTimer();
+      this.element.innerHTML = process.call(this, idList);
+      return embedBeacon(displayList);
+    };
+
+    _Class.prototype.callback = function (response) {
+      var apiList, idList;
+      if (this.element && this.timer !== null) {
+        /*  extract only IDs from API response
+         *****Important*******
+         */
+        apiList = [];
+        response.reco.forEach(function (item) {
+          return apiList.push(item.id);
+        });
+        idList = getIdList.call(this, apiList);
+        this.embed(idList);
+      }
+    };
+
+    return _Class;
+  })(Jsonp);
+
+  /*
+  Utility
+  */
+
+  getTimestamp = function () {
+    var DD, MM, YYYY, date, hh, mm;
+    date = new Date();
+    YYYY = date.getFullYear().toString();
+    MM = (date.getMonth() + 1).toString();
+    DD = date.getDate().toString();
+    hh = date.getHours().toString();
+    mm = date.getMinutes().toString();
+    if (MM.length === 1) {
+      MM = "0" + MM;
+    }
+    if (DD.length === 1) {
+      DD = "0" + DD;
+    }
+    if (hh.length === 1) {
+      hh = "0" + hh;
+    }
+    if (mm.length === 1) {
+      mm = "0" + mm;
+    }
+    return YYYY + MM + DD + hh + mm;
+  };
+
+  onceAppear = function (elementId, cb) {
+    var d, target, tmp, w;
+    w = window;
+    d = document;
+    target = d.getElementById(elementId);
+    tmp = function () {
+      var visible, viewportHeight;
+      visible = !!(
+        target.offsetWidth ||
+        target.offsetHeight ||
+        target.getClientRects().length
+      );
+      viewportHeight = d.documentElement.clientHeight || w.innerHeight;
+      if (visible && target.getBoundingClientRect().top - viewportHeight < 0) {
+        w.removeEventListener("scroll", tmp);
+        return cb();
+      }
+    };
+    if (target) {
+      w.addEventListener("scroll", tmp);
+      return tmp();
+    }
+  };
+
+  /*
+  RAT Beacon
+  */
+
+  embedBeacon = function (data) {
+    var beacon,
+      ckp,
+      cks,
+      getCookie,
+      head,
+      queryParams,
+      randomMarker,
+      ratConfig,
+      ratQueryString;
+    ratConfig = {
+      acc: 1038,
+      aid: 1
+    };
+    head = document.head || document.getElementsByTagName("head")[0];
+    beacon = document.createElement("img");
+    beacon.style.width = "0";
+    beacon.style.height = "0";
+    beacon.style.display = "none";
+    beacon.style.visibility = "hidden";
+    beacon.setAttribute("alt", "");
+
+    // random beaconID to prevent caching
+    randomMarker =
+      new Date().getTime().toString() +
+      Math.floor(0x100000000 * Math.random()).toString(16);
+    ratQueryString = {
+      acc: ratConfig.acc,
+      aid: ratConfig.aid,
+      bid: randomMarker,
+      url: window.location.href,
+      ua: window.navigator.userAgent,
+      etype: "async",
+      cp: {
+        recommend_serv: data,
+      }
+    };
+
+    getCookie = function (name) {
+      var cookie, cookieValue, cookies, j, len;
+      cookieValue = void 0;
+      if (document.cookie) {
+        cookies = document.cookie.split("; ");
+        for (j = 0, len = cookies.length; j < len; j++) {
+          cookie = cookies[j];
+          if (cookie.substring(0, name.length + 1) === name + "=") {
+            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+            break;
+          }
+        }
+      }
+      return cookieValue;
+    };
+    cks = getCookie("Rp");
+    ckp = getCookie("Rz");
+    if (cks) {
+      ratQueryString.cks = cks;
+    }
+    if (ckp) {
+      ratQueryString.ckp = ckp;
+    }
+    queryParams = encodeURIComponent(JSON.stringify(ratQueryString));
+    beacon.src = "//rat.rakuten.co.jp/?cpkg_none=" + queryParams;
+    return head.appendChild(beacon);
+  };
+
+  /*
+  Instantiate
+  */
+
+  initialize = function () {
+    var grpCpn, grpPrtl, grpPrtlList;
+    grpCpn = new GroupCampaign();
+    grpPrtl = new GroupPortal();
+    grpPrtlList = new GroupPortalList();
+    onceAppear("rc-gp-banner", function () {
+      return grpCpn.send();
+    });
+    onceAppear("rc-gp-links", function () {
+      return grpPrtlList.send(function (list) {
+        grpPrtl.setMasterList(list);
+        var serviceId = grpPrtl.scriptTag.dataset.service;
+        // This code stops sending requests to r2p2.
+        // -- start --
+        if ([
+          // "trv", "rbn", "dlv","gra","ifs"
+            ].indexOf(serviceId) !== -1) {
+          grpPrtl.send();
+        } else {
+          grpPrtl.embedDefault();
+        }
+        // -- end --
+      });
+    });
+  };
+
+  if (document.readyState !== "loading") {
+    // If DOM is ready, run initialize function asynchronously.
+    setTimeout(initialize, 0);
+  } else {
+    // Otherwise, wait until DOM parsed.
+    window.addEventListener("DOMContentLoaded", initialize);
+  }
+})();
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WikiData.html</title>
+</head>
+<body>
+
+<script>
+var sMoreTarget = 'More';
+
+function WikiData() {
+    this.sSVC = '';
+    this.sFNO = '';
+    this.sARG = '';
+    this.sGetURL = gWikiDataTopUrl;
+    this.sGetTopURL = gWikiDataTopUrl;
+    this.nGetReturnCN = 0;
+    this.sDivName = '';
+    this.sDspType = '';
+    this.sADSURL = '';
+    this.nTagID = -1;
+
+    this.DataInit = DataInit;
+}
+
+function DataInit(sSVC, sFNO, sARG, nReturnCN, sDiv, sType, sADS, sTimeSequence, nTID) {
+    this.sSVC = sSVC;
+    this.sFNO = sFNO;
+    this.sARG = sARG;
+    this.nGetReturnCN = nReturnCN;
+    this.sDivName = sDiv;
+    this.sDspType = sType;
+    this.sADSURL = sADS;
+    this.nTagID = nTID;
+    //alert('tt = ' + sSVC.toUpperCase());	
+    switch (sSVC.toUpperCase()) {
+        case 'NW': // MDJ首頁-產業 | 基金 | 台股 | 陸股 | 國際
+            this.sGetURL = gWikiDataNWMoreUrl;
+            break;
+        case 'NH': // MDJ首頁-頭條分類
+            this.sGetTopURL = gWikiDataNHUrl;
+            this.sGetURL = gWikiDataNHMoreUrl;
+            break;
+        case 'RP':
+            this.sGetURL = gWikiDataRPMoreUrl;
+            break;
+        case 'OPF':
+            this.sGetTopURL = gWikiDataOPFUrl;
+            break;
+        case 'BG':
+            this.sGetTopURL = gWikiDataBGUrl;
+            break;
+        case 'MONEYEDITOR': //DJ盤勢觀察 (資料來自:錢線大亨-主筆室)
+            this.sGetTopURL = gWikiMoneyEditorTopUrl;
+            this.sGetURL = gWikiMoneyEditorUrl;
+            break;
+        case 'TOPICS': // 專題(資料來自:FundDJ/藏經閣/專題報導)
+            this.sGetTopURL = gWikiTopicsTopUrl;
+            this.sGetURL = gWikiTopicsUrl;
+            break;
+    }
+
+    //	this.sGetURL = this.sGetURL.replace('%svc', this.sSVC);
+    //	this.sGetURL = this.sGetURL.replace('%fno', this.sFNO);
+    this.sGetURL = this.sGetURL.replace('%arg', this.sARG);
+    this.sGetTopURL = this.sGetTopURL.replace('%svc', this.sSVC);
+    this.sGetTopURL = this.sGetTopURL.replace('%fno', this.sFNO);
+    this.sGetTopURL = this.sGetTopURL.replace('%arg', this.sARG);
+    this.sGetTopURL = this.sGetTopURL.replace('%cnt', this.nGetReturnCN);
+
+
+    if (sSVC.toUpperCase() != 'MONEYEDITOR' && sSVC.toUpperCase() != 'TOPICS')
+        this.sGetTopURL = this.sGetTopURL + '&time=' + sTimeSequence;
+
+    //alert(this.sGetTopURL);
+    var xmlDom = new XmlLoader();
+    gfunGetXml(xmlDom, this.sGetURL, this.sGetTopURL, this.nGetReturnCN, this.sDivName, this.sDspType, this.sADSURL, this.nTagID);
+
+}
+
+
+function gfunGetXml(xmlDom, sParamURL, sParamURL1, nParamCN, sParamDiv, sParamType, sParamADS, nParamTID) {
+    var objDiv = document.getElementById(sParamDiv);
+
+    try {
+        var sURL = sParamURL1;
+
+        xmlDom.async = true;
+        xmlDom.URL = sURL;
+        xmlDom.sParam1 = sParamURL;
+        xmlDom.sParam2 = nParamCN;
+        xmlDom.sParam3 = sParamDiv;
+        xmlDom.sParam4 = sParamType;
+        xmlDom.sParam5 = sParamURL1;
+        xmlDom.sParam6 = sParamADS;
+        xmlDom.sParam7 = nParamTID;
+        xmlDom.callbackfunc = gfunGetXMLCallBackFunction;
+        xmlDom.LoadXML();
+
+        if (xmlDom.bDoFail) {
+            //			window.setTimeout("gfunGetXml('" + sParamURL + "','" + sParamURL1 + "'," + nParamCN + ",'" + sParamDiv + "','" + sParamType + "','" + sParamADS + "','" + nParamTID + "')", g_nRetryTime);
+            objDiv.innerHTML = "資料讀取失敗!!	11";
+        }
+    }
+    catch (e) {
+        //		window.setTimeout("gfunGetXml('" + sParamURL + "','" + sParamURL1 + "'," + nParamCN + ",'" + sParamDiv + "','" + sParamType + "','" + sParamADS + "','" + nParamTID + "')", g_nRetryTime);
+        objDiv.innerHTML = "資料讀取失敗!!	22";
+    }
+
+}
+
+function gfunGetXMLCallBackFunction(xml, sParamURL, sParamURL1, nParamCN, sParamDiv, sParamType, sParamADS, nParamTID, bRec) {
+    var objDiv = document.getElementById(sParamDiv);
+    if (!bRec) {
+        //		window.setTimeout("gfunGetXml('" + sParamURL + "','" + sParamURL1 + "'," + nParamCN + ",'" + sParamDiv + "','" + sParamType + "','" + sParamADS + "','" + nParamTID + "')", g_nRetryTime);
+        objDiv.innerHTML = "資料讀取失敗!!	33";
+        return;
+    }
+
+    //先check是否為相同的tag id
+    if (nParamTID > -1) {
+        var sGNAME = eval('g' + sParamDiv + 'CheckID');
+        if (typeof (sGNAME) == 'number') {
+            if (sGNAME != nParamTID) {
+                return;
+            }
+        }
+    }
+
+    try {
+        if (xml.responseText != "") {
+            var xmlResult = xml.responseXML;
+            var objWikiDsp;
+            var sReturnString = '';
+            var sSpecialString = '';
+
+            //alert(xmlResult.xml);
+            //var rows = xmlResult.selectNodes("//channel/item");
+            var rows = SelectNodes(xmlResult, "//channel/item");
+            if (sParamType == 'BG') {
+                rows = SelectNodes(xmlResult, "//items/item");
+            }
+
+            var nDataLen = rows.length;
+            if (!isNaN(parseInt(nParamCN)) && parseInt(nParamCN) > 0 && nDataLen > 0) {
+                nDataLen = nParamCN;
+            }
+
+            for (var i = 0; i < nDataLen; i++) {
+                //alert('i='+i +'   rows[i]='+rows[i]);
+                if (rows[i] != null) {
+                    objWikiDsp = new WikiDsp(rows[i]);
+
+                    switch (sParamType) {
+                        case 'NW':
+                            tdcss = 'C_TagData_B';
+                            if (i % 2 == 1) {
+                                tdcss = 'C_TagData_B';
+                            }
+                            sReturnString = sReturnString + objWikiDsp.WikiDspDisplay(tdcss, 'New');
+                            break;
+                        case 'NH':
+                            tdcss = 'C_TagData_B';
+                            if (i % 2 == 1) {
+                                tdcss = 'C_TagData_B';
+                            }
+                            sReturnString = sReturnString + objWikiDsp.WikiDspDisplay4('BigNews_Head', tdcss, 'New');
+                            break;
+                        case 'NWTIME':
+                            tdcss = 'News_Data_a';
+                            if (i % 2 == 1) {
+                                tdcss = 'News_Data_b';
+                            }
+                            sReturnString = sReturnString + objWikiDsp.WikiDspDisplay3(tdcss, 'NewT');
+                            break;
+                        case 'RP':
+                            tdcss = 'C_TagData_B';
+                            if (i % 2 == 1) {
+                                tdcss = 'C_TagData_B';
+                            }
+                            sReturnString = sReturnString + objWikiDsp.WikiDspDisplay(tdcss, 'RP');
+                            break;
+                        case 'BM':
+                            tdcss = '';
+                            sReturnString = sReturnString + objWikiDsp.WikiDspDisplay1(tdcss, 'BM');
+                            break;
+                        case 'OPF':
+                            tdcss = 'Talk_Data_a';
+                            ttdcss = 'Talk_Data_a_Head';
+                            if (i % 2 == 1) {
+                                tdcss = 'Talk_Data_b';
+                                ttdcss = 'Talk_Data_b_Head';
+                            }
+                            sReturnString = sReturnString + objWikiDsp.WikiDspDisplay2(ttdcss, tdcss, 'OPF');
+                            break;
+                        case 'BG':
+                            if (i == 0) {	//第一筆必須置頂
+                                var sLink = SelectSingleNodeText(objWikiDsp.sRowXML, 'url');
+                                var sTitle = SelectSingleNodeText(objWikiDsp.sRowXML, 'title');
+                                if (sTitle != '') {
+                                    sSpecialString = '<div class="Text-a">《<a href="javascript:goTarget(\'' + sLink + '\',\'BG\');">' + sTitle + '</a>》</div>';
+                                }
+                            }
+                            else {
+                                sReturnString = sReturnString + objWikiDsp.WikiDspDisplay5('BG');
+                            }
+                            break;
+                        case 'MONEYEDITOR': //DJ盤勢觀察
+                            tdcss = 'Talk_Data_a';
+                            if (i % 2 == 1) {
+                                tdcss = 'Talk_Data_a';
+                            }
+                            sReturnString = sReturnString + objWikiDsp.WikiDspDisplay6('MONEYEDITOR', 'BigNews_Head', tdcss, 'New');
+                            break;
+                        case 'TOPICS': //專題
+                            tdcss = 'Talk_Data_a';
+                            if (i % 2 == 1) {
+                                tdcss = 'Talk_Data_a';
+                            }
+                            sReturnString = sReturnString + objWikiDsp.WikiDspDisplay6('TOPICS', 'BigNews_Head', tdcss, 'New');
+                            break;
+
+                    }
+                }
+            }
+
+            if (sParamDiv != '') {
+                switch (sParamType) {
+                    case 'NW':  //全球財經、行業動態、個股消息、金融動向-1
+                        //針對全球財經的日韓的more代碼特別修改
+                        if (sParamURL.toUpperCase().indexOf('X0100012,X0100013') > -1) {
+                            sParamURL = sParamURL.toUpperCase().replace('X0100012,X0100013', 'X0400031');
+                        }
+                        //針對個股消息的日韓的more代碼特別修改
+                        if (sParamURL.toUpperCase().indexOf('X0200005,X0200006') > -1) {
+                            sParamURL = sParamURL.toUpperCase().replace('X0200005,X0200006', 'X0200005');
+                        }
+
+                        if (sParamADS != '') {
+                            //sReturnString = sReturnString + '<tr><td class=C_TagData_A align=right colspan=2>';
+                            //sReturnString = sReturnString + '<iframe marginwidth="4" marginheight="0" style="WIDTH: 430; HEIGHT: 24px; " frameborder=0 scrolling=no src="' + sParamADS + '"></iframe>';
+                            //sReturnString = sReturnString + '</td></tr>';
+							sReturnString += '<div class=C_TagData_A align=right>';
+							sReturnString += '<iframe marginwidth="4" marginheight="0" style="width: 430px; height: 24px; " frameborder=0 scrolling=no src="' + sParamADS + '"></iframe>';
+							sReturnString += '</div>';
+                        }
+                        //sReturnString = sReturnString + '<tr><td class="AD_a" valign="button" colspan="4">';
+                        //sReturnString = sReturnString + '<p align="right"><a href="' + sParamURL + '" target="' + sMoreTarget + '">';
+                        //sReturnString = sReturnString + '<p align="right"><a href="javascript:goTarget(\'' + sParamURL + '\',\'' + sMoreTarget + '\');">';
+                        //sReturnString = sReturnString + '<p align="right"><a href="' + sParamURL + '" target="' + sMoreTarget + '");">';
+                        //sReturnString = sReturnString + '<img border="0" src="images/More_Blue.gif" width="54" height="15"></a></p>';
+                        //sReturnString = sReturnString + '</td></tr>';
+						
+                        //sReturnString = '<table border="0" width="100%" cellpadding="0" style="border-collapse: collapse">' + sReturnString + '</table>';
+						
+						sReturnString = '<div>' + sReturnString + '</div>';
+						
+                        $('#' + sParamDiv + ' + div').find('a').attr('href', sParamURL);
+                        break;
+                    case 'NH': //頭條新聞
+                        if (sParamADS != '') {
+                            //sReturnString = sReturnString + '<tr><td colspan=2 class=C_TagData_A align=right>';
+                            //sReturnString = sReturnString + '<iframe marginwidth="4" marginheight="0" style="WIDTH: 430; HEIGHT: 24px; " frameborder=0 scrolling=no src="' + sParamADS + '"></iframe>';
+                            //sReturnString = sReturnString + '</td></tr>';
+							
+							sReturnString += '<div class=C_TagData_A align=right>';
+							sReturnString += '<iframe marginwidth="4" marginheight="0" style="width: 430px; height: 24px; " frameborder=0 scrolling=no src="' + sParamADS + '"></iframe>';
+							sReturnString += '</div>';
+                        }
+                        //sReturnString = sReturnString + '<p align="right"><a href="' + sParamURL + '" target="' + sMoreTarget + '">';
+                        //sReturnString = sReturnString + '<tr><td colspan=2>';
+                        //sReturnString = sReturnString + '<p align="right"><a href="javascript:goTarget(\'' + sParamURL + '\',\'' + sMoreTarget + '\');">';
+                        //sReturnString = sReturnString + '<p align="right"><a href="' + sParamURL + '" target="' + sMoreTarget + '">';
+                        //sReturnString = sReturnString + '<img border="0" src="images/More_Blue.gif" width="54" height="15"></a></p>';
+                        //sReturnString = sReturnString + '</td></tr>';
+						
+                        sReturnString = '<div>' + sReturnString + '</div>';
+						
+						//sReturnString = '<table border="0" width="100%" cellpadding="0" style="border-collapse: collapse;" bordercolor="#000000" class="BigNews_Table">' + sReturnString + '</table>';
+						
+                        $('#' + sParamDiv + ' + div').find('a').attr('href', sParamURL);
+                        //$('#WIKINEW + div').find('a').attr('href',sParamURL);
+                        break;
+                    case 'NWTIME': //即時新聞
+                        if (sParamADS != '') {
+                            sReturnString = sReturnString + '<tr><td class=C_TagData_A align=right colspan=2>';
+                            sReturnString = sReturnString + '<iframe marginwidth="4" marginheight="0" style="WIDTH: 430; HEIGHT: 24px; " frameborder=0 scrolling=no src="' + sParamADS + '"></iframe>';
+                            sReturnString = sReturnString + '</td></tr>';
+                        }
+                        //sReturnString = sReturnString + '<tr><td class="AD_a" valign="button" colspan="4">';
+                        //sReturnString = sReturnString + '<p align="right"><a href="' + sParamURL + '" target="' + sMoreTarget + '">';
+                        //sReturnString = sReturnString + '<p align="right"><a href="javascript:goTarget(\'' + sParamURL + '\',\'' + sMoreTarget + '\');">';
+                        //sReturnString = sReturnString + '<p align="right"><a href="' + sParamURL + '" target="' + sMoreTarget + '">';
+                        //sReturnString = sReturnString + '<img border="0" src="images/More_Blue.gif" width="54" height="15"></a></p>';
+                        //sReturnString = sReturnString + '</td></tr>';
+                        sReturnString = '<table border="0" width="100%" cellpadding="0" style="border-collapse: collapse">' + sReturnString + '</table>';
+                        $('#' + sParamDiv + ' + div').find('a').attr('href', sParamURL);
+                        break;
+                    case 'RP': //最新報導
+                        if (sParamADS != '') {
+                            sReturnString = sReturnString + '<tr><td class=C_TagData_A align=right colspan=2>';
+                            sReturnString = sReturnString + '<iframe marginwidth="4" marginheight="0" style="WIDTH: 420; HEIGHT: 24px; " frameborder=0 scrolling=no src="' + sParamADS + '"></iframe>';
+                            sReturnString = sReturnString + '</td></tr>';
+                        }
+                        //sReturnString = sReturnString + '<tr><td class="AD_a" valign="button" colspan="4">';
+                        //sReturnString = sReturnString + '<p align="right"><a href="' + sParamURL + '" target="' + sMoreTarget + '">';
+                        //sReturnString = sReturnString + '<p align="right"><a href="javascript:goTarget(\'' + sParamURL + '\',\'' + sMoreTarget + '\');">';
+                        //sReturnString = sReturnString + '<p align="right"><a href="' + sParamURL + '" target="' + sMoreTarget + '">';
+                        //sReturnString = sReturnString + '<img border="0" src="images/More_Blue.gif" width="54" height="15"></a></p>';
+                        //sReturnString = sReturnString + '</td></tr>';
+                        sReturnString = '<table border="0" width="100%" cellpadding="0" style="border-collapse: collapse">' + sReturnString + '</table>';
+                        $('#' + sParamDiv + ' + div').find('a').attr('href', sParamURL);
+                        break;
+                    case 'BM':
+                        //sReturnString = '<tr><td class=R_Tag_Data>' + sReturnString + '</td></tr>';
+                        //sReturnString = '<table border=0 cellpadding=0 style=border-collapse: collapse bordercolor=#B7B7B7 width="98%">' + sReturnString + '</table>';
+						//sReturnString = '<div>' + sReturnString + '</div>';
+                        break;
+                    case 'OPF':
+                        //sReturnString = '<tr><td class=R_Tag_Data>' + sReturnString + '</td></tr>';
+                        //sReturnString = '<table border=0 cellpadding=0 style=border-collapse: collapse bordercolor=#B7B7B7 width="98%">' + sReturnString + '</table>';
+						sReturnString = '<div>' + sReturnString + '</div>';
+                        break;
+                    case 'BG':
+                        //sReturnString = sSpecialString + '<ul>' + sReturnString + '</ul>';
+                        //第一筆改為不顯示
+                        sReturnString = '<ul>' + sReturnString + '</ul>';
+                        break;
+                    case 'MONEYEDITOR': //DJ盤勢觀點
+                        if (sParamADS != '') {
+                            sReturnString = sReturnString + '<tr><td colspan=2 class=C_TagData_A align=right>';
+                            sReturnString = sReturnString + '<iframe marginwidth="4" marginheight="0" style="WIDTH: 430; HEIGHT: 24px; " frameborder=0 scrolling=no src="' + sParamADS + '"></iframe>';
+                            sReturnString = sReturnString + '</td></tr>';
+                        }
+                        //sReturnString = sReturnString + '<tr><td colspan=2>';
+                        //sReturnString = sReturnString + '<p align="right"><a href="javascript:goTarget(\'' + sParamURL + '\',\'' + sMoreTarget + '\');">';
+                        //sReturnString = sReturnString + '<p align="right"><a href="' + sParamURL + '" target="' + sMoreTarget + '">';
+                        //sReturnString = sReturnString + '<img border="0" src="images/More_Blue.gif" width="54" height="15"></a></p>';
+                        //sReturnString = sReturnString + '</td></tr>';
+                        sReturnString = '<table border="0" width="100%" cellpadding="0" style="border-collapse: collapse;" bordercolor="#000000" class="BigNews_Table">' + sReturnString + '</table>';
+                        $('#' + sParamDiv + ' + div').find('a').attr('href', sParamURL);
+                        break;
+                    case 'TOPICS': //專題
+                        if (sParamADS != '') {
+                            sReturnString = sReturnString + '<tr><td colspan=4 class=C_TagData_A align=right>';
+                            sReturnString = sReturnString + '<iframe marginwidth="4" marginheight="0" style="WIDTH: 430; HEIGHT: 24px; " frameborder=0 scrolling=no src="' + sParamADS + '"></iframe>';
+                            sReturnString = sReturnString + '</td></tr>';
+                        }
+                        //sReturnString = sReturnString + '<tr><td colspan=4>';
+                        //sReturnString = sReturnString + '<p align="right"><a href="javascript:goTarget(\'' + sParamURL + '\',\'' + sMoreTarget + '\');">';
+                        //sReturnString = sReturnString + '<p align="right"><a href="' + sParamURL + '" target="' + sMoreTarget + '">';
+                        //sReturnString = sReturnString + '<img border="0" src="images/More_Blue.gif" width="54" height="15"></a></p>';
+                        //sReturnString = sReturnString + '</td></tr>';
+                        sReturnString = '<table border="0" width="100%" cellpadding="1" style="border-collapse: collapse;" bordercolor="#000000" class="BigNews_Table">' + sReturnString + '</table>';
+                        $('#' + sParamDiv + ' + div').find('a').attr('href', sParamURL);
+                        break;
+                }
+                objDiv.innerHTML = sReturnString;
+            }
+        }
+        else {
+            //			window.setTimeout("gfunGetXml('" + sParamURL + "','" + sParamURL1 + "'," + nParamCN + ",'" + sParamDiv + "','" + sParamType + "','" + sParamADS + "','" + nParamTID + "')", g_nRetryTime);
+            objDiv.innerHTML = "無相關資料";
+        }
+
+    }
+    catch (e) {
+        //alert(e.description);
+        //			window.setTimeout("gfunGetXml('" + sParamURL + "','" + sParamURL1 + "'," + nParamCN + ",'" + sParamDiv + "','" + sParamType + "','" + sParamADS + "','" + nParamTID + "')", g_nRetryTime);
+        objDiv.innerHTML = "資料讀取失敗!!	44";
+    }
+
+    return true;
+}
+
+function WikiDsp(rowXML) {
+    this.sLink = '';
+    this.sTitle = '';
+    this.sRowXML = rowXML;
+
+    this.WikiDspDisplay = WikiDspDisplay;
+    this.WikiDspDisplay1 = WikiDspDisplay1;
+    this.WikiDspDisplay2 = WikiDspDisplay2;
+    this.WikiDspDisplay3 = WikiDspDisplay3;
+    this.WikiDspDisplay4 = WikiDspDisplay4;
+    this.WikiDspDisplay5 = WikiDspDisplay5;
+    this.WikiDspDisplay6 = WikiDspDisplay6;
+}
+
+function WikiDspDisplay(CSS, sTarget) {
+    var sReturnString = '';
+
+    //	this.sLink = this.sRowXML.selectSingleNode("link").text;
+    //	this.sTitle = this.sRowXML.selectSingleNode("title").text;
+    this.sLink = SelectSingleNodeText(this.sRowXML, 'link');
+    this.sTitle = SelectSingleNodeText(this.sRowXML, 'title');
+    if (this.sTitle != '') {
+        //sReturnString = '<tr><td width="22" align="right" valign="top"><img border=0 src="images/Icon_Gray_22.gif" height="22" width="22"></td>';
+        //sReturnString = sReturnString + '<td width="95%" class="' + CSS + '">';
+		
+		sReturnString += '<div style="width:5%; float:left;"><img border="0" src="images/Icon_Gray_22.gif"></div>';
+		sReturnString += '<div style="width:90%; float:left;" class="' + CSS + '">';
+		
+        if (this.sLink != '') {
+            //sReturnString = sReturnString + '<a href="' + this.sLink + '" target="' + sTarget + '">';
+            sReturnString += '<a href="javascript:goTarget(\'' + this.sLink + '\',\'' + sTarget + '\');">';
+        }
+        sReturnString += this.sTitle;
+        if (this.sLink != '') {
+            sReturnString += '</a>';
+        }
+        sReturnString += '</div>';
+    }
+
+    return sReturnString;
+}
+
+function WikiDspDisplay1(CSS, sTarget) {
+    var sReturnString = '';
+
+    //	this.sLink = this.sRowXML.selectSingleNode("link").text;
+    //	this.sTitle = this.sRowXML.selectSingleNode("title").text;
+    this.sLink = SelectSingleNodeText(this.sRowXML, 'link');
+    this.sTitle = SelectSingleNodeText(this.sRowXML, 'title');
+    if (this.sTitle != '') {
+        sReturnString = '<div style="display:flex;"><div style="margin:0 5px;"><font color="#949599">‧</font></div>';
+        if (this.sLink != '') {
+            //sReturnString = sReturnString + '<a href="' + this.sLink + '" target="' + sTarget + '">';
+            sReturnString += '<div style="display:inline;"><a href="javascript:goTarget(\'' + this.sLink + '\',\'' + sTarget + '\');">';
+        }
+        sReturnString += this.sTitle;
+        if (this.sLink != '') {
+            sReturnString += '</a>';
+        }
+        sReturnString += '</div></div>';
+        //		sReturnString = sReturnString + '<br>';
+    }
+
+    return sReturnString;
+}
+
+function WikiDspDisplay2(TCSS, CSS, sTarget) {
+    var sReturnString = '';
+    var sMore = '';
+
+    //	this.sLink = this.sRowXML.selectSingleNode("link").text;
+    //	this.sTitle = this.sRowXML.selectSingleNode("title").text;
+    //	this.sDescription = this.sRowXML.selectSingleNode("description").text;
+    this.sLink = SelectSingleNodeText(this.sRowXML, 'link');
+    this.sTitle = SelectSingleNodeText(this.sRowXML, 'title');
+    this.sDescription = SelectSingleNodeText(this.sRowXML, 'description');
+    if (this.sTitle != '') {
+        sReturnString = '<div class="' + TCSS + '">';
+        if (this.sLink != '') {
+            //sReturnString = sReturnString + '<a href="' + this.sLink + '" target="' + sTarget + '">';
+            sReturnString += '<a href="javascript:goTarget(\'' + this.sLink + '\',\'' + sTarget + '\');">';
+            sMore = sMore + '...《<a href="' + this.sLink + '" target="' + sTarget + '">詳全文</a>》';
+        }
+        sReturnString += this.sTitle;
+        if (this.sLink != '') {
+            sReturnString += '</a>';
+        }
+
+        sReturnString += '</div>';
+        sReturnString += '<div class="' + CSS + '">';
+        sReturnString += getDescription(this.sDescription, 100, false);
+        sReturnString += sMore;
+        sReturnString += '</div>';
+    }
+
+    return sReturnString;
+}
+
+function WikiDspDisplay3(CSS, sTarget) {
+    var sReturnString = '';
+
+    //	this.sLink = this.sRowXML.selectSingleNode("link").text;
+    //	this.sTitle = this.sRowXML.selectSingleNode("title").text;
+    this.sLink = SelectSingleNodeText(this.sRowXML, 'link');
+    this.sTitle = SelectSingleNodeText(this.sRowXML, 'title');
+    if (this.sTitle != '') {
+        sReturnString = '<tr>';
+        var tmp1 = this.sTitle;
+        if (this.sTitle.indexOf(' ') > -1) {
+            var tmp = this.sTitle.substring(0, this.sTitle.indexOf(' ')); //取時間
+            sReturnString = '<td class="' + CSS + '">' + tmp + '</td>';
+            tmp1 = this.sTitle.substring(this.sTitle.indexOf(' '), this.sTitle.length); //取標題
+        }
+        sReturnString = sReturnString + '<td class="' + CSS + '">';
+        if (this.sLink != '') {
+            //sReturnString = sReturnString + '<a href="' + this.sLink + '" target="' + sTarget + '">';
+            sReturnString = sReturnString + '<a href="javascript:goTarget(\'' + this.sLink + '\',\'' + sTarget + '\');">';
+        }
+        sReturnString = sReturnString + tmp1;
+        if (this.sLink != '') {
+            sReturnString = sReturnString + '</a><br>';
+        }
+
+        sReturnString = sReturnString + '</td></tr>';
+    }
+
+    return sReturnString;
+}
+
+function WikiDspDisplay4(TCSS, CSS, sTarget) {
+    var sReturnString = '';
+
+    this.sLink = SelectSingleNodeText(this.sRowXML, 'link');
+    this.sTitle = SelectSingleNodeText(this.sRowXML, 'title');
+    this.sDescription = SelectSingleNodeText(this.sRowXML, 'description');
+    if (this.sTitle != '') {
+		
+        //sReturnString = '<tr><td width="22" align="right" valign="top"><img border=0 src="images/Icon_Gray_22.gif" height="22" width="22"></td>';
+        //sReturnString = sReturnString + '<td width="95%" class="' + CSS + '">';
+		
+		sReturnString += '<div style="width:5%; float:left;"><img border="0" src="images/Icon_Gray_22.gif"></div>';
+		sReturnString += '<div style="width:90%; float:left;" class="' + CSS + '">';
+       
+        if (this.sLink != '') {
+            sReturnString += '<a href="javascript:goTarget(\'' + this.sLink + '\',\'' + sTarget + '\');">';
+        }
+        sReturnString += this.sTitle;
+        if (this.sLink != '') {
+            sReturnString += '</a>';
+        }
+        //sReturnString = sReturnString + '</td></tr>';
+		sReturnString += '</div>';
+
+    }
+
+    return sReturnString;
+}
+
+function WikiDspDisplay5(sTarget) {
+    var sReturnString = '';
+
+    this.sLink = SelectSingleNodeText(this.sRowXML, 'url');
+    this.sTitle = SelectSingleNodeText(this.sRowXML, 'title');
+    if (this.sTitle != '') {
+        sReturnString = '<li>';
+        if (this.sLink != '') {
+            sReturnString = sReturnString + '<a href="javascript:goTarget(\'' + this.sLink + '\',\'' + sTarget + '\');">';
+        }
+        sReturnString = sReturnString + this.sTitle;
+        if (this.sLink != '') {
+            sReturnString = sReturnString + '</a>';
+        }
+        sReturnString = sReturnString + '</li>';
+    }
+
+    return sReturnString;
+}
+
+
+// 可以顯示:主標題 / 內文簡介 / 圖檔 
+function WikiDspDisplay6(sParamType, TCSS, CSS, sTarget) {
+    var sReturnString = '';
+    var tmpStr = '';
+    var sWord_Count = 120;
+
+    this.sLink = SelectSingleNodeText(this.sRowXML, 'link');
+    this.sTitle = SelectSingleNodeText(this.sRowXML, 'title');
+    this.sDescription = SelectSingleNodeText(this.sRowXML, 'description');
+
+    switch (sParamType) {
+        case 'TOPICS': //專題
+            this.sImgPath = SelectSingleNodeText(this.sRowXML, 'imgPath');
+            tmpStr = '<td class="' + CSS + '" rowspan="2" valign="top"><img src=' + this.sImgPath + ' border="0" width="90" height="75"></td>';
+            sWord_Count = 60;
+            break;
+    }
+
+
+    if (this.sTitle != '') {
+        sReturnString = '<tr>';
+        sReturnString = sReturnString + '<td width=12px></td>';
+
+        sReturnString = sReturnString + tmpStr;
+
+        sReturnString = sReturnString + '<td class="' + TCSS + '">';
+        if (this.sLink != '') {
+            sReturnString = sReturnString + '<a href="javascript:goTarget(\'' + this.sLink + '\',\'' + sTarget + '\');">';
+        }
+        sReturnString = sReturnString + this.sTitle;
+        if (this.sLink != '') {
+            sReturnString = sReturnString + '</a>';
+        }
+
+        sReturnString = sReturnString + '</td></tr>';
+        sReturnString = sReturnString + '<tr>';
+        sReturnString = sReturnString + '<td width=12px></td>';
+        sReturnString = sReturnString + '<td class="' + CSS + '">';
+        sReturnString = sReturnString + getDescription(this.sDescription, sWord_Count, true);
+
+        if (this.sLink != '') {
+            sReturnString = sReturnString + '<a href="javascript:goTarget(\'' + this.sLink + '\',\'' + sTarget + '\');">';
+        }
+        sReturnString = sReturnString + '...繼續閱讀';
+        if (this.sLink != '') {
+            sReturnString = sReturnString + '</a>';
+        }
+
+        sReturnString = sReturnString + '</td>';
+        sReturnString = sReturnString + '<td width=12px></td>';
+        sReturnString = sReturnString + '</tr>';
+    }
+
+    return sReturnString;
+}
+
+//取子標字串
+function getDescription(s, len, sAuthor) {
+    var tmp = '';
+    if (s == '' || parseInt(len) == false) return tmp;
+
+    tmp = cutTag(s);
+
+    if (sAuthor) { 	//去除記者報導字串
+        var tmp1 = tmp;
+        if (tmp1.indexOf('記者') > -1) {
+            cn = tmp1.indexOf('記者') + 2;
+            tmp1 = tmp1.substring(cn);
+            if (tmp1.indexOf('報導') > -1) {
+                tmp1 = tmp1.substring(tmp1.indexOf('報導') + 2);
+                tmp = tmp1;
+            }
+        }
+    }
+
+    tmp = tmp.substring(0, len);
+
+    return tmp;
+}
+
+//sAuthor為是否要去除記者報導字串
+function cutTag(s, sAuthor) {
+    var tmp = s;
+    var getS = '';
+
+    if (s == '') return getS;
+
+    var ii = 0; //取起啟
+    var cn = 0;
+    while (ii < s.length) {
+        if (tmp.indexOf('<') > -1) {
+            if (tmp.indexOf('>') > -1) {
+                cn = tmp.indexOf('>') + 1;
+                ii = ii + cn;
+                tmp = tmp.substring(cn);
+                if (tmp.indexOf('<') > -1) {
+                    getS = getS + tmp.substring(0, tmp.indexOf('<'));
+                    ii = ii + tmp.indexOf('<');
+                    tmp = tmp.substring(tmp.indexOf('<'));
+                }
+                else {
+                    ii = ii + tmp.length;
+                    getS = getS + tmp;
+                }
+            }
+            else {
+                cn = tmp.indexof('<');
+                ii = ii + cn + 1;
+                getS = getS + tmp.substring(cn, 1)
+                tmp = tmp.substring(cn + 1);
+            }
+        }
+        else {
+            ii = ii + tmp.length;
+            getS = getS + tmp;
+        }
+    }
+
+    return getS;
+}
+
+function goWikirss4m(){
+	var categoryArr ={"頭條新聞":"#WIKINEW","即時新聞":"#WIKINEWREAL","美國":"#WIKINEWALL","電子":"#WIKINEWTRADE","台股":"#WIKINEWSTOCK","黃金":"#WIKINEWFINANCE","最新報告":"#WIKIREPORT","書籤":"#WIKIBM"}
+	var sResultStr = ""
+	var sDivNewsID = '';
+    var apiCategorySet = new Set();
+	var sMdjAdsElementID = '';
+	
+	$.ajax({
+		 url: gWikirss4mUrl, //外部的xml檔
+		 type: 'GET',
+		 dataType: 'xml',
+		 async: true,
+		 error: function(xml){console.log('載入XML文件出錯');},
+		 success: function(xml){
+			$(xml).find('articles').each(function(){            //取得xml articles節點
+				sResultStr = '';
+				sDivNewsID = '';
+				
+				apiCategorySet.add($(this).attr("category"));
+				//取得對應的NewsID以防誤刊
+				for(var key in categoryArr){
+					if ($(this).attr("category") === key){
+						sDivNewsID = categoryArr[key];
+						break;
+					}
+				}
+				
+				//有articles資料
+				if (sDivNewsID !== "" )
+				{
+					var i = 0;
+					$(this).find('article').each(function(){
+						
+						//組合<DIV>
+						var get_title=$(this).find("title").text();          //取得title資料
+						var get_url=$(this).children("sourceUrl").text();    //取得url資料
+						
+						if (sDivNewsID === "#WIKIBM"){
+							if (get_title == ''){
+								 return;
+							}
+							sResultStr += '<div style="display:flex;">';
+							sResultStr += '<div style="margin:0 5px;"><font color="#949599">‧</font></div>';
+							
+							sResultStr += '<div style="display:inline;"><a href="javascript:goTarget(\'' + get_url + '\',\'BM\');">' + get_title + '</a></div>';
+							sResultStr += '</div>';
+						}
+						else if (sDivNewsID === "#WIKINEWREAL"){
+							if (i == 0){sResultStr += '<div style="display:table;width:100%;">';}
+	
+							var tdcss = 'News_Data_a';
+                            if (i % 2 == 1) {
+                                tdcss = 'News_Data_b';
+                            }
+							i++;
+							get_time = get_title.slice(0,5)
+							get_title = get_title.slice(5,-1)
+							sResultStr += '<div class="'+ tdcss +'" style="display:table-row;">';
+							sResultStr += '<div style="width:12%; float:left;display:table-cell;"><font color="#363636" style="padding:0 6px">'+get_time+'</font></div>';
+							sResultStr += '<div style="width:87%; float:left;display:table-cell;"><a href="javascript:goTarget(\'' + get_url + '\',\'NewT\');">' + get_title + '</a></div>';
+							sResultStr += '</div>';
+						
+						}
+						else{
+							sResultStr += '<div>';
+							sResultStr += '<div style="width:5%; float:left;"><img border="0" src="images/Icon_Gray_22.gif"></div>';
+							sResultStr += '<div style="width:90%; float:left;" class="C_TagData_B"><a href="javascript:goTarget(\'' + get_url + '\',\'New\');">' + get_title + '</a></div>';
+							sResultStr += '</div>';
+						}
+					});
+					
+					if (sDivNewsID === "#WIKINEWREAL"){sResultStr += "</div>";}
+					
+					
+					//加入廣告<div>  變數sMDJADUrl來自GlobalVar.js
+					if ((sDivNewsID === "#WIKINEW")|| (sDivNewsID ==="#WIKINEWALL")||(sDivNewsID ==="#WIKINEWTRADE")){
+						
+						switch (sDivNewsID)
+						{
+							case "#WIKINEW":
+								sMdjAdsElementID = "TextAD018";
+								break;
+							case "#WIKINEWALL":
+								sMdjAdsElementID = "TextAD019";
+								break;
+							case "#WIKINEWTRADE":
+								sMdjAdsElementID = "TextAD020";
+								break;
+						}
+						sResultStr += '<div class=C_TagData_A align=right>';
+						sResultStr += '<div id="' + sMdjAdsElementID + '" style="box-sizing: border-box;padding: 0px 4px;width: 430px; height: 24px;"></div>';
+						sResultStr += '</div>';
+					}
+	
+
+                if (sResultStr == ''){
+                    $(sDivNewsID).html("無相關資料...");
+                }else{
+                    //jQuery設置html內容
+                    $(sDivNewsID).html(sResultStr);
+                    switch (sDivNewsID)
+                    {
+                        case "#WIKINEW":
+                            TextAD.element.Start({
+                                TextAD018: {'id':'ButtonTextA117','exterior':'complexTable', 'render': 'replace', styles: [{selector:'a>font>b',style:{fontSize:"16px", textDecoration: "underline"}}]},
+                            });
+                            break;
+                        case "#WIKINEWALL":
+                            TextAD.element.Start({
+                                TextAD019: {'id':'ButtonTextA118','exterior':'complexTable', 'render': 'replace', styles: [{selector:'a>font>b',style:{fontSize:"16px", textDecoration: "underline"}}]},
+                            });
+                            break;
+                        case "#WIKINEWTRADE":
+                            TextAD.element.Start({
+                                TextAD020: {'id':'ButtonTextA118','exterior':'complexTable', 'render': 'replace', styles: [{selector:'a>font>b',style:{fontSize:"16px", textDecoration: "underline"}}]},
+                            });
+                            break;
+                    }
+                }
+            }
+        });
+        
+        //檢查api缺少的News
+        for(var key in categoryArr){
+            if (apiCategorySet.has(key) == false){
+                $(categoryArr[key]).html("無相關資料");
+				}
+			}
+			
+		 }
+	});
+	
+	
+	
+	
+	
+	
+	
+	
+}
+
+</script>
+
+</body>
+</html>

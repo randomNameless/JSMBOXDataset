@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>code_common.html</title>
+</head>
+<body>
+
+<script>
+jQuery.cookie = function(name, value, options) {
+    if (typeof value != 'undefined') {
+        options = options || {};
+        if (value === null) {
+            value = '';
+            options.expires = -1
+        }
+        var expires = '';
+        if (options.expires && (typeof options.expires == 'number' || options.expires.toUTCString)) {
+            var date;
+            if (typeof options.expires == 'number') {
+                date = new Date();
+                date.setTime(date.getTime() + (options.expires * 24 * 60 * 60 * 1000))
+            } else {
+                date = options.expires
+            }
+            expires = '; expires=' + date.toUTCString()
+        }
+        var path = options.path ? '; path=' + (options.path) : '';
+        var domain = options.domain ? '; domain=' + (options.domain) : '';
+        var secure = options.secure ? '; secure': '';
+        document.cookie = [name, '=', encodeURIComponent(value), expires, path, domain, secure].join('')
+    } else {
+        var cookieValue = null;
+        if (document.cookie && document.cookie != '') {
+            var cookies = document.cookie.split(';');
+            for (var i = 0; i < cookies.length; i++) {
+                var cookie = jQuery.trim(cookies[i]);
+                if (cookie.substring(0, name.length + 1) == (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break
+                }
+            }
+        }
+        return cookieValue
+    }
+}; (function(b) {
+    var a = function(c, d) {
+        var e = b(c);
+        var f = this;
+        f.settings = b.extend({
+            url: "/search/a/",
+            dictParam: "sclb",
+            inputParam: "q",
+            dictSelector: ".autoc-dict",
+            resultKey: "results",
+            method: "GET",
+            delay: 100,
+            minChars: 1,
+            autocompleterClass: "autoc-results",
+            autocompleterResultClass: "autoc-result"
+        },
+        d || {});
+        f.originalValue = null;
+        f.timer = null;
+        f.popup = e.parents("form").find("." + f.settings.autocompleterClass);
+        e.attr("autocomplete", "off");
+        f.killPopup = function() {
+            if (f.isPopupVisible()) {
+                setTimeout(function() {
+                    f.originalValue = null;
+                    f.popup.hide()
+                },
+                100)
+            }
+        };
+        f.isPopupVisible = function() {
+            return f.popup.is(":visible")
+        };
+        f.processKey = function(j) {
+            var g = f.isPopupVisible();
+            switch (j.which) {
+            case 40:
+                var h = f.nextSuggestion();
+                f.selectRow(h);
+                break;
+            case 38:
+                var i = f.previousSuggestion();
+                f.selectRow(i);
+                break;
+            case 39:
+            case 37:
+                break;
+            case 13:
+                f.confirmSuggestion();
+                break;
+            case 27:
+                e.blur();
+                break;
+            default:
+                f.delayedAutoComplete();
+                break
+            }
+        };
+        f.getSelectedRow = function() {
+            return f.popup.find(".current")
+        };
+        f.previousSuggestion = function() {
+            var j = f.getSelectedRow();
+            var i = f.popup.find("." + f.settings.autocompleterResultClass);
+            var h = i.index(j);
+            var g = null;
+            if (h >= 0) {
+                g = b(i[h - 1])
+            } else {
+                g = i.last()
+            }
+            return g
+        };
+        f.nextSuggestion = function() {
+            var j = f.getSelectedRow();
+            var i = f.popup.find("." + f.settings.autocompleterResultClass);
+            if (j.length == 1) {
+                var g = null;
+                var h = i.index(j);
+                g = b(i[h + 1]);
+                return g
+            } else {
+                return i.first()
+            }
+        };
+        f.rollback = function() {
+            if (f.originalValue != null) {
+                e.val(f.originalValue)
+            }
+        };
+        f.delayedAutoComplete = function() {
+            clearTimeout(f.timer);
+            f.timer = setTimeout(function() {
+                f.autoComplete()
+            },
+            f.settings.delay)
+        };
+        f.confirmSuggestion = function() {
+            var g = f.getSelectedRow();
+            if (g.length == 1) {
+                e.parents("form").submit()
+            }
+            f.killPopup()
+        };
+        f.autoComplete = function() {
+            var i = e.val();
+            f.originalValue = i;
+            if (i.length < f.settings.minChars) {
+                f.handleQueryResults(null);
+                return
+            }
+            var g = e.parents("form").find(f.settings.dictSelector).val();
+            var h = f.settings.url + "?" + f.settings.dictParam + "=" + encodeURIComponent(g) + "&" + f.settings.inputParam + "=" + encodeURIComponent(i);
+            b.getJSON(h,
+            function(j) {
+                f.handleQueryResults(j)
+            })
+        };
+        f.handleQueryResults = function(h) {
+            f.popup.empty();
+            if (h == null) {
+                return
+            }
+            for (var g = 0; g < h.length; g++) {
+                f.popup.append("<li class='" + f.settings.autocompleterResultClass + "'>" + h[g] + "</li>")
+            }
+        };
+        f.showPopup = function() {
+            f.refreshAutocompletePosition();
+            f.popup.show()
+        };
+        f.selectRow = function(g) {
+            f.popup.find(".current").removeClass("current");
+            if (g != null) {
+                g.addClass("current");
+                e.val(g.text())
+            } else {
+                f.rollback()
+            }
+        };
+        f.refreshAutocompletePosition = function() {
+            f.popup.css("left", e.position().left);
+            f.popup.css("top", e.position().top + e.outerHeight())
+        };
+        e.bind("change.autocomplete", f.delayedAutoComplete);
+        e.bind("input.autocomplete",
+        function(g) {
+            e.trigger("change")
+        });
+        e.bind("keyup.autocomplete", f.processKey);
+        e.bind("blur.autocomplete", f.killPopup);
+        e.bind("focus.autocomplete", f.showPopup);
+        if (e.is(":focus")) {
+            f.showPopup()
+        }
+        f.popup.on("click", "." + f.settings.autocompleterResultClass,
+        function(g) {
+            g.stopPropagation();
+            f.selectRow(b(this));
+            f.confirmSuggestion()
+        })
+    };
+    b.fn.autoCompleter = function(c) {
+        return this.each(function() {
+            new a(this, c)
+        })
+    }
+})(jQuery);
+var urlHomePage = "https://www.zdic.net/";
+var csrfToken = $("meta[name='_csrf']").attr("content");
+var csrfHeader = $("meta[name='_csrf_header']").attr("content");
+var ajaxHeaders = {};
+ajaxHeaders[csrfHeader] = csrfToken;
+$.ajaxSetup({
+    headers: ajaxHeaders
+});
+$(".autoc-input").autoCompleter({
+    url: "/search/a/"
+});
+$(".search-keyboard").click(function(d) {
+    d.stopPropagation();
+    o = $(this);
+    var a = $(".specialchar");
+    if (a.length > 0) {
+        a.remove()
+    } else {
+        a = $("<div class='specialchar'><div class='button-special'>" + o.attr("data-specialchar").split(",").join("</div><div class='button-special'>") + "</div></div>");
+        o.after(a);
+        $(".specialchar").css({
+            right: -47 * 2
+        });
+        var b = 12;
+        while (a.children("div.button-special").length != 0) {
+            var c = $("<div>");
+            a.children("div.button-special").each(function(f, g) {
+                if (f < b) {
+                    c.append(g)
+                }
+            });
+            a.append(c);
+            b--
+        }
+        $(".specialchar  div.button-special").click(function(f) {
+            f.stopPropagation();
+            $(".search-input").val($(".search-input").val() + $(this).text());
+            $(".search-input").focus();
+            $(".search-input").change();
+            return false
+        })
+    }
+    return false
+});
+$(".custom-select").each(function() {
+    var a = this;
+    a.elem = $(a);
+    a.csl = $(".cs_l");
+    a.cslc = $(".cs_lc");
+    a.csm = $(".cs_m");
+    a.si = $(".search-input");
+    a.elem.find("optgroup").each(function() {
+        var b = $(this);
+        var c = $('<div class="group"></div>');
+        c.append('<span class="title">' + b.attr("label") + "</span>");
+        b.find("option").each(function() {
+            var e = $(this);
+            var f = "";
+            var d = "";
+            if (typeof e.attr("data-placeholder") != "undefined") {
+                f = ' data-placeholder="' + e.attr("data-placeholder") + '"'
+            }
+            if (typeof e.attr("data-specialchar") != "undefined") {
+                d = ' data-specialchar="' + e.attr("data-specialchar") + '"'
+            }
+            c.append('<a data-value="' + e.attr("value") + '" ' + f + d + ">" + e.html() + "</a>")
+        });
+        a.csm.append(c)
+    });
+    a.refresh = function() {
+        var c = a.elem.val();
+        a.csm.find(".current").removeClass("current");
+        a.csm.find("a[data-value='" + c + "']").addClass("current");
+        a.csl.html(a.csm.find("a[data-value='" + c + "']").html());
+        var b = a.csm.find("a[data-value='" + c + "']").attr("data-placeholder") || a.csm.find("a[data-value='" + c + "']").html();
+        a.si.attr("placeholder", b);
+        if ($(".search-keyboard").is(":visible") === true) {
+            if (a.csm.find("a[data-value='" + c + "']").attr("data-specialchar")) {
+                $(".search-keyboard").show().attr("data-specialchar", a.csm.find("a[data-value='" + c + "']").attr("data-specialchar"))
+            } else {
+                $(".search-keyboard").hide().removeAttr("data-specialchar")
+            }
+        }
+        if ($(".specialchar").length > 0) {
+            $(".specialchar").remove();
+            if ($(".search-keyboard").is(":visible") === true) {
+                $(".search-keyboard").click()
+            }
+        }
+    };
+    a.elem.change(function() {
+        a.refresh()
+    });
+    a.refresh();
+    a.csm.find("a").click(function() {
+        a.elem.val($(this).attr("data-value"));
+        a.elem.change();
+        a.csm.hide()
+    });
+    a.cslc.click(function() {
+        a.csm.fadeToggle(200)
+    })
+});
+$("body").mousedown(function(c) {
+    var a = $(".cs_lc");
+    var b = $(c.toElement) || $(c.relatedTarget) || $(c.target);
+    if ($(".cs_m").is(":visible") && !a.is(b) && a.has(b).length === 0) {
+        b.trigger("click")
+    }
+    if (b.hasClass("autoc-result")) {
+        b.trigger("click")
+    }
+});
+$(".search-form").on("submit",
+function() {
+    var a = $(this).find("input[name='q']").val();
+    if (a.trim() == "") {
+        return false
+    }
+    var b = $(this).find("select[name='sclb']").val();
+    ga("send", "event", "Search", b)
+});
+var stickyHeaderHandleGap = 0;
+var stickyHeaderHandleLast = 0;
+var scrollToActivate = false;
+var stickyHeaderHandle = function() {
+    if (scrollToActivate) {
+        stickyHeaderHandleLast = $(this).scrollTop();
+        return
+    }
+    var a = $(this).scrollTop() - stickyHeaderHandleLast;
+    stickyHeaderHandleGap += a;
+    if ($(this).scrollTop() > 0) {
+        $("body").addClass("headerShadow")
+    } else {
+        $("body").removeClass("headerShadow")
+    }
+    if (stickyHeaderHandleGap > 50) {
+        stickyHeaderHandleGap = 50;
+        $("body").addClass("headerMinimized")
+    } else {
+        if (a < 0) {
+            stickyHeaderHandleGap = 0;
+            $("body").removeClass("headerMinimized")
+        }
+    }
+    stickyHeaderHandleLast = $(this).scrollTop()
+};
+stickyHeaderHandle();
+$(window).scroll(stickyHeaderHandle);
+$(window).bind("hashchange",
+function(b) {
+    var a = null;
+    try {
+        a = decodeURI(location.hash)
+    } catch(b) {
+        return
+    }
+    var c = $(a);
+    if (c.length > 0) {
+        $(document).scrollTop(c.position().top - $("header.sticky").height())
+    }
+});
+$(window).trigger("hashchange");
+$(".menuPOB").click(function(a) {
+    $("body").toggleClass("cadaPlOpen")
+});
+$(".searchPB").click(function() {
+    $("body").toggleClass("searchPanelOpen");
+    $(".search-input").focus()
+});
+$(".cadaOl, .cadaPlCB").click(function() {
+    $("body").removeClass("cadaPlOpen").removeClass("socialOpen").removeClass("openSocialContainer")
+});
+$("#profile-pic-inappropriate").click(function(a) {
+    a.preventDefault();
+    $.get($(this).attr("name"));
+    $(this).replaceWith("This image submission has been flagged as inappropriate and will be investigated by the site administrator.")
+});
+$("#submission-inappropriate").click(function(a) {
+    a.preventDefault();
+    $.get($(this).attr("data-name"));
+    $(this).replaceWith("This word submission has been flagged as inappropriate and will be investigated by the site administrator.")
+});
+$(".abuse-link").click(function(a) {
+    a.preventDefault();
+    $.get($(this).attr("data-flagurl"));
+    $(this).closest(".commentRight").html("This comment has been flagged as abusive and will be investigated by the site administrator.")
+});
+$(".user_comments").on("click", "#comments-see-more",
+function() {
+    var a = jQuery(this);
+    $.ajax(a.attr("data-url"), {
+        complete: function(b) {
+            a.replaceWith(b.responseText)
+        }
+    })
+});
+$(".scrabble_menu_phone").click(function() {
+    $(".editorial-nav_full").toggle()
+});
+$("a.ref").click(function() {
+    ga("send", "event", "XRef", pageDictCode)
+});
+$(".zmenu").click(function() {
+    $(".drop").toggle()
+});
+$(".autoSubmitForm").submit();
+$(".lightboxLink").click(function() {
+    var a = $("<img class='lightboxImage' />").attr("alt", $(this).attr("data-alt")).attr("src", $(this).attr("data-image"));
+    var c = $("<div class='lightboxCopyright'></div>").text($(this).attr("data-copyright"));
+    var e = $("<a class='lightboxClose i_times'></a>");
+    var h = $("<div class='lightboxContainer'></div>").append(e).append(a).append(c);
+    var b = $("<div class='lightboxOverlay'></div>").append(h).click(function() {
+        g()
+    });
+    $("body").append(b);
+    f();
+    $(window).resize(f);
+    $(document).keyup(d);
+    function g() {
+        b.fadeOut(200,
+        function() {
+            b.remove()
+        });
+        $(window).off("resize", f);
+        $(document).off("keyup", d)
+    }
+    function f() {
+        a.css("max-width", ($(window).width() - 10) + "px");
+        a.css("max-height", ($(window).height() - 60) + "px")
+    }
+    function d(i) {
+        if (i.keyCode == 27) {
+            g()
+        }
+    }
+});
+$(window).on("load",
+function() {
+    if (document.getElementById("translate")) {
+        translatorManager()
+    }
+    if ($(".fb-like").length > 0) {
+        $("body").append("<script type='text/javascript' src='//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.0'><\/script>")
+    }
+    if ($(".twitter-follow-button").length > 0) {
+        $("body").append("<script type='text/javascript' src='//platform.twitter.com/widgets.js' async defer><\/script>")
+    }
+    if ($(".g-plusone").length > 0) {
+        $("body").append("<script type='text/javascript' src='https://apis.google.com/js/plusone.js' async defer><\/script>")
+    }
+    $(".post-link").click(function() {
+        var b = $(this).attr("data-href");
+        var c = $("meta[name='_csrf']").attr("content");
+        var a = $("meta[name='_csrf_parameter']").attr("content");
+        $("<form action='" + b + "' method='post'><input name='" + a + "' value='" + c + "'/></form>").appendTo($(document.body)).submit()
+    });
+    $(".submissions_list table").stupidtable({
+        date: function(d, c) {
+            aDate = stupidDate(d);
+            bDate = stupidDate(c);
+            return aDate - bDate
+        }
+    })
+});
+if ($("#my_url").length > 0) {
+    $("#my_url").remove()
+}
+function removeErrorMessage(b) {
+    var a = document.getElementById("profile-edit-" + b);
+    if (a.value.length > 1) {
+        document.querySelector("." + b + " .errors").style.display = "none"
+    }
+}
+function stupidDate(b) {
+    var c = new RegExp("(.*)/(.*)/(.*)");
+    var f = c.exec(b)[3];
+    var a = c.exec(b)[2];
+    var e = c.exec(b)[1];
+    return new Date(f, a, e)
+} (function() {
+    var v = 3;
+    $(".thesbase .hom .sense .blockSyn , .nr-box-syn-of-syns .sense .syns_container").each(function(y, x) {
+        $(x).find(".form.type-syn.head").each(function(A, z) {
+            if (A >= v) {
+                $(z).addClass("invisibleElements")
+            }
+        })
+    });
+    $(".thesbase .hom .sense .blockAnt").each(function(y, x) {
+        $(x).find(".type-ant div").each(function(A, z) {
+            if (A >= v) {
+                $(z).addClass("invisibleElements")
+            }
+        })
+    });
+    $(".more").click(function() {
+        var i = $(this);
+        i.toggleClass("open").parents(".sense").toggleClass(i.attr("data-change-class"))
+    }).click();
+    $(".sense").removeClass("moreinfo");
+    $(".sense .openButton").parents(".synonymBlock").click(function() {
+        var i = $(this);
+        i.find(".openButton").click()
+    });
+    $(".sense").removeClass("opened");
+    if ($(".thesbase .synonymBlock").length == 1) {
+        $(".sense").first().addClass("opened")
+    }
+    $(".sense .openButton, .sense .closeButton").click(function(i) {
+        i.stopPropagation();
+        $(this).parents(".sense").toggleClass("opened");
+        ga("send", "event", "Thesaurus", $(this).parents(".sense").hasClass("opened") ? "ShowSense": "HideSense")
+    });
+    var u;
+    var k = function() {
+        clearTimeout(u);
+        $(".socialOpen, .openSocialContainer").removeClass("socialOpen").removeClass("openSocialContainer");
+        $(".socialButtons").removeAttr("style")
+    };
+    $(window).click(k);
+    var h = $(".shiyi_content>*").first();
+    var d = $('<div class="tabsNavigation"/>');
+    var s = $('<div class="navigation"/>');
+    s.append(d);
+    if (h.hasClass("entry_title")) {
+        s.insertAfter(h)
+    } else {
+        s.insertBefore(h)
+    }
+    var l = $(".hom .sense .sensehead .key");
+    for (var r = 0; r < l.length; r++) {
+        var b = l[r];
+        var p = $(b).parents(".sense");
+        var e = $(p).siblings(".h2_entry").first().text();
+        var g = b.innerText;
+        if (e) {
+            if (e.length > 4) {
+                e = e.substring(0, 3) + "."
+            }
+            g += " <i>" + e + "</i>"
+        }
+        p.attr("data-type-block", g)
+    }
+    $(".thesbase > *[data-type-block]").each(function(x, B) {
+        var A = $(B);
+        var y = A;
+        var z = [];
+        z.push(y);
+        while (y.next().length > 0 && y.next().find("*[data-type-block]").length == 0 && y.next().not("[data-type-block]").length > 0) {
+            y = y.next();
+            z.push(y)
+        }
+        if (z.length > 1) {
+            $("<div/>").attr("data-type-block", A.attr("data-type-block")).insertBefore(A).append(z);
+            A.removeAttr("data-type-block")
+        }
+    });
+    var m;
+    function t(y, i) {
+        var x = "";
+        if (y.attr(i)) {
+            x = y.attr(i)
+        }
+        return x
+    }
+    function a(x, i, z) {
+        var y = x.replace(":", "").trim();
+        if (i && i != "") {
+            y += ": " + i
+        }
+        if (z && z != "") {
+            y += "<span class='expo'>" + z + "</span>"
+        }
+        return y
+    }
+    $("*[data-type-block]").each(function(y, x) {
+        var C = $(x);
+        var A = t(C, "data-type-block");
+        var D = t(C, "data-title-block");
+        var B = t(C, "data-num-block");
+        if (A === "") {
+            return
+        }
+        if (d.find("*[data-type-block-tab='" + A.replace(/'/g, "\\'") + "'][data-title-block-tab='" + D.replace(/'/g, "\\'") + "'][data-num-block-tab='" + B.replace(/'/g, "\\'") + "']").length === 0) {
+            var z = $("<a class='tab'></a>");
+            z.attr("data-type-block-tab", A);
+            z.attr("data-title-block-tab", D);
+            z.attr("data-num-block-tab", B);
+            z.html(a(A, D, B));
+            C.data("tab", z);
+            d.append(z.data("block", C).click(function() {
+                clearTimeout(m);
+                scrollToActivate = true;
+                var E = $(this);
+                $(".navigation .current").removeClass("current");
+                E.addClass("current");
+                var i = $(".sticky").height() + $(this).parents(".tabsNavigation").height();
+                $("html,body").animate({
+                    scrollTop: E.data("block").offset().top - i - 7
+                },
+                {
+                    duration: 300,
+                    complete: function() {
+                        scrollToActivate = false
+                    }
+                })
+            }))
+        }
+    });
+    s.append($("<a class='tab nav left i_caret-left' data-type-tab-nav='left'></a>"));
+    s.append($("<a class='tab nav right i_caret-right' data-type-tab-nav='right'></a>"));
+    function c() {
+        if ($(".tabsNavigation").length === 0) {
+            return
+        }
+        var z = $(".navigation[data-position!='fixed']");
+        var y = $(".navigation[data-position='fixed']");
+        var x = $(".sticky").height();
+        var i = z.width();
+        if (y.length > 0) {
+            y.css({
+                top: x,
+                width: i
+            })
+        }
+        if ((($(window).scrollTop() + x) - z.position().top) >= 0) {
+            if (y.length > 0) {
+                return
+            } else {
+                var A = z.clone(true, true).attr("data-position", "fixed").css({
+                    top: x,
+                    width: i
+                });
+                $(".res_c_center_content").append(A);
+                A.find(".tabsNavigation").scrollLeft(z.find(".tabsNavigation").scrollLeft())
+            }
+        } else {
+            if (y.length > 0) {
+                z.find(".tabsNavigation").scrollLeft(y.find(".tabsNavigation").scrollLeft());
+                y.remove()
+            }
+        }
+        $(".current").attr("data-position", $(window).scrollTop())
+    }
+    var isNormalScreen = true;
+    function w() {
+        if (s.width() >= d.prop("scrollWidth") || !isNormalScreen) {
+            $(".navigation .nav").hide();
+            $(".tabsNavigation").css({
+                "overflow-x": "auto"
+            });
+            return
+        } else {
+            $(".tabsNavigation").removeAttr("style")
+        }
+        var i = d.prop("scrollWidth") - s.width();
+        var x = d.scrollLeft();
+        $(".navigation .nav").show();
+        if (x === 0) {
+            $(".navigation .left").hide()
+        }
+        if (x == i) {
+            $(".navigation .right").hide()
+        }
+    }
+    var j = false;
+    $(".navigation .nav").on("click",
+    function() {
+        if (j) {
+            return
+        }
+        var x = $(".tabsNavigation:visible *[data-type-block-tab]");
+        var E = $(".tabsNavigation").scrollLeft();
+        var F = $(".tabsNavigation").width();
+        var D = 0;
+        var G = $(".tabsNavigation").prop("scrollWidth");
+        if ($(this).hasClass("left")) {
+            D = G;
+            var z;
+            for (var B = x.length - 1; B >= 0; B--) {
+                var A = $(x[B]);
+                z = A;
+                var y = A.outerWidth();
+                var C = A.position().left - $(this).width();
+                if (E < C) {
+                    continue
+                }
+                D = C;
+                if (E - F < C) {
+                    D = E;
+                    continue
+                }
+                if (E - F > C) {
+                    break
+                }
+            }
+            if (z.parent().children().first().length > 0 && z.parent().children().first()[0] == z[0]) {
+                D = 0
+            }
+        } else {
+            D = G;
+            for (var B = 0; B < x.length; B++) {
+                var A = $(x[B]);
+                var y = A.outerWidth();
+                var C = A.position().left - $(this).width();
+                if (E > C) {
+                    continue
+                }
+                D = C;
+                if (E + F > C + y) {
+                    D = E + F;
+                    continue
+                }
+                if (E + F < C + y) {
+                    break
+                }
+            }
+        }
+        j = true;
+        if (D > G) {
+            D = G
+        }
+        if (D < 0) {
+            D = 0
+        }
+        $(".tabsNavigation").animate({
+            scrollLeft: D
+        },
+        {
+            duration: 300,
+            complete: function() {
+                j = false
+            }
+        })
+    });
+    var f = $("*[data-type-block]");
+    function q() {
+        if (scrollToActivate) {
+            return
+        }
+        var z = f;
+        var H = $(".tabsNavigation");
+        var D = $(window).scrollTop();
+        var i = z.filter(function() {
+            if (!$(this).data("tab")) {
+                return false
+            }
+            var J = $(this).data("tab").data("block");
+            return J.offset().top + J.height() - $(".sticky").height() - $(".tabsNavigation:visible").parent().height() >= D
+        });
+        if (i.length > 0) {
+            z = i
+        }
+        var C = z.first();
+        var A = t(C, "data-type-block");
+        var B = t(C, "data-title-block");
+        var G = t(C, "data-num-block");
+        var E = H.parent().find(".current");
+        if (E.attr("data-type-block-tab") == A && E.attr("data-title-block-tab") == B && E.attr("data-num-block-tab") == G) {
+            return
+        }
+        H.parent().find("*[data-type-block-tab]").removeClass("current");
+        var I = "*[data-type-block-tab='" + A.replace(/'/g, "\\'") + "']";
+        I += "[data-title-block-tab='" + B.replace(/'/g, "\\'") + "']";
+        I += "[data-num-block-tab='" + G.replace(/'/g, "\\'") + "']";
+        var y = H.find(I);
+        if (y.length == 0) {
+            return
+        }
+        var x = H.find(I).addClass("current");
+        var F = ($(".navigation .nav:visible").length == 0) ? 0 : $(".navigation .nav:visible").outerWidth();
+        H.scrollLeft(0).scrollLeft(x.position().left - F)
+    } (function() {
+        var y = 0;
+        var z = ["ms", "moz", "webkit", "o"];
+        for (var i = 0; i < z.length && !window.requestAnimationFrame; ++i) {
+            window.requestAnimationFrame = window[z[i] + "RequestAnimationFrame"];
+            window.cancelAnimationFrame = window[z[i] + "CancelAnimationFrame"] || window[z[i] + "CancelRequestAnimationFrame"]
+        }
+        if (!window.requestAnimationFrame) {
+            window.requestAnimationFrame = function(D, A) {
+                var x = new Date().getTime();
+                var B = Math.max(0, 16 - (x - y));
+                var C = window.setTimeout(function() {
+                    D(x + B)
+                },
+                B);
+                y = x + B;
+                return C
+            }
+        }
+        if (!window.cancelAnimationFrame) {
+            window.cancelAnimationFrame = function(x) {
+                clearTimeout(x)
+            }
+        }
+    } ());
+    function n() {
+        c();
+        w();
+        q();
+        if ($(".tabsNavigation").children().length > 0) {
+            requestAnimationFrame(n)
+        }
+    }
+    n()
+})(); (function() {
+    $(".yczsl.toc-box a").each(function() {
+        if ($(this).next("ul").length > 0) {
+            $(this).prepend("<a class='toggleButton'></a>")
+        }
+    });
+    $(".yczsl.toc-box .toggleButton").click(function(a) {
+        $(this).parent().parent().toggleClass("current");
+        a.preventDefault();
+        a.stopPropagation()
+    });
+    if (typeof highlightUrl !== "undefined") {
+        $(".yczsl.toc-box a[href='" + highlightUrl + "']").addClass("current").parents("li").addClass("current");
+        $(".breadcrumb a").each(function() {
+            $(".yczsl.toc-box a[href='" + $(this).attr("href") + "']").parents("li").addClass("current")
+        })
+    }
+})();
+$(".nr-box-shiyi.xxjs .cit.type-xxjs").each(function() {
+    var d = $(this);
+    var c = d.find(".xxjscz_box");
+    var b = d.find(".crefe");
+    if (c.length == 0 && b.length > 0) {
+        var g = d.children();
+        var f = [];
+        g.each(function() {
+            var i = $(this);
+            if (i.is(".crefe") && f.length > 0) {
+                d.append($("<span class='xxjscz_box'></span>").append(f));
+                f = []
+            }
+            f.push(i)
+        });
+        d.append($("<span class='xxjscz_box'></span>").append(f))
+    }
+    var a = 10;
+    var c = d.find(".xxjscz_box");
+    if (c.length > a) {
+        var e = $("<a class='button'>\u663E\u793A\u66F4\u591A...</a>");
+        var h = $("<span class='xxjscz_overflow'></span>").hide();
+        h.append(c.slice(a));
+        d.append(h);
+        d.append(e);
+        e.click(function() {
+            $(this).hide();
+            h.fadeIn()
+        })
+    }
+});
+
+$("body").on("click", ".audio_play_button",
+function() {
+    var d = $(this).attr("data-src-mp3");
+    var g = $(this).attr("data-lang");
+    var c = false;
+    try {
+        var b = document.createElement("audio");
+        c = b.canPlayType && b.canPlayType("audio/mpeg") != "no" && b.canPlayType("audio/mpeg") != ""
+    } catch(f) {}
+    if (!c) {
+        window.open(d, "Sound", "menubar=no, status=no, scrollbars=no, menubar=no, width=200, height=100");
+        ga("send", "event", "Sound", g, "Popup");
+        return
+    }
+    if (window.audio != null && !window.audio.ended) {
+        window.audio.pause();
+        window.audio.currentTime = 0
+    }
+    window.audio = new Audio(d);
+    audio.addEventListener("error",
+    function(a) {
+        alert("Apologies, the sound is not available." + JSON.stringify(a));
+        ga("send", "event", "Sound", g, "Error")
+    });
+    audio.play();
+    ga("send", "event", "Sound", g, "HTML5")
+});
+
+$(document).ready(function() {
+    $(window).bind("scroll",
+    function(a) {
+        fixedSeachBar()
+    })
+});
+
+function fixedSeachBar() {
+    var a = $("body");
+    if ($(window).scrollTop() >= $(".sticky").height()) {
+        a.addClass("fixed")
+    } else {
+        a.removeClass("fixed")
+    }
+}
+function getObjTarget(e) {
+    var d;
+    if (typeof e == "object") {
+        d = e.hash.replace("!", "\\!");
+        if (d == "") {
+            return {
+                target: $("body"),
+                top: 0
+            }
+        }
+    } else {
+        if (typeof e == "string") {
+            d = "#" + e
+        } else {
+            return undefined
+        }
+    }
+    d = decodeURI(d);
+    if ($(d).offset() === undefined) {
+        return undefined
+    }
+    var a = $(d);
+    var c = a.offset().top;
+    var b = $(".sticky").height();
+    if (a.offset().top >= b) {
+        c -= b
+    }
+    if (a.offset().top <= b) {
+        c = b
+    }
+    return {
+        target: d,
+        top: c
+    }
+}
+function goToAnchor() {
+    var c = new String(window.location);
+    var a = c.split("#");
+    if (a.length > 1) {
+        var d = a[1];
+        d = decodeURI(d);
+        var b = getObjTarget(d);
+        if (b === undefined) {
+            return
+        }
+        goToPos(b, 0)
+    }
+}
+function goToPos(a, b) {
+    $("html, body").stop().animate({
+        scrollTop: a.top
+    },
+    b, "swing",
+    function() {
+        if (a.target.selector == "body") {
+            window.location.hash = ""
+        } else {
+            window.location.hash = a.target
+        }
+        if ($(document).scrollTop() != a.top) {
+            $(document).scrollTop(a.top)
+        }
+    })
+}; (function(c) {
+    c.fn.stupidtable = function(b) {
+        return this.each(function() {
+            var a = c(this);
+            b = b || {};
+            b = c.extend({},
+            c.fn.stupidtable.default_sort_fns, b);
+            a.data("sortFns", b);
+            a.on("click.stupidtable", "thead th",
+            function() {
+                c(this).stupidsort()
+            })
+        })
+    };
+    c.fn.stupidsort = function(b) {
+        var a = c(this),
+        g = 0,
+        f = c.fn.stupidtable.dir,
+        e = a.closest("table"),
+        k = a.data("sort") || null;
+        if (null !== k) {
+            a.parents("tr").find("th").slice(0, c(this).index()).each(function() {
+                var a = c(this).attr("colspan") || 1;
+                g += parseInt(a, 10)
+            });
+            var d;
+            1 == arguments.length ? d = b: (d = b || a.data("sort-default") || f.ASC, a.data("sort-dir") && (d = a.data("sort-dir") === f.ASC ? f.DESC: f.ASC));
+            if (a.data("sort-dir") !== d) return a.data("sort-dir", d),
+            e.trigger("beforetablesort", {
+                column: g,
+                direction: d
+            }),
+            e.css("display"),
+            setTimeout(function() {
+                var b = [],
+                l = e.data("sortFns")[k],
+                h = e.children("tbody").children("tr");
+                h.each(function(a, d) {
+                    var e = c(d).children().eq(g),
+                    f = e.data("sort-value");
+                    "undefined" === typeof f && (f = e.text(), e.data("sort-value", f));
+                    b.push([f, d])
+                });
+                b.sort(function(a, b) {
+                    return l(a[0], b[0])
+                });
+                d != f.ASC && b.reverse();
+                h = c.map(b,
+                function(a) {
+                    return a[1]
+                });
+                e.children("tbody").append(h);
+                e.find("th").data("sort-dir", null).removeClass("sorting-desc sorting-asc");
+                a.data("sort-dir", d).addClass("sorting-" + d);
+                e.trigger("aftertablesort", {
+                    column: g,
+                    direction: d
+                });
+                e.css("display")
+            },
+            10),
+            a
+        }
+    };
+    c.fn.updateSortVal = function(b) {
+        var a = c(this);
+        a.is("[data-sort-value]") && a.attr("data-sort-value", b);
+        a.data("sort-value", b);
+        return a
+    };
+    c.fn.stupidtable.dir = {
+        ASC: "asc",
+        DESC: "desc"
+    };
+    c.fn.stupidtable.default_sort_fns = {
+        "int": function(b, a) {
+            return parseInt(b, 10) - parseInt(a, 10)
+        },
+        "float": function(b, a) {
+            return parseFloat(b) - parseFloat(a)
+        },
+        string: function(b, a) {
+            return b.toString().localeCompare(a.toString())
+        },
+        "string-ins": function(b, a) {
+            b = b.toString().toLocaleLowerCase();
+            a = a.toString().toLocaleLowerCase();
+            return b.localeCompare(a)
+        }
+    }
+})(jQuery);
+$(".wytl").hide();
+$(document).ready(function() {  
+    var currentAudio = null; 
+    $('.cd_au').click(function(e) {  
+        e.preventDefault(); 
+        if (currentAudio && !currentAudio.paused) {  
+            return;  
+        }  
+        var pinyinArray = $(this).attr('title').split(' '); 
+        var baseUrl = 'https://img.zdic.net/audio/zd/py/'; 
+        function playAudio(index) {  
+            if (index >= pinyinArray.length) {  
+                currentAudio = null;  
+                return;  
+            }  
+            var pinyin = pinyinArray[index];  
+            var audioUrl = baseUrl + pinyin + '.mp3'; 
+            var audio = new Audio(audioUrl);  
+            currentAudio = audio; 
+            audio.onended = function() {  
+                playAudio(index + 1);  
+            };  
+            audio.play()  
+                .then(() => {  
+                    console.log(`${pinyin}.mp3 Played successfully`);  
+                })  
+                .catch(error => {  
+                    console.error(`unplayable ${pinyin}.mp3`, error);  
+                    playAudio(index + 1);  
+                });  
+  
+        }  
+        playAudio(0);  
+    });  
+});
+
+$(document).ready(function() {
+    $("#w_b_1").click(function() {
+        var classid = $(this).data("classid");
+        var id = $(this).data("id");
+        $("#iframe").attr("src", "/e/extend/lgyPl/?id=" + id + "&classid=" + classid);
+        var thisheight = $("#iframe").contents().find("body").height() + 30;
+        $("#iframe").height(thisheight < 500 ? 500 : thisheight)
+    });
+    $("#w_b_2").click(function() {
+        var tid = $(this).data("tid");
+        $("#iframe").attr("src", "https://bbs.zdic.net/rs2.php?tid=" + tid)
+    })
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>same-margin-for-puffs.html</title>
+</head>
+<body>
+
+<script>
+/**
+ * This script lives in https://tfs.its.uu.se/DefaultCollection/Webbplattform/_git/misc-js
+ *
+ * This Javascript will add classes to puffs and rows with puffs to be used to reduce
+ * the margin of puffs of the same type
+ */
+
+function addPuffClasses() {
+  const PAGECONTENT_SELECTOR = '.pagecontent';
+  const PUFF_SELECTOR = '.sv-se-uu-uit-webb-puff';
+  const PUFF_CALL_TO_ACTION_SELECTOR = `${PUFF_SELECTOR} .card.card-call-to-action`;
+  const PUFF_IMAGE_SELECTOR = `${PUFF_SELECTOR} .card.is-no-text-decoration`;
+  const COLUMN_6_SELECTOR = '.sv-column-6';
+  const COLUMN_4_SELECTOR = '.sv-column-4';
+  const COLUMN_3_SELECTOR = '.sv-column-3';
+
+  const LAYOUT_CLASS = 'sv-layout';
+  const ROW_PUFF_CALL_TO_ACTION_CLASS = 'row-puff-call-to-action';
+  const ROW_PUFF_IMAGE_CLASS = 'row-puff-image';
+  const ROW_MIXED_CONTENT_CLASS = 'row-mixed_content';
+  const PUFF_CALL_TO_ACTION_CLASS = 'puff-call-to-action';
+  const PUFF_IMAGE_CLASS = 'puff-image';
+  const PUFF_2_CLASS = 'puff-2';
+  const PUFF_3_CLASS = 'puff-3';
+  const PUFF_4_CLASS = 'puff-4';
+
+  /**
+   * Check if every non-layout node, including children, of given layout node has given type
+   * as a class
+   */
+  function checkContentTypes(layoutNode, type) {
+    const nodes = Array.from(layoutNode.children);
+    if (nodes.length === 0) {
+      return null;
+    }
+    return nodes.every((node) => {
+      if (node.classList.contains(LAYOUT_CLASS)) {
+        return checkContentTypes(node, type);
+      }
+      return node.classList.contains(type);
+    });
+  }
+
+  /**
+   * Add a class for number of puffs in a row
+   */
+  function addNumberOfPuffsClass(row) {
+    if (row.querySelector(COLUMN_6_SELECTOR) !== null) {
+      row.classList.add(PUFF_2_CLASS);
+    } else if (row.querySelector(COLUMN_4_SELECTOR) !== null) {
+      row.classList.add(PUFF_3_CLASS);
+    } else if (row.querySelector(COLUMN_3_SELECTOR) !== null) {
+      row.classList.add(PUFF_4_CLASS);
+    }
+  }
+
+  // First, for every puff, add a class to indicate whether it is a call to action or image puff
+  document.querySelectorAll(PUFF_SELECTOR).forEach((puff) => {
+    if (puff.querySelector(PUFF_CALL_TO_ACTION_SELECTOR) !== null) {
+      puff.classList.add(PUFF_CALL_TO_ACTION_CLASS);
+    }
+    if (puff.querySelector(PUFF_IMAGE_SELECTOR) !== null) {
+      puff.classList.add(PUFF_IMAGE_CLASS);
+    }
+  });
+
+  // Then, for every pagecontent row, add classes to indicate whether it is a row of only
+  // call to action puffs, only image puffs or mixed content. Also, for every row of puffs, add
+  // a class for the number of puffs in the row.
+  document.querySelectorAll(PAGECONTENT_SELECTOR).forEach((pagecontent) => {
+    // Check content types and add classes for every layout child of pagecontent
+    Array.from(pagecontent.children).forEach((row) => {
+      if (row.classList.contains(LAYOUT_CLASS)) {
+        if (checkContentTypes(row, PUFF_CALL_TO_ACTION_CLASS)) {
+          row.classList.add(ROW_PUFF_CALL_TO_ACTION_CLASS);
+          addNumberOfPuffsClass(row);
+        } else if (checkContentTypes(row, PUFF_IMAGE_CLASS)) {
+          row.classList.add(ROW_PUFF_IMAGE_CLASS);
+          addNumberOfPuffsClass(row);
+        } else {
+          row.classList.add(ROW_MIXED_CONTENT_CLASS);
+        }
+      }
+    });
+  });
+}
+
+addPuffClasses();
+
+</script>
+
+</body>
+</html>

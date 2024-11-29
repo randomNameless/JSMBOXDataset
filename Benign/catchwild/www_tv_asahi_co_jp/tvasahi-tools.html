@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>tvasahi-tools.html</title>
+</head>
+<body>
+
+<script>
+/**
+ * ログ関連で使用するAjaxユーティリティ
+ * (c) tv-asahi.co.jp
+ */
+(function(window) {
+	var tvasahiTools = function() {
+		tvasahiTools.prototype.init.apply(this, arguments);
+	};
+	tvasahiTools.convertHttpQueryString = function (data) {
+		var type = typeof data;
+		switch (type) {
+		case "string":
+			return data;
+		case "object":
+			var i, res = "";
+			for (i in data) res += encodeURIComponent(i) + "=" + encodeURIComponent(data[i]) + "&";
+			return res.slice(0, -1);
+		default:
+			return "";
+		}
+	};
+	tvasahiTools.convertVariousTypeText = function (dataType, text) {
+		if (text === "") return "";
+		switch (dataType) {
+		case "json":
+			return JSON.parse(text);
+			break;
+		case "xml":
+			if (window.DOMParser) {
+				var parser = new DOMParser();
+				return parser.parseFromString(text, "text/xml");
+			} else {
+				var xobject = new ActiveXObject("Microsoft.XMLDOM");
+				xobject.async = "false";
+				xobject.loadXML(text);
+				return xobject;
+			}
+		case "text":
+		default:
+			return text;
+			break;
+		}
+	};
+	tvasahiTools.prototype = {
+		isXDomain:false,
+		XMLHttpFactories:[
+			function(){ return new XMLHttpRequest(); },
+			function(){ return new ActiveXObject("Msxml2.XMLHTTP"); },
+			function(){ return new ActiveXObject("Msxml3.XMLHTTP"); },
+			function(){ return new ActiveXObject("Microsoft.XMLHTTP"); },
+		],
+		init: function () {},
+		createObject: function () {
+			var i = 0, xmlhttp = false;
+			if (typeof window.XDomainRequest === "object") {
+			// for IE8/9
+				this.isXDomain = true;
+				return new XDomainRequest();
+			}
+			for (i;i < this.XMLHttpFactories.length; i++) {
+				try {
+					xmlhttp = this.XMLHttpFactories[i]();
+				} catch (e) {
+					continue;
+				}
+				break;
+			}
+			return xmlhttp;
+		},
+		ajax: function (settings) {
+			// ajax
+			var xmlhttp  = this.createObject();
+			var type     = settings.type     || "GET"  ;
+			var url      = settings.url      || null   ;
+			var timeout  = settings.timeout  || 1   ;
+			var dataType = settings.dataType || "text" ;
+			var data     = settings.data     || null   ;
+			var success  = settings.success  || function(){} ;
+			var error    = settings.error    || function(){} ;
+			var withCredentials = settings.withCredentials || true;
+			if (!xmlhttp) return error("XHR none.");
+			// URL setting
+			var addstr = "";
+			if (data && type === "GET") {
+				data = tvasahiTools.convertHttpQueryString(data);
+				addstr = (url.indexOf("?") != -1) ? "&" : "?" ;
+				url += addstr + data;
+				data = null;
+			}
+			addstr = (url.indexOf("?") != -1) ? "&" : "?" ;
+			url += addstr + "_t=" + (+new Date());
+			// AjaxRequest
+			xmlhttp.open(type, url, true);
+			xmlhttp.timeout = timeout;
+			if (!this.isXDomain) {
+				xmlhttp.setRequestHeader("Accept", "application/json, text/javascript, */*");
+				xmlhttp.onreadystatechange = function() {
+					if (xmlhttp.readyState != 4) return;
+					if (xmlhttp.status != 200 && xmlhttp.status != 304) {
+						return error("HTTP error " + xmlhttp.status);
+					}
+					try{
+						success(tvasahiTools.convertVariousTypeText(dataType, this.responseText));
+					} catch (e) {
+						error(e.message);
+					}
+				};
+			} else {
+				xmlhttp.onerror = function(){
+					error("Handle Error");
+				};
+				xmlhttp.onload = function () {
+					success(tvasahiTools.convertVariousTypeText(dataType, this.responseText));
+				};
+			}
+			if (type === "POST") {
+				data = tvasahiTools.convertHttpQueryString(data);
+				xmlhttp.setRequestHeader("Content-type" ,"application/x-www-form-urlencoded");
+			}
+			xmlhttp.withCredentials = withCredentials;
+			xmlhttp.send(data);
+		},
+	};
+	window.tvasahiTools = tvasahiTools;
+})(window);
+</script>
+
+</body>
+</html>

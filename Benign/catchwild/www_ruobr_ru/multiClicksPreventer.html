@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>multiClicksPreventer.html</title>
+</head>
+<body>
+
+<script>
+"use strict";
+
+function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } else { return Array.from(arr); } }
+
+function singleClick() {
+    var baseClick = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : function (resolve) {
+        return resolve();
+    };
+    var buttonName = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : "unnamedButton";
+
+    if (!window[buttonName + "Pressed"]) {
+        var lock = function lock() {
+            window[buttonName + "Pressed"] = true;
+            iziToast.show({
+                class: "izi" + buttonName + "Toast",
+                color: "#008cba",
+                theme: "dark",
+                position: 'center',
+                timeout: false,
+                title: 'Идет отправка данных',
+                close: false,
+                displayMode: 1,
+                image: '/static/img/loader_orange.svg',
+                drag: false,
+                overlay: true,
+                messageLineHeight: '200px',
+                zindex: 999999
+            });
+        };
+
+        var unlock = function unlock() {
+            window[buttonName + "Pressed"] = false;
+            [].concat(_toConsumableArray(document.querySelectorAll(".izi" + buttonName + "Toast"))).forEach(function (toast) {
+                return iziToast.hide({}, toast);
+            });
+        };
+
+        lock();
+        if (typeof Promise === "undefined" && Promise.toString().indexOf("[native code]") === -1) {
+            console.warn("Промисов нет");
+            baseClick();
+            // Если не повезло, то мы разблокировали кнопку рано, но ждать они будут ооооочень долго
+            setTimeout(function () {
+                unlock();
+            }, 15000);
+        } else new Promise(function (resolve) {
+            baseClick(resolve);
+        }).then(function () {
+            return unlock();
+        });
+    }
+}
+</script>
+
+</body>
+</html>

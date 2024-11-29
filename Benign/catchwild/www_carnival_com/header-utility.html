@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>header-utility.html</title>
+</head>
+<body>
+
+<script>
+(function ($, Carnival) {
+    Carnival = Carnival || {};
+    if (!Carnival.headerAdvisories) Carnival.headerAdvisories = {};
+    if (!Carnival.cookieHelper) Carnival.cookieHelper = {};
+    if (!Carnival.domainNotifCookie) Carnival.domainNotifCookie = {};
+    if (!Carnival.loginUtility) Carnival.loginUtility = {};
+
+    var advisories = {};
+    var cookiehelper = {};
+    var notifCookie = {};
+    var loginUtil = {};
+
+    var headerDataHelper = {
+        get: function() {
+            return JSON.parse(decodeURIComponent($.cookie('cclHeader') || '{}'));
+        },
+        set: function(data, options) {
+            var cookieOptions = $.extend(cookiehelper.getCookieOptions(), options);
+            $.cookie('cclHeader', encodeURIComponent(JSON.stringify(data)), cookieOptions);
+        },
+        removeOldCookies: function () {
+            function removeCooke(key, options) {
+                if ($.cookie(key) !== null) {
+                    $.cookie(key, null, options);
+                    return true;
+                }
+                return false;
+            }
+
+            var cookieOptions = cookiehelper.getCookieOptions();
+            removeCooke(advisories.travelAdvisoryCookieName, cookieOptions);
+            removeCooke(advisories.travelAdvisoryCheckCookie, cookieOptions);
+            removeCooke(notifCookie.domainNotifCookieName, cookieOptions);
+		},      
+        detectIE: function () {
+	        var ua = window.navigator.userAgent;
+
+	        // Test values; Uncomment to check result …
+
+	        // IE 10
+	        // ua = 'Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.2; Trident/6.0)';
+
+	        // IE 11
+	        // ua = 'Mozilla/5.0 (Windows NT 6.3; Trident/7.0; rv:11.0) like Gecko';
+
+	        // Edge 12 (Spartan)
+	        // ua = 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.71 Safari/537.36 Edge/12.0';
+
+	        // Edge 13
+	        // ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2486.0 Safari/537.36 Edge/13.10586';
+
+	        var msie = ua.indexOf('MSIE ');
+	        if (msie > 0) {
+		        // IE 10 or older => return version number
+		        return parseInt(ua.substring(msie + 5, ua.indexOf('.', msie)), 10);
+	        }
+
+	        var trident = ua.indexOf('Trident/');
+	        if (trident > 0) {
+		        // IE 11 => return version number
+		        var rv = ua.indexOf('rv:');
+		        return parseInt(ua.substring(rv + 3, ua.indexOf('.', rv)), 10);
+	        }
+
+	        var edge = ua.indexOf('Edge/');
+	        if (edge > 0) {
+		        // Edge (IE 12+) => return version number
+		        return parseInt(ua.substring(edge + 5, ua.indexOf('.', edge)), 10);
+	        }
+
+	        // other browser
+	        return false;
+        }
+    
+    };
+
+    advisories.travelAdvisoryCookieName = 'CCLTravelAdvisoryCookie';
+    advisories.travelAdvisoryCookieNamePrefix = 'TravelAdvisory';
+    advisories.travelAdvisoryCheckCookie = 'travelAdvisoryCheckCookie';
+    advisories.cacheHeaderAdvisories = true;
+
+    notifCookie.domainNotifCookieName = 'CCLdomainNotifCookie';
+    notifCookie.domainNotifCookieNamePrefix = 'DomainNotif';
+
+    /*--------- domainNotifCookieName ----------------- -*/
+    notifCookie.setDomainNotifCookie = function (data) {
+        var headerData = headerDataHelper.get();
+        headerData.DomainNotification = data;
+        headerDataHelper.set(headerData, {secure: true, domain: cookiehelper.getCookieDomain() });
+    };
+
+    notifCookie.getDomainNotifCookie = function () {
+        return headerDataHelper.get().DomainNotification || $.cookie(notifCookie.domainNotifCookieName);
+    };
+
+    notifCookie.getParameterByName = function (name) {
+        name = name.replace(/[\[]/, "\\\[").replace(/[\]]/, "\\\]");
+        var regex = new RegExp("[\\?&]" + name + "=([^&#]*)"),
+        results = regex.exec(location.search);
+        return results == null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
+    };
+
+    notifCookie.dynamicallyLoadDomainNotification = function (ctx, wrapperSelector, closebuttonSelector, parentSelector) {
+        var domainNotifContentWebMethodUrl = "/Service/RenderHeaderAdvisoryContent.aspx/GetDomainNotifContent";
+        var jsonData = {
+            "ip": JSON.stringify(notifCookie.getParameterByName('ip')),
+            "geo-country-code": notifCookie.getParameterByName('geo-country-code'),
+            "geo-region-code": notifCookie.getParameterByName('geo-region-code'),
+            "geo-city": notifCookie.getParameterByName('geo-city'),
+            "geo-metro-code": notifCookie.getParameterByName('geo-metro-code')
+        };
+
+        // asynchrounously load header flyout content for tab with tabId from RenderHeaderFlyoutContent.aspx/GetHeaderFlyoutContent web method
+        $.ajax({
+            type: "GET",
+            url: domainNotifContentWebMethodUrl,
+            data: jsonData,
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
+            success: function (response) {
+                //populate the Notification data in the header
+                var $advisoryWrapper = ctx.find(wrapperSelector);
+
+                if (response.d) {
+                    $advisoryWrapper.css("visibility", "inherit").css("height", "auto").html(response.d);
+                }
+                    //P2#902713: If the fist call to this API is blank means the user is not in configured domain, So no need to make this again.
+                else {
+                    notifCookie.setDomainNotifCookie('false');
+                }
+
+                //////////////////////////////////////////////////////
+                // "hide" notif bar
+                //////////////////////////////////////////////////////	
+                ctx.find(closebuttonSelector).click(function () {
+                    $(this).parents(parentSelector).slideUp("fast");
+                    $(this).parents(wrapperSelector).css("visibility", "hidden");
+                    notifCookie.setDomainNotifCookie('false');
+                    return false;
+                });
+
+                if (!notifCookie.getDomainNotifCookie()) {
+                    notifCookie.setDomainNotifCookie('set');
+                }
+            },
+            error: function () {
+                var error = "error";
+            }
+        });
+    };
+    /*--------- domainNotifCookieName end----------------- -*/
+
+    /*--------- advisories ----------------- -*/
+    advisories.getTravelAdvisoryCheck = function () {
+        return headerDataHelper.get().TravelAdvisoryCheck || $.cookie(advisories.travelAdvisoryCheckCookie);
+    };
+
+    advisories.setTravelAdvisoryCheck = function (data) {
+        var date = new Date();
+        var minutes = data;
+        date.setTime(date.getTime() + (minutes * 60 * 1000));
+        
+        var headerData = headerDataHelper.get();
+        headerData.TravelAdvisoryCheck = 'Wait_For_Minutes_' + data;
+        headerDataHelper.set(headerData, {secure: true, domain: cookiehelper.getCookieDomain(), expires: date });
+
+    }
+
+    advisories.dynamicallyLoadAdvisoryContent = function (data, ctx, advisoryWrapperSelector, innerWrapperSelector, closeBtnSelector, isMobileHeader) {
+        var isMobileQs = isMobileHeader ? "?IsMobileHeader=true" : "";
+        var advisoryContentWebMethodUrl = "/Service/RenderHeaderAdvisoryContent.aspx/GetHeaderAdvisoryContent" + isMobileQs;
+
+        if (isMobileHeader && !window.Mobify) {
+            return;
+        }
+
+        // asynchrounously load header flyout content for tab with tabId from RenderHeaderFlyoutContent.aspx/GetHeaderFlyoutContent web method
+        if (data == '{}') data = '';
+
+        console.log("cacheHeaderAdvisories: " + advisories.cacheHeaderAdvisories);
+
+        $.ajax({
+            type: "GET",
+            cache: advisories.cacheHeaderAdvisories,
+            ifModified: advisories.cacheHeaderAdvisories,
+            url: advisoryContentWebMethodUrl,
+            data: data,
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
+            success: function (response) {
+                //populate the advisory data in the header
+                var $advisoryWrapper = ctx.find(advisoryWrapperSelector);
+                if (response.d) {
+                    $advisoryWrapper.css("visibility", "inherit").css("height", "auto").html(response.d);
+                }
+                else {
+                    // If there are NO advisories then do not check for next 10 mins 
+                    advisories.setTravelAdvisoryCheck('15');
+                }
+
+
+                //////////////////////////////////////////////////////
+                // "hide" message bar
+                //////////////////////////////////////////////////////	
+                ctx.find(closeBtnSelector).click(function () {
+
+                    advisories.hideTravelAdvisory($(this).parents(innerWrapperSelector));
+
+                    return false;
+                });
+
+                ctx.find(".message-bar-read.more").click(function () {
+                    var $this = $(this);
+                    var $advisory = $(this).parents(innerWrapperSelector);
+                    $advisory.addClass("expanded");
+                    $advisory.removeClass("collapsed");
+
+                    var $link = $advisory.find("a.ccl-advisory-link");
+                    if ($link.length > 0) {
+                        $link.focus();
+                    } else {
+                        $advisory.find("div.ccl-advisory-link a:first").focus();
+                    }
+
+                    $(document).trigger("CCL-Header-Advisory-expanded");
+                });
+
+                ctx.find(".message-bar-read.less").click(function () {
+                    var $this = $(this);
+                    var $advisory = $(this).parents(innerWrapperSelector);
+                    $advisory.removeClass("expanded");
+                    $advisory.addClass("collapsed");
+
+                    $advisory.find("a.message-bar-read").focus();
+
+                    $(document).trigger("CCL-Header-Advisory-contracted");
+                });                
+
+                //////////////////////////////////////////////////////
+                // setting the urgency level color code and cookie for the travel advisories in the header
+                //////////////////////////////////////////////////////		
+                advisories.setTravelAdvisoryColorCodeAndCookie(ctx, advisoryWrapperSelector, innerWrapperSelector);
+                advisories.checkUnsupportedBrowsers(ctx);                
+
+                $(document).trigger("CCL-Header-Advisory-loaded");
+            },
+            error: function () {
+                var error = "error";
+            }
+        });
+    };
+
+    advisories.checkUnsupportedBrowsers = function(ctx) {
+        if ($('.unsupported-browser-advisory', ctx).length > 0) {
+            function getRegExpFromString(value) {
+                var m = value.match(/\/(.*)\/(.*)?/);
+                return new RegExp(m[1], m[2] || "");
+            }
+
+            function parseJson(value) {
+                if (JSON) {
+                    return JSON.parse(value);
+                } else {
+                    return $.parseJSON(value);
+                }
+            }
+
+            $('.unsupported-browser-advisory', ctx).each(function() {
+                var advisory = $(this);
+
+                if (!advisory.is(':visible')) {
+                    return;
+                }
+
+                advisory.hide();
+
+                var browsers = parseJson(advisory.attr('unsupportedBrowsers') || '[]');
+                for (var i = 0; i < browsers.length; i++) {
+                    var regex = getRegExpFromString(browsers[i]);
+                    if (window.navigator.userAgent.match(regex)) {
+                        advisory.show();
+                        break;
+                    }
+                }
+            });
+            
+        }
+    },
+
+    advisories.setItemOnCookie = function(identifier, value) {
+        var headerData = headerDataHelper.get();
+        headerData.TravelAdvisory = cookiehelper.setCookieStringItem(headerData.TravelAdvisory, identifier, value);
+        headerDataHelper.set(headerData, { secure: true });
+    };
+
+    advisories.hideTravelAdvisory = function ($advisory) {
+        var cookieIdentifier = advisories.travelAdvisoryCookieNamePrefix + $advisory.attr('cookieIdentifier');
+
+        advisories.setItemOnCookie(cookieIdentifier, 'false');
+
+        $advisory.hide();
+
+        $(document).trigger("CCL-Header-Advisory-hidden");
+    };
+
+    advisories.setTravelAdvisoryColorCodeAndCookie = function (ctx, advisoryWrapperSelector, innerWrapperSelector) {
+        var travelAdvisoryCookie = headerDataHelper.get().TravelAdvisory || $.cookie(advisories.travelAdvisoryCookieName);
+
+        ctx.find(innerWrapperSelector).each(function () {
+            var $advisory = $(this);
+            var textColor = $advisory.attr("UrgencyLevelTextColorCode");
+            var bgColor = $advisory.attr("UrgencyLevelColorCode");
+
+            if (textColor === "" && $advisory.hasClass("urgency-medium"))
+                textColor = "#595959";
+
+            $(this).parent().css('background', bgColor);
+            $(this).parent().css('color', textColor);
+            $(this).find('.header-advisory').css('color', textColor);
+            $(this).find('.message-bar-close').css('color', textColor);
+            $(this).find('p').css('color', textColor);
+
+            //set the travel advisory cookies
+            //cookieIdentifier is to give each advisory cookieitem a unique name
+            var cookieIdentifier = advisories.travelAdvisoryCookieNamePrefix + $advisory.attr('cookieIdentifier');
+            if (!travelAdvisoryCookie || travelAdvisoryCookie === "null") {
+                //initially turn them on
+                advisories.setItemOnCookie(cookieIdentifier, 'true');
+            }
+            else {
+                $advisory.hide();
+                var arr = travelAdvisoryCookie.split('&');
+                for (var i = 0; i < arr.length; i++) {
+                    if (arr[i].indexOf(cookieIdentifier) > -1 && arr[i].split('=')[1] === 'true') {
+                        $advisory.show();
+                    }
+                }
+            }
+
+        });
+
+        ctx.find(advisoryWrapperSelector).slideDown();
+    };    
+    /*--------- advisories end----------------- -*/
+
+    /*--------- cookiehelper -*/
+    //this generic function sets the cookieitem to cookie value for a given cookie
+    cookiehelper.setCookie = function (cookieName, cookieItemName, cookieVal) {
+        var cookieStr = $.cookie(cookieName);
+        cookieStr = cookiehelper.setCookieStringItem(cookieStr, cookieItemName, cookieVal);
+        var options = cookiehelper.getCookieOptions();
+        $.cookie(cookieName, cookieStr, options);
+    };
+
+    //this is the generic function, and could be used to set cookiestring for any cookie
+    cookiehelper.setCookieStringItem = function (cookiestring, cookieItem, cookieVal) {
+        if (cookiestring != null) {
+            if (cookiestring.indexOf(cookieItem) === -1) cookiestring = cookiestring + ((cookiestring.charAt(cookiestring.length - 1) === "&") ? "" : "&") + cookieItem + "=" + cookieVal;
+            else {
+                if (cookiestring.indexOf(cookieItem + "=" + cookieVal) === -1) {
+                    var cookieArr = cookiestring.split("&");
+                    for (var i = 0; i < cookieArr.length; i++) {
+                        if (cookieArr[i].indexOf(cookieItem) > -1) cookieArr[i] = cookieItem + "=" + cookieVal;
+                    }
+                    cookiestring = cookieArr.join("&");
+                }
+            }
+        }
+        else {
+            cookiestring = cookieItem + "=" + cookieVal;
+        }
+        return cookiestring;
+    };
+
+    cookiehelper.getCookieStringObject = function (cookiestring) {
+        var o = {};
+
+        if (!cookiestring) return o;
+        var a = cookiestring.split('&');
+
+        for (var i = 0; i < a.length; i++) {
+            var pair = a[i].split('=');
+
+            o[decodeURIComponent(pair[0])] = decodeURIComponent(pair[1]);
+        }
+        return o;
+    };
+
+    cookiehelper.getCookieDomain = function () {
+        var domain = document.domain;
+
+        if (domain === "localhost") return "";
+        if (domain.indexOf(".com") > 0) {
+            if (domain.indexOf(".") < domain.indexOf(".com")) {
+                domain = domain.substr(domain.indexOf(".") + 1);
+            }
+            return domain;
+        }
+        else {
+            return "";
+        }
+    };
+
+    //this is the generic function, and could be used to set cookie options
+    cookiehelper.getCookieOptions = function () {
+        var isSecure = window.location.protocol.indexOf("https") >= 0;
+        var options = {
+            path: '/',
+            expires: 90,
+            secure: isSecure
+        };
+        var domain = cookiehelper.getCookieDomain();
+
+        if (domain.length > 0) {
+            options = {
+                path: '/',
+                expires: 90,
+                domain: domain,
+                secure:isSecure
+            };
+        }
+        return options;
+    };
+    /*--------- cookiehelper end -*/
+
+    /*--------- login section utility -*/
+    loginUtil.getSavedCruisesMessage = function () {
+        var msgHtml = "",
+            numFav = loginUtil.getCookieCountWithPrefix("CCLFav");
+
+        //if (numFav > 0) {
+        msgHtml = '<strong>' + numFav + '</strong><span>Saved cruises</span>';
+        //}
+        return msgHtml;
+    };
+
+    loginUtil.getSavedCruises = function () {
+        return loginUtil.getCookieCountWithPrefix("CCLFav");
+    };
+
+    loginUtil.getCookieCountWithPrefix = function (keyPrefix) {
+        var cookies = document.cookie.split('; ');
+        var count = 0;
+
+        for (var i = 0, l = cookies.length; i < l; i++) {
+            var parts = cookies[i].split('=');
+            var currKey = parts.shift();
+
+            if (currKey.indexOf(keyPrefix) !== -1)
+                count++;
+        }
+
+        return count;
+    };
+
+    loginUtil.getDaysToSailMessage = function (header2013) {
+        var msgHtml = "";
+        var mins = 1000 * 60;
+        var hrs = mins * 60;
+        var days = hrs * 24;
+
+        try {
+            var sailDateCookieVal = JSON.parse(decodeURIComponent($.cookie("cclSession") || "{}")).SailDate || $.cookie("SailDate");
+        } catch (aoXcp) {
+        }
+        if (sailDateCookieVal) {
+            var today = new Date();
+            if (today > Date.parse(sailDateCookieVal)) {
+                return "";
+            }
+
+            var sailDate = Date.parse(sailDateCookieVal);
+
+            if (isNaN(sailDate) || $.isNumeric(sailDateCookieVal)) {
+                sailDateCookieVal = loginUtil.parseDateFromMMddyyyyCultureInvariant2(sailDateCookieVal);
+                sailDate = Date.parse(sailDateCookieVal);
+            }
+
+            days = parseInt(((sailDate - today) / days));
+
+            if (isNaN(days)) {
+                return "";
+            }
+
+            days = days + 1;
+
+            var daysLbl = " Days";
+
+            if (days === 1) {
+                daysLbl = " Day";
+            }
+
+            if (header2013) {
+                msgHtml = '<strong>' + days + '</strong><span>' + daysLbl + ' to cruising</span>';
+            }
+            else {
+                msgHtml = '<span>' + days + daysLbl + '</span> To Sailing';
+            }
+        }
+
+        return msgHtml;
+    };
+
+    loginUtil.getDaysToSail = function (header2013) {
+        var msgHtml = "";
+        var mins = 1000 * 60;
+        var hrs = mins * 60;
+        var days = hrs * 24;
+
+        try {
+            var sailDateCookieVal = JSON.parse(decodeURIComponent($.cookie("cclSession") || "{}")).SailDate || $.cookie("SailDate");
+        } catch (aoXcp) {
+        }
+        if (sailDateCookieVal) {
+            var today = new Date();
+            if (today > Date.parse(sailDateCookieVal)) {
+                return "";
+            }
+
+            var sailDate = Date.parse(sailDateCookieVal);
+
+            if (isNaN(sailDate) || $.isNumeric(sailDateCookieVal)) {
+                sailDateCookieVal = loginUtil.parseDateFromMMddyyyyCultureInvariant2(sailDateCookieVal);
+                sailDate = Date.parse(sailDateCookieVal);
+            }
+
+            days = parseInt(((sailDate - today) / days));
+
+            if (isNaN(days)) {
+                return "";
+            }
+
+            days = days + 1;
+
+            msgHtml = days;
+        }
+
+        msgHtml = msgHtml + " days until your cruise experience";
+        return msgHtml;
+    };
+
+    loginUtil.parseDateFromMMddyyyyCultureInvariant2 = function (dateToParse) {
+        if (dateToParse != null && dateToParse != "") {
+            var year, month, day;
+            var dateSplit = [];
+
+            if (dateToParse.indexOf("-") !== -1) {
+                dateSplit = dateToParse.split("-");
+            }
+            if (dateToParse.indexOf("/") !== -1) {
+                dateSplit = dateToParse.split("/");
+            }
+            if (dateSplit.length > 0) {
+                month = dateSplit[0];
+                day = dateSplit[1];
+                year = dateSplit[2];
+                return new Date(year, parseInt(month, 10) - 1, day);
+            } else {
+                if (dateToParse.length !== 8) {
+                    return null;
+                }
+                month = dateToParse.substring(0, 2);
+                day = dateToParse.substring(2, 4);
+                year = dateToParse.substring(4);
+                return new Date(year, parseInt(month, 10) - 1, day);
+            }
+        }
+        return null;
+    };
+
+    loginUtil.parseJsonDate = function (dateval) {
+        var lfTimeZoneOffset = (240 - new Date().getTimezoneOffset()) * 60000;
+        var date1 = dateval.replace('\/Date(', '').replace(')\/', '');
+
+        return new Date(parseFloat(date1) + 43200000 - lfTimeZoneOffset);
+    };
+
+    loginUtil.launchPopup = function (url, prefix, aiWidth, aiHeight) {
+        /// <summary>Launches a popup.</summary>
+        /// <param name="url" type="string">The URL to be loaded.</param>
+        /// <param name="prefix" type="string">The class name to assign to the resulting popup for CSS support.</param>
+        /// <param name="aiWidth" type="int">The width of the popup | 375 if not supplied.</param>
+        /// <param name="aiHeight" type="int">The height of the popup | 335 if not supplied.</param>
+        /// <returns type="void">Returns nothing, but launches the popup.</returns>
+        // Handle default if not supplied
+        if (aiWidth == null) {
+            aiWidth = 375;
+        }
+        if (aiHeight == null) {
+            aiHeight = 335;
+        }
+        if (!prefix) {
+            return false;
+        }
+
+        var pop = $('<div class="' + prefix + '-popup popup-forgot"><a class="close" href="#">X</a><div class="inner"><iframe id="' + prefix + '-iframe" width="' + aiWidth + '" height="' + aiHeight + '" src="' + url + '" frameborder="0" style="width: ' + aiWidth + 'px!important; height: ' + aiHeight + 'px!important;"></iframe></div></div>');
+        var overlay = $('<div class="popup-forgot-overlay"></div>');
+
+        $("body").append(overlay, pop);
+        pop.find(".close").click(function () {
+			pop.add(overlay).remove();
+
+			var ie = headerDataHelper.detectIE();
+
+            //notify the parent that iframe is closed
+            if (ie && ie <= 9) {
+                parent.$(parent.document).trigger('IframeClosed', [{}]);
+            }
+            return false;
+        });
+        overlay.click(function () {
+            pop.remove();
+            overlay.remove();
+            return false;
+        });
+        loginUtil.positionPopup(pop);
+        $(window).bind("resize scroll", function () {
+            loginUtil.positionPopup(pop);
+        });
+        return true;
+    };
+
+    loginUtil.positionPopup = function (popup) {
+        var winW = $(window).width(),
+            winH = $(window).height(),
+            popW = popup.width() + 16,
+            popH = popup.height() + 16,
+            scrollTop = $(window).scrollTop();
+        var posLeft = (winW - popW) / 2;
+        var posTop = scrollTop + 25;
+
+        if (popH < winH) {
+            posTop = (winH - popH) / 2 + scrollTop;
+        }
+        popup.css({
+            "top": posTop + "px",
+            "left": posLeft + "px"
+        });
+    };
+    /*--------login util end---------*/
+
+    Carnival.cookieHelper = $.extend(cookiehelper, Carnival.cookieHelper);
+    Carnival.headerAdvisories = $.extend(advisories, Carnival.headerAdvisories);
+    Carnival.domainNotifCookie = $.extend(notifCookie, Carnival.domainNotifCookie);
+    Carnival.loginUtility = $.extend(loginUtil, Carnival.loginUtility);
+
+    window.Carnival = Carnival;
+
+    //remove old cookies
+    headerDataHelper.removeOldCookies();
+
+})(jQuery, window.Carnival);
+
+(function ($) {
+    $(document).ready(function () {
+        $(".activateLink").keydown(function (event) {
+            if (event.which == 13) {
+                if (!$(this).hasClass('hover')) {
+                    $(".activateLink").each(function (index) {
+                        $(this).attr('aria-expanded', 'false');
+                    });
+                    $(this).attr('aria-expanded', 'true');
+                    $(this).trigger("mouseenter");
+                    event.preventDefault();
+                } else {
+                    window.location.href = $(this).attr('href');
+                }
+            }
+        });
+    });
+})(jQuery);
+
+
+</script>
+
+</body>
+</html>

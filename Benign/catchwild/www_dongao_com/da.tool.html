@@ -1,0 +1,2518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>da.tool.html</title>
+</head>
+<body>
+
+<script>
+/*
+ * @author zlw  @date 2021/04/21  @description 官网频道页adtool admethod
+ */
+(function (w) {
+    var doc = w.document,
+        ua = navigator.userAgent;
+    if (!!w.adtool) return;
+    var adtool = {
+            config: {
+                mkurl: "https://marketing.dongao.com",
+                lkurl: "https://mact.api.dongao.com",
+                lgurl: "https://passport.dongao.com",
+                murl: "https://mweb.dongao.com",
+                mspcurl: "https://qgmsactivity.dongao.com",
+                staturl: "https://files.dongao.com",
+                kqurl: "https://kqywapi.dongao.com",
+                carturl: "https://cart.dongao.com", //购物车地址
+                lpama: {
+                    activityFlag: "",
+                    secondaryActivityCode: "",
+                    secondaryRegSource: "",
+                },
+            },
+            setconfig: function (conf, callback) {
+                var i;
+                if (conf) {
+                    for (i in conf) {
+                        if (typeof conf[i] == "object" && this.config[i]) {
+                            $.extend(this.config[i], conf[i], true);
+                        } else {
+                            this.config[i] = conf[i];
+                        }
+                    }
+                }
+                callback && callback("ok");
+            },
+            /**
+             * init
+             */
+            init: function () {
+                var _t = this;
+                // 初级 config参数
+                if (!!~location.host.indexOf("dongao") && !~location.host.indexOf("dongao.com")) {
+                    var regStr = location.host.split(".")[location.host.split(".").length - 2] + ".";
+                    _t.setconfig(
+                        JSON.parse(JSON.stringify(_t.config), function (key, val) {
+                            if (
+                                key in
+                                    {
+                                        appurl: 1,
+                                    } ||
+                                !~key.indexOf("url")
+                            ) {
+                                return val;
+                            } else {
+                                return val.replace(/dongao./g, regStr);
+                            }
+                        })
+                    );
+                }
+            },
+            /**
+             * 加载 js 文件
+             * @param {String} src 文件地址
+             * @param {Object | function} callback 回调函数
+             * */
+            loadJS: function (src, callback, data) {
+                var _t = this,
+                    scr0 = doc.getElementsByTagName("script")[0];
+                if (_t.sptStr.indexOf(src.replace(/https:\/\//g, "")) != -1) {
+                    return false;
+                }
+                var base = this,
+                    scr = doc.createElement("script");
+                if (data) {
+                    for (var i in data) {
+                        scr.setAttribute(i, data[i]);
+                    }
+                }
+                scr.src = src;
+                scr.async = true;
+                scr.charset = "utf-8";
+                base.addLoad(scr, callback);
+                scr0.parentNode.insertBefore(scr, scr0);
+                // _body.insertBefore(scr, _body.firstChild);
+            },
+            /**
+             * 监听回调方法，仅执行一次回调方法
+             *
+             * @param tag
+             * @param callback
+             */
+            addLoad: function (tag, callback) {
+                tag.onload = tag.onreadystatechange = function () {
+                    if (!tag.loadFlag && (!tag.readyState || /loaded|complete/.test(tag.readyState))) {
+                        // 设置加载成功标识
+                        tag.loadFlag = true;
+                        // 执行回调函数
+                        callback && callback();
+                    }
+                };
+            },
+            /**
+             * 登录
+             * return loginparam
+             * id,username,mobilePhone
+             */
+            login: function (fn, showBox, filter) {
+                var _t = this,
+                    func = function (cb) {
+                        showBox = showBox == 2 ? 2 : 1;
+                        if (_t["loginparam" + showBox]) {
+                            cb(_t["loginparam" + showBox]);
+                        } else {
+                            h5ToApp[showBox == 2 ? "getUserInfoV2" : "getUserInfo"](function (d) {
+                                // 缓存V1 V2加密方法
+                                _t["loginparam" + showBox] = $.extend(
+                                    {
+                                        signFlag: showBox,
+                                    },
+                                    JSON.parse(d)
+                                );
+                                cb(_t["loginparam" + showBox]);
+                            });
+                        }
+                    },
+                    obj = {};
+                if (_t.device.ispc) {
+                    // pc
+                    if (_t.loginparam) {
+                        fn(_t.loginparam);
+                    } else if (_t.loginbox) {
+                        _t.loginbox.getStatus(fn);
+                    } else {
+                        _t.loginbox = new loginBox({
+                            showBox: showBox == 1 ? 1 : 0,
+                            filter:
+                                filter ||
+                                function (pa, type) {
+                                    if (type == "login" || type == "loginByVerifyCodeJsonp") {
+                                        pa.activityFlag = _t.config.lpama.activityFlag || "";
+                                        pa.secondaryActivityCode = _t.config.lpama.secondaryActivityCode || "";
+                                        pa.secondaryRegSource = _t.config.lpama.secondaryRegSource || "";
+                                    }
+                                },
+                            succ: fn,
+                        });
+                    }
+                } else if (_t.device.isapp) {
+                    // app
+                    if (_t.loginparam) {
+                        func(function (d) {
+                            fn($.extend({}, _t.loginparam, d));
+                        });
+                    } else {
+                        h5ToApp.isAppLogin(function (data) {
+                            _t.loginparam = {
+                                id: data.userId,
+                                username: data.username,
+                                mobilePhone: data.mobilePhone,
+                            };
+                            func(function (d) {
+                                fn($.extend({}, _t.loginparam, d));
+                            });
+                        });
+                    }
+                } else if (w._userId) {
+                    // m
+                    fn({
+                        id: w._userId,
+                        username: w._userName,
+                        mobilePhone: w._mobile,
+                    });
+                } else {
+                    // m
+                    // key 转换
+                    $.extend(obj, _t.config.lpama);
+                    obj.sac = obj.secondaryActivityCode;
+                    delete obj.secondaryActivityCode;
+                    window.location.href = _t.config.murl + "/member/login.html?returnUrl=" + encodeURIComponent(location.href) + "&" + _t.getDataUrl(obj);
+                }
+            },
+            /**
+             * 提前加载的静态资源
+             * @param {接待组ID} settingid
+             */
+            loadStatic: function (settingid) {
+                var _t = this;
+                _t.sptStr = "";
+                for (var i = 0; i < doc.scripts.length; i++) {
+                    _t.sptStr += doc.scripts[i].src;
+                }
+                // _t.loadJS(_t.config.staturl + '/gacn/www.js');
+                if (_t.device.ispc) {
+                    _t.loadJS(_t.config.lgurl + "/api/showUserStatus");
+                    _t.loadJS(_t.config.staturl + "/static/public/js/loginBox.js");
+                }
+            },
+            lk: function (activityCode, call) {
+                var _t = this;
+                _t.login(function (d) {
+                    var params = {
+                        activityCode: activityCode,
+                    };
+                    if (_t.device.ispc) {
+                        params.m = _t.random("xxx" + d.id + "xxxxx");
+                        params.memberName = d.username;
+                        _t.ajaxFn(_t.config.mkurl + "/japi/lottery/toLottery", _t.md5Data(params), function (data) {
+                            call && call(data);
+                        });
+                    } else {
+                        params.username = d.username;
+                        if (_t.device.isapp) {
+                            params.userId = d.id;
+                            params.sign = d.sign;
+                            params.random = d.random;
+                            params.signFlag = 2;
+                        }
+                        _t.ajaxFn(_t.config.lkurl + "/coupon/s2/V1.1/toLottery", params, function (data) {
+                            call && call(data);
+                        });
+                    }
+                }, 2);
+            },
+            getCoupon2: function (params, call) {
+                if (params.prizeCode) {
+                    params.prizeCodes = params.prizeCode;
+                    delete params.prizeCode;
+                }
+                var _t = this;
+                _t.login(function (d) {
+                    if (_t.device.ispc) {
+                        params.m = _t.random("xxx" + d.id + "xxxxx");
+                        _t.ajaxFn(_t.config.mkurl + "/japi/coupon/getCoupons", _t.md5Data(params), function (data) {
+                            call && call(data);
+                        });
+                    } else {
+                        if (_t.device.isapp) {
+                            params.userId = d.id;
+                            params.sign = d.sign;
+                            params.random = d.random;
+                            params.signFlag = 2;
+                        }
+                        _t.ajaxFn(_t.config.lkurl + "/coupon/s2/v1/getCoupons", params, function (data) {
+                            call && call(data);
+                        });
+                    }
+                }, 2);
+            },
+            /**
+             * 加入购物车
+             * para = [{pclassific:'',pid:'',venderId:''},{}]
+             *
+             * arg2 [boolean function int 2]
+             *    PC APP: 一键购标识, PC: function 接口回调，若返回 false， 否则自动跳转购物车 ，
+             *    int 2 0元商品
+             *    int 3 加入购物车不跳走
+             *    int 4 结算页面
+             *    int 5 加购
+             * http://apidoc.dev.com/project/112/interface/api/9790
+             *  */
+            addCart: function (goods, arg2, fn, errfn) {
+                var gc = {},
+                    _t = this,
+                    key = arg2 === 2 ? "goods" : this.device.ispc ? "goods" : "goodsList";
+                gc[key] = [];
+                $.each(
+                    $.isArray(goods)
+                        ? goods
+                        : [
+                              {
+                                  pid: goods,
+                              },
+                          ],
+                    function (i, n) {
+                        var goods = {};
+                        goods.pid = !n.pid ? n : n.pid;
+                        goods.pclassific = !n.pclassific ? 2 : n.pclassific;
+                        goods.venderId = 1;
+                        goods.promoId = !n.promoId ? -1 : n.promoId;
+                        goods.pcount = n.pcount || "1";
+                        goods.ccode = n.ccode || "1";
+                        gc[key].push(goods);
+                    }
+                );
+                gc.pcode = _t.device.isapp ? 2 : _t.device.ispc ? 1 : 3;
+                var goodsInfo = JSON.stringify(gc);
+                if (gc[key].length == 0) {
+                    // null
+                    errfn ? errfn() : alert("您还未选择所购买的课程！");
+                } else {
+                    if (arg2 === 4) {
+                        _t.login(function (d) {
+                            gc.userId = d.id;
+                            goodsInfo = JSON.stringify(gc);
+                            $.getJSON(_t.config.carturl + "/cart/batchCart?", "params=" + goodsInfo + "&callback=?", function (result) {
+                                if (result.success) {
+                                    $.isFunction(fn) && fn(_t.config.carturl + "/order/confirm") === false ? "" : (window.location.href = _t.config.carturl + "/order/confirm");
+                                    //window.location.href = _t.config.carturl + '/order/confirm';
+                                } else {
+                                }
+                            });
+                        });
+                    } else {
+                        $.getJSON(_t.config.carturl + "/cart/batchCart?", "params=" + goodsInfo + "&callback=?", function (result) {
+                            if (result.success) {
+                                $.isFunction(arg2) && arg2(_t.config.carturl + "/cart") === false ? "" : (window.location.href = _t.config.carturl + "/cart");
+                                // parseInt(arg2) === 3 ? fn && fn() : window.location.href = _t.config.carturl + '/cart';
+                            } else {
+                            }
+                        });
+                    }
+                }
+            },
+            /**
+             * [ajaxFn 简易版jQuery ajax封装]
+             * @return  {[undefined]}
+             */
+            ajaxFn: function (url, params, call, eCall, isloading) {
+                $.ajax({
+                    url: url,
+                    type: "POST",
+                    data: params,
+                    dataType: "jsonp",
+                    jsonp: "callback",
+                    success: function (data) {
+                        typeof data == "string" && (data = decodeURIComponent(data));
+                        call && call(typeof data == "object" ? data : JSON.parse(data));
+                    },
+                    error: function (data) {
+                        eCall && eCall();
+                    },
+                });
+            },
+            getLiveList: function (actid, call) {
+                var _t = this,
+                    params = {
+                        activeId: actid,
+                    };
+                if (_t.device.ispc) {
+                    _t.ajaxFn(_t.config.kqurl + "/s2/v4/live/activeLiveInfos", _t.md5Data1(params), function (data) {
+                        call && call(data);
+                    });
+                }
+            },
+            /**
+             * 倒计时
+             * @param {*} name 时间（2020/7/8 23:00:00）
+             * @param {*} fn 回调
+             */
+            cdown: function (name, fn) {
+                var _t = this;
+                if ($.isArray(name)) {
+                    _t.cdownarr(name, fn);
+                    return;
+                }
+                _t.timer(name, function (s, t) {
+                    var date = {};
+                    s = new Date(t) - s;
+                    if (s >= 1000) {
+                        date.d = Math.floor(s / 86400000);
+                        s -= date.d * 86400000;
+                        date.h = Math.floor(s / 3600000);
+                        s -= date.h * 3600000;
+                        date.m = Math.floor(s / 60000);
+                        s -= date.m * 60000;
+                        date.s = Math.floor(s / 1000);
+                        for (var i in date) date[i] < 10 && (date[i] = "0" + date[i]);
+                    } else {
+                        date = {
+                            d: "00",
+                            h: "00",
+                            m: "00",
+                            s: "00",
+                        };
+                        _t.rmtimer(t);
+                    }
+                    fn && fn(date, s);
+                });
+                !_t.rmcdown && (_t.rmcdown = _t.rmtimer);
+            },
+            /**
+             * 页面提示
+             * @param {String} str
+             * @param {String} time  毫秒
+             */
+            toast: function (str, dtime, stime) {
+                if (!!str) {
+                    var _body = $("body"),
+                        _msg = _body.find(".com_toast");
+                    if (!_msg.length) {
+                        _msg = _body
+                            .append(
+                                $("<div>", {
+                                    class: "com_toast",
+                                })
+                            )
+                            .find(".com_toast");
+                    }
+                    _msg.html(str)
+                        .stop()
+                        .fadeIn(stime || "slow")
+                        .css({
+                            "margin-top": "-" + _msg.outerHeight() / 2 + "px",
+                            "margin-left": "-" + _msg.outerWidth() / 2 + "px",
+                        })
+                        .delay(dtime || 2000)
+                        .fadeOut();
+                }
+            },
+            /**
+             * 倒计时扩展；自动下一个倒计时
+             * @param {*} names
+             * @param {*} fn
+             */
+            cdownarr: function (names, fn) {
+                var _t = this;
+                var arr = $(names)
+                    .sort(function (a, b) {
+                        return +new Date(a) - +new Date(b);
+                    })
+                    .map(function (i, n) {
+                        return {
+                            i: i,
+                            t: n,
+                        };
+                    })
+                    .filter(function (i, n) {
+                        return +new Date(n.t) > +new Date();
+                    })
+                    .toArray();
+
+                function cb() {
+                    var _d = arr.shift();
+                    if (_d) {
+                        _t.cdown(_d.t, function (d, s) {
+                            fn.call(_d, d);
+                            if (s <= 0 && +new Date(_d.t) < +new Date()) {
+                                cb();
+                            }
+                        });
+                    } else {
+                        fn.call(
+                            {
+                                t: names[names.length - 1],
+                                i: names.length - 1,
+                            },
+                            {
+                                d: "00",
+                                h: "00",
+                                m: "00",
+                                s: "00",
+                            }
+                        );
+                    }
+                }
+
+                cb();
+            },
+            leftnum: function (time, total, fn, speed, loop) {
+                var _t = this;
+                time = loop ? tool.timeFormat(new Date(total * speed * Math.floor((+new Date() - new Date(time)) / (total * speed)) + +new Date(time)), "yyyy/MM/dd h:m:s") : time;
+                _t.timer(
+                    time,
+                    $.proxy(
+                        function (s, t) {
+                            s = +new Date(t) - s;
+                            var n = this.total - 0;
+                            if (s < 0) {
+                                n -= Math.floor(Math.abs(s) / (this.speed - 0 || 1000 * 60 * 60));
+                                n <= 0 && _t.rmtimer(t);
+                            }
+
+                            this.fn && this.fn(n <= 0 ? 0 : n);
+                        },
+                        {
+                            time: time,
+                            total: total,
+                            fn: fn,
+                            speed: speed,
+                            loop: loop,
+                        }
+                    )
+                );
+                !_t.rmleftnum && (_t.rmleftnum = _t.rmtimer);
+            },
+            /**
+             * 时间差
+             * @param {*} name 时间（2020/7/8 23:00:00）
+             * @param {*} fn 回调  返回时间戳
+             */
+            timer: function (name, fn) {
+                var _t = this,
+                    t = null,
+                    obj = {},
+                    index = 0;
+                obj[fn ? name : index++] = fn || name;
+                _t.timer = function (name, fn) {
+                    if (name in obj) {
+                        !$.isArray(obj[name]) && (obj[name] = [obj[name]]);
+                        obj[name].push(fn);
+                    } else {
+                        obj[fn ? name : index++] = fn || name;
+                    }
+                    !t && func();
+                };
+                _t.rmtimer = function (fn) {
+                    if ($.isFunction(fn)) {
+                        $.each(obj, function (i) {
+                            if ($.isArray(obj[i])) {
+                                $.each(obj[i], function (index, item) {
+                                    obj[i][index] == fn && delete obj[i][index];
+                                });
+                            } else {
+                                obj[i] == fn && delete obj[i];
+                            }
+                        });
+                    } else {
+                        delete obj[fn];
+                    }
+                    if ($.isEmptyObject(obj)) {
+                        clearTimeout(t);
+                        t = null;
+                    }
+                };
+                func();
+
+                function func() {
+                    t && (clearTimeout(t), (t = null));
+                    $.each(obj, function (i, n) {
+                        if (n) {
+                            if ($.isArray(n)) {
+                                $.each(n, function (j, m) {
+                                    m && m.call(null, +new Date(), i);
+                                });
+                            } else {
+                                n.call(null, +new Date(), i);
+                            }
+                        }
+                    });
+                    !$.isEmptyObject(obj) && (t = setTimeout(func, 1000));
+                }
+            },
+            /**
+             * 组装 url 参数
+             * @param {*} data
+             */
+            getDataUrl: function (data) {
+                if ($.isEmptyObject(data)) {
+                    return "";
+                } else {
+                    var _urlData = [];
+                    $.each(data, function (i, n) {
+                        _urlData.push(i + "=" + encodeURIComponent(n));
+                    });
+                    return _urlData.length == 0 ? "" : _urlData.join("&");
+                }
+            },
+            getTime: function () {
+                return Math.round(+new Date() / 1000);
+            },
+            random: function (str, n) {
+                var t;
+                n = n || 10;
+                return (
+                    (t = new Date().getTime()),
+                    str.replace(/[xy]/g, function (e) {
+                        var r, i;
+                        return (r = (t + n * Math.random()) % n | 0), (t = Math.floor(t / n)), (i = "x" === e ? r : (3 & r) | 8), i.toString(n);
+                    })
+                );
+            },
+            /*
+             *  新老学员判断优惠购买  结算页会判断新老学员给不同的优惠政策
+             *  后台控制新老学员价格优惠,购买直接跳转新结算页
+             * @param {*} s {activityCode: 'TH210520003',prizeCodes: '210520210,210520211'}
+             * pc:http://apidoc.dev.com/project/109/interface/api/32567
+             * m:http://apidoc.dev.com/project/208/interface/api/32591
+             */
+            cartDic: function (n) {
+                var o = this;
+                o.login(function (e) {
+                    var i = o.config.murl + "/tehui/order/confirmOrder";
+                    if (o.device.ispc) {
+                        i = o.config.mspcurl + "/tehuiOrder/confirm";
+                    } else if (o.device.isapp) {
+                        n.userId = e.id;
+                        n.sign = e.sign;
+                        n.random = e.random;
+                        n.signFlag = 2;
+                    }
+                    location.href = i + "?" + o.getDataUrl(n);
+                }, 2);
+            },
+            /**
+             * ios: 0
+             * android: 1
+             * m: 2
+             * vx: 3
+             * pc: 4
+             *
+             * pc：1 m：3 app：2 加密
+             */
+            device: (function () {
+                var _t = {};
+                if ((_t.ism = !!ua.match(/(phone|iPhone|Android|Mobile|BlackBerry|IEMobile|MQQBrowser|WebOS|Symbian|Windows Phone)/i) || location.hostname.indexOf("m.dongao") === 0)) {
+                    _t.platform = _t.giopfm = "M";
+                    // APP
+                    if ((_t.isios = !!~ua.indexOf("dongao/payH5"))) {
+                        _t.platform = "iOS";
+                        _t.giopfm = "APP";
+                    } else if ((_t.isandroid = !!~ua.indexOf("dongao/android/PayH5"))) {
+                        _t.platform = "Android";
+                        _t.giopfm = "APP";
+                    }
+                    // wx
+                    _t.isvx = !!ua.match(/MicroMessenger/i);
+                    // wx小程序
+                    _t.isvxmp = !!ua.match(/miniprogram/i);
+                } else {
+                    _t.platform = _t.giopfm = "PC";
+                    _t.ispc = true;
+                }
+                _t.isapp = _t.isios || _t.isandroid;
+                _t.pftype = {
+                    PC: 1,
+                    Android: 2,
+                    iOS: 2,
+                    M: 3,
+                }[_t.platform];
+                return _t;
+            })(),
+            /**
+             * 加密 1 直播间
+             * @param {*} data
+             */
+            md5Data1: function (data) {
+                var _t = this;
+                data.platform = _t.device.pftype;
+                delete data.timeStamp;
+                delete data.sign;
+                var arr = [],
+                    str = "";
+                data.timeStamp = _t.getTime(); //时间 s
+                for (var i in data) {
+                    //遍历key
+                    arr.push(i + "=" + data[i]);
+                }
+                data.sign = _t.md5(_t.getDataUrl(data) + "&"); //sign
+                return data;
+            },
+            /**
+             * 数据md5加密
+             * @param data 需要加密的数据
+             * @returns {*}
+             */
+            md5Data: function (data) {
+                var _t = this;
+                data.platform = _t.device.pftype;
+                delete data.timeStamp;
+                delete data.sign;
+                var arr = [],
+                    str = "";
+                for (var i in data) {
+                    //遍历key
+                    arr.push(i);
+                }
+                $.each(arr.sort(), function (i, item) {
+                    //排序并生成 加密串
+                    str += data[item];
+                });
+                data.timeStamp = _t.getTime(); //时间 s
+                str += data.timeStamp;
+                data.sign = _t.md5(str.replace(/undefined/gi, "")); //sign
+                return data;
+            },
+            //md5 加密
+            md5: function (string) {
+                function RotateLeft(lValue, iShiftBits) {
+                    return (lValue << iShiftBits) | (lValue >>> (32 - iShiftBits));
+                }
+
+                function AddUnsigned(lX, lY) {
+                    var lX4, lY4, lX8, lY8, lResult;
+                    lX8 = lX & 0x80000000;
+                    lY8 = lY & 0x80000000;
+                    lX4 = lX & 0x40000000;
+                    lY4 = lY & 0x40000000;
+                    lResult = (lX & 0x3fffffff) + (lY & 0x3fffffff);
+                    if (lX4 & lY4) {
+                        return lResult ^ 0x80000000 ^ lX8 ^ lY8;
+                    }
+                    if (lX4 | lY4) {
+                        if (lResult & 0x40000000) {
+                            return lResult ^ 0xc0000000 ^ lX8 ^ lY8;
+                        } else {
+                            return lResult ^ 0x40000000 ^ lX8 ^ lY8;
+                        }
+                    } else {
+                        return lResult ^ lX8 ^ lY8;
+                    }
+                }
+
+                function F(x, y, z) {
+                    return (x & y) | (~x & z);
+                }
+
+                function G(x, y, z) {
+                    return (x & z) | (y & ~z);
+                }
+
+                function H(x, y, z) {
+                    return x ^ y ^ z;
+                }
+
+                function I(x, y, z) {
+                    return y ^ (x | ~z);
+                }
+
+                function FF(a, b, c, d, x, s, ac) {
+                    a = AddUnsigned(a, AddUnsigned(AddUnsigned(F(b, c, d), x), ac));
+                    return AddUnsigned(RotateLeft(a, s), b);
+                }
+
+                function GG(a, b, c, d, x, s, ac) {
+                    a = AddUnsigned(a, AddUnsigned(AddUnsigned(G(b, c, d), x), ac));
+                    return AddUnsigned(RotateLeft(a, s), b);
+                }
+
+                function HH(a, b, c, d, x, s, ac) {
+                    a = AddUnsigned(a, AddUnsigned(AddUnsigned(H(b, c, d), x), ac));
+                    return AddUnsigned(RotateLeft(a, s), b);
+                }
+
+                function II(a, b, c, d, x, s, ac) {
+                    a = AddUnsigned(a, AddUnsigned(AddUnsigned(I(b, c, d), x), ac));
+                    return AddUnsigned(RotateLeft(a, s), b);
+                }
+
+                function ConvertToWordArray(string) {
+                    var lWordCount;
+                    var lMessageLength = string.length;
+                    var lNumberOfWords_temp1 = lMessageLength + 8;
+                    var lNumberOfWords_temp2 = (lNumberOfWords_temp1 - (lNumberOfWords_temp1 % 64)) / 64;
+                    var lNumberOfWords = (lNumberOfWords_temp2 + 1) * 16;
+                    var lWordArray = Array(lNumberOfWords - 1);
+                    var lBytePosition = 0;
+                    var lByteCount = 0;
+                    while (lByteCount < lMessageLength) {
+                        lWordCount = (lByteCount - (lByteCount % 4)) / 4;
+                        lBytePosition = (lByteCount % 4) * 8;
+                        lWordArray[lWordCount] = lWordArray[lWordCount] | (string.charCodeAt(lByteCount) << lBytePosition);
+                        lByteCount++;
+                    }
+                    lWordCount = (lByteCount - (lByteCount % 4)) / 4;
+                    lBytePosition = (lByteCount % 4) * 8;
+                    lWordArray[lWordCount] = lWordArray[lWordCount] | (0x80 << lBytePosition);
+                    lWordArray[lNumberOfWords - 2] = lMessageLength << 3;
+                    lWordArray[lNumberOfWords - 1] = lMessageLength >>> 29;
+                    return lWordArray;
+                }
+
+                function WordToHex(lValue) {
+                    var WordToHexValue = "",
+                        WordToHexValue_temp = "",
+                        lByte,
+                        lCount;
+                    for (lCount = 0; lCount <= 3; lCount++) {
+                        lByte = (lValue >>> (lCount * 8)) & 255;
+                        WordToHexValue_temp = "0" + lByte.toString(16);
+                        WordToHexValue = WordToHexValue + WordToHexValue_temp.substr(WordToHexValue_temp.length - 2, 2);
+                    }
+                    return WordToHexValue;
+                }
+
+                function Utf8Encode(string) {
+                    string = string.replace(/\r\n/g, "\n");
+                    var utftext = "";
+                    for (var n = 0; n < string.length; n++) {
+                        var c = string.charCodeAt(n);
+                        if (c < 128) {
+                            utftext += String.fromCharCode(c);
+                        } else if (c > 127 && c < 2048) {
+                            utftext += String.fromCharCode((c >> 6) | 192);
+                            utftext += String.fromCharCode((c & 63) | 128);
+                        } else {
+                            utftext += String.fromCharCode((c >> 12) | 224);
+                            utftext += String.fromCharCode(((c >> 6) & 63) | 128);
+                            utftext += String.fromCharCode((c & 63) | 128);
+                        }
+                    }
+                    return utftext;
+                }
+                var x = Array();
+                var k, AA, BB, CC, DD, a, b, c, d;
+                var S11 = 7,
+                    S12 = 12,
+                    S13 = 17,
+                    S14 = 22;
+                var S21 = 5,
+                    S22 = 9,
+                    S23 = 14,
+                    S24 = 20;
+                var S31 = 4,
+                    S32 = 11,
+                    S33 = 16,
+                    S34 = 23;
+                var S41 = 6,
+                    S42 = 10,
+                    S43 = 15,
+                    S44 = 21;
+                string = Utf8Encode(string);
+                x = ConvertToWordArray(string);
+                a = 0x67452301;
+                b = 0xefcdab89;
+                c = 0x98badcfe;
+                d = 0x10325476;
+                for (k = 0; k < x.length; k += 16) {
+                    AA = a;
+                    BB = b;
+                    CC = c;
+                    DD = d;
+                    a = FF(a, b, c, d, x[k + 0], S11, 0xd76aa478);
+                    d = FF(d, a, b, c, x[k + 1], S12, 0xe8c7b756);
+                    c = FF(c, d, a, b, x[k + 2], S13, 0x242070db);
+                    b = FF(b, c, d, a, x[k + 3], S14, 0xc1bdceee);
+                    a = FF(a, b, c, d, x[k + 4], S11, 0xf57c0faf);
+                    d = FF(d, a, b, c, x[k + 5], S12, 0x4787c62a);
+                    c = FF(c, d, a, b, x[k + 6], S13, 0xa8304613);
+                    b = FF(b, c, d, a, x[k + 7], S14, 0xfd469501);
+                    a = FF(a, b, c, d, x[k + 8], S11, 0x698098d8);
+                    d = FF(d, a, b, c, x[k + 9], S12, 0x8b44f7af);
+                    c = FF(c, d, a, b, x[k + 10], S13, 0xffff5bb1);
+                    b = FF(b, c, d, a, x[k + 11], S14, 0x895cd7be);
+                    a = FF(a, b, c, d, x[k + 12], S11, 0x6b901122);
+                    d = FF(d, a, b, c, x[k + 13], S12, 0xfd987193);
+                    c = FF(c, d, a, b, x[k + 14], S13, 0xa679438e);
+                    b = FF(b, c, d, a, x[k + 15], S14, 0x49b40821);
+                    a = GG(a, b, c, d, x[k + 1], S21, 0xf61e2562);
+                    d = GG(d, a, b, c, x[k + 6], S22, 0xc040b340);
+                    c = GG(c, d, a, b, x[k + 11], S23, 0x265e5a51);
+                    b = GG(b, c, d, a, x[k + 0], S24, 0xe9b6c7aa);
+                    a = GG(a, b, c, d, x[k + 5], S21, 0xd62f105d);
+                    d = GG(d, a, b, c, x[k + 10], S22, 0x2441453);
+                    c = GG(c, d, a, b, x[k + 15], S23, 0xd8a1e681);
+                    b = GG(b, c, d, a, x[k + 4], S24, 0xe7d3fbc8);
+                    a = GG(a, b, c, d, x[k + 9], S21, 0x21e1cde6);
+                    d = GG(d, a, b, c, x[k + 14], S22, 0xc33707d6);
+                    c = GG(c, d, a, b, x[k + 3], S23, 0xf4d50d87);
+                    b = GG(b, c, d, a, x[k + 8], S24, 0x455a14ed);
+                    a = GG(a, b, c, d, x[k + 13], S21, 0xa9e3e905);
+                    d = GG(d, a, b, c, x[k + 2], S22, 0xfcefa3f8);
+                    c = GG(c, d, a, b, x[k + 7], S23, 0x676f02d9);
+                    b = GG(b, c, d, a, x[k + 12], S24, 0x8d2a4c8a);
+                    a = HH(a, b, c, d, x[k + 5], S31, 0xfffa3942);
+                    d = HH(d, a, b, c, x[k + 8], S32, 0x8771f681);
+                    c = HH(c, d, a, b, x[k + 11], S33, 0x6d9d6122);
+                    b = HH(b, c, d, a, x[k + 14], S34, 0xfde5380c);
+                    a = HH(a, b, c, d, x[k + 1], S31, 0xa4beea44);
+                    d = HH(d, a, b, c, x[k + 4], S32, 0x4bdecfa9);
+                    c = HH(c, d, a, b, x[k + 7], S33, 0xf6bb4b60);
+                    b = HH(b, c, d, a, x[k + 10], S34, 0xbebfbc70);
+                    a = HH(a, b, c, d, x[k + 13], S31, 0x289b7ec6);
+                    d = HH(d, a, b, c, x[k + 0], S32, 0xeaa127fa);
+                    c = HH(c, d, a, b, x[k + 3], S33, 0xd4ef3085);
+                    b = HH(b, c, d, a, x[k + 6], S34, 0x4881d05);
+                    a = HH(a, b, c, d, x[k + 9], S31, 0xd9d4d039);
+                    d = HH(d, a, b, c, x[k + 12], S32, 0xe6db99e5);
+                    c = HH(c, d, a, b, x[k + 15], S33, 0x1fa27cf8);
+                    b = HH(b, c, d, a, x[k + 2], S34, 0xc4ac5665);
+                    a = II(a, b, c, d, x[k + 0], S41, 0xf4292244);
+                    d = II(d, a, b, c, x[k + 7], S42, 0x432aff97);
+                    c = II(c, d, a, b, x[k + 14], S43, 0xab9423a7);
+                    b = II(b, c, d, a, x[k + 5], S44, 0xfc93a039);
+                    a = II(a, b, c, d, x[k + 12], S41, 0x655b59c3);
+                    d = II(d, a, b, c, x[k + 3], S42, 0x8f0ccc92);
+                    c = II(c, d, a, b, x[k + 10], S43, 0xffeff47d);
+                    b = II(b, c, d, a, x[k + 1], S44, 0x85845dd1);
+                    a = II(a, b, c, d, x[k + 8], S41, 0x6fa87e4f);
+                    d = II(d, a, b, c, x[k + 15], S42, 0xfe2ce6e0);
+                    c = II(c, d, a, b, x[k + 6], S43, 0xa3014314);
+                    b = II(b, c, d, a, x[k + 13], S44, 0x4e0811a1);
+                    a = II(a, b, c, d, x[k + 4], S41, 0xf7537e82);
+                    d = II(d, a, b, c, x[k + 11], S42, 0xbd3af235);
+                    c = II(c, d, a, b, x[k + 2], S43, 0x2ad7d2bb);
+                    b = II(b, c, d, a, x[k + 9], S44, 0xeb86d391);
+                    a = AddUnsigned(a, AA);
+                    b = AddUnsigned(b, BB);
+                    c = AddUnsigned(c, CC);
+                    d = AddUnsigned(d, DD);
+                }
+                var temp = WordToHex(a) + WordToHex(b) + WordToHex(c) + WordToHex(d);
+                return temp.toLowerCase();
+            },
+            initTime: function () {
+                // 天数倒计时
+                var ti = "2022/7/12 00:00:00";
+                // if (window.location.pathname.indexOf("jxjy") == -1 && (+new Date() < +new Date(ti))) {
+                // 	$('.djs_day').text(Math.ceil((+new Date(ti)- +new Date())/1000/60/60/24))
+                //   var img = new Image();
+                //   img.onload = function () {
+                // 	$('.djs_pop,.position_pdy_cjkc .mask').show();
+                // 	adtool.cdown(adtool.timeFormat(new Date().getTime() + 6000, 'yyyy/MM/dd h:m:s'), function (res) {
+
+                // 	  $('.djs_sec span').text(res.s.replace(/\b(0+)/gi, ""))
+                // 	  // 继教模块不显示倒计时弹框
+                // 	  if (res.s == '00') {
+                // 		$('.djs_pop,.position_pdy_cjkc .mask').hide();
+                // 	  }
+                // 	});
+                //   };
+                //   img.src = "https://hdstatic.dongao.com/static//home_channel/images2023/cjks/djsPop_bg.png";
+                // };
+            },
+            /**
+             * [DateToTime 时间戳转换为日期]
+             * @param {[type]} unixTime [时间戳]
+             * @param {String} format 'yyyy-MM'
+             * @param {String} ifz    是否补 0
+             * @param {String} wks    Array
+             */
+            timeFormat: function (unixTime, format, ifz, wks) {
+                var flag = !!new Date(unixTime).getTime(),
+                    date = flag ? new Date(unixTime) : new Date(),
+                    formats = (flag ? format : unixTime) || "yyyy-MM-dd h:m:s",
+                    weeks = wks || ["周日", "周一", "周二", "周三", "周四", "周五", "周六"],
+                    dateObj = {
+                        // 获取
+                        y: date.getFullYear(), // year 年份
+                        M: date.getMonth() + 1, // mouth 月份
+                        d: date.getDate(), // day 天
+                        w: weeks[date.getDay()], //星期
+                        h: date.getHours(), // hour 小时
+                        m: date.getMinutes(), // minutes 分钟
+                        s: date.getSeconds(), // seconds 秒
+                        q: Math.floor((date.getMonth() + 3) / 3), // quarter 季度
+                        S: date.getMilliseconds(), // milliseconds ms 毫秒
+                    },
+                    len = {
+                        // 定义限制的字段长度
+                        y: 4,
+                        S: 3,
+                        q: 1,
+                    };
+                return formats.replace(/[yMdwhmsqS]+/g, function (capt) {
+                    return len[capt[0]] ? dateObj[capt[0]].toString().substr(len[capt[0]] - capt.length) : dateObj[capt[0]] < 10 ? (!ifz ? "0" : "") + dateObj[capt[0]] : dateObj[capt[0]];
+                });
+            },
+        },
+        admethod = {
+            init: function () {
+                var _t = this;
+                $.each(_t.channel, function (k, v) {
+                    // 判断html类名和k值是否一致
+                    if (!!$("." + k + "").length) {
+                        $.isFunction(v) && v();
+                    }
+                });
+                // 税务师频道页吸顶倒计时
+                // adtool.cdown('2022/09/01 23:59:59', function(s) {
+                // 	// console.log(s)
+                // 			$('.top_ggt').find('#ggt_djs_numd').html(s.d)
+                // 				.end().find('#ggt_djs_numh').html(s.h)
+                // 				.end().find('#ggt_djs_numm').html(s.m)
+                // 				.end().find('#ggt_djs_nums').html(s.s);
+                // })
+                // 直接加载
+                adtool.loadStatic();
+                adtool.init();
+                adtool.initTime();
+                // 实操领券
+                // 各个考种实操优惠券汇总
+                var scYhqId = {
+                    zk: {
+                        activityCode: "LQ220331032",
+                        prizeCodes: "220331023",
+                    },
+                    zj: {
+                        activityCode: "LQ220331031",
+                        prizeCodes: "220331022",
+                    },
+                    cj: {
+                        activityCode: "LQ211228002",
+                        prizeCodes: "211228002",
+                    },
+                    sws: {
+                        activityCode: "LQ211228007",
+                        prizeCodes: "211228007",
+                    },
+                    gj: {
+                        activityCode: "LQ211228005",
+                        prizeCodes: "211228005",
+                    },
+                    cjsz: {
+                        activityCode: "LQ211228002",
+                        prizeCodes: "211228002",
+                    },
+                    zkwk: {
+                        activityCode: "LQ220523014",
+                        prizeCodes: "220523014",
+                    },
+                    zkwk2023: {
+                        activityCode: "LQ220928004",
+                        prizeCodes: "2209280004",
+                    },
+                    zkvip1000: {
+                        activityCode: "LQ220602008", //1000优惠劵
+                        prizeCodes: "2206020017",
+                    },
+                    zkxb500: {
+                        activityCode: "LQ220903001", //500优惠劵
+                        prizeCodes: "2209030002",
+                    },
+                    zkxb2000: {
+                        activityCode: "LQ221011002", //2000优惠劵
+                        prizeCodes: "2210110001",
+                    },
+                    zkqytx1000: {
+                        activityCode: "LQ221013036", //1000优惠劵
+                        prizeCodes: "2210130044",
+                    },
+                    zk40vip100: {
+                        activityCode: "LQ240712001",
+                        prizeCodes: "2407120001,2407120002",
+                        sucImg: "https://hdstatic.dongao.com/static/home_channel/images2024/zckjs/zk40vip100suc.png",
+                        alImg: "https://hdstatic.dongao.com/static/home_channel/images2024/zckjs/zk40vip100suced.png",
+                    },
+                    zkxb100: {
+                        activityCode: "LQ220623005", //100优惠劵
+                        prizeCodes: "2206230005",
+                    },
+                    zkvip6000: {
+                        activityCode: "LQ220915001", //4000优惠劵
+                        prizeCodes: "2209150001",
+                    },
+                    zjwk: {
+                        activityCode: "LQ220523013",
+                        prizeCodes: "220523013",
+                    },
+                    zjwk2023: {
+                        activityCode: "LQ220928006",
+                        prizeCodes: "2209280006",
+                    },
+
+                    zjvip500: {
+                        activityCode: "LQ220930006", //500优惠劵
+                        prizeCodes: "2209300006",
+                    },
+                    zjvip6000: {
+                        activityCode: "LQ220930008", //6000优惠劵
+                        prizeCodes: "2209300008",
+                    },
+                    zjxb500: {
+                        activityCode: "LQ220930011", //500优惠劵
+                        prizeCodes: "2209300011",
+                    },
+                    zjxb1000: {
+                        activityCode: "LQ221014005", //1000优惠劵
+                        prizeCodes: "2210140004",
+                    },
+                    swsD1000: {
+                        activityCode: "LQ220928007", //频道页1000优惠劵
+                        prizeCodes: "2209280007",
+                    },
+                    swsvip: {
+                        activityCode: "LQ220602010", //频道页vip4000
+                        prizeCodes: "2206020019",
+                    },
+                    zk_sc: {
+                        activityCode: "LQ220622002", //注会实操
+                        prizeCodes: "2206220002",
+                    },
+                    zk_sc_sy: {
+                        activityCode: "LQ220725001", //首页注会实操
+                        prizeCodes: "2207250001",
+                    },
+                    zj_sc: {
+                        activityCode: "LQ220525020", //中级版块中级经济师
+                        prizeCodes: "220525020",
+                    },
+                    cj_sc: {
+                        activityCode: "LQ220718007", //初级实操
+                        prizeCodes: "2207180008",
+                    },
+                    zhongji_sc: {
+                        activityCode: "LQ220718008", //中级实操
+                        prizeCodes: "2207180009",
+                    },
+                    zj_xbcc: {
+                        activityCode: "LQ220805002", //中级小班冲刺集训
+                        prizeCodes: "2208080009",
+                    },
+                    gj_cwjs: {
+                        activityCode: "LQ231206001", //高级财务晋升
+                        prizeCodes: "2312060001",
+                    },
+                    sc_sj: {
+                        activityCode: "LQ220510007", //审计
+                        prizeCodes: "220510007",
+                    },
+                    cj_vip_200: {
+                        activityCode: "LQ230302004",
+                        prizeCodes: "2303020004",
+                    },
+                    swsqy_500: {
+                        activityCode: "LQ221017003",
+                        prizeCodes: "2210170003",
+                    },
+                    swsqy_1000: {
+                        activityCode: "LQ221017002",
+                        prizeCodes: "2210170002",
+                    },
+                    sws23_900: {
+                        activityCode: "LQ220928007",
+                        prizeCodes: "2209280007",
+                    },
+
+                    cj200: {
+                        activityCode: "LQ241014001",
+                        prizeCode: "2410140002,2410140003,2410140008,2410140009",
+                        sucImg: "https://hdstatic.dongao.com/static/home_channel/images2024/cjks/yhq_success.png",
+                        alImg: "https://hdstatic.dongao.com/static/home_channel/images2024/cjks/yhq_successed.png",
+                    },
+                    jysc3000: {
+                        activityCode: "LQ231031004",
+                        prizeCodes: "2310310005",
+                    },
+                    jysc100: {
+                        activityCode: "LQ230911001",
+                        prizeCodes: "2309110001",
+                    },
+                    gk_25_b500: {
+                        activityCode: "LQ240424005",
+                        prizeCode: "2404240005,2404240006",
+                        sucImg: "https://hdstatic.dongao.com/pcdist/gaoji/2025-zsfa/coursestatic/images/b500_success.png",
+                        alImg: "https://hdstatic.dongao.com/pcdist/gaoji/2025-zsfa/coursestatic/images/b500_succesed.png",
+                    },
+                    gk_25_c500: {
+                        activityCode: "LQ240424004",
+                        prizeCode: "2404240004",
+                        sucImg: "https://hdstatic.dongao.com/pcdist/gaoji/2025-zsfa/coursestatic/images/c500_success.png",
+                        alImg: "https://hdstatic.dongao.com/pcdist/gaoji/2025-zsfa/coursestatic/images/c500_succesed.png",
+                    },
+                    gk_25_d1000: {
+                        activityCode: "LQ240424004",
+                        prizeCode: "2404240004",
+                        sucImg: "https://hdstatic.dongao.com/pcdist/gaoji/2025-zsfa/coursestatic/images/d1000_success.png",
+                        alImg: "https://hdstatic.dongao.com/pcdist/gaoji/2025-zsfa/coursestatic/images/d1000_succesed.png",
+                    },
+                    gk_24_1000: {
+                        activityCode: "LQ230705012",
+                        prizeCode: "2307050017",
+                        sucImg: "https://hdstatic.dongao.com/pcdist/gaoji/2024-zsfa/coursestatic/images/d1000_success.png",
+                        alImg: "https://hdstatic.dongao.com/pcdist/gaoji/2024-zsfa/coursestatic/images/d1000_succesed.png",
+                    },
+                    gk_jjs_500: {
+                        activityCode: "LQ240704001",
+                        prizeCode: "2407040001",
+                        sucImg: "https://hdstatic.dongao.com/pcdist/gaoji/2025-gjjjs/coursestatic/images/c500_success.png",
+                        alImg: "https://hdstatic.dongao.com/pcdist/gaoji/2025-gjjjs/coursestatic/images/c500_succesed.png",
+                    },
+                    zk_24_a_50: {
+                        activityCode: "LQ231130001",
+                        prizeCode: "2311300009",
+                        sucImg: "https://hdstatic.dongao.com/pcdist/zckjs/2024-zsfa/coursestatic/images/a_d20_success.png",
+                        alImg: "https://hdstatic.dongao.com/pcdist/zckjs/2024-zsfa/coursestatic/images/a_d20_succesed.png",
+                    },
+                    zk_24_b_50: {
+                        activityCode: "LQ231130002",
+                        prizeCode: "2311300001,2311300007,2311300008",
+                        sucImg: "https://hdstatic.dongao.com/pcdist/zckjs/2024-zsfa/coursestatic/images/d20_success.png",
+                        alImg: "https://hdstatic.dongao.com/pcdist/zckjs/2024-zsfa/coursestatic/images/d20_succesed.png",
+                    },
+                    zk_24_c_50: {
+                        activityCode: "LQ231130003",
+                        prizeCode: "2311300002,2311300003,2311300004",
+                        sucImg: "https://hdstatic.dongao.com/pcdist/zckjs/2024-zsfa/coursestatic/images/d100_success.png",
+                        alImg: "https://hdstatic.dongao.com/pcdist/zckjs/2024-zsfa/coursestatic/images/d100_succesed.png",
+                    },
+                    zk_24_d_700: {
+                        activityCode: "LQ231130004",
+                        prizeCode: "2311300005",
+                        sucImg: "https://hdstatic.dongao.com/pcdist/zckjs/2024-zsfa/coursestatic/images/d_1060_succes.png",
+                        alImg: "https://hdstatic.dongao.com/pcdist/zckjs/2024-zsfa/coursestatic/images/d_1060_succesed.png",
+                    },
+                    zk_23_a_50: {
+                        activityCode: "LQ230706009",
+                        prizeCode: "2307060011",
+                        sucImg: "https://hdstatic.dongao.com/pcdist/zckjs/2023-zsfa/images/a50_success.png",
+                        alImg: "https://hdstatic.dongao.com/pcdist/zckjs/2023-zsfa/images/a50_succesed.png",
+                    },
+                    zk_23_b_50: {
+                        activityCode: "LQ230731052",
+                        prizeCode: "2307310064",
+                        sucImg: "https://hdstatic.dongao.com/pcdist/zckjs/2023-zsfa/images/d20_success.png",
+                        alImg: "https://hdstatic.dongao.com/pcdist/zckjs/2023-zsfa/images/d20_succesed.png",
+                    },
+                    zk_23_c_50: {
+                        activityCode: "LQ230731029",
+                        prizeCode: "2307310029",
+                        sucImg: "https://hdstatic.dongao.com/pcdist/zckjs/2024-zsfa/coursestatic/images/d100_success.png",
+                        alImg: "https://hdstatic.dongao.com/pcdist/zckjs/2024-zsfa/coursestatic/images/d100_succesed.png",
+                    },
+                    zk_23_d_700: {
+                        activityCode: "LQ230731027",
+                        prizeCode: "2307310027",
+                        sucImg: "https://hdstatic.dongao.com/pcdist/zckjs/2024-zsfa/coursestatic/images/d600_succes.png",
+                        alImg: "https://hdstatic.dongao.com/pcdist/zckjs/2024-zsfa/coursestatic/images/d600_succesed.png",
+                    },
+                    // 税务师
+                    sws_23_a_50: {
+                        activityCode: "LQ230906001",
+                        prizeCode: "2309060001",
+                        sucImg: "https://hdstatic.dongao.com/pcdist/shuiwushi/2023-zsfa/images/a_50.png",
+                        alImg: "https://hdstatic.dongao.com/pcdist/shuiwushi/2023-zsfa/images/a_50ed.png",
+                    },
+                    sws_23_b_50: {
+                        activityCode: "LQ230906002",
+                        prizeCode: "2309060002",
+                        sucImg: "https://hdstatic.dongao.com/pcdist/shuiwushi/2023-zsfa/images/b_50.png",
+                        alImg: "https://hdstatic.dongao.com/pcdist/shuiwushi/2023-zsfa/images/b_50ed.png",
+                    },
+                    sws_23_c_50: {
+                        activityCode: "LQ230906003",
+                        prizeCode: "2309060003",
+                        sucImg: "https://hdstatic.dongao.com/pcdist/shuiwushi/2023-zsfa/images/c_50.png",
+                        alImg: "https://hdstatic.dongao.com/pcdist/shuiwushi/2023-zsfa/images/c_50ed.png",
+                    },
+                    sws_23_d_600: {
+                        activityCode: "LQ230906004",
+                        prizeCode: "2309060004",
+                        sucImg: "https://hdstatic.dongao.com/pcdist/shuiwushi/2023-zsfa/images/d500_succes.png",
+                        alImg: "https://hdstatic.dongao.com/pcdist/shuiwushi/2023-zsfa/images/d500_succesed.png",
+                    },
+                    //   zj_24_a_50: {
+                    // 			activityCode: 'LQ231127016',
+                    // 			prizeCode: '2311270016,2311270017',
+                    // 			sucImg: 'https://hdstatic.dongao.com/pcdist/zjzcgl/2024-zsfa-gdb/images/a130_succes.png',
+                    // 			alImg: 'https://hdstatic.dongao.com/pcdist/zjzcgl/2024-zsfa-gdb/images/a130_succesed.png',
+                    // 		},
+                    zj_24_b_50: {
+                        activityCode: "LQ240708009",
+                        prizeCode: "2408050001,2407080024,2407080025,2407080026",
+                        sucImg: "https://hdstatic.dongao.com/pcdist/zjzcgl/2024-zsfa/coursestatic/images/300_succes.png",
+                        alImg: "https://hdstatic.dongao.com/pcdist/zjzcgl/2024-zsfa/coursestatic/images/300_succesed.png",
+                    },
+                    zj_24_c_50: {
+                        activityCode: "LQ240708010",
+                        prizeCode: "2407080016",
+                        sucImg: "https://hdstatic.dongao.com/pcdist/zjzcgl/2024-zsfa/coursestatic/images/350_succes.png",
+                        alImg: "https://hdstatic.dongao.com/pcdist/zjzcgl/2024-zsfa/coursestatic/images/350_succesed.png",
+                    },
+                    zj_24_d_300: {
+                        activityCode: "LQ240708008",
+                        prizeCode: "2407080012",
+                        sucImg: "https://hdstatic.dongao.com/pcdist/zjzcgl/2024-zsfa/coursestatic/images/400_succes.png",
+                        alImg: "https://hdstatic.dongao.com/pcdist/zjzcgl/2024-zsfa/coursestatic/images/400_succesed.png",
+                    },
+                    zj_24_n_400: {
+                        activityCode: "LQ240710001",
+                        prizeCode: "2407100001",
+                        sucImg: "https://hdstatic.dongao.com/pcdist/zjzcgl/2024-zsfa/coursestatic/images/n400_succes.png",
+                        alImg: "https://hdstatic.dongao.com/pcdist/zjzcgl/2024-zsfa/coursestatic/images/n400_succesed.png",
+                    },
+                    zj_23_a_50: {
+                        activityCode: "LQ230706011",
+                        prizeCode: "2307060013",
+                        sucImg: "https://hdstatic.dongao.com/pcdist/zjzcgl/2023-zsfa/images/a50_succes.png",
+                        alImg: "https://hdstatic.dongao.com/pcdist/zjzcgl/2023-zsfa/images/a50_succesed.png",
+                    },
+                    zj_23_b_50: {
+                        activityCode: "LQ230731040",
+                        prizeCode: "2307310052",
+                        sucImg: "https://hdstatic.dongao.com/pcdist/zjzcgl/2023-zsfa/images/b50_succes.png",
+                        alImg: "https://hdstatic.dongao.com/pcdist/zjzcgl/2023-zsfa/images/b50_succesed.png",
+                    },
+                    zj_23_c_50: {
+                        activityCode: "LQ230731041",
+                        prizeCode: "2307310053",
+                        sucImg: "https://hdstatic.dongao.com/pcdist/zjzcgl/2023-zsfa/images/c50_succes.png",
+                        alImg: "https://hdstatic.dongao.com/pcdist/zjzcgl/2023-zsfa/images/c50_succesed.png",
+                    },
+                    zj_23_d_300: {
+                        activityCode: "LQ230731042",
+                        prizeCode: "2307310054",
+                        sucImg: "https://hdstatic.dongao.com/pcdist/zjzcgl/2023-zsfa/images/d300_succes.png",
+                        alImg: "https://hdstatic.dongao.com/pcdist/zjzcgl/2023-zsfa/images/d300_succesed.png",
+                    },
+                    // 实操
+                    sc_cb: {
+                        activityCode: "LQ231018002",
+                        prizeCode: "2310180002",
+                    },
+                    sc_zk: {
+                        activityCode: "LQ230113019",
+                        prizeCode: "2301130019",
+                    },
+                    // 24年税务师
+                    sws_24_a_100: {
+                        activityCode: "LQ240226005",
+                        prizeCode: "2402260007",
+                        sucImg: "https://hdstatic.dongao.com/pcdist/shuiwushi/2024-zsfa/coursestatic/images/a_150.png",
+                        alImg: "https://hdstatic.dongao.com/pcdist/shuiwushi/2024-zsfa/coursestatic/images/a_150ed.png",
+                    },
+                    sws_24_b_100: {
+                    activityCode: "LQ240927007",
+                    prizeCode: "2409270016,2409270018,2410230003",
+                    sucImg: "https://hdstatic.dongao.com/pcdist/shuiwushi/2024-zsfa/coursestatic/images/b_100.png",
+                    alImg: "https://hdstatic.dongao.com/pcdist/shuiwushi/2024-zsfa/coursestatic/images/b_100ed.png",
+                },
+                    sws_24_c_100: {
+                        activityCode: "LQ240927008",
+                        prizeCode: "2409270019,2409270020,2409270021",
+                        sucImg: "https://hdstatic.dongao.com/pcdist/shuiwushi/2024-zsfa/coursestatic/images/c_150.png",
+                        alImg: "https://hdstatic.dongao.com/pcdist/shuiwushi/2024-zsfa/coursestatic/images/c_150ed.png",
+                    },
+                    sws_24_d_500: {
+                        activityCode: "LQ241011024",
+                        prizeCode: "2410110023",
+                        sucImg: "https://hdstatic.dongao.com/pcdist/shuiwushi/2025-zsfa/coursestatic/images/d_500.png",
+                        alImg: "https://hdstatic.dongao.com/pcdist/shuiwushi/2025-zsfa/coursestatic/images/d_500ed.png",
+                    },
+                    // 24年注会双十一
+                    zk_24_a_100: {
+                        activityCode: "LQ240226001",
+                        prizeCode: "2402260001",
+                        sucImg: "https://hdstatic.dongao.com/pcdist/zckjs/2024-zsfa/coursestatic/images/a70_succes.png",
+                        alImg: "https://hdstatic.dongao.com/pcdist/zckjs/2024-zsfa/coursestatic/images/a70_succesed.png",
+                    },
+                    zk_24_b_200: {
+                        activityCode: "LQ240820005",
+                        prizeCode: "2408200007,2408200008",
+                        sucImg: "https://hdstatic.dongao.com/pcdist/zckjs/2025-zsfa/coursestatic/images/b_succes.png",
+                        alImg: "https://hdstatic.dongao.com/pcdist/zckjs/2025-zsfa/coursestatic/images/b_succesed.png",
+                    },
+                    zk_24_c_200: {
+                        activityCode: "LQ240820003",
+                        prizeCode: "2408200004,2408200005",
+                        sucImg: "https://hdstatic.dongao.com/pcdist/zckjs/2025-zsfa/coursestatic/images/c_succes.png",
+                        alImg: "https://hdstatic.dongao.com/pcdist/zckjs/2025-zsfa/coursestatic/images/c_succesed.png",
+                    },
+                    zk_24_d_1010: {
+                        activityCode: "LQ240820006",
+                        prizeCode: "2408200009",
+                        sucImg: "https://hdstatic.dongao.com/pcdist/zckjs/2025-zsfa/coursestatic/images/d_succes.png",
+                        alImg: "https://hdstatic.dongao.com/pcdist/zckjs/2025-zsfa/coursestatic/images/d_succesed.png",
+                    },
+                    zk_24_zh_469: {
+                        activityCode: "LQ240918003",
+                        prizeCode: "2409180003",
+                        sucImg: "https://hdstatic.dongao.com/pcdist/zckjs/2025-zkzh/coursestatic/images/suc_300.png",
+                        alImg: "https://hdstatic.dongao.com/pcdist/zckjs/2025-zkzh/coursestatic/images/suced_300.png",
+                    },
+                    xueli_24_gsb: {
+                        // 学历 高起专
+                        activityCode: "LQ240313001",
+                        prizeCode: "2403130001",
+                        sucImg: "https://hdstatic.dongao.com/pcdist/xueli/2024-zsfa/images/yhq_gqz_success.png",
+                        alImg: "https://hdstatic.dongao.com/pcdist/xueli/2024-zsfa/images/yhq_gqz_successed.png",
+                    },
+                    xueli_24_zsb: {
+                        // 学历 专升本
+                        activityCode: "LQ240313002",
+                        prizeCode: "2403130002",
+                        sucImg: "https://hdstatic.dongao.com/pcdist/xueli/2024-zsfa/images/yhq_zsb_success.png",
+                        alImg: "https://hdstatic.dongao.com/pcdist/xueli/2024-zsfa/images/yhq_zsb_successed.png",
+                    },
+                    zjjs_24_b: {
+                        activityCode: "LQ240628001",
+                        prizeCode: "2406280001",
+                    },
+                    zjjs_24_c: {
+                        activityCode: "LQ240628002",
+                        prizeCode: "2406280002",
+                    },
+                    zjjs_24_d: {
+                        activityCode: "LQ240809001",
+                        prizeCode: "2408090001",
+                    },
+                    /* 25年注会优惠券 */
+                    zk_25_a: {
+                        activityCode: "LQ241118010",
+                        prizeCode: "2411180017",
+                        sucImg: "https://hdstatic.dongao.com/pcdist/zckjs/2025-zsfa/coursestatic/images/rq_succes.png",
+                        alImg: "https://hdstatic.dongao.com/pcdist/zckjs/2025-zsfa/coursestatic/images/rq_succesed.png",
+                    },
+                    zk_25_b: {
+                        activityCode: "LQ241118011",
+                        prizeCode: "2411180018",
+                        sucImg: "https://hdstatic.dongao.com/pcdist/zckjs/2025-zsfa/coursestatic/images/qy_succes.png",
+                        alImg: "https://hdstatic.dongao.com/pcdist/zckjs/2025-zsfa/coursestatic/images/qy_succesed.png",
+                    },
+                    zk_25_c: {
+                        activityCode: "LQ240820002",
+                        prizeCode: "2408200002,2408200003",
+                        sucImg: "https://hdstatic.dongao.com/pcdist/zckjs/2025-zsfa/coursestatic/images/mx_succes.png",
+                        alImg: "https://hdstatic.dongao.com/pcdist/zckjs/2025-zsfa/coursestatic/images/mx_succesed.png",
+                    },
+                    zk_25_d: {
+                        activityCode: "LQ241118012",
+                        prizeCode: "2411180019,2411230003",
+                        sucImg: "https://hdstatic.dongao.com/pcdist/zckjs/2025-zsfa/coursestatic/images/ct_succes.png",
+                        alImg: "https://hdstatic.dongao.com/pcdist/zckjs/2025-zsfa/coursestatic/images/ct_succesed.png",
+                    },
+
+                    /* 25年中级优惠券 */
+                    zj_25_a: {
+                        activityCode: "LQ240920003",
+                        prizeCode: "2409200003",
+                        sucImg: "https://hdstatic.dongao.com/pcdist/zjzcgl/2025-zsfa/coursestatic/images/rq_succes.png",
+                        alImg: "https://hdstatic.dongao.com/pcdist/zjzcgl/2025-zsfa/coursestatic/images/rq_succesed.png",
+                    },
+                    zj_25_b: {
+                        activityCode: "LQ240920002",
+                        prizeCode: "2409200002",
+                        sucImg: "https://hdstatic.dongao.com/pcdist/zjzcgl/2025-zsfa/coursestatic/images/qy_succes.png",
+                        alImg: "https://hdstatic.dongao.com/pcdist/zjzcgl/2025-zsfa/coursestatic/images/qy_succesed.png",
+                    },
+                    zj_25_c: {
+                        activityCode: "LQ240927004",
+                        prizeCode: "2409270009,2409270010,2409270011",
+                        sucImg: "https://hdstatic.dongao.com/pcdist/zjzcgl/2025-zsfa/coursestatic/images/c_succes.png",
+                        alImg: "https://hdstatic.dongao.com/pcdist/zjzcgl/2025-zsfa/coursestatic/images/c_succesed.png",
+                    },
+                    zj_25_d: {
+                        activityCode: "LQ241011022",
+                        prizeCode: "2410110021",
+                        sucImg: "https://hdstatic.dongao.com/pcdist/zjzcgl/2025-zsfa/coursestatic/images/ct_succes.png",
+                        alImg: "https://hdstatic.dongao.com/pcdist/zjzcgl/2025-zsfa/coursestatic/images/ct_succesed.png",
+                   },
+				   
+				   /* 25年税务师优惠券 */
+				    sws_25_rq: {
+				      activityCode: "LQ241122010",
+				      prizeCode: "2411220008",
+				        sucImg: "https://hdstatic.dongao.com/pcdist/shuiwushi/2025-zsfa/coursestatic/images/rq_succes.png",
+				        alImg: "https://hdstatic.dongao.com/pcdist/shuiwushi/2025-zsfa/coursestatic/images/rq_succesed.png",
+				    },
+				    sws_25_qy: {
+				        activityCode: "LQ241122009",
+				        prizeCode: "2411220007",
+				        sucImg: "https://hdstatic.dongao.com/pcdist/shuiwushi/2025-zsfa/coursestatic/images/qy_succes.png",
+				        alImg: "https://hdstatic.dongao.com/pcdist/shuiwushi/2025-zsfa/coursestatic/images/qy_succesed.png",
+				    },
+				    sws_25_ct: {
+				        activityCode: "LQ241122011",
+				        prizeCode: "2411220009",
+				        sucImg: "https://hdstatic.dongao.com/pcdist/shuiwushi/2025-zsfa/coursestatic/images/ct_succes.png",
+				        alImg: "https://hdstatic.dongao.com/pcdist/shuiwushi/2025-zsfa/coursestatic/images/ct_succesed.png",
+				   },
+                };
+                //24年注会领券 & 学历领券pdy_xueli_yhq
+                $(".zk_24_getCouponBtn,.zsfa_getCoupon,.pdy_xueli_yhq").on("click", function (event) {
+                    event.stopPropagation();
+                    event.preventDefault();
+                    var _this = $(this),
+                        params = {
+                            activityCode: scYhqId[_this.data("kz")].activityCode,
+                            prizeCodes: scYhqId[_this.data("kz")].prizeCode,
+                        },
+                        // 优惠券跳链
+                        url = "https://www.dongao.com/zckjs/2025-zsfa/";
+                    if (_this.data("kz").indexOf("zk_23") != -1) {
+                        url = "https://www.dongao.com/zckjs/2023-zsfa/";
+                    } else if (_this.data("kz").indexOf("sws_23") != -1) {
+                        url = "https://www.dongao.com/shuiwushi/2023-zsfa/";
+                    } else if (_this.data("kz").indexOf("zj_24") != -1) {
+                        url = "https://www.dongao.com/zjzcgl/2024-zsfa/";
+                    } else if (_this.data("kz").indexOf("zj_23") != -1) {
+                        url = "https://www.dongao.com/zjzcgl/2023-zsfa/";
+                    } else if (_this.data("kz").indexOf("gk_24") != -1) {
+                        url = "https://www.dongao.com/gaoji/2024-zsfa/";
+                    } else if (_this.data("kz").indexOf("gk_25") != -1) {
+                        url = "https://www.dongao.com/gaoji/2025-zsfa/";
+                    } else if (_this.data("kz").indexOf("gk_jjs") != -1) {
+                        url = "https://www.dongao.com/gaoji/2025-gjjjs/";
+                    } else if (_this.data("kz").indexOf("sws_24") != -1) {
+                        url = "https://www.dongao.com/shuiwushi/2024-zsfa/";
+                    } else if (_this.data("kz").indexOf("xueli_24") != -1) {
+                        url = "https://xueli.dongao.com/2024-zsfa/";
+                    } else if (_this.data("kz").indexOf("cj200") != -1) {
+                        url = "https://www.dongao.com/cjks/2025-zsfa/vip.shtml";
+                    } else if (_this.data("kz").indexOf("zj_25") != -1) {
+                        url = "https://www.dongao.com/zjzcgl/2025-zsfa/";
+                    }else if (_this.data("kz").indexOf("sws_25") != -1) {
+                        url = "https://www.dongao.com/shuiwushi/2025-zsfa/";
+                    }
+
+                    adtool.getCoupon2(params, function (res) {
+                        $(".zk_24_yhq_suc_box").hide();
+                        if (res.code == 1) {
+                          if(_this.data("kz").indexOf("cj200") != -1){
+                                   adtool.toast("恭喜您，领取成功，快去使用吧！");
+                                   return false;
+                             }
+                            $(".zk_24_yhq_suc_box .yhqImg").attr("src", scYhqId[_this.data("kz")].sucImg);
+                            $(".zk_24_yhq_success,.zk_mask").show();
+                            $(".zk_24_yhq_suc_box .enter_zsfa").attr("href", url);
+                        } else {
+                            if(_this.data("kz").indexOf("cj200") != -1){
+                                   adtool.toast("您已经领取过了～");
+                                   return false;
+                             }
+                            $(".zk_24_yhq_suc_box .yhqImg").attr("src", scYhqId[_this.data("kz")].alImg);
+                            $(".zk_24_yhq_successed,.zk_mask").show();
+                            $(".zk_24_yhq_suc_box .enter_zsfa").attr("href", url);
+                        }
+                        $("html,body").css("overflow", "hidden");
+                    });
+                    return false;
+                });
+                //24年学历先领券后跳转
+                $(".pdy_xueli_detail").on("click", function (event) {
+                    event.stopPropagation();
+                    event.preventDefault();
+                    var _this = $(this),
+                        params = {
+                            activityCode: scYhqId[_this.data("kz")].activityCode,
+                            prizeCodes: scYhqId[_this.data("kz")].prizeCode,
+                        };
+                    adtool.getCoupon2(params, function (res) {
+                        window.location.href = "https://xueli.dongao.com/2024-zsfa/";
+                    });
+                    return false;
+                });
+                // 中级D班领劵
+                $(".zsfa_getCoupon_d").on("click", function (event) {
+                    event.stopPropagation();
+                    event.preventDefault();
+                    var _this = $(this),
+                        params = {
+                            activityCode: scYhqId[_this.data("kz")].activityCode,
+                            prizeCodes: scYhqId[_this.data("kz")].prizeCode,
+                        },
+                        // 优惠券跳链
+                        url = "https://www.dongao.com/zjzcgl/2024-zsfa/";
+
+                    adtool.getCoupon2(params, function (res) {
+                        $(".zj_24_yhq_suc_box").hide();
+                        if (res.code == 1) {
+                            $(".zj_24_yhq_suc_box .yhqImg").attr("src", scYhqId[_this.data("kz")].sucImg);
+                            $(".zj_24_yhq_success,.zk_mask").show();
+                            $(".zj_24_yhq_suc_box .enter_zsfa").attr("href", url);
+                        } else {
+                            $(".zj_24_yhq_suc_box .yhqImg").attr("src", scYhqId[_this.data("kz")].alImg);
+                            $(".zj_24_yhq_successed,.zk_mask").show();
+                            $(".zj_24_yhq_suc_box .enter_zsfa").attr("href", url);
+                        }
+                        $("html,body").css("overflow", "hidden");
+                    });
+                    return false;
+                });
+
+                $(".zk_24_yhq_suc_box .kf,.zk_24_yhq_suc_box .closeImg,.zk_24_yhq_suc_box .enter_zsfa,.zk_24_yhq_suc_box .yhq_kf,.zj_24_yhq_suc_box .closeImg,.zj_24_yhq_suc_box .yhq_kf,.zj_24_yhq_suc_box .enter_zsfa,.gk_closepop").on("click", function () {
+                    $(".zk_24_yhq_suc_box,.zk_mask,.zj_24_yhq_suc_box").hide();
+                    $("html,body").css("overflow", "inherit");
+                });
+
+                $(".da_fabk_zk .zk_40vip_btn").click(function (e) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    var _this = $(this),
+                        cpkey = "zk40vip100",
+                        params = {
+                            activityCode: scYhqId[cpkey].activityCode,
+                            prizeCodes: scYhqId[cpkey].prizeCodes,
+                        },
+                        // 优惠券跳链
+                        url = "https://www.dongao.com/zckjs/2024-zsfa/40tqfmxvip.shtml";
+
+                    adtool.getCoupon2(params, function (res) {
+                        $(".zk_24_yhq_suc_box").hide();
+                        if (res.code == 1) {
+                            $(".zk_24_yhq_suc_box .yhqImg").attr("src", scYhqId[cpkey].sucImg);
+                            $(".zk_24_yhq_success,.zk_mask").show();
+                            $(".zk_24_yhq_suc_box .enter_zsfa").attr("href", url);
+                        } else {
+                            $(".zk_24_yhq_suc_box .yhqImg").attr("src", scYhqId[cpkey].alImg);
+                            $(".zk_24_yhq_successed,.zk_mask").show();
+                            $(".zk_24_yhq_suc_box .enter_zsfa").attr("href", url);
+                        }
+                        $("html,body").css("overflow", "hidden");
+                    });
+                    return false;
+                });
+
+                // 各考种领券
+                $(".sc_yhq").on("click", function (event) {
+                    event.stopPropagation();
+                    event.preventDefault();
+                    var kzInfo = $(this).data("kz");
+                    adtool.getCoupon2(scYhqId[kzInfo], function (res) {
+                        if (res.code == 1) {
+                            adtool.toast("领取成功");
+                        } else {
+                            adtool.toast("已经领取过");
+                        }
+                    });
+                    return false;
+                });
+                // 项目组课程优惠券汇总
+                var kcYhqId = {
+                    zjjs50: "CJ220614003", //B班50优惠券
+                    zjjs1000: "CJ220614005", //C班1000优惠券
+                };
+                // 项目组课程领券
+                $(".common_zjjs_kc .cou").on("click", function () {
+                    var kzInfo = $(this).data("kz");
+                    adtool.lk(kcYhqId[kzInfo], function (res) {
+                        if (res.code == 50001 || res.code == 50002) {
+                            adtool.toast("已领取!");
+                        } else if (res.code == 1) {
+                            adtool.toast("领取成功!");
+                        }
+                    });
+                });
+                // 中级经济师广告图留咨
+                $(".zjjs_lz").on("click", function () {
+                    adtool.lk("CJ221021006", function () {
+                        window.zixunChat("sub_source_30", "经济师");
+                    });
+                });
+                // 中级经济师领券
+                $(".zjjs_lq").on("click", function (event) {
+                    event.stopPropagation();
+                    event.preventDefault();
+                    var type = $(this).data("kz"),
+                        params = {
+                            activityCode: scYhqId[type].activityCode,
+                            prizeCodes: scYhqId[type].prizeCode,
+                        };
+                    adtool.getCoupon2(params, function (res) {
+                        adtool.toast("领取成功~");
+                    });
+                });
+
+                //项目组ACCA优惠券
+                var accaYhqId = {
+                    kc1: {
+                        activityCode: "LQ220520001", //F阶段1000
+                        prizeCode: "220520001",
+                    },
+                    kc2: {
+                        activityCode: "LQ220520002", //P阶段1500
+                        prizeCode: "220520002",
+                    },
+                    kc3: {
+                        activityCode: "LQ220520003", //全科3000
+                        prizeCode: "220520003",
+                    },
+                    kc4: {
+                        activityCode: "LQ220520004", //一体班3500
+                        prizeCode: "220520004",
+                    },
+                    acca_ad: {
+                        activityCode: "LQ211231004", //ACCA课程方案标题广告图
+                        prizeCode: "211231004",
+                    },
+                };
+                //项目组ACCA优惠券领取
+                $(".acca_ul .acca_ul_div3").on("click", function () {
+                    var kzInfo = $(this).data("kz");
+                    adtool.getCoupon2(accaYhqId[kzInfo], function (res) {
+                        adtool.toast("恭喜您领取成功，请在我的卡券中查看");
+                    });
+                    return false;
+                });
+                //项目组ACCA课程方案标题广告图领取
+                $(".fdkc_plan_acca .acca_fdkc_cou").on("click", function () {
+                    var kzInfo = $(this).data("kz");
+                    adtool.getCoupon2(accaYhqId[kzInfo], function (res) {
+                        adtool.toast("恭喜您领取成功，立即锁定双十一好课吧~");
+                        setTimeout(function () {
+                            window.zixunChat("sub_source_29", "ACCA");
+                        }, 2000);
+                    });
+                    return false;
+                });
+
+                //项目组ACCA首页咨询顾问弹窗
+                $(".acca_ul .guwen").on("click", function () {
+                    $(".kefu_mask").show();
+                    $(".new_mask2").show();
+                    $("html").css("overflow-y", "hidden");
+                });
+                $(".kefu_mask_close").on("click", function () {
+                    $(".kefu_mask").hide();
+                    $(".new_mask2").hide();
+                    $("html").css("overflow-y", "scroll");
+                });
+
+                //项目组CMA频道页优惠券
+                var cmaYhqId = {
+                    cma_a: {
+                        activityCode: "LQ210917003", //500元
+                        prizeCode: "210917610",
+                    },
+                    cma_b: {
+                        activityCode: "LQ210924002", //800元
+                        prizeCode: "210924002",
+                    },
+                    cma_c: {
+                        activityCode: "LQ220117010", //2000元
+                        prizeCode: "220117010",
+                    },
+                    cma_vip: {
+                        activityCode: "LQ220117009", //vip2000元
+                        prizeCode: "220118032,220118033",
+                    },
+                    cma_700: {
+                        activityCode: "LQ240110001", // FMAA 700元
+                        prizeCodes: "2401100001",
+                    },
+                };
+                //项目组CMA优惠券领取
+                $(".pdy_fmaa .pdy_fmaa_yhq").on("click", function () {
+                    var kzInfo = $(this).data("kz");
+                    adtool.getCoupon2(cmaYhqId[kzInfo], function (res) {
+                        adtool.toast("恭喜您，领取成功~");
+                    });
+                    return false;
+                });
+                // CMA常见问题弹窗--打开
+                $(".pdy_fmaa .question").on("click", function (res) {
+                    $(".fmaa_pop,.cma_mask").show();
+                    $("html,body").css("overflow", "hidden");
+                    return false;
+                });
+                // CMA常见问题弹窗--关闭
+                $(".fmaa_pop .close").on("click", function (res) {
+                    $(".fmaa_pop,.cma_mask").hide();
+                    $("html,body").css("overflow", "inherit");
+                    return false;
+                });
+                // CMA购买进结算页
+                $(".pdy_fmaa .fmaa_buy").on("click", function () {
+                    var pid = $(this).data("pid");
+                    adtool.getCoupon2(cmaYhqId["cma_700"], function (res) {
+                        adtool.addCart([pid], 4);
+                    });
+                    return false;
+                });
+                // 项目组CMA频道页抽奖领取
+                $(".cma_common_lc_tz").on("click", function () {
+                    adtool.lk("CJ221102001", function () {
+                        setTimeout(function () {
+                            window.open("https://www.dongao.com/cma/2024-zsfa/?_p=e059eb96ac8b2bbb");
+                        }, 1000);
+                    });
+                });
+                //注会首页频道页实操模块购买
+                // $('.pdy_class_zckjs .kc_zk_vip .buy_btn, .sy_class_zckjs .kc_zk_sc .buy_btn').on('click', function () {
+                // 	adtool.cartDic({
+                // 		activityCode: 'TH230414005',
+                // 		prizeCodes: '2304140003'
+                // 	})
+                // })
+
+                // 注会60天 倒计时
+                var qfDjs = $(".da_fabk_zk .zk8ztpmxvip_djs");
+                if (qfDjs) {
+                    adtool.cdown("2024/08/15 23:59:59", function (d) {
+                        qfDjs.find(".zk8ztpmxvip_djsd").html(d.d).end().find(".zk8ztpmxvip_djsh").html(d.h).end().find(".zk8ztpmxvip_djsm").html(d.m).end().find(".zk8ztpmxvip_djss").html(d.s);
+                    });
+                }
+
+                // 中级冲刺抢分 倒计时
+                var ccDjs = $(".da_fabk_zj .zj8ztpmxvip_djs");
+                if (ccDjs) {
+                    adtool.cdown("2024/08/29 23:59:59", function (d) {
+                        ccDjs.find(".zj8ztpmxvip_djsd").html(d.d).end().find(".zj8ztpmxvip_djsh").html(d.h).end().find(".zj8ztpmxvip_djsm").html(d.m).end().find(".zj8ztpmxvip_djss").html(d.s);
+                    });
+                }
+
+                // 税务师VIP抢分密训 倒计时
+                var swsqfDjs = $(".da_fabk_sws .sws_vipqfmx_djs");
+                if (swsqfDjs) {
+                    adtool.cdown("2024/10/15 23:59:59", function (d) {
+                        swsqfDjs.find(".djs_d").html(d.d).end().find(".djs_h").html(d.h).end().find(".djs_m").html(d.m).end().find(".djs_s").html(d.s);
+                    });
+                }
+
+                // 经济师刷题密训 倒计时
+                var gsDjs = $(".common_zjjs_kc .skb .djs");
+                if (gsDjs) {
+                    adtool.cdown("2024/10/14 23:59:59", function (d) {
+                        gsDjs.find(".djs_d").html(d.d).end().find(".djs_h").html(d.h).end().find(".djs_m").html(d.m).end().find(".djs_s").html(d.s);
+                    });
+                }
+            },
+            /*
+             * 遍历channel对象的key值
+             * @description 作用于官网频道页的执行方法
+             * @param   da_sy_home   官网
+             * 			da_channel_考种  频道页  (da_channel_cj)
+             */
+            channel: {
+                /*
+                 * 首页执行方法
+                 */
+                da_sy_home: function () {
+                    // 官网首页顶部皮肤倒计时
+                    var syTop = $(".da_sy_home #sy_ad_pifu"),
+                        syDjs = syTop.attr("dt");
+                    if (!!syDjs) {
+                        syTop.find(".sy_ggt_djs").show();
+                        adtool.cdown(syDjs, function (s) {
+                            syTop.find("#sy_djs_numd").html(s.d).end().find("#sy_djs_numh").html(s.h).end().find("#sy_djs_numm").html(s.m).end().find("#sy_djs_nums").html(s.s);
+                        });
+                    } else {
+                        syTop.find(".sy_ggt_djs").hide();
+                    }
+
+                    // 图书轮播
+                    var _zksbookSwiper25,
+                        zksSwipwrFun25 = function () {
+                            if (_zksbookSwiper25) {
+                                _zksbookSwiper25.destroy(true);
+                            }
+                            _zksbookSwiper25 = new Swiper(".zkbsSwiper25", {
+                                spaceBetween: 13,
+                                slidesPerView: "4",
+                                pagination: {
+                                    el: ".zkbsSwiper25 .sy-swiper-pagination25",
+                                    clickable: true,
+                                },
+                                loop: true,
+                                loopPreventsSlide: true,
+                                autoplay: true,
+                            });
+                        };
+                    var _zksbookSwiper,
+                        zksSwipwrFun = function () {
+                            if (_zksbookSwiper) {
+                                _zksbookSwiper.destroy(true);
+                            }
+                            _zksbookSwiper = new Swiper(".zkbsSwiper", {
+                                spaceBetween: 13,
+                                slidesPerView: "4",
+                                pagination: {
+                                    el: ".zkbsSwiper .swiper-pagination",
+                                    clickable: true,
+                                },
+                                loop: true,
+                                loopPreventsSlide: true,
+                                autoplay: true,
+                            });
+                        };
+                    setTimeout(function () {
+                        zksSwipwrFun25();
+                        zksSwipwrFun();
+                    }, 200);
+
+                    $(".da_fabk_zk .too_span1_sy")
+                        .eq(0)
+                        .click(function () {
+                            setTimeout(function () {
+                                zksSwipwrFun25();
+                            }, 200);
+                        });
+                    $(".da_fabk_zk .too_span1_sy")
+                        .eq(1)
+                        .click(function () {
+                            setTimeout(function () {
+                                zksSwipwrFun();
+                            }, 200);
+                        });
+                },
+                /*
+                 * 注会频道页导航执行方法
+                 */
+                da_channel_zk: function () {
+                    var _d = $(".da_channel_zk"),
+                        // 顶部皮肤倒计时
+                        syTop = _d.find("#zk_ad_pifu"),
+                        syDjs = syTop.attr("dt");
+                    if (!!syDjs) {
+                        syTop.find(".zk_ggt_djs").show();
+                        adtool.cdown(syDjs, function (s) {
+                            syTop.find("#zk_djs_numd").html(s.d).end().find("#zk_djs_numh").html(s.h).end().find("#zk_djs_numm").html(s.m).end().find("#zk_djs_nums").html(s.s);
+                        });
+                    } else {
+                        syTop.find(".zk_ggt_djs").hide();
+                    }
+                    // 注会频道页顶部关闭
+                    _d.find(".zk_close_ggt").on("click", function (event) {
+                        event.stopPropagation();
+                        $(".zk_ggt").remove();
+                    });
+
+                },
+                /*
+                 * 初级频道页执行方法
+                 */
+                da_channel_cj: function () {
+                    var _d = $(".da_channel_cj"),
+                        // 顶部皮肤倒计时
+                        syTop = _d.find("#cj_ad_pifu"),
+                        syDjs = syTop.attr("dt");
+                    if (!!syDjs) {
+                        syTop.find(".cj_ggt_djs").show();
+                        adtool.cdown(syDjs, function (s) {
+                            if (s.d == "00" && s.h == "00" && s.m == "00" && s.s == "00") {
+                                syTop.find(".cj_ggt_djs").hide();
+                                return false;
+                            }
+                            syTop.find("#cj_djs_numd").html(s.d).end().find("#cj_djs_numh").html(s.h).end().find("#cj_djs_numm").html(s.m).end().find("#cj_djs_nums").html(s.s);
+                        });
+                    } else {
+                        syTop.find(".cj_ggt_djs").hide();
+                    }
+                    // 初级频道页顶部关闭
+                    _d.find(".cj_close_ggt").on("click", function (event) {
+                        event.stopPropagation();
+                        $(".cj_ggt").remove();
+                    });
+                },
+                /*
+                 * 初级课程图书方法
+                 */
+                da_fabk_cj: function () {
+                    var _d = $(".da_fabk_cj");
+                    // 初级首页频道页网课领券
+                    _d.find(".coupons_yh").click(function () {
+                        adtool.lk("CJ210623002", function (res) {
+                            if (res.code == 50001 || res.code == 50002) {
+                                adtool.toast("已领取!");
+                            } else if (res.code == 1) {
+                                adtool.toast("领取成功!");
+                            }
+                        });
+                    });
+                    _d.find(".tab_year a").click(function () {
+                        var kc_index = $(this).index(".yearItem"),
+                            type = ["22", "23"],
+                            t = $(this);
+                        t.addClass("active").siblings(".yearItem").removeClass("active");
+                        $(".lessons_" + type[kc_index])
+                            .show()
+                            .siblings(".lessonItem")
+                            .hide();
+                        if (t.hasClass("tabYear_23")) {
+                            $(".cj22_con .tit h3").text("2023初级轻一书课包·全新升级") && $(" .cj22_con .show_23").show().siblings(".cj22_con .show_22").hide();
+                        } else if (t.hasClass("tabYear_22")) {
+                            $(".cj22_con .tit h3").text("2022初级3款书课包重磅升级") && $(".cj22_con .show_22").show().siblings(".cj22_con .show_23").hide();
+                        }
+                    });
+                    // 初级图书tab切换
+                    _d.find(".too_span").click(function () {
+                        var _this = $(this),
+                            _index = _this.index();
+                        _this.addClass("cjks_active").siblings().removeClass("cjks_active");
+                        _d.find(".book_box_content").hide().eq(_index).show();
+                        _d.find(".tit_h2 .tit").hide().eq(_index).show();
+                    });
+                    // 初级首页网课tab切换
+                    _d.find(".cj_span").click(function () {
+                        var _this = $(this),
+                            _index = _this.index();
+                        _this.addClass("cj_span_active").siblings().removeClass("cj_span_active");
+                        _d.find(".cj_course").hide().eq(_index).show();
+                        _d.find(".tit .tit_b").hide().eq(_index).show();
+                    });
+                    // 初级首页冲刺方案部分切换
+                    _d.find(".cj_spans").click(function () {
+                        var _this = $(this),
+                            _index = _this.index();
+                        _this.addClass("cj_spans_active").siblings().removeClass("cj_spans_active");
+                        _d.find(".cj_courses").hide().eq(_index).show();
+                    });
+                    //vip切换
+                    _d.find(".cj_vip_tabs_span").click(function () {
+                        var _this = $(this),
+                            _index = _this.index();
+                        _this.addClass("cj_span_active").siblings().removeClass("cj_span_active");
+                        _d.find(".cj_vip_item").hide().eq(_index).show();
+                    });
+                    // 初级vip倒计时
+                    var cjkc = _d.find("#cjvip");
+
+                    adtool.cdown("2024/06/30 23:59:59", function (s) {
+                        cjkc.find(".cj_djs_numd").html(s.d).end().find(".cj_djs_numh").html(s.h).end().find(".cj_djs_numm").html(s.m).end().find(".cj_djs_nums").html(s.s);
+                    });
+
+                    _d.find(".szzc_yhq").click(function () {
+                        adtool.lk("CJ220714001", function (res) {
+                            if (res.code == 1 || res.code == 50001 || res.code == 50002) {
+                                adtool.toast("领取成功");
+                            }
+                        });
+                    }),
+                        // 中级网课tab切换
+                        _d.find(".cj_tab_list li").click(function () {
+                            $(".cj_tab").hide();
+                            $(".cj_tab").eq($(this).index()).show();
+                            $(".cj_tab_list li").removeClass("cj_tab_list_act");
+                            $(".cj_tab_list li").eq($(this).index()).addClass("cj_tab_list_act");
+                        });
+                },
+                /*
+                 * 中级课程图书板块执行方法
+                 */
+                da_fabk_zj: function () {
+                    var _d = $(".da_fabk_zj");
+                    // 中级tab切换
+                    _d.find(".gw_zj_kckb .zjtp_title span").click(function () {
+                        var $this = $(this),
+                            $index = $this.index();
+                        $this.addClass("zj_add").siblings(".zjtp_title span").removeClass("zj_add");
+                        $this.parents(".zjtp_title").siblings(".zjfa_content").eq($index).show().siblings(".zjfa_content").hide();
+                    });
+
+                    // 1V1私教VIP班倒计时
+                    var zj_pdy_djs = _d.find(".zj_day60");
+                    adtool.cdown("2024/07/19 23:59:59", function (s) {
+                        zj_pdy_djs.find(".zjvip2_djsd").html(s.d).end().find(".zjvip2_djsh").html(s.h).end().find(".zjvip2_djsm").html(s.m).end().find(".zjvip2_djss").html(s.s);
+                    });
+                    // 中级图书tab切换
+                    _d.find(".too_span").click(function () {
+                        var _this = $(this),
+                            _index = _this.attr("data-index");
+                        _this.addClass("zj_active").siblings().removeClass("zj_active");
+                        _index == 1 ? _d.find(".too_i").addClass("act") : _d.find(".too_i").removeClass("act");
+                        _d.find(".book_box_content").hide().eq(_index).show();
+                        _d.find(".tit_h2 .tit").hide().eq(_index).show();
+                        zjsSwipwrFun(_index);
+                    });
+                    // 23年中级tab切换
+                    _d.find(".zjtp_title_list span").click(function () {
+                        var kc_index = $(this).index(".zj_span"),
+                            type = ["zj2024", "zj2023"],
+                            $this = $(this);
+                        $this.addClass("zj_add").siblings(".zjtp_title_list span").removeClass("zj_add");
+                        $(".kc_zj_" + type[kc_index])
+                            .show()
+                            .siblings(".zjfa_content")
+                            .hide();
+                        if ($(this).hasClass("zj_23_span")) {
+                            $(".zjtp_title").find(".s1").html("23新课大升级，买课送书！") && $(".zjtp_title").find(".zk2023_zixun_img").show();
+                        } else if ($(this).hasClass("zj_24_span")) {
+                            $(".zjtp_title").find(".s1").html('<i class="text">9月9日-15日劲享考试期秒杀价</i><i class="st"></i>') && $(".zjtp_title").find(".zk2023_zixun_img").hide();
+                        }
+                    });
+                    // 中级网课tab切换
+                    _d.find(".zj_tab_list li").click(function () {
+                        $(".zj_tab").hide();
+                        $(".zj_tab").eq($(this).index()).show();
+                        $(".zj_tab_list li").removeClass("zj_tab_list_act");
+                        $(".zj_tab_list li").eq($(this).index()).addClass("zj_tab_list_act");
+                    });
+
+                    _d.find(".kc_zjquan").click(function () {
+                        adtool.lk("CJ220714001", function (res) {
+                            if (res.code == 1 || res.code == 50001 || res.code == 50002) {
+                                adtool.toast("领取成功");
+                            }
+                        });
+                    });
+
+
+
+                    // 中级网课tab切换
+                    _d.find(".zj_list_part .tab1 .switch i").click(function () {
+                        $(".zj_list_part .tab1 .switch i").removeClass('act')
+                        $(this).addClass('act')
+                        $('.zj_list_part .list1').css('display','none')
+                        $('.zj_list_part .list1').eq($(this).index()).css('display','block')
+                    });
+
+                    // 中级网课tab切换
+                    _d.find(".zj_list_part .tab2 .switch i").click(function () {
+                        $(".zj_list_part .tab2 .switch i").removeClass('act')
+                        $(this).addClass('act')
+                        $('.zj_list_part .list2').css('display','none')
+                        $('.zj_list_part .list2').eq($(this).index()).css('display','block')
+                    });
+                          
+                    // 中级网课tab切换
+                    _d.find(".zj_list_part .tab3 .switch i").click(function () {
+                        $(".zj_list_part .tab3 .switch i").removeClass('act')
+                        $(this).addClass('act')
+                        $('.zj_list_part .list3').css('display','none')
+                        $('.zj_list_part .list3').eq($(this).index()).css('display','block')
+                    });
+
+                    _d.find(".zj_list_part .tab3 .con .no .commodity").click(function () {
+                        $(".zj_list_part .tab3 .con .no .commodity").removeClass('act')
+                        $(this).addClass('act')
+                    });
+                    _d.find(".zj_list_part .tab3 .con .non .commodity").click(function () {
+                        $(".zj_list_part .tab3 .con .non .commodity").removeClass('act')
+                        $(this).addClass('act')
+                    });
+
+
+
+
+
+
+                    
+
+
+
+
+
+
+
+
+                    // 图书轮播
+                    var _zjsbookSwiper, _zjsbookSwiperIndex;
+                    zjsSwipwrFun = function (i) {
+                        if (_zjsbookSwiper) {
+                            _zjsbookSwiper.destroy(true);
+                        }
+                        _zjsbookSwiper = new Swiper(".zjbsSwiper" + i, {
+                            spaceBetween: 9,
+                            // slidesPerView: 'auto'根据slide的宽度自动调整展示数量。
+                            // 此时需要设置slide的宽度.swiper-slide{width:270px;}
+                            slidesPerView: "auto",
+                            loopedSlides: 100,
+                            pagination: {
+                                el: ".paginationzj" + i,
+                                clickable: true,
+                            },
+                            loop: true,
+                            loopPreventsSlide: true,
+                            autoplay: true,
+                        });
+                    };
+                    setTimeout(function () {
+                        zjsSwipwrFun(0);
+                    }, 200);
+                    $(".kemu_tab a")
+                        .eq(2)
+                        .click(function () {
+                            setTimeout(function () {
+                                _zjsbookSwiperIndex = $(".zj_active").attr("data-index");
+                                zjsSwipwrFun(_zjsbookSwiperIndex);
+                            }, 200);
+                        });
+                },
+
+                /*
+                 * 注会课程图书板块执行方法
+                 */
+                da_fabk_zk: function () {
+                    var _d = $(".da_fabk_zk");
+                    // 注会tab切换
+                    _d.find(".zktp_title_list span").click(function () {
+                        var kc_index = $(this).index(".zk_span"),
+                            type = ["zk2024", "zonghe"],
+                            $this = $(this);
+                        $this.addClass("zk_add").siblings(".zktp_title_list span").removeClass("zk_add");
+                        $(".kc_zk_" + type[kc_index])
+                            .show()
+                            .siblings(".dach_zk_kcbk")
+                            .hide();
+                        if ($(this).hasClass("zk2024_span")) {
+                            $(".zktp_title").find(".s1").html('<i class="text">24年注会新课已开班，购课立即听新课</i><i class="st"></i>') && $(".zktp_title").find(".zk2023_zixun_img").hide();
+                        } else if ($(this).hasClass("jxjy_span")) {
+                            $(".zktp_title").find(".s1").text("购D班送全套综合阶段课程") && $(".zktp_title").find(".zk2023_zixun_img").show().siblings(".zk_tip").hide();
+                        } else if ($(this).hasClass("zk2023_span")) {
+                            $(".zktp_title").find(".s1").html('23新课大升级，买课送书！<a href="https://www.dongao.com/zckjs/2023-zsfa/" target="_blank"><img class="ckj_icon" src="https://hdstatic.dongao.com/static/home_channel/images2023/sy/ckj.gif" /></a>') && $(".zktp_title").find(".zk2023_zixun_img").show().siblings(".zk_tip").hide();
+                        }
+                    });
+
+                    // 注会网课tab切换
+                    _d.find(".zk_tab_list li").click(function () {
+                        $(".zk_tab").hide();
+                        $(".zk_tab").eq($(this).index()).show();
+                        // $('.zk_vipqytx_box').show();
+                        $(".zk_tab_list li").removeClass("zk_tab_list_act");
+                        $(".zk_tab_list li").eq($(this).index()).addClass("zk_tab_list_act");
+                    });
+
+                    _d.find(".too_span").click(function () {
+                        var _this = $(this),
+                            _index = _this.index();
+                        _this.addClass("zk_active").siblings().removeClass("zk_active");
+                        _d.find(".book_box_content").hide().eq(_index).show();
+                        _d.find(".tit_h2 .tit").hide().eq(_index).show();
+                    });
+
+
+
+                    // 中级网课tab切换
+                    _d.find(".zk_list_part .tab1 .switch i").click(function () {
+                        $(".zk_list_part .tab1 .switch i").removeClass('act')
+                        $(this).addClass('act')
+                        $('.zk_list_part .list1').css('display','none')
+                        $('.zk_list_part .list1').eq($(this).index()).css('display','block')
+                    });
+
+                    // 中级网课tab切换
+                    _d.find(".zk_list_part .tab2 .switch i").click(function () {
+                        $(".zk_list_part .tab2 .switch i").removeClass('act')
+                        $(this).addClass('act')
+                        $('.zk_list_part .list2').css('display','none')
+                        $('.zk_list_part .list2').eq($(this).index()).css('display','block')
+                    });
+
+                    // 中级网课tab切换
+                    _d.find(".zk_list_part .tab3 .switch i").click(function () {
+                        $(".zk_list_part .tab3 .switch i").removeClass('act')
+                        $(this).addClass('act')
+                        $('.zk_list_part .list3').css('display','none')
+                        $('.zk_list_part .list3').eq($(this).index()).css('display','block')
+                    });
+// 税务师tab切换
+                    _d.find(".zk_list_part .tab3 .con .no .commodity").click(function () {
+                        $(".zk_list_part .tab3 .con .no .commodity").removeClass('act')
+                        $(this).addClass('act')
+                    });
+                    _d.find(".zk_list_part .tab3 .con .non .commodity").click(function () {
+                        $(".zk_list_part .tab3 .con .non .commodity").removeClass('act')
+                        $(this).addClass('act')
+                    });
+					
+
+
+                    // cma立即抢占按钮
+                    _d.find(".sclq").click(function () {
+                        adtool.lk("CJ220804005", function (res) {
+                            if (res.code == 1 || res.code == 50001 || res.code == 50002) {
+                                adtool.toast("您已抢占成功，等待助教老师联系即可。");
+                                setTimeout(function () {
+                                    window.open("https://www.dongao.com/cma/2022-zsfa/?_p=208968c7d96e3350#zklk");
+                                }, 3000);
+                            }
+                        });
+                    });
+                    // 1V1私教VIP班倒计时
+                    var zj_pdy_djs = _d.find("#zk_pdy_djs");
+                    adtool.cdown("2022/08/18 23:59:59", function (s) {
+                        zj_pdy_djs.find(".zj_pdy_d").html(s.d).end().find(".zj_pdy_h").html(s.h).end().find(".zj_pdy_m").html(s.m).end().find(".zj_pdy_s").html(s.s);
+                    });
+
+                    // 图书轮播
+                    // var _zksbookSwiper25,
+                    // zksSwipwrFun25 = function () {
+                    //     if (_zksbookSwiper25) {
+                    //         _zksbookSwiper25.destroy(true);
+                    //     }
+                    //     _zksbookSwiper25 = new Swiper(".zkbsSwiper25", {
+                    //         spaceBetween: 13,
+                    //         slidesPerView: "4",
+                    //         pagination: {
+                    //             el: ".zkbsSwiper25 .sy-swiper-pagination25",
+                    //             clickable: true,
+                    //         },
+                    //         loop: true,
+                    //         loopPreventsSlide: true,
+                    //         autoplay: true,
+                    //     });
+                    // };
+                    // var _bookSwiper,
+                    //     zksSwipwrFun = function () {
+                    //         if (_bookSwiper) {
+                    //             _bookSwiper.destroy(true);
+                    //         }
+                    //         _bookSwiper = new Swiper(".zkbsSwiper", {
+                    //             spaceBetween: 13,
+                    //             slidesPerView: "4",
+                    //             pagination: {
+                    //                 el: ".zkbSwiper .swiper-pagination",
+                    //                 clickable: true,
+                    //             },
+                    //             loop: true,
+                    //             loopPreventsSlide: true,
+                    //             autoplay: true,
+                    //         });
+                    //     };
+                    // setTimeout(function () {
+                    //     zksSwipwrFun25();
+                    //     zksSwipwrFun();
+                    // }, 200)
+
+                    // $('.da_fabk_zk .too_span1_sy').eq(0).click(function () {
+                    //     setTimeout(function () {
+                    //         zksSwipwrFun25();
+                    //     }, 200)
+                    // })
+                    // $('.da_fabk_zk .too_span1_sy').eq(1).click(function () {
+                    //     setTimeout(function () {
+                    //         zksSwipwrFun();
+                    //     }, 200)
+                    // })
+
+                    // 图书轮播
+                    var _bookSwiper,
+                        zkSwipwrFun = function () {
+                            if (_bookSwiper) {
+                                _bookSwiper.destroy(true);
+                            }
+                            _bookSwiper = new Swiper(".zkbSwiper", {
+                                spaceBetween: 13,
+                                slidesPerView: "4.35",
+                                pagination: {
+                                    el: ".zkbSwiper .swiper-pagination",
+                                    clickable: true,
+                                },
+                                loop: true,
+                                loopPreventsSlide: true,
+                                autoplay: true,
+                            });
+                        };
+
+                    var _bookSwiper25,
+                        zkSwipwrFun25 = function () {
+                            if (_bookSwiper25) {
+                                _zksbookSwiper25.destroy(true);
+                            }
+                            _bookSwiper25 = new Swiper(".zkbSwiper25", {
+                                spaceBetween: 13,
+                                slidesPerView: "4",
+                                pagination: {
+                                    el: ".zkbSwiper25 .sy-swiper-pagination25",
+                                    clickable: true,
+                                },
+                                loop: true,
+                                loopPreventsSlide: true,
+                                autoplay: true,
+                            });
+                        };
+                    setTimeout(function () {
+                        zkSwipwrFun();
+                        zkSwipwrFun25();
+                    }, 200);
+                    // $('.da_fabk_zk').find('.too_span').click(function() {
+                    //     let index = $(this).index();
+                    // 	setTimeout(function() {
+                    // 		zkSwipwrFun();
+                    // 		zkSwipwrFun25();
+                    // 	}, 200)
+                    // });
+                },
+
+                /*
+                 * 中级经济师课程图书板块执行方法
+                 */
+                da_fabk_zjjs: function () {
+                    var _d = $(".da_fabk_zjjs");
+                    // 注会tab切换
+
+                    _d.find(".too_span").click(function () {
+                        var _this = $(this),
+                            _index = _this.index();
+                        _this.addClass("zjjs_active").siblings().removeClass("zjjs_active");
+                        _d.find(".book_box").hide().eq(_index).show();
+                    });
+                },
+
+                /*
+                 * 中级经济师频道页课程图书板块执行方法
+                 */
+                pdy_book_zjjs: function () {
+                    var _d = $(".pdy_book_zjjs");
+                    // 注会tab切换
+
+                    _d.find(".too_span").click(function () {
+                        var _this = $(this),
+                            _index = _this.index();
+                        _this.addClass("zjjspdy_active").siblings().removeClass("zjjspdy_active");
+                        _d.find(".book_box").hide().eq(_index).show();
+                    });
+                },
+
+                /*
+                 * 税务师课程图书执行方法
+                 */
+                da_fabk_sws: function () {
+                    var _d = $(".da_fabk_sws");
+                    // 税务师图书模块tab切换
+                    _d.find(".too_span_sws").click(function () {
+                        var _this = $(this),
+                            _index = _this.index(".too_span_sws");
+                        _this.addClass("sws_active").siblings().removeClass("sws_active");
+                        _d.find(".book_box").hide().eq(_index).show();
+                        _d.find(".swsbk_tit").hide().eq(_index).show();
+                        if (_index == 1) {
+                            _d.find(".too_i").addClass("act");
+                        } else {
+                            _d.find(".too_i").removeClass("act");
+                        }
+                        swsSwipwrFun(_index);
+                    });
+
+                    // // 税务师网课切换
+                    _d.find(".sws_tab_list li").click(function () {
+                        $(".sws_tab").hide();
+                        $(".sws_tab").eq($(this).index()).show();
+                        $(".sws_tab_list li").removeClass("sws_tab_list_act");
+                        $(".sws_tab_list li").eq($(this).index()).addClass("sws_tab_list_act");
+                    });
+                    _d.find(".swsfa_tit span").click(function () {
+                        var kc_index = $(this).index(".sws_span"),
+                            type = ["23", "22"],
+                            $this = $(this);
+                        $this.addClass("sws_add").siblings(".swsfa_tit span").removeClass("sws_add");
+                        $(".kc_sws_" + type[kc_index])
+                            .show()
+                            .siblings(".dach_sws_kcbk")
+                            .hide();
+                        // _d.find('.sws_tip').hide().eq(kc_index).show();
+                        if ($(this).hasClass("sws23_span")) {
+                            $(".sws_title").html('23新课大升级，买课送书！<a href="https://www.dongao.com/shuiwushi/2023-zsfa/" target="_blank"><img class="ckj_icon" src="https://hdstatic.dongao.com/static/home_channel/images2023/sy/ckj.gif" /></a>');
+                            _d.find(".sws_tip").show();
+                        } else {
+                            $(".sws_title").text("2022税务师网络辅导课程 ");
+                            _d.find(".sws_tip").hide();
+                        }
+                    });
+                    // 1V1私教VIP班倒计时
+                    var sws_pdy_djs = $("#sws_qf");
+                    adtool.cdown("2023/11/8 23:59:59", function (s) {
+                        sws_pdy_djs.find(".swsqf_d").html(s.d).end().find(".swsqf_h").html(s.h).end().find(".swsqf_m").html(s.m).end().find(".swsqf_s").html(s.s);
+                    });
+                    // 图书轮播
+                    var _bookSwsSwiper,
+                        swsSwipwrFun = function (i) {
+                            if (_bookSwsSwiper) {
+                                _bookSwsSwiper.destroy(true);
+                            }
+                            _bookSwsSwiper = new Swiper(".swsSwiper" + i, {
+                                spaceBetween: 1,
+                                slidesPerView: "4",
+                                pagination: {
+                                    el: ".sws-pagination" + i,
+                                    clickable: true,
+                                },
+                                observer: true,
+                                observeParents: true,
+                                loop: true,
+                                loopPreventsSlide: true,
+                                autoplay: true,
+                            });
+                        };
+                    setTimeout(function () {
+                        swsSwipwrFun(0);
+                    }, 200);
+                    $(".kemu_tab a")
+                        .eq(4)
+                        .click(function () {
+                            swsSwipwrFun(0);
+                        });
+
+
+
+                    // 税务师tab切换
+                    _d.find(".shuiwushi_dk  .list .tab1 .switch i").click(function () {
+                        $(".shuiwushi_dk  .list .tab1 .switch i").removeClass('act')
+                        $(this).addClass('act')
+                        $('.shuiwushi_dk  .list .h1').css('display','none')
+                        $('.shuiwushi_dk  .list .h1').eq($(this).index()).css('display','block')
+                    });
+
+                    // 税务师tab切换
+                    _d.find(".shuiwushi_dk  .list .tab2 .switch i").click(function () {
+                        $(".shuiwushi_dk  .list .tab2 .switch i").removeClass('act')
+                        $(this).addClass('act')
+                        $('.shuiwushi_dk  .list .h2').css('display','none')
+                        $('.shuiwushi_dk  .list .h2').eq($(this).index()).css('display','block')
+                    });
+                        
+                    // 税务师tab切换
+                    _d.find(".shuiwushi_dk  .list .tab3 .switch i").click(function () {
+                        $(".shuiwushi_dk  .list .tab3 .switch i").removeClass('act')
+                        $(this).addClass('act')
+                        $('.shuiwushi_dk  .list .h3').css('display','none')
+                        $('.shuiwushi_dk  .list .h3').eq($(this).index()).css('display','block')
+                    });
+
+                    _d.find(".shuiwushi_dk .list .tab3 .con .no .commodity").click(function () {
+                        $(".shuiwushi_dk .list .tab3 .con .no .commodity").removeClass('act')
+                        $(this).addClass('act')
+                    });
+                    _d.find(".shuiwushi_dk .list .tab3 .con .non .commodity").click(function () {
+                        $(".shuiwushi_dk .list .tab3 .con .non .commodity").removeClass('act')
+                        $(this).addClass('act')
+                    });
+                },
+                /*
+                 * 高级课程图书执行方法
+                 */
+                da_fabk_gj: function () {
+                    var _d = $(".da_fabk_gj");
+
+                    // 高级图书模块tab切换
+                    _d.find(".too_span").click(function () {
+                        var _this = $(this),
+                            _index = _this.index();
+                        _this.addClass("gj_active").siblings().removeClass("gj_active");
+                        _d.find(".book_box").hide().eq(_index).show();
+                    });
+                },
+            },
+        };
+    w.adtool = adtool;
+    w.admethod = admethod; //测试中级、税务师swiper初始化失败
+    $(function () {
+        admethod.init();
+    });
+})(window);
+
+</script>
+
+</body>
+</html>

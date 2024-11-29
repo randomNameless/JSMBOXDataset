@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>video-dialog-65d77cf08e5dab8eafe955d25258f6f0.html</title>
+</head>
+<body>
+
+<script>
+(function () {
+  var iframeVideos = Array.from(document.querySelectorAll('[data-iframe-src]'));
+  const hasIframeVideos = iframeVideos.length > 0;
+
+  // When dynamically setting the src for youtube iframes,
+  // this script needs to be manually included on page load
+  // in order for GTM to track analytics events correctly.
+  // https://www.simoahava.com/analytics/the-youtube-video-trigger-in-google-tag-manager/#track-lazy-loaded--dynamically-inserted-videos
+  if (hasIframeVideos) { // addIframeApiScript
+    var iframeApiScript = document.createElement('script');
+    iframeApiScript.setAttribute('src', 'https://www.youtube.com/iframe_api');
+    document.body.appendChild(iframeApiScript);
+  }
+
+  // Remove the gtmYtInspected data attribute so that the iframe can be re-inspected
+  // There are multiple of these, hence the forEach and startsWith
+  const removeYtInspected = function (iframe) {
+    Object.keys(iframe.dataset).forEach(function (dataKey) {
+      if (dataKey.startsWith('gtmYtInspected')) {
+        delete iframe.dataset[dataKey];
+      }
+    });
+  }
+
+  const setSrc = function (iframe, newSrc) {
+    if (Object.keys(iframe.dataset).length > 0) {
+      removeYtInspected(iframe);
+    }
+    iframe.src = newSrc;
+    iframe.removeAttribute('data-iframe-src');
+  }
+
+  const findNewSrc = function (iframe) {
+    const oldSrc = iframe.src;
+    var dataSrc = iframe.getAttribute('data-iframe-src');
+    var newSrc = oldSrc;
+    if (dataSrc) {
+      newSrc = dataSrc;
+    }
+
+    // only add autoplay if is a YouTube video and doesn't already have autoplay
+    if (newSrc.includes('youtube.com') && !newSrc.includes('autoplay=1')) {
+      var join = newSrc.includes('?') ? '&' : '?';
+      newSrc += join + "autoplay=1";
+    }
+    if (newSrc !== oldSrc) {
+      setSrc(iframe, newSrc);
+    }
+  }
+
+  window.addEventListener('open-dialog', function(event) {
+    const targetDialog = document.getElementById(event.detail.ytid);
+    if (targetDialog) {
+      targetDialog.showModal();
+      const targetIframe = targetDialog.querySelector('iframe');
+      if (targetIframe) {
+        findNewSrc(targetIframe);
+      }
+    }
+  });
+
+  // Closing related scripts below
+
+  const removeSrc = function (iframe) {
+    const oldSrc = iframe.src;
+    iframe.setAttribute('data-iframe-src', oldSrc);
+    iframe.src = 'about:blank';
+  }
+
+  const videoDialogs = Array.from(document.querySelectorAll("[data-dialog-type='video']"));
+  videoDialogs.forEach(function (dialog) {
+    dialog.addEventListener("close", function (event) {
+      const iframe = dialog.querySelector('iframe');
+      removeSrc(iframe);
+    });
+  });
+}());
+</script>
+
+</body>
+</html>

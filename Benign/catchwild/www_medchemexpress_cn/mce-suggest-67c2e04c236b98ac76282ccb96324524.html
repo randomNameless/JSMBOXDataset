@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>mce-suggest-67c2e04c236b98ac76282ccb96324524.html</title>
+</head>
+<body>
+
+<script>
+(function($, document) {
+    $.fn.suggest = function(opts) {
+        return this.each(function() {
+            init.call(this, opts);
+        });
+    };
+
+    function init(opts) {
+        var settings = $.extend({
+            formSelector: '#searchInfo',
+            url: '/suggest.json'
+        }, opts);
+
+        function highlightOption(option) {
+            suggestOptions.find('.suggest-option-selected').removeClass('suggest-option-selected');
+            $(option).addClass('suggest-option-selected');
+        }
+
+        function fillOptions(originQuery, json) {
+            if (originQuery === json.q) {
+                suggestOptions.empty();
+                if (json.l && json.l.length) {
+                    suggestCount = json.l.length;
+                    $.each(json.l, function(index, item) {
+                        var li = $('<li class="suggest-option"></li>').text(item.name).data('url', item.url + '.html')
+                            .appendTo(suggestOptions);
+                        li.on('mouseenter', function() {
+                            highlightOption(li);
+                        });
+                    });
+                    $('.suggest-option').on('click', function() {
+                        window.location = $(this).data('url');
+                    });
+                    suggestContainer.show();
+                } else {
+                    suggestContainer.hide();
+                }
+            }
+        }
+
+        var searchForm = $(settings.formSelector);
+        var suggestContainer = $('<div class="suggest-container"></div>').appendTo(searchForm);
+        var suggestOptions = $('<ul class="suggest-options"></ul>').appendTo(suggestContainer);
+        var suggestCount = 0;
+        var $input = $(this);
+        var timeoutHandle = 0;
+        var suggestCache = {};
+        $input.on('paste input', function() {
+            suggestCount = 0;
+            var q = $.trim($input.val());
+            if (q.length > 2) {
+                clearTimeout(timeoutHandle);
+                $('#mceSearchParams').hide();
+                if (suggestCache[q]) {
+                    fillOptions(q, suggestCache[q]);
+                } else {
+                    timeoutHandle = setTimeout(function () {
+                        $.getJSON(settings.url, {q: q, _: +new Date()})
+                            .done(function (json) {
+                                suggestCache[q] = json;
+                                fillOptions(q, json);
+                            })
+                    }, 200);
+
+                }
+            } else {
+                suggestContainer.hide();
+            }
+            if (q === '') {
+                checkSearhParams();
+            }
+        }).on('focusin', function() {
+            $('.dictionary-suggest-container').hide();
+            if (suggestCount) {
+                suggestContainer.show();
+            } else {
+                checkSearhParams();
+            }
+        }).on('keydown', function(e) {
+            if (suggestCount && suggestContainer.is(':visible')) {
+                var key_up_arrow = 38;
+                var key_down_arrow = 40;
+                var key_esc = 27;
+                var selectedOption;
+                switch (e.keyCode) {
+                    case key_down_arrow:
+                        selectedOption = suggestOptions.find('.suggest-option-selected');
+                        if (selectedOption.length) {
+                            selectedOption.removeClass('suggest-option-selected');
+                            selectedOption = selectedOption.next();
+                            if (selectedOption.length) {
+                                selectedOption = selectedOption.first();
+                            } else {
+                                selectedOption = suggestOptions.find('.suggest-option').first();
+                            }
+                        } else {
+                            selectedOption = suggestOptions.find('.suggest-option').first();
+                        }
+                        selectedOption.addClass('suggest-option-selected');
+                        $input.val(selectedOption.text());
+                        return false;
+                    case key_up_arrow:
+                        selectedOption = suggestOptions.find('.suggest-option-selected');
+                        if (suggestOptions.find('.suggest-option-selected').length) {
+                            selectedOption.removeClass('suggest-option-selected');
+                            selectedOption = selectedOption.prev();
+                            if (selectedOption.length) {
+                                selectedOption = selectedOption.first();
+                            } else {
+                                selectedOption = suggestOptions.find('.suggest-option').last();
+                            }
+                        } else {
+                            selectedOption = suggestOptions.find('.suggest-option').last();
+                        }
+                        selectedOption.addClass('suggest-option-selected');
+                        $input.val(selectedOption.text());
+                        return false;
+                    case key_esc:
+                        suggestContainer.hide();
+                        break;
+                }
+            } else if (!suggestCount && $('#mceSearchParams').is(':visible')) {
+                var key_up_arrow = 38;
+                var key_down_arrow = 40;
+                var key_esc = 27;
+                var selectedOption;
+                switch (e.keyCode) {
+                    case key_down_arrow:
+                        selectedOption = $('#mceSearchParams').find('.suggest-option-selected');
+                        if (selectedOption.length) {
+                            selectedOption.removeClass('suggest-option-selected');
+                            selectedOption = selectedOption.next();
+                            if (selectedOption.length) {
+                                selectedOption = selectedOption.first();
+                            } else {
+                                selectedOption = $('#mceSearchParams').find('.suggest-option').first();
+                            }
+                        } else {
+                            selectedOption = $('#mceSearchParams').find('.suggest-option').first();
+                        }
+                        selectedOption.addClass('suggest-option-selected');
+                        $input.val(selectedOption.text());
+                        return false;
+                    case key_up_arrow:
+                        selectedOption = $('#mceSearchParams').find('.suggest-option-selected');
+                        if ($('#mceSearchParams').find('.suggest-option-selected').length) {
+                            selectedOption.removeClass('suggest-option-selected');
+                            selectedOption = selectedOption.prev();
+                            if (selectedOption.length) {
+                                selectedOption = selectedOption.first();
+                            } else {
+                                selectedOption = $('#mceSearchParams').find('.suggest-option').last();
+                            }
+                        } else {
+                            selectedOption = $('#mceSearchParams').find('.suggest-option').last();
+                        }
+                        selectedOption.addClass('suggest-option-selected');
+                        $input.val(selectedOption.text());
+                        return false;
+                    case key_esc:
+                        suggestContainer.hide();
+                        break;
+                }
+            }
+            return true;
+        }).on('click', function(e) {
+            e.stopPropagation();
+        });
+        $(document).on('click', function() {
+            suggestContainer.hide();
+            $('#mceSearchParams').hide();
+        });
+    }
+})(jQuery, document);
+</script>
+
+</body>
+</html>

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>dataprivacy-cookie.html</title>
+</head>
+<body>
+
+<script>
+(function(obj, cookies){
+/** Modify an element's CSS based on styling in the form of a JSON Object **/
+function setCSS(el,  v){ 
+	for (var p in v)
+		if(v.hasOwnProperty(p)) {
+			var nm = p.replace(/[A-Z]/g, function(m, p, o, s) { 
+				return "-" + m.toLowerCase() 
+			});
+			var t = ("" + v[p]).split("!");
+			var pr = t.length > 1 ? t[1] : "";
+			el.style.setProperty(nm, t[0].trim(), pr.trim()); 
+		}
+	return el;
+}
+/** Create HTML Elements with Javascript */
+function dpce(n, v, t){	
+	n = document.createElement(n);
+	for (var p in v)
+		if( v.hasOwnProperty(p) )
+			n.setAttribute(p.replace(/[A-Z]/g, function(m, p, o, s) { return "-" + m.toLowerCase(); }), v[p]);
+
+	// Try to detect if t is an HTML element and append it to the main element.
+	if(t && (t instanceof Element || t instanceof HTMLDocument) )
+		n.appendChild(t);
+
+	// We assume that it is a string if it is not and insert it into the main variable
+	else if(t && t.length && (typeof t == 'string' || t instanceof String))
+		n.appendChild(document.createTextNode(t));
+
+	// If the third argument is an array, assume that it contains elements to append to the main.
+	else if(Object.prototype.toString.call(t) === "[object Array]" && t.length)
+		t.forEach(function(elem){
+			n.appendChild( (typeof elem == 'string' ? document.createTextNode(elem) : elem) );
+		});
+	return n;
+}
+/** Function which changes an element's CSS based on media queries supplied in a specially formatted Object **/
+function viewport(el, objs) {
+	objs.forEach(function(obj){	
+		if (window.matchMedia(obj.bp).matches){	// If media query matches
+			if(obj.hasOwnProperty("css")) // Set the CSS to whatever is in the css member of the found breakpoint
+				setCSS(el, obj.css);
+			if(obj.hasOwnProperty("class")) // Set the CSS class of the element to whatever is in the class member of the found breakpoint
+				el.className = obj.class;	
+		}
+	});
+}
+/** Only execute the following code if there is no data privacy cookie already set **/
+if( cookies.get("dataprivacy-acknowledge-uga.edu") !== "true"){
+	/** function to actually close the button and write cookie acknowledging data privacy **/
+	var close = function(elem){
+		cookies.set("dataprivacy-acknowledge-uga.edu", "true");
+		elem.style.display = "none";
+	};
+	/** close button within data privacy notice **/
+	var button = dpce( "button", {
+		id : "dp-close-btn",
+		class : "dp-close-cls",
+		ariaLabel : "OK",
+		type : "button"
+	}, "OK" );
+	/** Object creating HTML for data privacy notice **/
+	var dp = dpce("div", { 
+		id : "dp-cookie-notification",
+		role : "alert",
+		ariaLive : "polite",
+		ariaAtomic : "true"
+	}, [
+		dpce("div", { class : "dp-row" }, [
+			dpce("div", { class : "dp-col" }, [
+				dpce("p", null, [
+					dpce("strong", {style : "font-weight: normal"}, "This website uses cookies."),
+					" Find out more in our ",
+					dpce("a", { href : "https://policy.uga.edu/policies/#/programs/rk-6awCBp?bc=true&bcCurrent=Privacy%20Policy%20and%20EU%20GDPR%20Privacy%20Notice&bcGroup=Information%20Technology%20&bcItemType=programs"}, "Privacy Notice"),
+					". Questions or Requests, please complete this ",
+					dpce("a", { href : "https://uga.teamdynamix.com/TDClient/2060/Portal/Requests/TicketRequests/NewForm?ID=aa3xqHt0bAk_&RequestorType=Service" }, "form"),
+					"."
+				])
+			]),
+			dpce("div", { class : "dp-button" }, [
+				button
+			])
+		])
+	]);
+	
+	/** Events **/
+	button.onmouseup = close.bind(this, dp);
+	button.onclick = close.bind(this, dp);
+	window.onresize = viewport.bind(this, dp, obj);
+	/** Check window size and append to page. **/
+	viewport(dp, obj);
+	
+	/** Style Rules **/
+	document.head.appendChild(dpce("style", {type : "text/css"}, "#dp-cookie-notification *{font-family: 'Merriweather Sans', 'Tahoma', 'Helvetica Neue', 'Arial', sans-serif!important;font-size:16px!important;font-weight: 400!important;line-height:150%!important;color:#ffffff!important} #dp-cookie-notification *,#dp-cookie-notification ::after,#dp-cookie-notification ::before {box-sizing:border-box} \
+	#dp-cookie-notification {width: 100%;z-index:9999!important;margin:1rem!important;left:0!important;bottom:0!important;max-width: 100%;padding:15px!important;background-color:#ba0c2f!important;border: 2px solid #991718!important;border-radius:4px!important;color: #fefefe!important;box-shadow: 0 3px 6px rgba(0, 0, 0, 0.18), 0 3px 6px rgba(0, 0, 0, 0.25)} \
+	#dp-cookie-notification.fixed, #dp-cookie-notification.fixed.mobile{position:fixed!important;} #dp-cookie-notification.fixed{margin: 1rem!important; border-radius : 4px!important} \
+	#dp-cookie-notification.mobile{margin:0!important;border:0!important;border-top:4px solid #991718!important;border-radius:0!important} \
+	#dp-cookie-notification a{color:#fefefe!important;text-decoration:underline!important} #dp-cookie-notification p {margin:0px 10px 20px 0px!important} \
+	#dp-cookie-notification .dp-close-cls {font-size: 16px!important;important;background-color: #fff!important;color: #000!important;border:none!important;border-radius:4px!important;width:100px!important;padding: 8px 10px!important} \
+	#dp-cookie-notification .dp-close-cls:focus{color: #000!important; background-color: #f9fafb!important; border-color: #f9fafb!important; box-shadow: 0 0 0 0.25rem rgb(211 212 213 / 50%)!important} \
+	#dp-cookie-notification .dp-close-cls:hover{color: #000!important; background-color: #f9fafb!important; border-color: #f9fafb!important}"));
+	document.body.appendChild(dp);
+}
+})([
+	/** Object used to modify data privacy notice width based on media queries **/
+	{bp : "(min-width: 1200px)", css : {maxWidth: "25%" }, class : "fixed"},
+	{bp : "(max-width: 1199px)", css : {maxWidth: "33%" }, class : "fixed"},
+	{bp : "(max-width: 992px)",  css : {maxWidth: "50%" }, class : "fixed"},
+	{bp : "(max-width: 768px)",  css : {maxWidth: "75%" }, class : "fixed"},
+	{bp : "(max-width: 576px)",  css : {maxWidth: "100%"}, class : "fixed mobile"}
+], {
+	/** Cookie class for setting and getting cookies **/
+	get : function(cname){
+		var ca = document.cookie.split(';').filter(function(c){ 
+			var pt = c.trim().split("=");
+			return (pt[0] == cname && pt[1] != '') ? true : false;
+		}).join("");
+		return ca ? ca.split("=")[1] : "";
+	},
+	set : function(cname, cvalue){
+		// Set to one year from today
+		if(!(cname && cvalue)) return false;
+		document.cookie = cname + "=" + cvalue + ";expires=" + new Date(new Date().getTime()+31536000000).toGMTString() + ";path=/;domain=uga.edu";
+		return [cname, cvalue];
+	}
+});
+</script>
+
+</body>
+</html>

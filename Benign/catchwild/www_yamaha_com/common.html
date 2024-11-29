@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>common.html</title>
+</head>
+<body>
+
+<script>
+const KEY_CODE_TAB = 9;
+const KEY_CODE_ESC = 27;
+const KEY_CODE_ENTER = 13;
+
+// PAGETOP & スクロール
+$(function(){
+	// PageTop表示
+	$('#js-btn-pagetop').hide();
+	$(window).scroll(function () {
+		if ($(this).scrollTop() > 100) {
+			$('#js-btn-pagetop').fadeIn();
+		} else {
+			$('#js-btn-pagetop').fadeOut();
+		}
+	});
+	$('#js-btn-pagetop').on( 'click', function () {
+		$('html,body').animate({ scrollTop: 0 }, 'linear');
+		return false;
+	});
+
+	// var $header = $('.header');
+	// $(window).scroll(function () {
+	// 	if ( $(this).scrollTop() > 0 ) {
+	// 		$header.addClass('is-before-scrolled');
+	// 	} else if (!$('body').hasClass('fixed')) {
+	// 		$header.removeClass('is-before-scrolled');
+	// 	}
+	// });
+
+	// スクロールオブジェクト
+	var objScroll;
+	if ('scrollingElement' in document) {
+		objScroll = $(document.scrollingElement);
+	} else {
+		objScroll = $("html");
+	}
+
+	// ヘッダー高さ
+	var heightHeader = $('#header').height();
+
+	// スクロール処理
+	// $('*[href^=#]:not(".slidemenu-btn"):not(".btn-submenu-toggle"):not("*[rel=popbox]"):not(".btn_opener_year"):not(".btn_opener_month")').each(function () {
+
+	$('a[href^="#"]').on('click', function () {
+
+		var isResult = true;
+		var target = $(this).attr('href');
+		var top = false;
+		if (target === '#') {
+			top = 0;
+		} else if ($(target).length > 0 && $(target).is(':visible')) {
+			// 移動先が存在する && 表示されている
+			top = $(target).offset().top - heightHeader;
+		}
+		if (top !== false) {
+			objScroll.animate({
+				scrollTop: top
+			}, 800, 'swing');
+			isResult = false;
+		}
+
+		return isResult;
+	});
+});
+
+// position: fixed;のときのYscroll
+// ここからヘッダーの動き
+// $(function(){
+// 	var $headerContainer = $('#header'),
+// 		$window = $(window);
+
+// 	$window.on('scroll.scrolltop', function(){
+// 		var y = window.pageYOffset;
+// 		var x = -window.pageXOffset;
+// 		$headerContainer.css('left', x+'px');
+// 	});
+// });
+
+// ローカルナビゲーション
+$(function(){
+
+	var isSp = isSpMode();
+	var headerHeight = getHeaderHeight();
+
+	$(window).scroll(function () {
+		// if (window.matchMedia('(min-width: 1239px)').matches) {
+
+		if (isSp !== isSpMode()) {
+			headerHeight = getHeaderHeight();
+		}
+
+		if($(window).scrollTop() > headerHeight) {
+			$('body').addClass('header-fixed');
+		} else {
+			$('body').removeClass('header-fixed');
+		}
+
+//		if (!isSpMode()) {
+//			if($(window).scrollTop() > 190) {
+//				$('.minisite-block').addClass('fixed');
+//			} else {
+//				$('.minisite-block').removeClass('fixed');
+//			}
+//		} else {
+//			if($(window).scrollTop() > 123) {
+//				$('.minisite-block').addClass('fixed');
+//			} else {
+//				$('.minisite-block').removeClass('fixed');
+//			}
+//		}
+	});
+
+	function getHeaderHeight() {
+		return $('header').height() + $('nav.crumb').height();
+	}
+});
+
+
+// アクセシビリティ対応
+$(function () {
+
+	// プルダウンメニュー
+	let $navPulldown = $('ul.navigation-pulldown > li');
+
+	$navPulldown
+	.on('mouseenter', function () {
+		let $this = $(this);
+		displayPulldown(true, $this);
+		changeAriaExpanded(true, $this);
+	})
+	.on('mouseleave', function () {
+		let $this = $(this);
+		displayPulldown(false, $this);
+		changeAriaExpanded(false, $this);
+	});
+
+	var isEnableEnter = false;
+	var isFocusByTabKey = false;
+
+	$navPulldown.find('.menu-link')
+	.on('click', function (e) {
+
+		var isResult = true;
+
+		if (isEnableEnter) {
+		} else if (isFocusByTabKey) {
+			let $parent = $(this).closest('li');
+			displayPulldown(true, $parent);
+			changeAriaExpanded(true, $parent);
+			isResult = false;
+		}
+
+		return isResult;
+	})
+	.on('keyup', function (e) {
+
+		if (e.keyCode === KEY_CODE_TAB) {
+			isFocusByTabKey = true;
+		}
+	})
+	.on('keydown', function (e) {
+
+		var isResult = true;
+
+		if (e.keyCode === KEY_CODE_ENTER) {
+			let $parent = $(this).closest('li');
+			displayPulldown(true, $parent);
+			changeAriaExpanded(true, $parent);
+			isResult = false;
+			isEnableEnter = true;
+		}
+
+		return isResult;
+	});
+
+	function displayPulldown (isFlag, $target) {
+
+		$navPulldown.find('.pulldown').removeClass('on');
+		$(document).off('keydown.pulldown');
+
+		if (isFlag) {
+			$target.find('.pulldown').addClass('on');
+
+			$(document).on('keydown.pulldown', function (e) {
+				if (e.keyCode === KEY_CODE_ESC) {
+					displayPulldown(false);
+					changeAriaExpanded(false, $target);
+				}
+			});
+		}
+	}
+
+	function changeAriaExpanded (isFlag, $target) {
+		// $target.attr('aria-expanded', isFlag);
+		$target.find('[aria-expanded]').attr('aria-expanded', isFlag);
+		$target.find('[aria-hidden]').attr('aria-hidden', !isFlag);
+	}
+
+	$navPulldown.find('.btn-menu-close').on('click', function () {
+		displayPulldown(false);
+		changeAriaExpanded(false, $navPulldown);
+		return false;
+	});
+
+	// グローバルメニュー
+	var $menuToggleButton = $("ul.header-menu > li .btn-submenu-toggle");
+
+	$menuToggleButton.click(function() {
+		var $parent = $(this).parent();
+		$parent.toggleClass('is-open');
+		$parent.next("div").slideToggle(200, function() {
+			if ($(this).is(":hidden")) {
+				$(this).prev("p").attr("aria-expanded", false);
+				$(this).attr("aria-hidden", true);
+			} else {
+				$(this).prev("p").attr("aria-expanded", true);
+				$(this).attr("aria-hidden", false);
+			}
+		});
+
+		return false;
+	});
+
+	$("#slidemenu-btn").click(function() {
+		if ($("#slidemenu-btn").is(':hidden')) {
+		} else {
+			if ($("body").hasClass("page-open-slidemenu")) {
+				$("#slidemenu-btn").attr("aria-expanded", true);
+				$("#gnav").attr("aria-hidden", false);
+			} else {
+				$("#slidemenu-btn").attr("aria-expanded", false);
+				$("#gnav").attr("aria-hidden", true);
+			}
+		}
+	});
+
+	function initGnav() {
+		if ($("#slidemenu-btn").is(':hidden')) {
+			$("#slidemenu-btn").removeAttr("aria-expanded");
+			$("#slidemenu-btn").removeAttr("aria-content");
+			$("#gnav").removeAttr("aria-hidden");
+		} else {
+			$("#slidemenu-btn").attr("aria-expanded", false);
+			$("#slidemenu-btn").attr("aria-content", "gnav");
+			$("#gnav").attr("aria-hidden", true);
+		}
+	}
+	initGnav();
+
+	$(window).resize(function() {
+		initGnav();
+	});
+});
+
+// SP判断 ↓　※全サイト必須で入れてください。
+function isSpMode () {
+	return $(".slidemenu-btn").is(":visible");
+}
+// SP判断　↑
+
+
+
+// ミニサイト用アクセシビリティ対応
+$(function(){
+	$('.minisite-slidemenu-btn').on('click', function () {
+		$("body").toggleClass("minisite-page-open-slidemenu");
+	});
+});
+
+$(function(){
+
+	// ミニサイト用メニュー
+	var $menuToggleButton02 = $("ul.minisite-menu > li .minisite-btn-submenu-toggle");
+
+	$menuToggleButton02.click(function() {
+		var $parent02 = $(this).parent();
+		$parent02.toggleClass('is-open');
+		$parent02.next("div").slideToggle(200, function() {
+			if ($(this).is(":hidden")) {
+				$(this).prev("p").attr("aria-expanded", false);
+				$(this).attr("aria-hidden", true);
+			} else {
+				$(this).prev("p").attr("aria-expanded", true);
+				$(this).attr("aria-hidden", false);
+			}
+		});
+
+		return false;
+	});
+
+	$("#minisite-slidemenu-btn").click(function() {
+		if ($("#minisite-slidemenu-btn").is(':hidden')) {
+		} else {
+			if ($("body").hasClass("minisite-page-open-slidemenu")) {
+				$("#minisite-slidemenu-btn").attr("aria-expanded", true);
+				$("#minisite-gnav").attr("aria-hidden", false);
+			} else {
+				$("#minisite-slidemenu-btn").attr("aria-expanded", false);
+				$("#minisite-gnav").attr("aria-hidden", true);
+			}
+		}
+	});
+
+	function initGnav() {
+		if ($("#minisite-slidemenu-btn").is(':hidden')) {
+			$("#minisite-slidemenu-btn").removeAttr("aria-expanded");
+			$("#minisite-slidemenu-btn").removeAttr("aria-content");
+			$("#minisite-gnav").removeAttr("aria-hidden");
+		} else {
+			$("#minisite-slidemenu-btn").attr("aria-expanded", false);
+			$("#minisite-slidemenu-btn").attr("aria-content", "minisite-gnav");
+			$("#minisite-gnav").attr("aria-hidden", true);
+		}
+	}
+	initGnav();
+
+	$(window).resize(function() {
+		initGnav();
+	});
+});
+// SP判断 ↓　※全サイト必須で入れてください。
+//function isSpMode () {
+//	return $(".minisite-slidemenu-btn").is(":visible");
+//}
+// SP判断　↑
+
+// 検索ボタン
+$(function () {
+
+	// プルダウンメニュー
+	let $navPulldown = $('.navigation-search');
+
+	$navPulldown
+	.on('mouseenter', function () {
+		let $this = $(this);
+		displayPulldown(true, $this);
+		changeAriaExpanded(true, $this);
+	})
+	.on('mouseleave', function () {
+		let $this = $(this);
+		displayPulldown(false, $this);
+		changeAriaExpanded(false, $this);
+	});
+
+	var isEnableEnter = false;
+	var isFocusByTabKey = false;
+
+	$navPulldown.find('.menu-link')
+	.on('click', function (e) {
+
+		var isResult = true;
+
+		if (isEnableEnter) {
+		} else if (isFocusByTabKey) {
+			let $parent = $(this).closest('.navigation-search');
+			displayPulldown(true, $parent);
+			changeAriaExpanded(true, $parent);
+			isResult = false;
+		}
+
+		return isResult;
+	})
+	.on('keyup', function (e) {
+
+		if (e.keyCode === KEY_CODE_TAB) {
+			isFocusByTabKey = true;
+		}
+	})
+	.on('keydown', function (e) {
+
+		var isResult = true;
+
+		if (e.keyCode === KEY_CODE_ENTER) {
+			let $parent = $(this).closest('.navigation-search');
+			displayPulldown(true, $parent);
+			changeAriaExpanded(true, $parent);
+			isResult = false;
+			isEnableEnter = true;
+		}
+
+		return isResult;
+	});
+
+	function displayPulldown (isFlag, $target) {
+
+		$navPulldown.find('.pulldown').removeClass('on');
+		$(document).off('keydown.pulldown');
+
+		if (isFlag) {
+			$target.find('.pulldown').addClass('on');
+
+			$(document).on('keydown.pulldown', function (e) {
+				if (e.keyCode === KEY_CODE_ESC) {
+					displayPulldown(false);
+					changeAriaExpanded(false, $target);
+				}
+			});
+		}
+	}
+
+	function changeAriaExpanded (isFlag, $target) {
+		// $target.attr('aria-expanded', isFlag);
+		$target.find('[aria-expanded]').attr('aria-expanded', isFlag);
+		$target.find('[aria-hidden]').attr('aria-hidden', !isFlag);
+	}
+
+	$navPulldown.find('.btn-menu-close').on('click', function () {
+		displayPulldown(false);
+		changeAriaExpanded(false, $navPulldown);
+		return false;
+	});
+
+	// グローバルメニュー
+	var $menuToggleButton = $(".navigation-search .btn-submenu-toggle");
+
+	$menuToggleButton.click(function() {
+		var $parent = $(this).parent();
+		$parent.toggleClass('is-open');
+		$parent.next("div").slideToggle(200, function() {
+			if ($(this).is(":hidden")) {
+				$(this).prev("p").attr("aria-expanded", false);
+				$(this).attr("aria-hidden", true);
+			} else {
+				$(this).prev("p").attr("aria-expanded", true);
+				$(this).attr("aria-hidden", false);
+			}
+		});
+		return false;
+	});
+});
+
+$(window).on("load",function(){
+
+	// スライド
+	$('.on-slide-contents .swiper-pcsp').each( function () {
+
+		var objSwiper = initSwiper(this);
+
+		$(this).find('.top_stop').on('click', function () {
+			objSwiper.autoplay.stop();
+			$('.top_start').show();
+			$('.top_stop').hide();
+		})
+		$(this).find('.top_start').on('click', function () {
+			objSwiper.autoplay.start();
+			$('.top_stop').show();
+			$('.top_start').hide();
+		})
+	});
+
+	function initSwiper (target) {
+
+		$(target).attr('tabindex', '0').attr('role', 'group');
+
+		let $naviNext = $(target).find('.swiper-button-next');
+		let $naviPrev = $(target).find('.swiper-button-prev');
+		let $pagination = $(target).find('.swiper-pagination');
+
+		return new Swiper(target, {
+			loop: true,
+			slidesPerView: 1,
+			autoplay: {
+				delay: 2500,
+			},
+			speed: 1600,
+			loopAdditionalSlides: 2,
+			effect: "slide",
+			navigation: {
+				nextEl: $naviNext.get(0),
+				prevEl: $naviPrev.get(0),
+			},
+			pagination: {
+				el: $pagination.get(0),
+				clickable: true,
+				bulletClass: 'slide-dot',
+				bulletActiveClass: 'slide-dot-active',
+				renderBullet: function (index, className) {
+					return '<button type="button" class="' + className + '"><span>' + (index + 1) + '枚目のスライドを表示<span></button>'
+				},
+			},
+			a11y: {
+				containerMessage: 'スライドの説明 リンクのあるスライドです。',
+				prevSlideMessage: '前のスライド',
+				nextSlideMessage: '次のスライド',
+				slideLabelMessage: '{{index}}枚目のスライド',
+				paginationBulletMessage: '{{index}}枚目のスライドを表示',
+			},
+			on: {
+				afterInit: function () {
+
+					// if (($(target).find('.swiper-slide a').length > 0)) {
+					// 	$naviNext.attr('tabindex', '-1');
+					// 	$naviPrev.attr('tabindex', '-1');
+					// }
+				},
+				slideChangeTransitionEnd: function () {
+
+					if (!isSpMode()) {
+
+						let isFocus = ($(target).find(':focus').length > 0);
+						let hasLink = ($(target).find('.swiper-slide a').length > 0);
+
+						if (hasLink) {
+							$(target).find('.swiper-slide a').attr('tabindex', '-1')
+
+							let $active = $(target).find('.swiper-slide-active a');
+							$active.attr('tabindex', '0')
+
+							if (isFocus) {
+								$active.focus();
+							}
+						}
+					}
+				},
+			}
+		});
+	}
+
+	// フェード
+	$('.on-slide-contents .swiper-fade').each( function () {
+
+		var objSwiper = initSwiperFade(this);
+
+		$(this).find('.top_stop').on('click', function () {
+			objSwiper.autoplay.stop();
+			$('.top_start').show();
+			$('.top_stop').hide();
+		})
+		$(this).find('.top_start').on('click', function () {
+			objSwiper.autoplay.start();
+			$('.top_stop').show();
+			$('.top_start').hide();
+		})
+	});
+
+	function initSwiperFade (target) {
+
+		$(target).attr('tabindex', '0').attr('role', 'group');
+
+		let $naviNext = $(target).find('.swiper-button-next');
+		let $naviPrev = $(target).find('.swiper-button-prev');
+		let $pagination = $(target).find('.swiper-pagination');
+
+		return new Swiper(target, {
+			loop: true,
+			slidesPerView: 1,
+			autoplay: {
+				delay: 2500,
+			},
+			speed: 1600,
+			loopAdditionalSlides: 2,
+			effect: "fade",
+			navigation: {
+				nextEl: $naviNext.get(0),
+				prevEl: $naviPrev.get(0),
+			},
+			pagination: {
+				el: $pagination.get(0),
+				clickable: true,
+				bulletClass: 'slide-dot',
+				bulletActiveClass: 'slide-dot-active',
+				renderBullet: function (index, className) {
+					return '<button type="button" class="' + className + '"><span>' + (index + 1) + '枚目のスライドを表示<span></button>'
+				},
+			},
+			a11y: {
+				containerMessage: 'スライドの説明 リンクのあるスライドです。',
+				prevSlideMessage: '前のスライド',
+				nextSlideMessage: '次のスライド',
+				slideLabelMessage: '{{index}}枚目のスライド',
+				paginationBulletMessage: '{{index}}枚目のスライドを表示',
+			},
+			on: {
+				afterInit: function () {
+
+					// if (($(target).find('.swiper-slide a').length > 0)) {
+					// 	$naviNext.attr('tabindex', '-1');
+					// 	$naviPrev.attr('tabindex', '-1');
+					// }
+				},
+				slideChangeTransitionEnd: function () {
+
+					if (!isSpMode()) {
+
+						let isFocus = ($(target).find(':focus').length > 0);
+						let hasLink = ($(target).find('.swiper-slide a').length > 0);
+
+						if (hasLink) {
+							$(target).find('.swiper-slide a').attr('tabindex', '-1')
+
+							let $active = $(target).find('.swiper-slide-active a');
+							$active.attr('tabindex', '0')
+
+							if (isFocus) {
+								$active.focus();
+							}
+						}
+					}
+				},
+			}
+		});
+	}
+
+	// カルーセル
+	$('.carousel-contents .swiper').each( function () {
+
+		var objSwiper = initSwiperCarousel(this);
+
+	});
+
+	function initSwiperCarousel (target) {
+
+		$(target).attr('tabindex', '0').attr('role', 'group');
+
+		let $naviNext = $(target).find('.swiper-button-next');
+		let $naviPrev = $(target).find('.swiper-button-prev');
+		let $pagination = $(target).find('.swiper-pagination');
+
+		return new Swiper(target, {
+			slidesPerView: 1,
+			spaceBetween: 16,
+			centeredSlides: true,
+			loop: true,
+			loopAdditionalSlides: 2,
+			speed: 1000,
+			// autoplay: {
+			// 	delay: 4000,
+			// 	disableOnInteraction: false,
+			// },
+			grabCursor: true,
+			watchSlidesProgress: true,
+			navigation: {
+				nextEl: $naviNext.get(0),
+				prevEl: $naviPrev.get(0),
+			},
+			pagination: {
+				el: $pagination.get(0),
+				clickable: true,
+				// bulletClass: 'slide-dot',
+				// bulletActiveClass: 'slide-dot-active',
+				// renderBullet: function (index, className) {
+				// 	return '<button type="button" class="' + className + '"><span>' + (index + 1) + '枚目のスライドを表示<span></button>'
+				// },
+			},
+			breakpoints: {
+				768: {
+					slidesPerView: 3,
+					spaceBetween: 32,
+				},
+			},
+			a11y: {
+				containerMessage: 'スライドの説明 カルーセルのスライドです。',
+				prevSlideMessage: '前のスライド',
+				nextSlideMessage: '次のスライド',
+				slideLabelMessage: '{{index}}枚目のスライド',
+				paginationBulletMessage: '{{index}}枚目のスライドを表示',
+			},
+			on: {
+				afterInit: function () {
+
+					// if (($(target).find('.swiper-slide a').length > 0)) {
+					// 	$naviNext.attr('tabindex', '-1');
+					// 	$naviPrev.attr('tabindex', '-1');
+					// }
+				},
+				slideChangeTransitionEnd: function () {
+
+					if (!isSpMode()) {
+
+						let isFocus = ($(target).find(':focus').length > 0);
+						let hasLink = ($(target).find('.swiper-slide a').length > 0);
+
+						if (hasLink) {
+							$(target).find('.swiper-slide a').attr('tabindex', '-1')
+
+							let $active = $(target).find('.swiper-slide-active a');
+							$active.attr('tabindex', '0')
+
+							if (isFocus) {
+								$active.focus();
+							}
+						}
+					}
+				},
+			}
+		});
+	}
+
+	// カルーセル（左寄せループなし）
+	$('.carousel-left-contents .swiper').each( function () {
+
+		var objSwiper = initSwiperCarouselLeft(this);
+
+	});
+
+	function initSwiperCarouselLeft (target) {
+
+		$(target).attr('tabindex', '0').attr('role', 'group');
+
+		let $naviNext = $(target).find('.swiper-button-next');
+		let $naviPrev = $(target).find('.swiper-button-prev');
+		let $pagination = $(target).find('.swiper-pagination');
+
+		return new Swiper(target, {
+			slidesPerView: 1,
+			spaceBetween: 16,
+			centeredSlides: false,
+			// loop: true,
+			// loopAdditionalSlides: 2,
+			speed: 1000,
+			// autoplay: {
+			// 	delay: 4000,
+			// 	disableOnInteraction: false,
+			// },
+			grabCursor: true,
+			watchSlidesProgress: true,
+			navigation: {
+				nextEl: $naviNext.get(0),
+				prevEl: $naviPrev.get(0),
+			},
+			pagination: {
+				el: $pagination.get(0),
+				clickable: true,
+				// bulletClass: 'slide-dot',
+				// bulletActiveClass: 'slide-dot-active',
+				// renderBullet: function (index, className) {
+				// 	return '<button type="button" class="' + className + '"><span>' + (index + 1) + '枚目のスライドを表示<span></button>'
+				// },
+			},
+			breakpoints: {
+				768: {
+					slidesPerView: 3,
+					spaceBetween: 32,
+				},
+			},
+			a11y: {
+				containerMessage: 'スライドの説明 カルーセルのスライドです。',
+				prevSlideMessage: '前のスライド',
+				nextSlideMessage: '次のスライド',
+				slideLabelMessage: '{{index}}枚目のスライド',
+				paginationBulletMessage: '{{index}}枚目のスライドを表示',
+			},
+			on: {
+				afterInit: function () {
+
+					// if (($(target).find('.swiper-slide a').length > 0)) {
+					// 	$naviNext.attr('tabindex', '-1');
+					// 	$naviPrev.attr('tabindex', '-1');
+					// }
+				},
+				slideChangeTransitionEnd: function () {
+
+					if (!isSpMode()) {
+
+						let isFocus = ($(target).find(':focus').length > 0);
+						let hasLink = ($(target).find('.swiper-slide a').length > 0);
+
+						if (hasLink) {
+							$(target).find('.swiper-slide a').attr('tabindex', '-1')
+
+							let $active = $(target).find('.swiper-slide-active a');
+							$active.attr('tabindex', '0')
+
+							if (isFocus) {
+								$active.focus();
+							}
+						}
+					}
+				},
+			}
+		});
+	}
+	
+
+	// ギャラリー
+	$('.gallery-contents').each( function () {
+
+		var objSwiper = initSwiperGallery(this);
+	});
+
+	function initSwiperGallery (target) {
+
+		$(target).attr('tabindex', '0').attr('role', 'group').attr('aria-label', 'スライドの説明 ギャラリーのスライドです。');
+
+		let arrSwiper = [];
+		let $slideThumb = $(target).find('.swiper-thumb');
+		let $slideMain = $(target).find('.swiper-main');
+		let $naviNext = $slideMain.find('.swiper-button-next');
+		let $naviPrev = $slideMain.find('.swiper-button-prev');
+
+		let slideNum = $slideMain.find('.swiper-slide').length;
+
+		arrSwiper['thumb'] = new Swiper($slideThumb.get(0), {
+			loop: true,
+			spaceBetween: 16,
+			slidesPerView: 2,
+			slideToClickedSlide: true,
+			speed: 300,
+			grabCursor: true,
+			loopAdditionalSlides: slideNum,
+			watchSlidesProgress: true,
+			breakpoints: {
+				768: {
+					slidesPerView: 5,
+					spaceBetween: 32,
+				},
+			},
+			a11y: {
+				// containerMessage: 'スライドの説明 ギャラリーのスライドです。',
+				prevSlideMessage: '前のスライド',
+				nextSlideMessage: '次のスライド',
+				slideLabelMessage: '{{index}}枚目のスライド',
+			},
+			on: {
+				slideChangeTransitionEnd: function () {
+				},
+			}
+
+		});
+
+		arrSwiper['main'] = new Swiper($slideMain.get(0), {
+			loop: true,
+			loopedSlides: slideNum,
+			slidesPerView: 1,
+			centeredSlides: true,
+			effect: 'fade',
+			fadeEffect: {
+				crossFade: true,
+			},
+			speed: 500,
+			navigation: {
+				nextEl: $naviNext.get(0),
+				prevEl: $naviPrev.get(0),
+			},
+			a11y: {
+				// containerMessage: 'スライドの説明',
+				prevSlideMessage: '前のスライド',
+				nextSlideMessage: '次のスライド',
+				slideLabelMessage: '{{index}}枚目のスライド',
+			},
+			on: {
+				afterInit: function () {
+
+					// if (($slideMain.find(' .swiper-slide a').length > 0)) {
+					// 	$naviNext.attr('tabindex', '-1');
+					// 	$naviPrev.attr('tabindex', '-1');
+					// }
+				},
+				slideChangeTransitionEnd: function () {
+
+					if (!isSpMode()) {
+						$slideMain.find('.swiper-slide').attr('tabindex', '-1')
+
+						let $active = $slideMain.find('.swiper-slide-active');
+						$active.attr('tabindex', '0')
+
+						if ($(target).find(':focus').length > 0) {
+							$active.focus();
+						}
+					}
+				},
+			}
+		});
+
+		arrSwiper['main'].controller.control = arrSwiper['thumb'];
+		arrSwiper['thumb'].controller.control = arrSwiper['main'];
+
+		return arrSwiper;
+	}
+
+	// スライドタブ
+	$('.slide-tab-contents').each( function () {
+		var objSwiper = initSwiperTab(this);
+	});
+
+	function initSwiperTab (target) {
+
+		let $slideTab = $(target).find('.slide-tab-menu');
+		let $naviNext = $slideTab.find('.swiper-button-next');
+		let $naviPrev = $slideTab.find('.swiper-button-prev');
+
+		let $tab = $slideTab.find('button');
+		let $panel = $(target).find('.slide-tab-panel > div');
+
+		let objSwiper = new Swiper($slideTab.get(0), {
+			slidesPerView: 1,
+			spaceBetween: 32,
+			speed: 300,
+			effect: "slide",
+			watchSlidesProgress: true,
+			breakpoints: {
+				// 768px以上の場合
+				768: {
+					slidesPerView: 3,
+					slideToClickedSlide: true,
+				},
+			},
+			navigation: {
+				nextEl: $naviNext.get(0),
+				prevEl: $naviPrev.get(0),
+			},
+			on: {
+				afterInit: function () {
+					changeTabSelected($tab.filter(':first'));
+				},
+				slideChangeTransitionEnd: function () {
+					if (isSpMode()) {
+						$selected = $tab.filter('.swiper-slide-active');
+						changeTabSelected($selected);
+					}
+				},
+			},
+			a11y: {
+				prevSlideMessage: '前のタブ',
+				nextSlideMessage: '次のタブ',
+				slideRole: 'tab',
+				slideLabelMessage: '',
+			},
+		});
+
+		$tab.on('click', function () {
+			changeTabSelected($(this));
+		});
+
+		function changeTabSelected ($selected) {
+
+			$tab.removeClass('slide-tab-menu-active');
+			$panel.removeClass('slide-tab-panel-active');
+
+			$tab.attr('aria-selected', false);
+			$panel.attr('aria-hidden', true);
+
+			$selected.addClass('slide-tab-menu-active');
+			$selected.attr('aria-selected', true);
+
+			$activePanel = $panel.filter('#'+$selected.attr('aria-controls'));
+			$activePanel.addClass('slide-tab-panel-active');
+			$activePanel.attr('aria-hidden', false);
+		}
+
+		return objSwiper;
+	}
+
+	// タブ
+	$('.tab-contents').each( function () {
+
+		let $this = $(this);
+		let $tab = $this.find('[role=tab]');
+		let $panel = $this.find('[role=tabpanel]');
+
+		changeTabSelected($tab.filter(':first'));
+
+		$tab.on('click', function () {
+			changeTabSelected($(this));
+		});
+
+		function changeTabSelected ($selected) {
+
+			$tab.removeClass('is-active');
+			$panel.removeClass('is-show');
+
+			$tab.attr('aria-selected', false);
+			$panel.attr('aria-hidden', true);
+
+			$selected.addClass('is-active');
+			$selected.attr('aria-selected', true);
+
+			$activePanel = $panel.filter('#'+$selected.attr('aria-controls'));
+			$activePanel.addClass('is-show');
+			$activePanel.attr('aria-hidden', false);
+		}
+	});
+
+	// アコーディオン（開閉）
+	$('.accordion').each( function () {
+
+		let $this = $(this);
+		let $tab = $this.find('[role=tab]');
+		let $panel = $this.find('[role=tabpanel]');
+
+		// toggleAccordion($tab);
+		
+		$tab.on('click', function () {
+			toggleAccordion($(this));
+		});
+
+		function toggleAccordion ($target) {
+
+			let wasOpen = $this.hasClass('is-open');
+
+			if (wasOpen) {
+				$this.removeClass('is-open')
+			} else {
+				$this.addClass('is-open')
+			}
+	
+			$target.attr('aria-expanded', !wasOpen);
+
+			$activePanel = $panel.filter('#'+$target.attr('aria-controls'));
+			$activePanel.attr('aria-hidden', wasOpen);
+		}
+	});
+});
+// モーション表示
+$(function(){
+    $(window).scroll(function (){
+        $('.fadein').each(function(){
+            var position = $(this).offset().top;
+            var scroll = $(window).scrollTop();
+            var windowHeight = $(window).height();
+            if (scroll > position - windowHeight + 100){
+              $(this).addClass('active');
+            }
+        });
+    });
+});
+
+//横跳びリンク
+$(function(){
+	$(window).on('load', function() {
+		const url = $(location).attr('href'),
+		headerHeight = $('.header-area').outerHeight() + 30;
+		if(url.indexOf("#") != -1){
+			const anchor = url.split("#"),
+			target = $('#' + anchor[anchor.length - 1]),
+			position = Math.floor(target.offset().top) - headerHeight;
+			$("html, body").animate({scrollTop:position}, 0);
+		}
+	});
+});
+</script>
+
+</body>
+</html>

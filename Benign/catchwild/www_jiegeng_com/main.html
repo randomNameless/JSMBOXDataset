@@ -1,0 +1,3017 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>main.html</title>
+</head>
+<body>
+
+<script>
+//背景图
+/* $('.layout-container-inner').css({
+    'background':'url(https://data.yhczx.cn/imagescd/jiegeng/bg_01.png) no-repeat center center',
+    'background-attachment':'fixed',
+    'background-size':'cover'
+}) */
+
+if (!!window.ActiveXObject ||
+    "ActiveXObject" in window ||
+    navigator.userAgent.indexOf("Edge") > -1) {
+    document.body.addEventListener &&
+        document.body.addEventListener("mousewheel", function () {
+            if (document.all) {
+                window.event.returnValue = false;
+            } else {
+                event.preventDefault();
+            }
+            var wheelD = event.wheelDelta;
+            var pageY = window.pageYOffset;
+            window.scrollTo(0, pageY - wheelD);
+        });
+}
+
+if (document.body.clientWidth < 1580) {
+    $('.layout-container-inner').css({
+        // 'background':'url(https://data.yhczx.cn/imagescd/jiegeng/bg_01.png) no-repeat center center',
+        'background-attachment': 'fixed',
+        'background-size': '107%'
+    })
+} else {
+    $('.layout-container-inner').css({
+        // 'background':'url(https://data.yhczx.cn/imagescd/jiegeng/bg_01.png) no-repeat center center',
+        'background-attachment': 'fixed',
+        'background-size': 'cover'
+    })
+}
+
+$(window).resize(function () {
+    if (document.body.clientWidth < 1580) {
+        $('.layout-container-inner').css({
+            // 'background':'url(https://data.yhczx.cn/imagescd/jiegeng/bg_01.png) no-repeat center center',
+            'background-attachment': 'fixed',
+            'background-size': '107%'
+        })
+    } else {
+        $('.layout-container-inner').css({
+            // 'background':'url(https://data.yhczx.cn/imagescd/jiegeng/bg_01.png) no-repeat center center',
+            'background-attachment': 'fixed',
+            'background-size': 'cover'
+        })
+    }
+})
+//背景结束
+
+
+$(function () {
+    'use strict';
+    // 定义全局共享工具方法
+    var GLOBAL_UTILS = {};
+
+    // 扩展jQuery插件，用于判断元素是否在视口内
+    $.fn.isOnScreen = function () {
+
+        var win = $(window);
+
+        var viewport = {
+            top: win.scrollTop(),
+            left: win.scrollLeft()
+        };
+        viewport.right = viewport.left + win.width();
+        viewport.bottom = viewport.top + win.height();
+
+        var bounds = this.offset();
+        bounds.right = bounds.left + this.outerWidth();
+        bounds.bottom = bounds.top + this.outerHeight();
+
+        return (!(viewport.right < bounds.left || viewport.left > bounds.right || viewport.bottom < bounds.top || viewport.top > bounds.bottom));
+
+    };
+
+    // 扩展jQuery插件，用于判断元素是否触底
+    $.fn.isPixelFromBottom = function (threshold) {
+
+        var win = $(window);
+
+        var viewport = {
+            top: win.scrollTop(),
+            left: win.scrollLeft()
+        };
+        viewport.right = viewport.left + win.width();
+        viewport.bottom = viewport.top + win.height();
+
+        var bounds = this.offset();
+        bounds.right = bounds.left + this.outerWidth();
+        bounds.bottom = bounds.top + this.outerHeight();
+
+        if (!threshold) {
+            threshold = 0;
+        }
+        var bottomReached = !!(viewport.bottom - bounds.bottom > threshold);
+        return bottomReached;
+
+    };
+
+    /**
+     * 统计代码
+     */
+    (function () {
+        // window.JG_GLOBAL_CONFIG.branch用于标记是否是统计分发链接数据，0为主导航
+        var BRANCH = window.JG_GLOBAL_CONFIG.branch;
+        var sendLog = function (id) {
+            /*
+            $.ajax({
+                type: "POST",
+                url: "/navigation.php/statistics/hit",
+                data: { id: id, branch: BRANCH },
+                dataType: "json"
+            }).done(function(resp) {});
+            */
+            $.ajax({
+                type: "GET",
+                url: "//tongji.jiegeng.com/navigation.php/statistics/hitG",
+                data: { id: id, branch: BRANCH },
+                dataType: "jsonp"
+            }).done(function (resp) { });
+        };
+
+        // 页面点击统计
+        $('body').on('mouseup', 'a', function () {
+            var that = this;
+            var id = $(that).data('id');
+            if (id) {
+                sendLog(id);
+            } else {
+                // console.log('id不存在');
+            }
+        });
+        window.onhashchange = checkMessage;
+        function checkMessage() {
+            var message = window.location.hash;
+            if (/#weather\d+/.test(message)) {
+                sendLog(11399);
+            }
+        };
+
+        function setEvent() {
+            try {
+                for (var i = 0; i < window.frames.length; i++) {
+                    window.frames[i].document.onclick = function () {
+                    }
+                }
+            } catch (e) { }
+            var timeHandle = setTimeout(setEvent, 500);
+        }
+        setEvent();
+
+
+        // iframe点击统计，依赖第三方插件
+        // 2345猜你喜欢，在后台已添加
+        $('#guesslikesite-block iframe').iframeTracker({
+            blurCallback: function () {
+                // Do something when the iframe is clicked (like firing an XHR request)
+                // console.log(`2345猜你喜欢被点击`);
+                sendLog(11434);
+            }
+        });
+
+        // 搜索统计
+        $('#search-form').on('submit', function (event) {
+            var that = this;
+            var id = $(that).data('id');
+            if (id) {
+                sendLog(id);
+            } else {
+                // console.log('id不存在');
+            }
+        });
+
+        // 页面打开统计
+        /*
+        $.ajax({
+            type: "POST",
+            url: "/navigation.php/statistics/open",
+            data: { branch: BRANCH },
+            dataType: "json"
+        }).done(function(resp) {});
+        */
+       $.ajax({
+            type: "GET",
+            url: "//tongji.jiegeng.com/navigation.php/statistics/openG",
+            data: { branch: BRANCH },
+            dataType: "jsonp"
+        }).done(function (resp) { });
+
+    })();
+
+    /**
+     * 当屏幕宽度小于1260，开启窄屏幕模式
+     */
+    (function () {
+        function resize() {
+            if ($(window).width() < 1330) {
+                //if ($(window).width() < 1260) {
+                $('body').addClass('width-nr').removeClass('w-lg');
+            } else {
+                $('body').removeClass('width-nr').addClass('w-lg');
+            }
+            // 右侧快捷方式
+            if ($(window).width() < 1150) {
+                $('#shortcut-box').hide();
+            } else {
+                $('#shortcut-box').show();
+            }
+            // 左侧工具条
+            if ($(window).width() < 1090) {
+                $('#slidetoolbarContainer').hide();
+            } else {
+                $('#slidetoolbarContainer').show();
+            }
+            // 右上角图片链
+            if ($(window).width() < 1260) {
+                $('.header__item--fr').eq(0).hide();
+            } else {
+                $('.header__item--fr').eq(0).show();
+            }
+        }
+        resize();
+        $(window).on('resize', function (event) {
+            event.preventDefault();
+            /* Act on the event */
+            resize();
+        });
+    })();
+
+
+    // /**
+    //  * 桔梗弹窗广告
+    //  */
+
+    // (function() {
+    //     $.ajax({
+    //             url: '/static/json/jg_popBox.json',
+    //             type: 'GET',
+    //             dataType: 'json'
+    //         })
+    //         .done(function(data) {
+    //             var timeStamp = Number(Date.parse(new Date())) / 1000;
+    //             var onlineTime = Number(data.items.onlineTime);
+    //             var offlineTime = Number(data.items.offlineTime);
+    //             // console.log(onlineTime,timeStamp,offlineTime);
+    //             if ((onlineTime < timeStamp) && (timeStamp < offlineTime)) {
+    //                 // 如果在线，取数据渲染
+    //                 var jg_popBoxHTML = template('jg_popBoxTemp', data.items);
+    //                 $('body').append(jg_popBoxHTML);
+
+    //                 // 定义cookie名称，必须英文，防止乱码
+    //                 var eventName = "jg_popBox";
+    //                 // 如果cookie不存在，显示
+    //                 if (!$.cookie(eventName)) {
+    //                     $("#jg_popBox").slideDown();
+    //                 }
+    //                 // 点击链接后，触发关闭
+    //                 $('#jg_popBox a').on('click', function() {
+    //                     $('#jg_popBox .js_close').trigger('click');
+    //                 });
+    //                 //点击关闭后，隐藏并设置1天过期的cookie
+    //                 $('#jg_popBox .js_close').on('click', function() {
+    //                     $("#jg_popBox").slideUp();
+    //                     $.cookie(eventName, '0', { expires: 1, path: '/' });
+    //                 });
+    //             }
+    //         });
+    // })();
+
+
+    /**
+     * 顶部活动banner
+     */
+    (function () {
+        $.ajax({
+            url: '/static/json/jg_topFixed.json',
+            type: 'GET',
+            dataType: 'json'
+        })
+            .done(function (resp) {
+                if (resp.code == 200) {
+                    var timeStamp = Number(Date.parse(new Date())) / 1000;
+                    var onlineTime = Number(resp.items.onlineTime);
+                    var offlineTime = Number(resp.items.offlineTime);
+                    if ((onlineTime < timeStamp) && (timeStamp < offlineTime)) {
+                        // 如果在线，取数据渲染
+                        var items = resp.items;
+                        $('#top-slide-banner>div').css({ 'background-color': items.color });
+                        $('#top-slide-banner>div>a').attr({ 'href': items.hrefSrc });
+                        $('#top-slide-banner>div>a>img').attr({
+                            src: items.imgSrc,
+                            title: items.description,
+                            alt: items.description
+                        });
+
+                        // 追加交互逻辑
+                        $('#top-slide-banner').slideDown();
+                        $('#top-slide-banner .js_close').on('click', function (event) {
+                            $('#top-slide-banner').slideUp();
+                        });
+                    }
+                }
+            });
+    })();
+
+    // 天气在IE8下分辨率为1250px到1290px的样式
+    (function () {
+        if (navigator.appName == "Microsoft Internet Explorer") {
+            var b = navigator.appVersion.split(";")[1];
+            b = b ? b.replace(/[ ]/g, "") : "";
+            if (b == "MSIE8.0") {
+                var widthes = $(window).width();
+                if (widthes > 1250 && widthes < 1290) {
+                    $(".header__item--sheshou").css({ "height": "36px", "width": "36px", "position": "relative", "left": "-30px", "top": "13px", "margin-right": "-23px", "float": "left" });
+                }
+            }
+        }
+    })();
+
+    /*
+     * 天气旁日期显示（含农历）
+     */
+    // 天气预报开始   
+    function link() {
+        if ($('#eastplugin-weather-box a').length == 0) {
+            setTimeout(link, 800);
+        } else {
+
+            var city = $(".eastplugin-class-first").contents().eq(0).text();
+            var cityIe = encodeURIComponent(city + '天气');
+            $('#eastplugin-weather-box a').attr('href', 'https://www.baidu.com/s?ie=utf-8&word=' + cityIe + '&tn=40020637_1_oem_dg');
+        }
+    };
+    link();
+    // 天气预报结束
+    (function () {
+        function ChineseCalendar(dateObj) {
+            this.dateObj = (dateObj != undefined) ? dateObj : new Date();
+            this.SY = this.dateObj.getFullYear();
+            this.SM = this.dateObj.getMonth();
+            this.SD = this.dateObj.getDate();
+            this.lunarInfo = [0x04bd8, 0x04ae0, 0x0a570, 0x054d5, 0x0d260, 0x0d950, 0x16554, 0x056a0, 0x09ad0, 0x055d2,
+                0x04ae0, 0x0a5b6, 0x0a4d0, 0x0d250, 0x1d255, 0x0b540, 0x0d6a0, 0x0ada2, 0x095b0, 0x14977,
+                0x04970, 0x0a4b0, 0x0b4b5, 0x06a50, 0x06d40, 0x1ab54, 0x02b60, 0x09570, 0x052f2, 0x04970,
+                0x06566, 0x0d4a0, 0x0ea50, 0x06e95, 0x05ad0, 0x02b60, 0x186e3, 0x092e0, 0x1c8d7, 0x0c950,
+                0x0d4a0, 0x1d8a6, 0x0b550, 0x056a0, 0x1a5b4, 0x025d0, 0x092d0, 0x0d2b2, 0x0a950, 0x0b557,
+                0x06ca0, 0x0b550, 0x15355, 0x04da0, 0x0a5b0, 0x14573, 0x052b0, 0x0a9a8, 0x0e950, 0x06aa0,
+                0x0aea6, 0x0ab50, 0x04b60, 0x0aae4, 0x0a570, 0x05260, 0x0f263, 0x0d950, 0x05b57, 0x056a0,
+                0x096d0, 0x04dd5, 0x04ad0, 0x0a4d0, 0x0d4d4, 0x0d250, 0x0d558, 0x0b540, 0x0b6a0, 0x195a6,
+                0x095b0, 0x049b0, 0x0a974, 0x0a4b0, 0x0b27a, 0x06a50, 0x06d40, 0x0af46, 0x0ab60, 0x09570,
+                0x04af5, 0x04970, 0x064b0, 0x074a3, 0x0ea50, 0x06b58, 0x055c0, 0x0ab60, 0x096d5, 0x092e0,
+                0x0c960, 0x0d954, 0x0d4a0, 0x0da50, 0x07552, 0x056a0, 0x0abb7, 0x025d0, 0x092d0, 0x0cab5,
+                0x0a950, 0x0b4a0, 0x0baa4, 0x0ad50, 0x055d9, 0x04ba0, 0x0a5b0, 0x15176, 0x052b0, 0x0a930,
+                0x07954, 0x06aa0, 0x0ad50, 0x05b52, 0x04b60, 0x0a6e6, 0x0a4e0, 0x0d260, 0x0ea65, 0x0d530,
+                0x05aa0, 0x076a3, 0x096d0, 0x04bd7, 0x04ad0, 0x0a4d0, 0x1d0b6, 0x0d250, 0x0d520, 0x0dd45,
+                0x0b5a0, 0x056d0, 0x055b2, 0x049b0, 0x0a577, 0x0a4b0, 0x0aa50, 0x1b255, 0x06d20, 0x0ada0,
+                0x14b63
+            ];
+
+            //传回农历 y年闰哪个月 1-12 , 没闰传回 0
+            this.leapMonth = function (y) {
+                return this.lunarInfo[y - 1900] & 0xf;
+            };
+            //传回农历 y年m月的总天数
+            this.monthDays = function (y, m) {
+                return (this.lunarInfo[y - 1900] & (0x10000 >> m)) ? 30 : 29;
+            };
+            //传回农历 y年闰月的天数
+            this.leapDays = function (y) {
+                if (this.leapMonth(y)) {
+                    return (this.lunarInfo[y - 1900] & 0x10000) ? 30 : 29;
+                } else {
+                    return 0;
+                }
+            };
+            //传回农历 y年的总天数
+            this.lYearDays = function (y) {
+                var i, sum = 348;
+                for (i = 0x8000; i > 0x8; i >>= 1) {
+                    sum += (this.lunarInfo[y - 1900] & i) ? 1 : 0;
+                }
+                return sum + this.leapDays(y);
+            };
+            //算出农历, 传入日期对象, 传回农历日期对象
+            //该对象属性有 .year .month .day .isLeap .yearCyl .dayCyl .monCyl
+            this.Lunar = function (dateObj) {
+                var i, leap = 0,
+                    temp = 0,
+                    lunarObj = {};
+                var baseDate = new Date(1900, 0, 31);
+                var offset = (dateObj - baseDate) / 86400000;
+                lunarObj.dayCyl = offset + 40;
+                lunarObj.monCyl = 14;
+                for (i = 1900; i < 2050 && offset > 0; i++) {
+                    temp = this.lYearDays(i);
+                    offset -= temp;
+                    lunarObj.monCyl += 12;
+                }
+                if (offset < 0) {
+                    offset += temp;
+                    i--;
+                    lunarObj.monCyl -= 12;
+                }
+
+                lunarObj.year = i;
+                lunarObj.yearCyl = i - 1864;
+                leap = this.leapMonth(i);
+                lunarObj.isLeap = false;
+                for (i = 1; i < 13 && offset > 0; i++) {
+                    if (leap > 0 && i == (leap + 1) && lunarObj.isLeap == false) {
+                        --i;
+                        lunarObj.isLeap = true;
+                        temp = this.leapDays(lunarObj.year);
+                    } else {
+                        temp = this.monthDays(lunarObj.year, i)
+                    }
+                    if (lunarObj.isLeap == true && i == (leap + 1)) {
+                        lunarObj.isLeap = false;
+                    }
+                    offset -= temp;
+                    if (lunarObj.isLeap == false) {
+                        lunarObj.monCyl++;
+                    }
+                }
+
+                if (offset == 0 && leap > 0 && i == leap + 1) {
+                    if (lunarObj.isLeap) {
+                        lunarObj.isLeap = false;
+                    } else {
+                        lunarObj.isLeap = true;
+                        --i;
+                        --lunarObj.monCyl;
+                    }
+                }
+
+                if (offset < 0) {
+                    offset += temp;
+                    --i;
+                    --lunarObj.monCyl
+                }
+                lunarObj.month = i;
+                lunarObj.day = offset + 1;
+                return lunarObj;
+            };
+            //中文日期
+            this.cDay = function (m, d) {
+                var nStr1 = ['日', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十'];
+                var nStr2 = ['初', '十', '廿', '卅', '　'];
+                var s;
+                if (m > 10) {
+                    s = '十' + nStr1[m - 10];
+                } else {
+                    s = nStr1[m];
+                }
+                s += '月';
+                d = Math.floor(d);
+                switch (d) {
+                    case 10:
+                        s += '初十';
+                        break;
+                    case 20:
+                        s += '二十';
+                        break;
+                    case 30:
+                        s += '三十';
+                        break;
+                    default:
+                        s += nStr2[Math.floor(d / 10)];
+                        s += nStr1[d % 10];
+                }
+                return s;
+            };
+            this.solarDay2 = function () {
+                var sDObj = new Date(this.SY, this.SM, this.SD);
+                var lDObj = this.Lunar(sDObj);
+                var leapString = '';
+                if (this.leapMonth(this.SY) == lDObj.month) {
+                    leapString = '闰';
+                }
+                var tt = leapString + this.cDay(lDObj.month, lDObj.day);
+                lDObj = null;
+                return tt;
+            };
+            this.weekday = function () {
+                var day = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+                return day[this.dateObj.getDay()];
+            };
+            this.YYMMDD = function () {
+                var dateArr = [this.SY, '年', this.SM + 1, '月', this.SD, '日'];
+                return dateArr.join('');
+            }
+        };
+        // 调用方法，计算日期
+        var now = new ChineseCalendar();
+        var date = Number(now.SM + 1) + '月' + Number(now.SD) + '日';
+        var week = now.weekday();
+        var lunar = now.solarDay2();
+        // 将日期填入相关位置
+        var $calendar = $('#calendar');
+        $calendar.find('.js_date').text(date);
+        $calendar.find('.js_week').text(week);
+        $calendar.find('.js_lunar').text(lunar);
+
+    })();
+
+
+    /**
+     * 购物7图切换，中间210*90，其他6张120*90，背景1190*90
+     */
+    (function () {
+        $.ajax({
+            url: '/static/json/jg_buy7.json',
+            type: 'GET',
+            dataType: 'json'
+        })
+            .done(function (resp) {
+                if (resp.code == 200) {
+                    var timeStamp = Number(Date.parse(new Date())) / 1000;
+                    var onlineTime = Number(resp.items.onlineTime);
+                    var offlineTime = Number(resp.items.offlineTime);
+                    if ((onlineTime < timeStamp) && (timeStamp < offlineTime)) {
+                        // 如果在线，取数据渲染
+                        $('#navrecommend-hjw').prop('outerHTML', resp.items.html);
+                        // 追加交互逻辑
+                        $('#navrecommend-hjw').show();
+                        $.each($('#navrecommend-hjw img'), function (index, ele) {
+                            var originSrc = $(ele).attr('src');
+                            var hoverSrc = $(ele).data('hoverimg');
+                            $(ele).on('mouseenter', function (event) {
+                                $(ele).attr('src', hoverSrc);
+                            }).on('mouseleave', function (event) {
+                                $(ele).attr('src', originSrc);
+                            });
+                        });
+                    }
+                }
+            });
+    })();
+
+
+    /**
+     * jQuery "splendid textchange" plugin
+     * http://benalpert.com/2013/06/18/a-near-perfect-oninput-shim-for-ie-8-and-9.html
+     *
+     * (c) 2013 Ben Alpert, released under the MIT license
+     */
+
+    (function ($) {
+
+        var testNode = document.createElement("input");
+        var isInputSupported = "oninput" in testNode &&
+            (!("documentMode" in document) || document.documentMode > 9);
+
+        var hasInputCapabilities = function (elem) {
+            // The HTML5 spec lists many more types than `text` and `password` on
+            // which the input event is triggered but none of them exist in IE 8 or
+            // 9, so we don't check them here.
+            // TODO: <textarea> should be supported too but IE seems to reset the
+            // selection when changing textarea contents during a selectionchange
+            // event so it's not listed here for now.
+            return elem.nodeName === "INPUT" &&
+                (elem.type === "text" || elem.type === "password");
+        };
+
+        var activeElement = null;
+        var activeElementValue = null;
+        var activeElementValueProp = null;
+
+        /**
+         * (For old IE.) Replacement getter/setter for the `value` property that
+         * gets set on the active element.
+         */
+        var newValueProp = {
+            get: function () {
+                return activeElementValueProp.get.call(this);
+            },
+            set: function (val) {
+                activeElementValue = val;
+                activeElementValueProp.set.call(this, val);
+            }
+        };
+
+        /**
+         * (For old IE.) Starts tracking propertychange events on the passed-in element
+         * and override the value property so that we can distinguish user events from
+         * value changes in JS.
+         */
+        var startWatching = function (target) {
+            activeElement = target;
+            activeElementValue = target.value;
+            activeElementValueProp = Object.getOwnPropertyDescriptor(
+                target.constructor.prototype, "value");
+
+            Object.defineProperty(activeElement, "value", newValueProp);
+            activeElement.attachEvent("onpropertychange", handlePropertyChange);
+        };
+
+        /**
+         * (For old IE.) Removes the event listeners from the currently-tracked
+         * element, if any exists.
+         */
+        var stopWatching = function () {
+            if (!activeElement) return;
+
+            // delete restores the original property definition
+            delete activeElement.value;
+            activeElement.detachEvent("onpropertychange", handlePropertyChange);
+
+            activeElement = null;
+            activeElementValue = null;
+            activeElementValueProp = null;
+        };
+
+        /**
+         * (For old IE.) Handles a propertychange event, sending a textChange event if
+         * the value of the active element has changed.
+         */
+        var handlePropertyChange = function (nativeEvent) {
+            if (nativeEvent.propertyName !== "value") return;
+
+            var value = nativeEvent.srcElement.value;
+            if (value === activeElementValue) return;
+            activeElementValue = value;
+
+            $(activeElement).trigger("textchange");
+        };
+
+        if (isInputSupported) {
+            $(document)
+                .on("input", function (e) {
+                    // In modern browsers (i.e., not IE 8 or 9), the input event is
+                    // exactly what we want so fall through here and trigger the
+                    // event...
+                    if (e.target.nodeName !== "TEXTAREA") {
+                        // ...unless it's a textarea, in which case we don't fire an
+                        // event (so that we have consistency with our old-IE shim).
+                        $(e.target).trigger("textchange");
+                    }
+                });
+        } else {
+            $(document)
+                .on("focusin", function (e) {
+                    // In IE 8, we can capture almost all .value changes by adding a
+                    // propertychange handler and looking for events with propertyName
+                    // equal to 'value'.
+                    // In IE 9, propertychange fires for most input events but is buggy
+                    // and doesn't fire when text is deleted, but conveniently,
+                    // selectionchange appears to fire in all of the remaining cases so
+                    // we catch those and forward the event if the value has changed.
+                    // In either case, we don't want to call the event handler if the
+                    // value is changed from JS so we redefine a setter for `.value`
+                    // that updates our activeElementValue variable, allowing us to
+                    // ignore those changes.
+                    if (hasInputCapabilities(e.target)) {
+                        // stopWatching() should be a noop here but we call it just in
+                        // case we missed a blur event somehow.
+                        stopWatching();
+                        startWatching(e.target);
+                    }
+                })
+
+                .on("focusout", function () {
+                    stopWatching();
+                })
+
+                .on("selectionchange keyup keydown", function () {
+                    // On the selectionchange event, e.target is just document which
+                    // isn't helpful for us so just check activeElement instead.
+                    //
+                    // 90% of the time, keydown and keyup aren't necessary. IE 8 fails
+                    // to fire propertychange on the first input event after setting
+                    // `value` from a script and fires only keydown, keypress, keyup.
+                    // Catching keyup usually gets it and catching keydown lets us fire
+                    // an event for the first keystroke if user does a key repeat
+                    // (it'll be a little delayed: right before the second keystroke).
+                    // Other input methods (e.g., paste) seem to fire selectionchange
+                    // normally.
+                    if (activeElement && activeElement.value !== activeElementValue) {
+                        activeElementValue = activeElement.value;
+                        $(activeElement).trigger("textchange");
+                    }
+                });
+        }
+
+    })(jQuery);
+
+
+    /**
+     * 搜索热词逻辑
+     */
+    (function () {
+        function searchTimes(searchWord, searchType, showWord) {
+            $.ajax({
+                url: "//collect.jiegeng.com/bzDCP/saveNavigationToMNS",
+                type: "get",
+                data: {
+                    searchWord: searchWord,
+                    showWord: showWord,
+                    searchType: searchType
+                }
+            })
+                .done(function (res) {
+                })
+        }
+        function getCharLength(v) {
+            if (!v) v = ''
+            var l = 0
+            for (var i = 0; i < v.length; i++) {
+                var a = v.charAt(i)
+                // 如果是中文，算两个
+                if (a.match(/[^\x00-\xff]/gi) != null) {
+                    l += 2
+                } else {
+                    l += 1
+                }
+            }
+            return l
+        };
+        function getUA() {
+            var Sys = {};
+            var ua = navigator.userAgent.toLowerCase();
+            var s;
+            (s = ua.match(/rv:([\d.]+)\) like gecko/)) ? Sys.ie = s[1] :
+                (s = ua.match(/msie ([\d.]+)/)) ? Sys.ie = s[1] :
+                    (s = ua.match(/firefox\/([\d.]+)/)) ? Sys.firefox = s[1] :
+                        (s = ua.match(/chrome\/([\d.]+)/)) ? Sys.chrome = s[1] :
+                            (s = ua.match(/opera.([\d.]+)/)) ? Sys.opera = s[1] :
+                                (s = ua.match(/version\/([\d.]+).*safari/)) ? Sys.safari = s[1] : 0;
+            return Sys
+        }
+        var oldVal = '';
+        // 页面加载完成后，如果不是IE，聚焦到输入框
+        if (!getUA().ie) {
+            $('#search-input').focus();
+        }
+        // 搜索框输入时，调用百度接口，显示推荐框
+        $('#search-input').on('textchange click', function (event) {
+            // console.log('show');
+            event.preventDefault();
+            var that = this;
+            var wd = $(that).val();
+            // 当失去焦点时，不执行下面操作,原生写法是因为IE8及以下不兼容JQ的.is(':focus')
+            // if(!$(that).is(':focus')){return;}
+            if (document.getElementById('search-input') !== document.activeElement) { return; }
+            // 如果输入长度为0，显示搜索热词，否则显示推荐
+            if (wd.length == 0) {
+                $.ajax({
+                    type: "POST",
+                    //url: "/navigation.php/plan/baidu_top_json",
+                    url: "/navigation.php/plan/baidu_top5_json",
+                    dataType: 'JSON',
+                }).done(function (resp) {
+                    if (resp.code == 200) {
+                        // 先将数组拆分成两份，再混合到一起
+                        var arrayTmp = resp.data;
+                        // var arraySplited = _.chunk(resp.data, 5);
+                        // var arrayTmp = _.flatten(_.zip(arraySplited[0], arraySplited[1]));
+
+                        // 将混合后的数组传入模板解析器
+                        $('#search-suggest-list').html(template('search-history-temp', { items: arrayTmp }));
+                        // 如果搜索结果长度为0，隐藏推荐框
+                        if (resp.data.length > 0) {
+                            $('#search-form .suggest').show();
+                            $('#search .hotword').addClass('hotword-on').removeClass('hotword-off');
+                        } else {
+                            $('#search-form .suggest').hide();
+                        }
+                    }
+                });
+            } else {
+                wd = $.trim(wd);
+                if (oldVal === wd) {
+                    return
+                }
+                oldVal = wd;
+                $.ajax({
+                    type: "POST",
+                    url: "//suggestion.baidu.com/su",
+                    dataType: 'JSONP',
+                    jsonp: 'cb',
+                    data: { wd: wd, json: 1, p: 3 }
+                }).done(function (resp) {
+                    // 如果搜索结果长度为不为0，显示推荐框
+                    if (resp.s.length > 0) {
+                        $('#search-suggest-list').html(template('search-suggest-temp', { items: resp.s }));
+                        //开始
+                        var serachName = $.trim($('#search-input').val());//获取输入框的值
+                        //var url ='//soft.jiegeng.com/jiegengso.php?so='+serachName;
+                        var url = '/jiegengso.php?so=' + serachName;
+                        $.ajax({
+                            type: "get",
+                            //async: false,
+                            url: url,
+                            dataType: 'jsonp',
+                            //jsonp: "callback",
+                            //jsonp: "jsonP",//new
+                            jsonpCallback: "jsonP",
+                            data: {
+                                lo: localStorage.getItem('loTitle')
+                            }
+                        }).done(function (res) {
+                            var recommendNum = $('.recommendFrame');
+                            //如果没有数据的情况
+                            if (res.status === 0) {
+                                return
+                            }
+                            //已经存在一个推荐软件，不添加
+                            if (recommendNum.length >= 1) {
+                                return
+                            }
+                            localStorage.setItem('loTitle', res.title);
+                            // 这个是进行搜索的时候展示在搜索第一条的推荐搜索，后面被去掉了hzy20220610
+                            // addRecommend()
+                            //往第一行添加内容
+                            function addRecommend() {
+                                $('#search-suggest-list li').eq(0).before('<li class="suggest-item item-hook sug-input recommendFrame">' +
+                                    '<div><img src="" width="16" height="16" class="recommendImg"><span><em class="recommendName"></em><b class="links"></b></span><p></p></div>' +
+                                    '</li>')
+                                var recommendHref = res.url;//链接
+                                var recommendImgs = res.ico;//icon链接
+                                var recommendTitle = res.title + '   ';//标题
+                                var recommendDesc = res.js_describe;//描述
+                                var recommendLink = res.othertitle
+                                $('.recommendFrame').click(function () {
+                                    window.open(recommendHref)
+                                    searchTimes(serachName, 1, res.title)
+                                });
+                                $('.recommendFrame .recommendImg').attr('src', recommendImgs);
+                                $('.recommendFrame .recommendName').text(recommendTitle);
+                                $('.recommendFrame .links').text('-' + recommendLink)
+                                $('.recommendFrame p').text(recommendDesc)
+                            }
+
+                        })
+                        //结束
+
+                        $('#search-form .suggest').show();
+                        $('#search .hotword').addClass('hotword-on').removeClass('hotword-off');
+                    } else {
+                        // $('#search-form .suggest').hide();
+                    }
+                });
+            }
+
+        });
+
+        // 处理输入框失焦逻辑
+        var hideSuggest = function () {
+            $('#search-form .suggest').hide();
+            $('#search .hotword').addClass('hotword-off').removeClass('hotword-on');
+            // console.log('hide');
+        };
+        // 鼠标进入下拉列表或热词数字区域，取消文本框的 blur 事件绑定
+        $('#search-suggest-list,#search .hotword').mouseenter(function () {
+            $('#search-input').off('blur', hideSuggest);
+        })
+        // 鼠标移出下拉列表或热词数字区域，为文本框绑定 blur 事件
+        $('#search-suggest-list,#search .hotword').mouseleave(function () {
+            $('#search-input').on('blur', hideSuggest);
+        })
+        var isClickNewsFeed = false;
+        // 为候选项添加悬停效果与点击响应
+        $('#search-suggest-list').on('mouseenter', '.suggest-item', function (event) {
+            event.preventDefault();
+            $(this).addClass('hover').siblings().removeClass('hover');;
+        }).on('click', '.suggest-item:not(.recommendFrame)', function (event) {
+            event.preventDefault();
+            var that = this;
+            var suggestText = $(that).find('.suggest-text').text();
+            var serachWord = $.trim($('#search-input').val());//获取输入框的值
+            $('#search-input').val(suggestText);
+            isClickNewsFeed = true
+            if (getCharLength(serachWord) <= 40) {
+                searchTimes(serachWord, 2, suggestText)
+            }
+            $('#search-form').submit();
+        });
+        $('#search-form').on('submit', function () {
+            var serachWord = $.trim($('#search-input').val());//获取输入框的值
+            if (!isClickNewsFeed && getCharLength(serachWord) <= 40) {
+                searchTimes(serachWord, 3)
+            }
+            isClickNewsFeed = false
+        });
+        // 为候选项添加键盘响应
+        $('#search-input').on('keydown', function (event) {
+            var $items = $('#search-suggest-list .suggest-item');
+            var $hoverItem = $('#search-suggest-list .suggest-item.hover');
+            var $list = $('#search-suggest-list');
+            var currentIndex;
+
+            function setActive(currentIndex) {
+                $items.eq(currentIndex).addClass('hover').siblings().removeClass('hover');
+                var suggestText = $items.eq(currentIndex).find('.suggest-text').text();
+                $('#search-input').val(suggestText);
+            }
+            // 假如有选中项目，取选中
+            if ($hoverItem.length !== 0) {
+                currentIndex = $hoverItem.index();
+            }
+
+            // 按上键
+            if (event.keyCode === 38) {
+                event.preventDefault();
+                // 如果列表不可见，返回
+                if (!$list.is(':visible')) { return; }
+                // 当未选中时或者选中第0个时，选中+1个
+                if ($hoverItem.length === 0 || currentIndex === 0) {
+                    currentIndex = $items.length;
+                }
+                currentIndex--;
+                setActive(currentIndex);
+            }
+            // 按下键
+            if (event.keyCode === 40) {
+                event.preventDefault();
+                // 如果列表不可见，返回
+                if (!$list.is(':visible')) { return; }
+                // 当未选中时或者选中最后一个时，选中-1个
+                if ($hoverItem.length === 0 || currentIndex === $items.length - 1) {
+                    currentIndex = -1;
+                }
+
+                currentIndex++;
+                setActive(currentIndex);
+            }
+        });
+        // 提交之后隐藏搜索框
+        $('#search-form').on('submit', function () {
+            hideSuggest();
+        });
+
+        // 热词搜索数字逻辑
+        $('#search .hotword').on('click', function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            /* Act on the event */
+            var that = this;
+            var $list = $('#search-suggest-list');
+            // 根据列表显示状态，进行不同处理
+            if ($list.is(":hidden")) {
+                $('#search-input').focus().click();
+                $(that).addClass('hotword-on').removeClass('hotword-off');
+            } else {
+                hideSuggest();
+                $(that).addClass('hotword-off').removeClass('hotword-on');
+            }
+        });
+
+    })();
+
+
+    /**
+     * 监听滚动，固定搜索框，并显示热词
+     */
+    $(window).on('scroll', _.throttle(function () {
+        var headerHeight = $('.layout-header').height();
+        var $searchBar = $('.hao123-search-panel');
+        var $hotsearchCon = $('.hao123-search-panel .hotsearchCon');
+        if ($(document).scrollTop() >= headerHeight) {
+            $searchBar.addClass('search-fixed');
+            $hotsearchCon.show();
+        } else {
+            $searchBar.removeClass('search-fixed');
+            $hotsearchCon.hide();
+        }
+    }, 200));
+
+    // 暂时干掉搜索切换
+    $('#search > a > i').hide();
+    $('#search > a').css({ cursor: 'default' });
+    $('#search > a').on('click', function (event) {
+        event.preventDefault();
+        /* Act on the event */
+        // IE8必须禁用点击
+        return false;
+    });
+
+    /**
+     * 右上角撕页广告
+     */
+    $('#siye img').css({ width: '90px', height: '90px' });
+    $('#siye').show();
+    $('#siye').on('click', '.close-btn', function (event) {
+        event.preventDefault();
+        $('.siye').hide();
+    });
+    $('#siye').on('mouseenter', function (event) {
+        event.preventDefault();
+        $('#siye img').stop()
+            .animate({ width: '110px', height: '110px' }, 100);
+    }).on('mouseleave', function (event) {
+        event.preventDefault();
+        $('#siye img').stop()
+            .animate({ width: '90px', height: '90px' }, 100);
+    });
+
+    /**
+     * 右下角锚点跳转
+     */
+
+    // 右侧锚跳转平滑滚动
+    $('#shortcut-box').on('click', '.vip', function (event) {
+        event.preventDefault();
+        var that = $(this);
+        var anchorName = that.attr('href');
+        $('html,body').stop().animate({ scrollTop: $(anchorName).offset().top - 110 }, 500, 'swing');
+    });
+
+    //回到顶部与底部显示与隐藏逻辑
+    $(window).on('scroll', _.throttle(function () {
+        var distance = $(window).scrollTop() - $("#info-flow").offset().top;
+        if (distance >= -110) {
+            $("#shortcut-toptoggle").show();
+            $("#shortcut-bottomtoggle").hide();
+        } else {
+            $("#shortcut-toptoggle").hide();
+            $("#shortcut-bottomtoggle").show();
+        }
+    }, 200));
+
+
+    /**
+     * 左侧工具栏显示开关
+     */
+    $('#slidetoolbarContainer .slidetoolbarv2').css('left', 0);
+    $('#slidetoolbarContainer #slidetoolbar-btn').css('display', 'inline');
+    $('#slidetoolbarContainer').on('click', '#slidetoolbar-btn', function (event) {
+        event.preventDefault();
+        var that = this;
+        if ($(that).hasClass('slideclosebtn-open')) {
+            $(that).removeClass('slideclosebtn-open');
+            $('#slidetoolbarContainer .slidetoolbarv2').animate({ left: '0px' }, 'fast');
+        } else {
+            $(that).addClass('slideclosebtn-open');
+            $('#slidetoolbarContainer .slidetoolbarv2').animate({ left: '-50px' }, 'fast');
+        }
+    });
+
+
+    /*!
+     * 图片延迟加载
+     * 将显示器可视区域内的图片设为
+     * @return object, 当前选择域
+     * @example $(selector).imgdelay()
+     */
+    $.fn.imgdelay = function () {
+        var obj = $(this),
+            scr = {},
+            threshold = 0;
+        /*!
+         * 显示器可视区
+         */
+        scr.xl = $(window).scrollLeft();
+        scr.xr = scr.xl + $(window).width();
+        scr.yt = $(window).scrollTop();
+        scr.yb = scr.yt + $(window).height();
+        /*!
+         * 遍历全部图片
+         */
+        obj.find('img[data-src]').each(function () {
+            var can = false,
+                tmp = $(this),
+                par = tmp.parent(),
+                img = par.offset();
+            /*!
+             * 图片占用区
+             */
+            img.xl = img.left;
+            img.xr = img.xl + par.outerWidth();
+            img.yt = img.top;
+            img.yb = img.yt + par.outerHeight();
+            /*!
+             * 可视检查
+             */
+            if (img.xr - scr.xl > threshold && img.xl - scr.xr < threshold) {
+                if (img.yt - scr.yb < threshold && img.yb - scr.yt > threshold) {
+                    can = true
+                }
+            }
+            /*!
+             * 允许载入
+             */
+            if (can) {
+                tmp.attr('src', tmp.attr('data-src')).removeAttr('data-src');
+            }
+        });
+        return obj;
+    };
+
+    // 先加载一次，再定时懒加载
+    (function () {
+        $('body').imgdelay();
+        var flag = null;
+        flag = setInterval(function () {
+            $('body').imgdelay();
+        }, 600);
+    })();
+
+
+    /**
+     * 定义轮播插件
+     */
+    ;
+    (function ($, window, document, undefined) {
+        //定义Slider的构造函数
+        var Slider = function ($ele, opt) {
+            // 定义默认值
+            this.defaults = {
+                // 默认切换模式为渐入渐出
+                mode: 'fade',
+                // 默认切换时间为4秒
+                speed: 4000,
+                slideSelector: '.content-pic li',
+                prevSelector: '.pre-btn',
+                nextSelector: '.next-btn',
+            };
+            // 将选项和默认值合并，深拷贝进空对象，赋值给当前选项
+            this.options = $.extend({}, this.defaults, opt);
+
+            /**
+             *  定义全局静态变量
+             */
+
+            //当前显示的图片索引
+            this.now = 0;
+            //是否开始轮播
+            this.hasStarted = false;
+            //定时器
+            this.interval = null;
+
+            this.$container = $ele;
+            //要轮播的li元素集合
+            this.$liItems = null;
+            this.$slideCont = null;
+            //轮播页数
+            this.len = 0;
+            // 单个轮播宽度，和容器宽度
+            this.slideWidth = 0;
+            this.contWidth = 0;
+
+            // 上一页下一页按钮
+            this.$prevBtn = null;
+            this.$nextBtn = null;
+
+        }
+
+        //定义Slider的方法
+        Slider.prototype = {
+            // 初始化
+            init: function () {
+                var that = this;
+                // 初始化变量
+                this.$liItems = this.$container.find(that.options.slideSelector);
+                this.$slideCont = this.$liItems.parent();
+                this.len = this.$liItems.length;
+
+                this.slideWidth = this.$liItems.width();
+
+                if (this.options.mode == 'fade') {
+                    this.$slideCont.eq(0).show();
+                    this.$slideCont.eq(0).siblings().hide();
+                }
+                if (this.options.mode == 'horizonal') {
+                    // 为实现无缝轮播，需将第一个元素多循环一个
+                    this.$slideCont.append(this.$liItems.eq(0).prop('outerHTML'));
+                    this.contWidth = (this.$liItems.width()) * (this.len + 1);
+                    this.$slideCont.css('width', this.contWidth);
+                    // 在屏幕缩放时，更新容器大小，防止错位
+                    $(window).on('resize', _.debounce(function () {
+                        that.slideWidth = that.$liItems.width();
+                        that.contWidth = that.slideWidth * (that.len + 1);
+                    }, 150));
+                    // 当屏幕缩放完毕，调整位置，防止错位
+                    $(window).on('resize', _.debounce(function () {
+                        that.update();
+                        // console.log('updated');
+                    }, 200, { leading: false, trailing: true }));
+
+                }
+
+                this.$prevBtn = this.$container.find(that.options.prevSelector);
+                this.$nextBtn = this.$container.find(that.options.nextSelector);
+
+                this.autoHideBtn();
+                this.prevAndNext();
+                this.start();
+                // console.log('initialized');
+            },
+            // 鼠标移入banner图时，停止轮播并显示前后按钮，移出时开始轮播并隐藏前后按钮
+            autoHideBtn: function () {
+                var that = this;
+                this.$container.on('mouseenter', function (event) {
+                    event.preventDefault();
+                    that.stop();
+                    that.$prevBtn.show();
+                    that.$nextBtn.show();
+                }).on('mouseleave', function (event) {
+                    event.preventDefault();
+                    that.start();
+                    that.$prevBtn.hide();
+                    that.$nextBtn.hide();
+                });
+            },
+            //绑定前后按钮事件
+            prevAndNext: function () {
+                var that = this;
+                this.$prevBtn.on('click', function (event) {
+                    event.preventDefault();
+                    that.prev();
+                });
+                this.$nextBtn.on('click', function (event) {
+                    event.preventDefault();
+                    that.next();
+                });
+            },
+            // 前一张函数
+            prev: function () {
+                var out = this.now;
+                this.now = (--this.now + this.len) % this.len;
+                this.play(out, this.now);
+                // console.log('上一页');
+            },
+            // 后一张函数
+            next: function () {
+                var out = this.now;
+                this.now = ++this.now % this.len;
+                this.play(out, this.now);
+                // console.log('下一页');
+            },
+            /**
+             * 播放函数
+             * @param out number 要消失的图片的索引值
+             * @param now number 接下来要轮播的图的索引值
+             */
+            play: function (out, now) {
+                var that = this;
+                // 先停止计时器，
+                // 这是为了防止动画未执行完，就触发下一个定时器，
+                // 导致轮播鬼畜加快
+                // 这个定时器需要在回调完成之后重新打开
+                that.stop();
+
+                if (this.options.mode == 'fade') {
+                    this.$liItems.eq(now).siblings().fadeOut();
+                    this.$liItems.eq(now).fadeIn('fast', function () {
+                        that.start();
+                    });
+                }
+                if (this.options.mode == 'horizonal') {
+                    var left = -1 * this.slideWidth * now;
+                    // 无缝轮播核心代码
+                    if (out == 0 && now == this.len - 1) {
+                        // 当从第一页向前翻页
+                        this.$slideCont.css({ 'left': -(this.contWidth - this.slideWidth) });
+                        this.$slideCont.stop().animate({ 'left': left }, 'fast', function () {
+                            that.start();
+                        });
+                    } else if (out == this.len - 1 && now == 0) {
+                        // 当从最后一页向后翻页
+                        this.$slideCont.stop().animate({ 'left': -(this.contWidth - this.slideWidth) }, function () {
+                            that.$slideCont.css({ 'left': 0 });
+                            that.start();
+                        });
+                    } else {
+                        this.$slideCont.stop().animate({ 'left': left }, 'fast', function () {
+                            that.start();
+                        });
+                    }
+                }
+            },
+            // 更新函数
+            update: function () {
+                var that = this;
+                // 先停止计时器，
+                // 这是为了防止动画未执行完，就触发下一个定时器，
+                // 导致轮播鬼畜加快
+                // 这个定时器需要在回调完成之后重新打开
+                that.stop();
+                var left = -1 * that.slideWidth * that.now;
+                that.$slideCont.stop().animate({ 'left': left }, 'fast', function () {
+                    that.start();
+                });
+            },
+            //开始函数
+            start: function () {
+                var that = this;
+                if (!that.hasStarted) {
+                    that.hasStarted = true;
+                    that.interval = setInterval(function () {
+                        that.next();
+                    }, that.options.speed);
+                }
+            },
+            //停止函数
+            stop: function () {
+                var that = this;
+                clearInterval(that.interval);
+                that.hasStarted = false;
+            }
+        };
+
+        // 将Slider对象扩展到JQ插件bzSlider
+        $.fn.bzSlider = function (options) {
+            //创建Slider的实例
+            var slider = new Slider(this, options);
+            //调用其初始化方法
+            slider.init();
+            // 返回this以支持链式调用
+            return this;
+        };
+
+    })(jQuery, window, document);
+
+
+    /**
+     * 初始化搜索热词轮播
+     */
+    (function () {
+        var delay = 0;
+        $('.hao123-search-panel-box #notice').each(function () {
+            var that = this;
+            setTimeout(function () {
+                // 设置定时为10秒,初始化轮播
+                $(that).bzSlider({
+                    mode: 'horizonal',
+                    speed: 4000,
+                    slideSelector: '.slider__slide',
+                    prevSelector: '',
+                    nextSelector: '.slider__nav--next',
+                });
+            }, delay);
+            // 添加delay，使轮播不同时切换
+            delay += 500;
+        })
+    })();
+
+
+    //左侧栏初始化
+    GLOBAL_UTILS.initLeftSide = function () {
+        /**
+         * 初始化左侧栏轮播
+         */
+        (function () {
+            var delay = 0;
+            $('#layout-side .toppicture').each(function () {
+                var that = this;
+                setTimeout(function () {
+                    // 设置定时为10秒,初始化轮播
+                    $(that).bzSlider({
+                        mode: 'fade',
+                        speed: 10000,
+                        slideSelector: '.content-pic li',
+                        prevSelector: '.pre-btn',
+                        nextSelector: '.next-btn',
+                    });
+                }, delay);
+                // 添加delay，使轮播不同时切换
+                delay += 500;
+            })
+        })();
+
+        /**
+         * 左侧栏标签切换
+         */
+        $('.js_box-toplist').each(function () {
+            var that = this;
+            var $tabs = $(that).find('.g-tab');
+            var $tabConts = $(that).find('.js_tabCont');
+            $tabs.on('click', function (event) {
+                event.preventDefault();
+                var index = $(this).index();
+                $tabs.eq(index).addClass('g-tab-selected g-br20 g-fc23')
+                    .siblings().removeClass('g-tab-selected g-br20 g-fc23');
+                $tabConts.hide().eq(index).show();
+            });
+        });
+    };
+    /**
+     * 左侧头条新闻，对接东方头条
+     */
+    (function () {
+        // 获取伪jsonp数据(回调函数是写死的),
+        // 注意！请求之后不管成功失败，都初始化左侧栏
+        $.ajax({
+            type: "GET",
+            async: true,
+            url: leftnews_url,
+            dataType: 'jsonp',
+            jsonpCallback: 'eastdaytj'
+        })
+            .done(function (resp) {
+                // console.log(resp);
+                // console.log(resp.tiyu)
+                var html = '';
+                html += template('jg_topNews_temp', { data: resp.tuijian });
+                html += template('jg_topNews_temp', { data: resp.shehui });
+                html += template('jg_topNews_temp', { data: resp.yule });
+                html += template('jg_topNews_temp', { data: resp.junshi });
+                html += template('jg_topNews_temp_tiyu', { data: resp.tiyu });
+                $('#jg_topNews').html(html);
+                // 模板中全display:none了，这里要显示第一个
+                $('#jg_topNews .js_tabCont').eq(0).show();
+                GLOBAL_UTILS.initLeftSide();
+            })
+            .fail(function () {
+                GLOBAL_UTILS.initLeftSide();
+            });
+
+    })();
+
+
+    /**
+     * 初始化玩游戏轮播
+     */
+    (function () {
+        var delay = 0;
+        $('#hao123-game .game-side .slider__grid').each(function () {
+            var that = this;
+            setTimeout(function () {
+                // 设置定时为10秒,初始化轮播
+                $(that).bzSlider({
+                    mode: 'horizonal',
+                    speed: 10000,
+                    slideSelector: '.slider__slide',
+                    prevSelector: '.slider__nav--prev',
+                    nextSelector: '.slider__nav--next',
+                });
+            }, delay);
+            // 添加delay，使轮播不同时切换
+            delay += 500;
+        })
+    })();
+    (function () {
+        var delay = 0;
+        $('#hao123-game .js-cpcydxyx').each(function () {
+            var that = this;
+            setTimeout(function () {
+                // 设置定时为10秒,初始化轮播
+                $(that).bzSlider({
+                    mode: 'horizonal',
+                    speed: 10000,
+                    slideSelector: '.slider__slide',
+                    prevSelector: '.slider__nav--prev',
+                    nextSelector: '.slider__nav--next',
+                });
+            }, delay);
+            // 添加delay，使轮播不同时切换
+            delay += 500;
+        })
+    })();
+
+
+    /**
+     * 玩游戏标签切换
+     */
+    $('#hao123-game .box-head .g-tabs .g-tab').on('click', function (event) {
+        event.preventDefault();
+        var that = this;
+        var tabs = $('#hao123-game .box-head .g-tabs .g-tab');
+        var tabContents = $('#hao123-game .box-container');
+        var index = $(that).index('#hao123-game .box-head .g-tabs .g-tab');
+
+        tabs.eq(index).siblings().removeClass('g-fc23 g-br20 g-tab-selected');
+        tabs.eq(index).addClass('g-fc23 g-br20 g-tab-selected');
+
+        tabContents.hide();
+        tabContents.eq(index).show();
+    });
+
+    /**
+     * 初始化金融轮播
+     */
+    // (function () {
+    //     var delay = 0;
+    //     $('#service-licai .slide-switch').each(function () {
+    //         var that = this;
+    //         setTimeout(function () {
+    //             // 设置定时,初始化轮播
+    //             $(that).bzSlider({
+    //                 mode: 'horizonal',
+    //                 speed: 3000,
+    //                 slideSelector: '.licai-piclist',
+    //                 prevSelector: '.slide-column-pageup',
+    //                 nextSelector: '.slide-column-pagedown',
+    //             });
+    //         }, delay);
+    //         // 添加delay，使轮播不同时切换
+    //         delay += 500;
+    //     })
+    // })();
+
+
+    /**
+     * 初始化购物轮播
+     */
+    (function () {
+        var delay = 0;
+        $('#hao123-gouwu .gouwu-left').each(function () {
+            var that = this;
+            setTimeout(function () {
+                // 设置定时为5秒,初始化轮播
+                $(that).bzSlider({
+                    mode: 'horizonal',
+                    speed: 5000,
+                    slideSelector: '.gouwu-piclist',
+                    prevSelector: '.slide-column-pageup',
+                    nextSelector: '.slide-column-pagedown',
+                });
+            }, delay);
+            // 添加delay，使轮播不同时切换
+            delay += 500;
+        })
+    })();
+    (function () {
+        var delay = 0;
+        $('#hao123-gouwu .gouwu-bottom').each(function () {
+            var that = this;
+            setTimeout(function () {
+                // 设置定时为5秒,初始化轮播
+                $(that).bzSlider({
+                    mode: 'horizonal',
+                    speed: 5000,
+                    slideSelector: '.gouwu-piclist',
+                    prevSelector: '.slide-column-pageup',
+                    nextSelector: '.slide-column-pagedown',
+                });
+            }, delay);
+            // 添加delay，使轮播不同时切换
+            delay += 500;
+        })
+    })();
+    (function () {
+        var delay = 0;
+        $('#hao123-gouwu .gouwu-silder').each(function () {
+            var that = this;
+            setTimeout(function () {
+                // 设置定时为5秒,初始化轮播
+                $(that).bzSlider({
+                    mode: 'horizonal',
+                    speed: 5000,
+                    slideSelector: '.gouwu-piclist',
+                    prevSelector: '.slide-column-pageup',
+                    nextSelector: '.slide-column-pagedown',
+                });
+            }, delay);
+            // 添加delay，使轮播不同时切换
+            delay += 500;
+        })
+    })();
+
+
+    // 生活这点事轮播
+    GLOBAL_UTILS.initLife = function () {
+        /**
+         * 初始化生活这点事轮播
+         */
+        (function () {
+            var delay = 0;
+            $('#life .g-ib.col .slider__grid').each(function () {
+                var that = this;
+                setTimeout(function () {
+                    // 设置定时为10秒,初始化轮播
+                    $(that).bzSlider({
+                        mode: 'fade',
+                        speed: 10000,
+                        slideSelector: '.slider__slide',
+                        prevSelector: '.slider__nav--prev',
+                        nextSelector: '.slider__nav--next',
+                    });
+                }, delay);
+                // 添加delay，使轮播不同时切换
+                delay += 500;
+            })
+        })();
+    };
+    /**
+     * 生活这点事，对接东方头条
+     */
+    (function () {
+        // 获取伪jsonp数据(回调函数是写死的),
+        // 注意！请求之后不管成功失败，都初始化左侧栏
+        $.ajax({
+            type: "GET",
+            async: true,
+            // url: '//mini.eastday.com/apidata/top20shehuijsonp.json',
+            url: '//minipc.eastday.com/ccms/1a872947a8/1a872947a8_272_752_v11_jsonp.json',
+            dataType: 'jsonp',
+            jsonpCallback: 'shehui',
+            // timeout: 5000
+        })
+            .done(function (resp) {
+                var html = '';
+                var pool = resp.data;
+
+                function take() {
+                    var array = [];
+                    for (var i = 0; i < 9; i++) {
+                        var tmp = pool.pop();
+                        array.push(tmp);
+                    }
+
+                    html += template('jg_life_temp', { data: array });
+                }
+                for (var i = 0; i < 5; i++) {
+                    take();
+                }
+                html = $.parseHTML(html);
+                $(html).eq(0).addClass('col-first');
+                $(html).last().addClass('width-nr-hide');
+                // console.log(html);
+                $('#life > div.life-bd > div > div > div > ul > li').html(html);
+                GLOBAL_UTILS.initLife();
+            })
+            .fail(function () {
+                GLOBAL_UTILS.initLife();
+            });
+
+    })();
+
+
+
+    /**
+     * 初始化全网热播轮播
+     */
+
+    // GLOBAL_UTILS.initVideo = function () {
+    //     (function () {
+    //         var delay = 0;
+    //         $('#hao123-shortvideo .slider1 .slider__grid').each(function () {
+    //             var that = this;
+    //             setTimeout(function () {
+    //                 // 设置定时为10秒,初始化轮播
+    //                 $(that).bzSlider({
+    //                     mode: 'horizonal',
+    //                     speed: 10000,
+    //                     slideSelector: '.slider__slide',
+    //                     prevSelector: '.slider__nav--prev',
+    //                     nextSelector: '.slider__nav--next',
+    //                 });
+    //             }, delay);
+    //             // 添加delay，使轮播不同时切换
+    //             delay += 500;
+    //         })
+    //     })();
+    // };
+
+    /**
+     * 全网热播，对接桔梗影视
+     */
+    // (function () {
+
+    //     // 获取jsonp数据,
+    //     // 注意！请求之后不管成功失败，都初始化
+    //     $.ajax({
+    //         type: "GET",
+    //         async: true,
+    //         url: '//yingshi.jiegeng.com/index.php/open_api/video',
+    //         dataType: 'jsonp',
+    //         timeout: 5000
+    //     })
+    //         .done(function (resp) {
+    //             var compiled = _.template($('#jg_video_temp').html());
+    //             var html = compiled({ list: resp });
+    //             $('#hao123-shortvideo > div.box-container').html(html);
+    //             GLOBAL_UTILS.initVideo();
+    //         })
+    //         .fail(function () {
+    //             GLOBAL_UTILS.initVideo();
+    //         });
+
+    // })();
+
+
+    GLOBAL_UTILS.initRelax = function () {
+
+        /**
+         * 初始化轻松10分钟轮播
+         */
+        (function () {
+            var delay = 0;
+            $('#relex .relax-ctab-content').each(function () {
+                var that = this;
+                setTimeout(function () {
+                    // 设置定时为10秒,初始化轮播
+                    $(that).bzSlider({
+                        mode: 'horizonal',
+                        speed: 10000,
+                        slideSelector: '.relax-ctab-slider-item',
+                        prevSelector: '.relax-ctab-slider-arrow .prev',
+                        nextSelector: '.relax-ctab-slider-arrow .next',
+                    });
+                }, delay);
+                // 添加delay，使轮播不同时切换
+                delay += 500;
+            })
+        })();
+
+
+        /**
+         * 轻松10分钟标签切换
+         */
+        $('#hao123-relax .g-tabs .g-tab').on('click', function (event) {
+            event.preventDefault();
+            var that = this;
+            var tabs = $('#hao123-relax .g-tabs .g-tab');
+            var tabContents = $('#hao123-relax .relax-ctab-content');
+            var index = $(that).index('#hao123-relax .g-tabs .g-tab');
+
+            tabs.eq(index).siblings().removeClass('g-fc23 g-br20 g-tab-selected');
+            tabs.eq(index).addClass('g-fc23 g-br20 g-tab-selected');
+
+            tabContents.removeClass('slider-hover').hide();
+            tabContents.eq(index).addClass('slider-hover').show();
+        });
+
+    };
+    GLOBAL_UTILS.initRelax();
+
+    // /**
+    //  * 轻松10分钟，对接漂亮女人
+    //  */
+    // (function() {
+
+    //     // 获取jsonp数据,
+    //     // 注意！请求之后不管成功失败，都初始化左侧栏
+    //     $.ajax({
+    //             type: "GET",
+    //             async: true,
+    //             url: 'http://s.piaoliang.com/json/jiegeng10.json',
+    //             dataType: 'jsonp',
+    //             timeout: 5000
+    //         })
+    //         .done(function(resp) {
+    //             // 这是lodash的template方法，不是arttemplate
+    //             var compiled = _.template($('#jg_relax_temp').html());
+    //             var html = compiled({ list: resp.tuijian });
+    //             // 隐藏第一项，并在后面追加一栏
+    //             $('#relex > div.relax-ctab-hd.g-bg5').next().hide();
+    //             $('#relex > div.relax-ctab-hd.g-bg5').after(html);
+    //             // 移除第一个tab的active状态，并添加tab
+    //             $('#relex > div.relax-ctab-hd.g-bg5 > div.g-tabs.g-ib')
+    //                 .children().eq(0).removeClass('g-fc23 g-br20 g-tab-selected').end().end()
+    //                 .prepend('<a class="g-tab g-fc23h g-fc23 g-br20 g-tab-selected" href="#">养生保健</a>');
+    //             GLOBAL_UTILS.initRelax();
+    //         })
+    //         .fail(function() {
+    //             GLOBAL_UTILS.initRelax();
+    //         });
+
+    // })();
+    /**
+     * 轻松10分钟，对接东方头条
+     */
+    (function () {
+        $.ajax({
+            type: "GET",
+            async: "true",
+            // url: "https://miniimg.eastday.com/miniimgapi/top100pic.json",
+            url: "https://minipc.eastday.com/ccms/acc5532f2c/acc5532f2c_316_898_v11_jsonp.json",
+            dataType: "jsonp",
+            jsonpCallback: 'callback'
+
+        }).done(function (resp) {
+            // console.log(resp);
+            var compiled = _.template($('#jg_relax_temp').html());
+            var html = compiled({ list: resp.data });
+            // 隐藏第一项，并在后面追加一栏
+            $('#relex > div.relax-ctab-hd.g-bg5').next().hide();
+            $('#relex > div.relax-ctab-hd.g-bg5').after(html);
+            // 移除第一个tab的active状态，并添加tab
+            $('#relex > div.relax-ctab-hd.g-bg5 > div.g-tabs.g-ib')
+                .children().eq(0).removeClass('g-fc23 g-br20 g-tab-selected').end().end()
+                .prepend('<a class="g-tab g-fc23h g-fc23 g-br20 g-tab-selected" href="#">养生保健</a>');
+            GLOBAL_UTILS.initRelax();
+        })
+            .fail(function () {
+                GLOBAL_UTILS.initRelax();
+            });
+    })();
+
+    /**
+     * 名站区域tips
+     */
+    $('.widget-famoussite-recom').on('mouseenter', '.tuijian-icon', function (event) {
+        event.preventDefault();
+        var $tips = $('.widget-famoussite-recom .tuijian-icon-tips');
+        $tips.show();
+    }).on('mouseleave', '.tuijian-icon', function (event) {
+        event.preventDefault();
+        var $tips = $('.widget-famoussite-recom .tuijian-icon-tips');
+        setTimeout(function () {
+            $tips.hide();
+        }, 1000);
+    });
+
+
+    /**
+     * 名站区域换一换
+     */
+    $('.widget-famoussite-recom').on('click', '.tuijianChange', function (event) {
+        event.preventDefault();
+        var $recoms = $('.widget-famoussite-recom .wf-tuijian');
+        var $current = $recoms.filter('.show');
+
+        var length = $recoms.length;
+        var index = $current.index('.widget-famoussite-recom .wf-tuijian');
+
+        if (index == length - 1) {
+            index = 0;
+        } else {
+            index++;
+        }
+
+        $current.removeClass('show');
+        $recoms.eq(index).addClass('show');
+    });
+
+
+    /**
+     * 信息流逻辑
+     */
+
+    (function () {
+
+        // 东方头条接口json数据
+        /* ie低版本下下CORS请求存在问题，故走本服务器进行jsonp代理,
+        详见http://jpillora.com/xhook/example/ie-8-9-cors-polyfill.html*/
+        var getEastDayFeed = function () {
+            return $.ajax({
+                type: 'GET',
+                url: '//minipc.eastday.com/ccms/b9d6f21dac/b9d6f21dac_182_542_v11_jsonp.json',
+                dataType: 'jsonp',
+                jsonpCallback: 'baizhan'
+            });
+        };
+
+
+        // 定义数据追加方法，闭包保存状态
+        var appendToList = (function () {
+            var feedFromEastDay = null;
+            var loading = false;
+            return function () {
+                // 当东方头条为null时，取一次数据，只会执行一次
+                if (feedFromEastDay === null) {
+                    if (loading === false) {
+                        loading = true;
+                        getEastDayFeed().done(function (resp) {
+                            if (resp.status === 1) {
+                                feedFromEastDay = resp;
+                                // 调用自己进行数据追加
+                                appendToList();
+                            }
+                            loading = false;
+                        }).fail(function () {
+                            loading = false;
+                            console.log('fail');
+                        });
+                        return;
+                    } else {
+                        return;
+                    }
+                }
+                // 当东方头条数据用完时，显示查看更多
+                if (feedFromEastDay.data.length === 0) {
+                    $('#info-flow-readmore').css({ display: 'block' });
+                    return;
+                }
+                var domArray = [];
+
+                var htmlString = template('info-flow-temp', feedFromEastDay.data.shift());
+                domArray.push($.parseHTML(htmlString));
+                var frag = feedFromEastDay.data.shift();
+
+                var htmlString = '<li class="news cf">' +
+                    '                        <div class="news-box">' +
+                    '                            <div class="news-img-wrap">' +
+                    '                                <a data-id="11226" class="linkimgtxt" href="' + frag.url + '" target="_blank" title="' + frag.title + '">' +
+                    '                                    <img class="lazyload" src="/images/picloading.png" data-src="' + frag.pic21 + '" class="linkimgtxt-img">' +
+                    '                                </a>' +
+                    '                            </div>' +
+                    '                            <div class="news-cont">' +
+                    '                                <div class="news-title-wrap">' +
+                    '                                    <h3 class="news-title">' +
+                    '                                        <a data-id="11226" href="' + frag.url + '" target="_blank" title="' + frag.title + '">' + frag.title + '</a>' +
+                    '                                    </h3>' +
+                    '                                </div>' +
+                    '                                <div class="news-extra">' +
+                    '                                    <span class="news-source">' +
+                    '                                        <a data-id="11226" href="' + frag.url + '" target="_blank">' + frag.source + '</a>' +
+                    '                                    </span>' +
+                    '                                    <span class="news-time">' + frag.date + '</span>' +
+                    '                                </div>' +
+                    '                            </div>' +
+                    '                        </div>' +
+                    '                    </li>';
+
+                // 渲染dom到视图中
+                $.each(domArray, function (index, ele) {
+                    $('#info-flow #news .list>ul').eq(0).append(ele);
+                });
+
+            };
+        })();
+
+        // 信息流追加逻辑
+        $(window).on("scroll", function (event) {
+            var $infoFlowWrap = $("#info-flow .info-flow-left");
+            // 判断信息流可见时，才加载，否则不加载
+            if ($infoFlowWrap.isOnScreen()) {
+                // 当信息流底部距离屏幕底部一定像素时
+                if ($infoFlowWrap.isPixelFromBottom(-600)) {
+                    appendToList();
+                }
+            }
+        });
+
+        // 信息流右侧热点资讯固定在视窗内
+        $(window).on("scroll", function (event) {
+            var $stickyWrap = $("#hotRecommend");
+
+            if ($(window).scrollTop() > 4555) {
+                $stickyWrap.addClass('mod-flow-fixed')
+            } else {
+                $stickyWrap.removeClass('mod-flow-fixed')
+            }
+        });
+
+        // 定义热点资讯初始化方法
+        GLOBAL_UTILS.initInfoFlowRight = function () {
+            //定义左侧底部信息流初始化方法
+            $.ajax({
+                type: "GET",
+                async: true,
+                url: '//minipc.eastday.com/ccms/b9d6f21dac/b9d6f21dac_182_542_v11_jsonp.json',
+                dataType: 'jsonp',
+                jsonpCallback: 'baizhan'
+            })
+                .done(function (resp) {
+                    var html = '';
+                    html += template('dongfanginfo-flow-temp', { data: resp.data });
+                    $('.dongfanginfo-flow-left #news ul').html(html);
+                    $('.dongfanginfo-flow-left .js_tabCont').eq(0).show();
+                    GLOBAL_UTILS.initLeftSide();
+                })
+                .fail(function () {
+                    GLOBAL_UTILS.initLeftSide();
+                });
+            // 信息流右侧热点资讯，对接桔梗资讯接口伪jsonp数据(回调函数是写死的)
+            $.ajax({
+                type: "get",
+                async: true,
+                url: 'https://minipc.eastday.com/ccms/1a872947a8/1a872947a8_272_752_v11_jsonp.json',
+                jsonpCallback: 'callback',
+                dataType: "jsonp",
+            }).done(function (resp) {
+                var zixunDataAll = resp.data;
+                var zixunData = zixunDataAll.slice(1, 25);
+                var domArray = [];
+                for (var i = 0; i < (zixunData.length); i++) {
+                    var htmlString = template('hotRecommend-temp', zixunData[i]);
+                    var dom = $.parseHTML(htmlString);
+                    domArray.push(dom[0]);
+                }
+                // 渲染dom到视图中
+                $.each(domArray, function (index, ele) {
+                    $('#hotRecommend ul').append(ele);
+                });
+
+
+                // 如果360信息请求失败，直接渲染热点资讯
+                var html = '';
+                for (var i in zixunData) {
+                    html += template('hotRecommend-temp', zixunData[i]);
+                }
+                $('#hotRecommend ul').append(html);
+            });
+        };
+
+        // 当快要滚动到热点资讯时，再加载热点资讯
+        (function () {
+            // 使用lodash创建一个只会执行一次的函数，确保不重复初始化
+            var init = _.once(GLOBAL_UTILS.initInfoFlowRight);
+            $(window).on('scroll', _.throttle(function () {
+                var clientRect = $('#hotRecommend ul').eq(0)[0].getBoundingClientRect();
+                var windowHeight = ('innerHeight' in window ? window.innerHeight : document.documentElement.clientHeight);
+                if (Number(clientRect.top) < Number(windowHeight) * 2) {
+                    init();
+                }
+            }, 150));
+        })();
+
+
+        /**
+         * 今日热点信息流
+         */
+        var ct = 0;
+        (function () {
+            if (info_flow.length == 0) {
+                // 声明常量
+                var $CONTAINER = $('#infoflow_guess #infoflow-box');
+                var $INFO_FLOW_CONTENT = $CONTAINER.find('#infoflow-content');
+                var $INFO_FLOW_LIST = $CONTAINER.find('#infoflow-list');
+                var $LOADING_TIP = $CONTAINER.find('#infoflow-content .loading');
+
+                // 获得东方头条财经伪JSONP  11.23切到今日新闻 模板没有大的改动，只是状态修改了
+                var getEastDayCaijing = function () {
+                    return $.ajax({
+                        type: 'GET',
+                        async: true,
+                        url: news_url,
+                        jsonpCallback: 'baizhan',
+                        dataType: "jsonp",
+                    });
+                };
+
+                // 定义数据追加方法，闭包保存状态
+                var appendToRedian = (function () {
+                    var feedFromEastDay = null;
+                    var loading = false;
+                    return function () {
+                        // 当东方头条为null时，取一次数据，只会执行一次
+                        if (feedFromEastDay === null) {
+                            if (loading === false) {
+                                loading = true;
+                                getEastDayCaijing().done(function (resp) {
+                                    if (resp.status === 1) {
+                                        // if (resp.stat === 1) {
+                                        // 喝前摇一摇
+                                        resp.data = _.shuffle(resp.data);
+                                        feedFromEastDay = resp;
+                                        loading = false;
+                                        // 调用自己进行数据追加
+                                        appendToRedian();
+                                    }
+                                    loading = false;
+                                }).fail(function () {
+                                    loading = false;
+                                    console.log('fail');
+                                });
+                                return;
+                            } else {
+                                return;
+                            }
+                        }
+                        for (var i = 0; i < 10; i++) {
+                            // dom数组,用于容纳信息流dom碎片
+                            var domArray = [];
+                            // dom数组，用于容纳360信息流广告碎片
+                            if (feedFromEastDay.data.length === 0) {
+                                $LOADING_TIP.hide();
+                                return;
+                            }
+                            var htmlString = template('jg_infoflow_guess_eastday_temp', { data: feedFromEastDay.data.shift() });
+                            domArray.push($.parseHTML(htmlString));
+
+                            // 渲染dom到视图中
+                            $.each(domArray, function (index, ele) {
+                                $INFO_FLOW_LIST.append(ele);
+                            });
+
+                        }
+                        $LOADING_TIP.hide();
+
+                    };
+                })();
+
+                // 初始化滚动条插件,
+                // perfectScrollbar不支持IE8，换用nanoScroller
+                // 必须加类名，nanoScroller靠这个来进行元素选择
+                $INFO_FLOW_CONTENT.addClass('nano-content');
+                $CONTAINER.addClass('nano');
+                window.onload = function () {
+                    $(".nano").nanoScroller();
+                }
+
+                // 当滚动到底部的时候，加载更多
+                $CONTAINER.on('scrollend', _.throttle(function (event) {
+                    $LOADING_TIP.show();
+                    appendToRedian()
+                }, 16));
+
+                // 当快要滚动到今日热点信息流时，再加载今日热点信息流
+                (function () {
+                    // 使用lodash创建一个只会执行一次的函数
+                    var init = _.once(function () {
+                        $LOADING_TIP.show();
+                        appendToRedian();
+                        // 设个定时器再请求一次
+                        setTimeout(function () {
+                            appendToRedian();
+                        }, 500);
+                        setTimeout(function () {
+                            appendToRedian();
+                            //nano-pane在加载完成后不显示，莫名其妙有个display:none,resize之后就没了
+                            $(window).trigger("resize");
+                        }, 1000);
+                        setTimeout(function () {
+                            appendToRedian();
+                        }, 1500);
+                    });
+                    var scrollFunc = function () {
+                        var clientRect = $CONTAINER.eq(0)[0].getBoundingClientRect();
+                        var windowHeight = ('innerHeight' in window ? window.innerHeight : document.documentElement.clientHeight);
+                        if (Number(clientRect.top) < Number(windowHeight)) {
+                            init();
+                        }
+                    };
+                    scrollFunc();
+                    $(window).on('scroll', _.throttle(scrollFunc, 150));
+                })();
+            } else {
+                if ($('#info_flow').text().length > 0) {
+                    $('.newsfeed').css({ 'width': '' });
+                    $('.loading').eq(0).css({ 'display': 'none' });
+                }
+            }
+        })();
+
+
+
+        /**
+         * 导航栏标签页信息流
+         */
+
+        (function () {
+
+            // 打表缓存分页DOM，接收两个参数k和v,
+            // 只有k时get,有k和v时为set
+            var Memoize = (function () {
+                var cache = {};
+                return function (k, v) {
+                    if (typeof v !== 'undefined') {
+                        cache[k] = v;
+                    }
+                    return cache[k];
+                }
+            })();
+
+            // 东方头条 API列表：
+            // http://mini.eastday.com/miniapi/top20xinwen.json
+            // http://mini.eastday.com/miniapi/top20junshi.json
+            // http://mini.eastday.com/miniapi/top20yule.json
+            // mediav 渠道号列表：
+            // 桔梗导航_首页_首屏_180x100_矩形_30k|桔梗导航-娱乐天地
+            // showID：TZbg6q
+            // 桔梗导航_首页_首屏_180x100_矩形_30k|桔梗导航-军事热点
+            // showID：8BV9Rx
+
+            // 写分页配置,这里是按tab名称匹配，请勿随意在后台更改相应name
+            var TAB_LIST = [
+                { name: '新闻头条', selector: 'js_xinwentoutiao', tongjiID: '11445', api: 'https://mini.eastday.com/miniapi/top20xinwen.json', showID: 'z7gUnO', mediavTongJiID: '11449' },
+                { name: '娱乐天地', selector: 'js_yuletiandi', tongjiID: '11446', api: 'https://mini.eastday.com/miniapi/top20yule.json', showID: 'TZbg6q', mediavTongJiID: '11450' },
+                { name: '军事热点', selector: 'js_junshiredian', tongjiID: '11448', api: 'https://mini.eastday.com/miniapi/top20junshi.json', showID: '8BV9Rx', mediavTongJiID: '11451' }
+            ];
+
+            // 定义分页切换方法
+            var switchTab = function (event, cb) {
+                // 用于判断该分页名称是否在配置中
+                var inList = function (key, TAB_LIST) {
+                    var i;
+                    for (i in TAB_LIST) {
+                        if (TAB_LIST[i].name === key) {
+                            return true;
+                        }
+                    }
+                    return false;
+                };
+
+                var $current = $('#pageMenu').find('.g-fc5.g-fc5h.g-bg13');
+                var currentK = $current.text();
+                var $currentV = $('#hao123-bodyct>.g_clr:visible');
+
+                var $next = $(this);
+                var nextK = $next.text();
+                var $nextV = Memoize(nextK);
+
+                if (inList(nextK, TAB_LIST) || nextK === '首页') {
+                    event.preventDefault();
+                    // 切换标签页,并记忆之前标签页引用
+                    $currentV.hide();
+                    Memoize(currentK, $currentV);
+                    if ($nextV) {
+                        $nextV.show();
+                    }
+
+                    // 切换标签
+                    $current.removeClass('g-fc5 g-fc5h g-bg13').addClass('g-fc20h');
+                    $next.addClass('g-fc5 g-fc5h g-bg13').removeClass('g-fc20h');
+                    // console.log('from'+currentK+' to '+nextK);
+                    // 调用回调
+                    cb && cb();
+                }
+            };
+
+            // 单独绑定首页切换逻辑
+            $('#pageMenu .link:eq(0)').on('click', function (event) {
+                event.preventDefault();
+                //2019.5.21夏军要求首页按钮改为刷新，原逻辑不明
+                // switchTab.call(this, event);
+                location.reload()
+            });
+
+            // 遍历配置，执行操作
+            for (var i in TAB_LIST) {
+                // 使用IIFE锁定i指向，防止回调结束时i仍指向迭代的最后一个
+                (function (i) {
+                    // 添加初始DOM，并缓存其引用
+                    var html = '<div class="page-width g_clr" style="display:none;"><div class="top-info-flow ' + TAB_LIST[i].selector + '"><div class="list"><ul class="cf"></ul></div></div></div>';
+                    var $domFrag = $($.parseHTML(html));
+                    $('#pageMenu').after($domFrag);
+                    Memoize(TAB_LIST[i].name, $domFrag);
+
+                    // 声明用于盛放信息的空数组
+                    var eastData = [];
+                    var mediavData = [];
+
+                    // 获取东方头条数据
+                    $.ajax({
+                        type: "GET",
+                        async: true,
+                        url: TAB_LIST[i].api,
+                        dataType: "json"
+                    }).done(function (resp) {
+                        // 喝前摇一摇。。。
+                        var data = _.shuffle(resp.data);
+                        eastData = _.slice(data);
+                    });
+
+                    // 东方头条要单独针对军事接口
+                    // 把 http://mini.eastday.com/ 改成 http://mil.eastday.com/
+                    // 这是 FLAG 
+                    var isEastMil = (TAB_LIST[i].api === '//mini.eastday.com/miniapi/top20junshi.json');
+
+                    // 定义东方头条追加方法
+                    var appendEastToContainer = function (data, selector, tongjiID) {
+                        var $LIST = $('.' + selector + '>.list>ul');
+                        var html = '';
+                        for (var i = 0; i < data.length; i++) {
+                            var qid = 'baizhu';
+                            // 东方头条军事接口替换URL和统计用qid
+                            if (isEastMil) {
+                                data[i].url = data[i].url.replace('mini.eastday.com/', 'mil.eastday.com/');
+                                qid = 'jiegeng';
+                            }
+
+                            html += '<li class="news cf">' +
+                                '    <div class="news-box">' +
+                                '        <div class="news-img-wrap"><a data-id="' + tongjiID + '" class="linkimgtxt" href="' + data[i].url + '?qid=' + qid + '" target="_blank" title="' + data[i].title + '"><img class="lazyload" src="/images/picloading.png" data-src="' + data[i].pic169 + '"></a></div>' +
+                                '        <div class="news-cont">' +
+                                '            <div class="news-title-wrap">' +
+                                '                <h3 class="news-title"><a data-id="' + tongjiID + '" href="' + data[i].url + '?qid=' + qid + '" target="_blank" title="' + data[i].title + '">' + data[i].title + '</a></h3></div>' +
+                                '            <div class="news-summary-wrap">' +
+                                '                <p class="news-summary"><a data-id="' + tongjiID + '" href="' + data[i].url + '?qid=' + qid + '" target="_blank">' + data[i].zw + '</a><a data-id="' + tongjiID + '" href="' + data[i].url + '?qid=' + qid + '" target="_blank">[详情]</a></p>' +
+                                '            </div>' +
+                                '            <div class="news-extra"><span class="news-source">来源：<a data-id="' + tongjiID + '" href="' + data[i].url + '?qid=' + qid + '" target="_blank">' + data[i].source + '</a></span><span class="news-time">' + data[i].date + '</span></div>' +
+                                '        </div>' +
+                                '    </div>' +
+                                '</li>';
+                        }
+                        $LIST.append(html);
+                    };
+
+                    // 定义mediav追加方法
+                    var appendMediavToContainer = function (data, selector, tongjiID) {
+                        var $LIST = $('.' + selector + '>.list>ul');
+                        var html = '';
+                        for (var i = 0; i < data.length; i++) {
+                            html += '<li class="news cf" style="display:none;" data-imptk="' + data[i].imptk.toString() + '" data-clktk="' + data[i].clktk.toString() + '">' +
+                                '    <div class="news-box">' +
+                                '        <div class="news-img-wrap"><a data-id="' + tongjiID + '" class="linkimgtxt" href="' + data[i].curl + '" target="_blank" title="' + data[i].title + '"><img class="lazyload" src="/images/picloading.png" data-src="' + data[i].img + '"></a></div>' +
+                                '        <div class="news-cont">' +
+                                '            <div class="news-title-wrap">' +
+                                '                <h3 class="news-title"><a data-id="' + tongjiID + '" href="' + data[i].curl + '" target="_blank" title="' + data[i].title + '">' + data[i].title + '</a></h3></div>' +
+                                '            <div class="news-summary-wrap">' +
+                                '                <p class="news-summary"><a data-id="' + tongjiID + '" href="' + data[i].curl + '" target="_blank">' + data[i].desc + '</a><a data-id="' + tongjiID + '" href="' + data[i].curl + '" target="_blank">[详情]</a></p>' +
+                                '            </div>' +
+                                '            <div class="news-extra"><span class="news-source">来源：<a data-id="' + tongjiID + '" href="' + data[i].curl + '" target="_blank">' + data[i].src + '</a></span><span class="news-time">广告</span></div>' +
+                                '        </div>' +
+                                '    </div>' +
+                                '</li>';
+                        }
+                        var addom = $.parseHTML(html);
+                        // 为360广告绑定点击统计
+                        $.each(addom, function (index, ele) {
+                            // 只在元素内a标签被点击时，发送点击请求
+                            $(ele).on('click', 'a', function (event) {
+                                var that = this;
+                                var clktk = $(ele).data('clktk');
+                                sendStatistic(clktk);
+                                // console.log('360 AD clicked! clktk:');
+                                // console.log(clktk.split(','));
+                            });
+                        });
+                        // 重要！将广告追加到dom中时，添加监听，等待曝光
+                        isInSightAndWaitExposure(addom);
+                        $LIST.append(addom);
+                    };
+
+                    // 定义取数据方法
+                    var takeFromArray = function (array, STEP) {
+                        var tempArr = [];
+                        for (var i = 0; i < STEP; i++) {
+                            tempArr.push(array.shift());
+                        }
+                        return tempArr;
+                    }
+
+                    // 信息流追加逻辑
+                    // 分别绑定标签切换逻辑
+                    $('#pageMenu').on('click', '.link:contains(' + TAB_LIST[i].name + ')', function (event) {
+                        switchTab.call(this, event, initOnce);
+                    });
+
+
+                })(i);
+
+            }
+
+        })();
+
+
+    })();
+
+    /**
+     * 游戏logo
+     */
+    (function () {
+        GLOBAL_UTILS.initGameLogos = function () {
+            (function () {
+                var delay = 0;
+                $('#box-coolsite .coolsite-recommend .slider .slider__grid').each(function () {
+                    var that = this;
+                    setTimeout(function () {
+                        // 设置定时为10秒,初始化轮播
+                        $(that).bzSlider({
+                            mode: 'horizonal',
+                            speed: 10000,
+                            slideSelector: '.slider__slide',
+                            prevSelector: '.slider__nav--prev',
+                            nextSelector: '.slider__nav--next',
+                        });
+                    }, delay);
+                    // 添加delay，使轮播不同时切换
+                    delay += 500;
+                });
+
+                // 将“更多”改为“展开收起”,并绑定相关事件
+                $('#box-coolsite .coolsite-recommend').each(function (index, ele) {
+                    var that = this;
+                    var $BUTTON = $(that).prev('.coolsite-category').find('.coolsite-more-wrap a');
+                    $BUTTON.removeAttr('data-id').attr('href', '');
+                    var statusFlag = true;
+                    $BUTTON.html('收起　');
+                    $BUTTON.on('click', function (event) {
+                        event.preventDefault();
+                        if (statusFlag === true) {
+                            $(that).stop().slideUp();
+                            $('#layout-side .coolsite-recommend-linked').eq(0).stop().slideUp();
+                            $('.js_nlb').css({ 'height': '26px!important' })
+                            $BUTTON.html('展开　');
+                            statusFlag = false;
+                        } else {
+                            $(that).stop().slideDown();
+                            $('#layout-side .coolsite-recommend-linked').eq(0).stop().slideDown();
+                            $BUTTON.html('收起　');
+                            $('.js_nlb').css({ 'height': '16px!important' })
+                            statusFlag = true;
+                        }
+
+                    });
+                });
+
+            })();
+        };
+
+        GLOBAL_UTILS.initGameLogos();
+    })();
+    /**
+     *  导航栏悬浮图片
+     */
+    (function () {
+
+        $('#pageMenu li').each(function (index, ele) {
+            var $POPUP = $(ele).find('.recommend-wrap .recommend');
+            var $LINK = $(ele).find('.link');
+            // 定义动画效果
+            var animation = (function () {
+                var flag = null;
+                return function () {
+                    $POPUP.stop().show().animate({ 'height': '60px' });
+                    // 如果定时器存在，清除原有
+                    if (!!flag) {
+                        clearTimeout(flag);
+                    }
+                    flag = setTimeout(function () {
+                        $POPUP.stop().animate({ 'height': '0px' }, function () {
+                            $POPUP.hide();
+                        });
+                    }, 4000);
+                };
+            })();
+            if ($POPUP.length !== 0) {
+                // 页面加载时，显示一次动画
+                animation();
+                // 鼠标悬停显示逻辑            
+                $(ele).on('mouseenter', function (event) {
+                    event.preventDefault();
+                    animation();
+                });
+                // 点击跳转逻辑
+                $POPUP.on('click', function (event) {
+                    event.preventDefault();
+                    $POPUP.hide();
+                    /* Act on the event */
+                    // window.open($LINK.attr('href'));
+
+                    // 触发真实链接的点击，必须包裹一层span，直接触发a标签点击不会跳转
+                    $LINK.find('span').trigger('click');
+                });
+            }
+
+        });
+
+    })();
+
+
+    // 随机换百度搜索TN号逻辑
+    (function () {
+        // 只更换主导航
+        if (window.JG_GLOBAL_CONFIG.branch == 0) {
+            var baseTn = ['40020637_1_oem_dg', '40020637_1_oem_dg'];
+            var i = Math.floor(Math.random() * baseTn.length);
+            var randomTn = baseTn[i];
+            $('#search_tn').val(randomTn);
+            // console.log('链接已替换');
+        }
+    })();
+
+
+    /**
+     * 热搜词控制
+     */
+    (function () {
+        // 有两个热搜词区域，一个是正常一个是下拉时
+        $('.hotsearch-box').each(function (index, ele) {
+            var $ctrlBtn = $(ele).find('.ctrlBtn');
+            var $hotsearchbottom = $(ele).find('.hotsearchbottom');
+            $ctrlBtn.click(function () {
+                $ctrlBtn.toggleClass('select');
+                $hotsearchbottom.toggleClass('select');
+            });
+        });
+    })();
+
+    /**
+     * 搜索引擎选择
+     * @time 2017/12/1
+     * @author Daiyu
+     */
+    (function () {
+        // 点击切换搜索引擎
+        $('.g-toggle').click(function () {
+            $('#search-engine').toggleClass('open');
+        });
+
+        $('body').bind('click', function (event) {
+            // IE支持 event.srcElement ， FF支持 event.target
+            var evt = event.srcElement ? event.srcElement : event.target;
+            if (evt.id == 'g-toggle') return; // 如果是元素本身，则返回
+            else {
+                $('#search-engine').removeClass('open'); // 如不是则隐藏元素
+            }
+        });
+        // $('body').click(function(){
+        //    $('#search-engine').removeClass('open');
+        // }
+        //百度
+        $('.somulti').click(function () {
+            var hidbaidutn = '';
+            if (tnbaidu == null) {
+                hidbaidutn = '40020637_1_oem_dg';
+            } else {
+                hidbaidutn = tnbaidu;
+            }
+            $('#eng-logo').unbind();
+            $('#eng-logo').attr('class', 'somulti').attr('href', 'http://www.jiegeng.com/bd_301.php').attr('title', '百度一下');
+            $('#search-form').attr('action', '//www.baidu.com/s').attr('data-id', '11200');
+            $('.hidden-params.params-hook').html(
+                '<input type="hidden" value="utf-8" name="ie" />' +
+                '<input id="search_tn" type="hidden" value="' + hidbaidutn + '" name="tn" />');
+            $('#search-input').attr('name', 'word');
+            $('#search-engine').removeClass('open');
+        });
+
+        var url = randomTn.split(',')
+        var i = Math.floor(Math.random() * url.length);
+        var hid360tn = url[i];
+        $(document).ready(function () {
+            $('#search-form input[name="ls"]').attr('value', hid360tn);
+            $('#eng-logo.so360').attr('href', 'https://www.so.com/?src=lm&ls=' + hid360tn + '&lm_extend=ctype:31');
+        })
+        $('.so360').click(function () {
+            $('#eng-logo').attr('class', 'so360').attr('href', '//www.so.com/s?src=lm&ls=' + hid360tn + '&lm_extend=ctype:31').attr('title', '360搜索');
+            $('#search-form').attr('action', 'https://www.so.com/s').attr('data-id', '11476');
+            $('.hidden-params.params-hook').html(
+                '<input type="hidden" name="src" value="lm">' +
+                '<input type="hidden" name="ls" value="' + hid360tn + '">' +
+                '<input type="hidden" name="lm_extend" value="ctype:31">');
+            $('#search-input').attr('name', 'q');
+            $('#search-engine').removeClass('open');
+        });
+    })();
+
+    (function () {
+        // 定义cookie名称，必须英文，防止乱码
+        var eventName = "user_browser";
+        //设置1天过期的cookie
+        $('.somulti').on('click', function () {
+            //当前日期
+            var curDate = new Date();
+            //当前时间戳
+            var curTamp = curDate.getTime();
+            //当日凌晨的时间戳,减去一毫秒是为了防止后续得到的时间不会达到00:00:00的状态
+            var curWeeHours = new Date(curDate.toLocaleDateString()).getTime() - 1;
+            //当日已经过去的时间（毫秒）
+            var passedTamp = curTamp - curWeeHours;
+            //当日剩余时间
+            var leftTamp = 24 * 60 * 60 * 1000 - passedTamp;
+            var leftTime = new Date();
+            leftTime.setTime(leftTamp + curTamp);
+            //创建cookie
+            document.cookie = eventName + "=0;expires=" + leftTime.toGMTString();
+            //$.cookie(eventName, '0', { expires: leftTime.toGMTString(), path: '/' });
+        });
+        $('.so360').on('click', function () {
+            //当前日期
+            var curDate = new Date();
+            //当前时间戳
+            var curTamp = curDate.getTime();
+            //当日凌晨的时间戳,减去一毫秒是为了防止后续得到的时间不会达到00:00:00的状态
+            var curWeeHours = new Date(curDate.toLocaleDateString()).getTime() - 1;
+            //当日已经过去的时间（毫秒）
+            var passedTamp = curTamp - curWeeHours;
+            //当日剩余时间
+            var leftTamp = 24 * 60 * 60 * 1000 - passedTamp;
+            var leftTime = new Date();
+            leftTime.setTime(leftTamp + curTamp);
+            //创建cookie
+            document.cookie = eventName + "=1;expires=" + leftTime.toGMTString();
+            //$.cookie(eventName, '1', { expires: leftTime.toGMTString(), path: '/' });
+        });
+        // 如果存在cookie即用户选择了百度，导航第一位导航设置为百度
+        // 20180416改为根据cookie判断最后一次用户选择了哪个导航，并对应修改第一导航
+        if ($.cookie(eventName)) {
+            if ($.cookie(eventName) == 0) {
+                //百度
+                var hidbaidutn = '';
+                if (tnbaidu == null) {
+                    hidbaidutn = '40020637_1_oem_dg';
+                } else {
+                    hidbaidutn = tnbaidu;
+                }
+                $('#eng-logo').unbind();
+                $('#eng-logo').attr('class', 'somulti').attr('href', 'http://www.jiegeng.com/bd_301.php').attr('title', '百度一下');
+                $('#search-form').attr('action', '//www.baidu.com/s');
+                $('#search-form').attr('action', '//www.baidu.com/s').attr('data-id', '11200');
+                $('.hidden-params.params-hook').html(
+                    '<input type="hidden" value="utf-8" name="ie" />' +
+                    '<input id="search_tn" type="hidden" value="' + hidbaidutn + '" name="tn" />');
+                $('#search-input').attr('name', 'word');
+            } else if ($.cookie(eventName) == 1) {
+                //360搜索
+                var hid360tn = '';
+                if (tn360 == null) {
+                    hid360tn = 'sm2257744';
+                } else {
+                    hid360tn = tn360;
+                }
+                $('#eng-logo').attr('class', 'so360').attr('href', '//www.so.com/s?src=lm&ls=' + hid360tn + '&lm_extend=ctype:31').attr('title', '360搜索');
+                $('#search-form').attr('action', 'https://www.so.com/s').attr('data-id', '11476');
+                $('.hidden-params.params-hook').html(
+                    '<input type="hidden" name="src" value="lm">' +
+                    '<input type="hidden" name="ls" value="' + hid360tn + '">' +
+                    '<input type="hidden" name="lm_extend" value="ctype:31">');
+                $('#search-input').attr('name', 'q');
+                $('#search-engine').removeClass('open');
+            }
+
+        }
+    })();
+
+    //20180518 新闻头条及军事热点不显示右侧锚点定位 以及添加回到顶部
+    $('#menus').find('li').eq(0).click(function () {
+        $('#shortcut-box').show();
+        $("#shortcut-toptoggle_s").remove();
+    });
+    $('#menus').find('li').eq(3).click(function () {
+        $('#shortcut-box').hide();
+        $('#hao123-bodyct').eq(0).after('<div id="shortcut-toptoggle_s" class="" style=""><a href="#header" target="_self" class="gotop">返回顶部</a></div>');
+        $("#shortcut-toptoggle_s").hide();
+        scroll_totop();
+    });
+    $('#menus').find('li').eq(4).click(function () {
+        $('#shortcut-box').hide();
+        $("#shortcut-toptoggle_s").hide();
+    });
+    $('#menus').find('li').eq(5).click(function () {
+        $('#shortcut-box').hide();
+        $("#shortcut-toptoggle_s").hide();
+    });
+
+    function scroll_totop() {
+        $(window).on('scroll', _.throttle(function () {
+            var distance = $(window).scrollTop() - $("#info-flow").offset().top;
+            if (distance >= 400) {
+                $("#shortcut-toptoggle_s").show();
+            } else {
+                $("#shortcut-toptoggle_s").hide();
+            }
+        }, 200));
+    }
+});
+(function () {
+    var flag = true;
+    jQuery.fn.slideRight = function (speed, callback) {
+        this.animate({
+            width: "hide",
+            paddingLeft: "hide",
+            paddingRight: "hide",
+            marginLeft: "hide",
+            marginRight: "hide"
+        }, speed, callback);
+    };
+    jQuery.fn.slideLeft = function (speed, callback) {
+        this.animate({
+            width: "show",
+            paddingLeft: "show",
+            paddingRight: "show",
+            marginLeft: "show",
+            marginRight: "show"
+        }, speed, callback);
+    };
+    //收到左边
+    function slideToRight() {
+        $(".slideDom").slideRight(400);
+    }
+    //打开
+    function slideToLeft() {
+        $(".slideDom").slideLeft(400);
+    }
+    function countTen() {
+        slideToRight()
+        $('.close.ct').css({ 'display': 'none' })
+        $('.large2small').css({ 'display': 'block' })
+        setTimeout(countOne, 1000)
+    }
+    function countOne() {
+        $('.banner_1212').css({ 'height': '0px' })
+    }
+    // 双十二底部大图
+    // 定义cookie名称， 必须英文， 防止乱码
+
+    if (flag) {
+        var eventName = "banner_bottom";
+        // 如果底部通栏cookie不存在，显示
+        if (!$.cookie(eventName)) {
+            $('.banner_1212').css({ 'display': 'block' })
+            setTimeout(countTen, 20000)
+        };
+        //点击关闭后，隐藏并设置1天过期的cookie
+        //底部大图
+        $('.close.ct').on('click', function () {
+            slideToRight()
+            $('.close.ct').css({ 'display': 'none' })
+            $.cookie(eventName, '0', { expires: 1, path: '/' });
+            $('.large2small').css({ 'display': 'block' })
+            setTimeout(countOne, 1000)
+        });
+        //点击链接后，触发关闭
+        //底部
+        $('.banner_1212_content a').on('click', function () {
+            slideToRight()
+            $('.close.ct').css({ 'display': 'none' })
+            $('.large2small').css({ 'display': 'block' })
+            setTimeout(countOne, 1000)
+        });
+        //左侧
+        $('.large2small').find('.link').on('click', function () {
+            $('.large2small').css({ 'display': 'none' })
+        });
+        //重播
+        $('.large2small').find('.title').on('click', function () {
+            slideToLeft()
+            $('.banner_1212').css({ 'height': '200px' })
+            $('.large2small').eq(0).css({ 'display': 'none' })
+            $('.close.ct').css({ 'display': 'block' })
+        });
+    }
+
+})();
+// 登录注册功能
+var loginit = {
+    //存入账号
+    setLogin: function (username) {
+        $.cookie('the_cookie', username, {
+            expires: 7,
+            path: '/'
+        });
+    },
+    //存入密码
+    // setPassword: function (password) {
+    //     $.cookie('the_cookie', password, {
+    //         expires: 7,
+    //         path: '/'
+    //     });
+    // },
+    //读cookie
+    getLogin: function () {
+        var username = $.cookie('the_cookie')
+        if (username) {
+            $('#login').hide();
+            $('.userID').text(username);
+            $('.logined').show()
+        } else {
+            $('.logined').hide()
+            $('#login').show();
+        }
+    },
+    //移出cookie
+    exit: function () {
+        //console.log(1)
+        // $.cookie('the_cookie', '', {
+        //     expires: -1,
+        //     path: '/'
+        // });
+        $.cookie('the_cookie', '', {
+            expires: -1,
+            path: '/'
+        })
+        //console.log(3)
+        loginit.getLogin();
+    }
+}
+loginit.getLogin()
+//退出登陆
+$('.exitLogin').click(function () {
+    //           console.log(0)
+    loginit.exit();
+    //loginit.getLogin();
+    // $('.logined').hide();
+    // $('#login').show();
+
+})
+//
+$('#login span').on('click', function () {
+    var isRegister = $(this).hasClass('register');
+    if (isRegister) {
+        setLoginType('register')
+    } else {
+        setLoginType('login')
+    }
+    $('#login_form').show();
+});
+$('#login_form .close').on('click', function () {
+    $('#login_form').hide();
+    $('#login_form [name="username"]').val('');
+    $('#login_form [name="password"]').val('');
+})
+//切换标签
+$('#login_form .switch span').on('click', function () {
+    var isRegister = $(this).hasClass('register');
+    if (isRegister) {
+        setLoginType('register')
+        $('#login_form [name="username"]').val('');
+        $('#login_form [name="password"]').val('');
+    } else {
+        setLoginType('login')
+    }
+})
+function setLoginType(type) {
+    $('#login_form .switch span').removeClass('active');
+    $('#login_form .switch span.' + type).addClass('active');
+    var activeType = type === 'register' ? '注册' : '登录'
+    $('#login_form .button').attr('value', activeType + '桔梗网');
+}
+$('#login_form').keydown(function (e) {
+    if (e.keyCode === 13) {
+        $('#login_form .button').click();
+    }
+})
+$('#login_form .button').on('click', function () {
+    var username = $('#login_form [name="username"]').val();
+    var password = $('#login_form [name="password"]').val();
+    if (!$.trim(username) || !$.trim(password)) {
+        alert('用户名或密码不能为空');
+        return
+    }
+    var activeType = $('#login_form .switch .active').text();
+    if (activeType === '注册') {
+        //...注册
+        $.ajax({
+            url: '/navigation.php/indexuser/register',
+            type: 'post',
+            data: {
+                username: username,
+                password: password
+            },
+            success: function (res) {
+                if (res.msg === '用户名已注册') {
+                    alert(res.msg)
+                    $('#login_form [name="username"]').val('');
+                    $('#login_form [name="password"]').val('');
+                } else if (res.msg === '用户名不能超过12位') {
+                    alert(res.msg);
+                } else {
+                    alert(res.msg);
+                    var isRegister = $(this).hasClass('register');
+                    if (isRegister) {
+                        setLoginType('register')
+                    } else {
+                        setLoginType('login')
+                    }
+                }
+            }
+        })
+    } else {
+        //...登录
+        $.ajax({
+            url: '/navigation.php/indexuser/login',
+            type: 'post',
+            data: {
+                username: username,
+                password: password
+            },
+            success: function (res) {
+                alert(res.msg)
+                if (res.msg === '登录成功') {
+                    $('#login_form').hide();
+                    $('#login').hide();
+                    $('.logined').show();
+                    $('#login_form [name="username"]').val('');
+                    $('#login_form [name="password"]').val('');
+                    loginit.setLogin(username);
+                    loginit.getLogin(username);
+                }
+            }
+        })
+    }
+
+})
+
+//修改密码弹窗
+$('.changePwd').click(function () {
+    $('#login_form2').show();
+    $('#oldPwd').val('');
+    $('#newPwd').val('');
+    $('#renewPwd').val('');
+})
+//关闭窗口
+$('#login_form2 .close').click(function () {
+    $('#login_form2').hide()
+})
+//修改密码
+$('.form-item .button1').click(function () {
+    //console.log(4654456)
+    var username = $.cookie('the_cookie');
+    //var password = $('#login_form [name="password"]').val();//旧密码
+    var oldpwd = $('#oldPwd').val(); // 新输入的旧密码
+    var newpwd = $('#newPwd').val(); //新密码
+    var renewpwd = $('#renewPwd').val(); //重新输入的新密码
+    if (!$.trim(oldpwd) || !$.trim(newpwd) || !$.trim(renewpwd)) {
+        alert('密码不能为空');
+        return
+    } else if ($.trim(newpwd) !== $.trim(renewpwd)) {
+        alert('两次密码不一致')
+    } else {
+        $('#login_form2').hide()
+        // alert('修改密码成功')
+        $.ajax({
+            url: '/navigation.php/indexuser/changePwd',
+            type: 'post',
+            data: {
+                username: username,
+                password: oldpwd,
+                newpwd: newpwd,
+            },
+            success: function (res) {
+                if (res.msg === '新密码不能与原密码相同') {
+                    $('#login_form2').show()
+                    alert(res.msg)
+                    // return false
+                } else if (res.msg === '原始密码不正确') {
+                    $('#login_form2').show()
+                    alert(res.msg)
+                } else if (res.msg === '修改成功') {
+                    alert(res.msg);
+                    //$('#login_form2').hide();
+                    $('.logined').hide();
+                    $('#login').show();
+
+                    // loginit.setLogin(username);
+                    // loginit.getLogin();
+                }
+            }
+        })
+    }
+});
+$('#login_form2').keydown(function (e) {
+    if (e.keyCode === 13) {
+        $('#login_form2 .button1').click();
+    }
+})
+
+// //交接后
+// $("body").append('<div class="picBt" style="position:fixed;width:100%;bottom:0px;z-index:999;display:block;"><span class="Bcount" style="position:absolute;right:36px;top:46px;color:#fff;"></span><span style="width:20px;height:20px;text-align:center;line-height:20px;border-radius:50%;background:#000;position:absolute;right:8px;top:34px;cursor:pointer;color:#fff;">X</span><a href="https://s.click.taobao.com/OZ1y8Su"><img width="100%" src="https://data.yhczx.cn/imagescd/jiegeng/bottom.png"></a></div>');
+// $("body").append('<div class="picLf" style="padding:0 6px;position:fixed;left:50px;bottom:0;display:none;z-index:999;"><span style="position:absolute;top:6px;right:8px;cursor:pointer;color:#000;">X</span><a href="https://s.click.taobao.com/OZ1y8Su"><img width="260px" height="267px" src="https://data.yhczx.cn/imagescd/jiegeng/aside.png"></a></div>');
+// // $('.tmallskin').after('<div style="width:100%;"><a href="https://s.click.taobao.com/S1Ip1gu"><img width="100%" src ="https://data.fengcv.cn/image/jiegeng/top.png" /></a></div>')
+// // $('.fixed-bg').append('<div style="width:100%;"><img width="100%" src ="https://data.fengcv.cn/image/jiegeng/top.png" /></div>')
+
+// var secs = 15;
+
+// $('.picBt span').click(function () {
+//     $(this).parent().css('display', 'none');
+//     if ($(".picBt").css('display') === 'none') {
+//         $('.picLf').fadeIn();
+//     }
+// })
+// $('.picLf span').click(function () {
+//     if ($('.picLf').css('display') === 'block') {
+//         $('.picLf').fadeOut();
+//     }
+// })
+// for (var i = secs; i >= 0; i--) {
+//     window.setTimeout('doUpdate(' + i + ')', (secs - i) * 1000);
+// }
+// function doUpdate(num) {
+//     $('.picBt span.Bcount').text('将在' + num + '秒后自动关闭');
+//     if (num === 0) {
+//         $('.picBt').fadeOut();
+//         $('.picLf').fadeIn();
+//     }
+// }
+
+// //背景
+// // $('.layout-container-inner').css({
+// //     'background':'url(https://data.fengcv.cn/image/jiegeng/bg.png)',
+// //     'background-size':'100%',
+// //     'background-attachment':'fixed'
+// // });
+// //顶部top图片多余去除
+// $('.fixed-bg div:first').remove()
+
+// $('.hb').hover(function () {
+//     $(this).css('opacity', '0.6');
+// }, function () {
+//     $(this).css('opacity', '1');
+// });
+// 精灵图  这个是桔梗导航双11活动背景墙的代码，2964-2995行，打开切换图片即可
+// $(function () {
+//     $('body').append('<div class="l_div" style="width: 820px; height:100%;position:fixed;top:90px;" ><div><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;margin-right:32px" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;background-position: 147px 0;"></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: right;"></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: right; "></a></div><div><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;background-position: 147px 0; "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: left; "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: left;"></a></div><div><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;margin-right:32px" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;background-position: 147px 0;"></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: right;"></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: right; "></a></div><div><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;background-position: 147px 0; "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: left; "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: left;"></a></div><div><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;margin-right:32px" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;background-position: 147px 0;"></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: right;"></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: right; "></a></div><div><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;background-position: 147px 0; "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: left; "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: left;"></a></div><div><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;margin-right:32px" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;background-position: 147px 0;"></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: right;"></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: right; "></a></div><div><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;background-position: 147px 0; "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: left; "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: left;"></a></div><div><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;margin-right:32px" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;background-position: 147px 0;"></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: right;"></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: right; "></a></div><div><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;background-position: 147px 0; "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: left; "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: left;"></a></div><div><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;margin-right:32px" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;background-position: 147px 0;"></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: right;"></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: right; "></a></div><div><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;background-position: 147px 0; "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: left; "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: left;"></a></div><div><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;margin-right:32px" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;background-position: 147px 0;"></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: right;"></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: right; "></a></div><div><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;background-position: 147px 0; "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: left; "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: left;"></a></div><div><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;margin-right:32px" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;background-position: 147px 0;"></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: right;"></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: right; "></a></div><div><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;background-position: 147px 0; "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: left; "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: left;"></a></div></div><div class="r_div" style="width: 780px; height:100%;position:fixed;top:90px;right:0" ><div><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;background-position: 147px 0 "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: left; "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: left; "></a></div><div><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;background-position: 147px 0 "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: right; "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: right; "></a></div><div><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;background-position: 147px 0 "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: left; "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: left; "></a></div><div><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;background-position: 147px 0 "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: right; "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: right; "></a></div><div><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;background-position: 147px 0 "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: left; "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: left; "></a></div><div><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;background-position: 147px 0 "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: right; "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: right; "></a></div><div><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;background-position: 147px 0 "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: left; "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: left; "></a></div><div><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;background-position: 147px 0 "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: right; "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: right; "></a></div><div><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;background-position: 147px 0 "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: left; "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: left; "></a></div><div><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;background-position: 147px 0 "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: right; "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: right; "></a></div><div><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;background-position: 147px 0 "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: left; "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: left; "></a></div><div><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;background-position: 147px 0 "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: right; "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: right; "></a></div><div><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;background-position: 147px 0 "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: left; "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: left; "></a></div><div><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;background-position: 147px 0 "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: right; "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: right; "></a></div><div><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;background-position: 147px 0 "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: left; "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: left;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: left; "></a></div><div><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;background-position: 147px 0 "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: right; "></a><a href="https://s.click.taobao.com/OZ1y8Su" class="odd" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;float: right;" ></a><a href="https://s.click.taobao.com/OZ1y8Su" class="even" style="background: url(https://www.jiegeng.com/upload/bnt11.png);width:120px;height:120px;background-position: 147px 0;float: right; "></a></div></div>')
+//     $('.odd').hover(function () {
+//         // over
+//         $(this).css('background-position', '0 -141px')
+
+//     }, function () {
+//         // out
+//         $(this).css('background-position', '0 0')
+//     }
+//     );
+//     $('.even').hover(function () {
+//         // over
+//         $(this).css('background-position', '147px -141px')
+
+//     }, function () {
+//         // out
+//         $(this).css('background-position', '147px 0')
+//     }
+//     );
+//     var width = $('.layout-bottom-content').width()
+//     var left = $('.layout-bottom-content').offset().left
+//     $('.l_div').css('left', left - $('.l_div').width())
+//     $('.r_div').css('left', left + width)
+//     $(window).resize(function () {
+//         var width = $('.layout-bottom-content').width()
+//         var left = $('.layout-bottom-content').offset().left
+//         $('.l_div').css('left', left - $('.l_div').width())
+//         $('.r_div').css('left', left + width)
+//     })
+// })
+
+//footer遮挡
+$(function () {
+    $('.page-width.g_clr:eq(3)').css('margin-bottom', '70px')
+});
+
+
+
+</script>
+
+</body>
+</html>

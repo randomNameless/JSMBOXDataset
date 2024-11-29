@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>choiceimage.html</title>
+</head>
+<body>
+
+<script>
+// 設問タイプ：画像選択肢用の画像全体表示
+// 必須ライブラリ imagelightbox
+(function(root, factory) {
+    if (typeof define === 'function' && define.amd) {
+        // with require.js amd import
+        define([], factory);
+    } else {
+        // with global window object
+        root.choiceImage = factory();
+    }
+}(this, function() {
+
+    var image_zoom_box_details='';
+    var CAPTION_HEIGHT = 70;
+
+
+    $(document).on('keyup','#image-zoom-view .logic_textbox', function(e) {
+        var box_detail_func = createValidator(image_zoom_box_details);
+        box_detail_func();
+    });
+
+    $(document).on('change','#image-zoom-view', function(e) {
+         var box_detail_func = createValidator(image_zoom_box_details);
+        box_detail_func();
+    });
+
+    function image_zoom_view_mark(){
+        var box=$('#image-zoom-view .afterEdit');
+        var text = $('#image-zoom-view .afterEdit .logic_textbox').val();
+        box.find(".qPageCheck01").css({"float":"left","position":"relative","margin-top":"0"});
+        box.find("textarea").css({"float":"left"});
+        box.find("input").css({"float":"left"});
+        box.find(".guideTxt ").css({"float":"left","margin-top":"0"});
+        box.find(".textbox_unit ").css({"float":"left"});
+        box.find('.calendar-mark').css({"float":"left"});
+        box.find('.caption-area').css({"font-family": FONT_FAMILY});
+        if($('.image-zoom-modal').hasClass('checked')){
+            if(text != undefined){
+                if(text.length == 0) {
+                    box.find(".qPageCheck01")
+                        .addClass("Check02")
+                        .removeClass("Check01")
+                }
+                else{
+                    box.find(".qPageCheck01")
+                        .addClass("Check01")
+                        .removeClass("Check02");
+                }
+            }
+        }
+        else {
+            box.find(".qPageCheck01")
+                        .removeClass("Check01")
+                        .removeClass("Check02");
+        }
+    }
+
+    function createValidator(box_detail) {
+        return function() {
+            if( !$(this).is('textarea')){
+                var box = $('#image-zoom-view .logic_textbox').closest(".afterEdit");
+                var text = $('#image-zoom-view .logic_textbox').val();
+
+            }else {
+                var box = $(this).closest(".afterEdit");
+                var text = $(this).val();
+            }
+            if(text.charAt(0)==" "){
+                    text=text.replace(/\s+/g, "");
+                    $('#image-zoom-view .logic_textbox').val(text);
+
+                }
+            if(text.length == 0){
+                box.find(".qPageCheck01")
+                    .removeClass("Check01")
+                    .removeClass("Check02");
+                if (box_detail.required || $('.image-zoom-modal').hasClass('checked')) {
+                    box.find(".qPageCheck01")
+                        .addClass("Check02");
+                }
+
+            } else {
+
+                // if (box_detail.type == 'boxtype2') {
+                    // 全角数値は半角数値に変換
+                    // text = fullNum2Harf(text);
+                // }
+                var validated = text_box_textCheck(box_detail, text);
+                if (validated == false) {
+                    $(box).find(".qPageCheck01")
+                        .addClass("Check02")
+                        .removeClass("Check01");
+                } else {
+                    $(box).find(".qPageCheck01")
+                        .addClass("Check01")
+                        .removeClass("Check02");
+                }
+            }
+        };
+    }
+
+    function setupTextbox($box) {
+        var insert_data = $box.find('.afterEdit').data('insert_data');
+        var textbox = $box.find('.afterEdit').data('textbox');
+        image_zoom_box_details = textbox;
+        var html = _.template($('#q-logic-view-text').html(), insert_data);
+        $('#image-zoom-view .afterEdit').html(html);
+        $('#image-zoom-view .afterEdit .afterEdit').css({'max-height': 'none'});
+        var textbox_area = $('#image-zoom-view .afterEdit');
+        if(textbox.type == "boxtype6"){
+            textbox_area.find("textarea").remove();
+            textbox_area.find("input[type='text']").remove();
+            textbox_area.find(".calendar-mark").remove();
+        } else if(textbox.type == "boxtype5"){
+            textbox_area.find("textarea").remove();
+            textbox_area.find("input[type='password']").remove();
+            append_cover_elem_class(textbox_area, 'datepicker-in');
+        } else {
+            textbox_area.find("input[type='text']").remove();
+            textbox_area.find(".calendar-mark").remove();
+            textbox_area.find("input[type='password']").remove();
+        }
+
+        textbox_area.find('.guideTxt.' + textbox.type)
+            .show()
+            .css({"padding-top": "1px"});
+
+        var useDatePicker = textbox.type == "boxtype5";
+        if(useDatePicker){
+            var min = textbox["range"][0];
+            var max = textbox["range"][1];
+            var logic_textbox = textbox_area.find(".logic_textbox");
+            setDatePicker(logic_textbox, min, max);
+            // IE8でuiRadio関連イベントと競合するので
+            logic_textbox.click(function(){return false;});
+
+            textbox_area.find(".calendar-mark").click(function() {
+                $(this).next().focus();
+            });
+            append_cover_elem_class(textbox_area, 'datepicker-in');
+        }
+
+        append_cover_elem_class(textbox_area, 'textbox-in');
+
+        var useTextArea = (textbox.type != "boxtype5"
+                           && textbox.type != "boxtype6");
+        if (useTextArea){
+            setupTextAreaSize(textbox, textbox_area);
+        }
+
+        applyTargetAttributes($box, textbox_area, textbox);
+        return true;
+    }
+
+    function setupTextAreaSize(textbox, textbox_area) {
+            var width = textbox["width"];
+            var height = textbox["height"];
+            textbox_area.find('.logic_textbox')
+                .attr("rows", height)
+                .attr("cols", width);
+    }
+
+    function applyTargetAttributes($box, textbox_area, textbox) {
+        var text = $box.find('.logic_textbox').val();
+        textbox_area.find('.logic_textbox').val(text);
+        var disabled = $box.find('.logic_textbox').prop("disabled");
+        if (disabled) {
+            textbox_area.find('.logic_textbox').prop("disabled", true);
+        } else {
+            textbox_area.find('.logic_textbox').prop("disabled", false);
+        }
+        textbox_area.find('.logic_textbox').blur(createValidator(textbox));
+    }
+
+
+    var zoomHTML = '<div id="choiceimage-grayout"'
+            + ' style="position: fixed; top: 0px; left: 0px; height: 100%; width: 100%; opacity: 0.5; z-index: 100; display: block; background: black;display:none;"'
+            + ' class="sidebar-grayout-layer"></div>'
+            + '<div id="image-zoom-view" style="display:none;">'
+            + '<a class="close"></a>'
+            + '<div class="image-zoom-modal checked">'
+            + '<div class="check-imagechoice"></div>'
+            + '<a class="arrow arrow-left"></a>'
+            + '<a class="arrow arrow-right"></a>'
+            + '<div class="image-area">'
+            + '<div class="image-wrapper">'
+            + '<img>'
+            + '<div class="empty"><span>' + MESSAGE_NO_IMAGE + '</span></div>'
+            + '</div>'
+            + '</div>'
+            + '<div class="caption-area">'
+            + '<div class="caption"></div>'
+            + '</div>'
+            + '<div class="afterEdit">'
+            + '</div>'
+            + '</div>'
+            + '</div>';
+
+    var zoomHTMLNoFrame = '<div id="image-zoom-view-no-frame" style="display:none;">'
+            + '<a class="close"></a>'
+
+            + '<div class="image-area">'
+            + '<div class="image-wrapper">'
+            + '<img>'
+            + '<div class="empty"><span>' + MESSAGE_NO_IMAGE + '</span></div>'
+            + '</div>'
+            + '</div>'
+
+            + '</div>'
+            + '</div>';
+
+    function init() {
+        var zoomEL = $(zoomHTML);
+        $('body').append(zoomEL);
+        var zoomELNoFrame = $(zoomHTMLNoFrame);
+        $('body').append(zoomELNoFrame);
+        $('.image-zoom-modal').on('click', function(e) {
+            e.stopPropagation();
+        });
+        $('.image-zoom-modal').on('tap', function(e) {
+            e.stopPropagation();
+        });
+        bind("#image-zoom-view");
+        bind("#image-zoom-view-no-frame");
+    };
+
+    function bind(zoomViewSelector) {
+        $(zoomViewSelector).on('click', viewOn);
+        $(zoomViewSelector).on('tap', viewOn);
+        $(zoomViewSelector + ' .arrow').on('click', arrowsOn);
+        $(zoomViewSelector + ' .arrow').on('tap', arrowsOn);
+        $(zoomViewSelector + ' .image-wrapper').on('click',imageOn);
+        $(zoomViewSelector + ' .image-wrapper').on('tap', imageOn);
+        $(zoomViewSelector + ' img').on('touchstart', touchStartOn);
+        $(zoomViewSelector).on('touchmove', touchMoveOn);
+        $(zoomViewSelector).on('touchend', touchEndOn);
+    }
+
+    var touchOrigin = null;
+    var moveTarget = null;
+    var startTime = null;
+    function touchStartOn(event) {
+        touchOrigin = [event.originalEvent.changedTouches[0].pageX,
+                       event.originalEvent.changedTouches[0].pageY];
+        startTime = new Date().getTime();
+    }
+    function touchMoveOn(event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    function touchEndOn(event) {
+        var now = new Date().getTime();
+        var span = now - startTime;
+        if (span < 10 || span > 200) {
+            touchOrigin = null;
+            return;
+        }
+        if (!touchOrigin) {
+            touchOrigin = null;
+            return;
+        }
+        var originx = touchOrigin[0];
+        var originy = touchOrigin[1];
+        touchOrigin = null;
+        var currentx = event.originalEvent.changedTouches[0].pageX;
+        var currenty = event.originalEvent.changedTouches[0].pageY;
+        var dx = currentx - originx;
+        var dy = currenty - originy;
+        if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10) {
+            event.preventDefault();
+            event.stopPropagation();
+            var isLeft = dx < 0;
+            moveImage(isLeft);
+        }
+    }
+
+    function applyTextboxChanges() {
+        var selector = $('#image-zoom-view').data('selector');
+        var target = getRealTarget(selector);
+        var text = $('#image-zoom-view .afterEdit .logic_textbox').val();
+        var targetTextArea = $(target).closest('.textbox-in').find('.logic_textbox');
+        targetTextArea.val(text);
+        targetTextArea.trigger('blur');
+    }
+
+    var viewOn = function(e) {
+        if (touchOrigin) {
+            return;
+        }
+        applyTextboxChanges();
+        $('#image-zoom-view').data('selector', null);
+        $('#choiceimage-grayout').fadeOut();
+        $('#image-zoom-view').fadeOut();
+        $('#image-zoom-view-no-frame').fadeOut();
+    };
+
+    var imageOn = function(e) {
+        var touchMode = $('#image-zoom-view').data('touchMode');
+        if (touchMode) {
+            return;
+        }
+        var selector = $('#image-zoom-view').data('selector');
+        if (!selector) {
+            return;
+        }
+        e.preventDefault();
+        e.stopPropagation();
+        var $target = getRealTarget(selector);
+        var uiCheck = $target.closest('.uiCheck');
+        var uiRadio = $target.closest('.uiRadio');
+        var isRadio = uiRadio.length;
+        var uiDisalbed = false;
+        var uiChecked = false;
+        if (uiCheck.length) {
+            uiChecked = uiCheck.hasClass('checked');
+            uiDisalbed = uiCheck.hasClass('disabled');
+        } else if (uiRadio.length) {
+            uiChecked = uiRadio.hasClass('checked');
+            uiDisalbed = uiRadio.hasClass('disabled');
+        } else {
+            return;
+        }
+        if (uiDisalbed) {
+            return;
+        }
+        var checked = $('#image-zoom-view .image-zoom-modal').hasClass('checked');
+
+        if (checked) {
+            if (!isRadio) {
+                uncheck();
+            }
+        } else {
+            check();
+        }
+        checked = $('#image-zoom-view .image-zoom-modal').hasClass('checked');
+
+
+        if ((checked && !uiChecked)
+            || (!checked && uiChecked)) {
+            $target.closest('label').click();
+        }
+
+        var textboxes = $target.closest('.textbox-in');
+        var textbox_area = $('#image-zoom-view .afterEdit');
+        if (checked) {
+            textbox_area.find('.logic_textbox').prop("disabled", false);
+            //$box.find('.logic_textbox').prop("disabled", true);
+        } else {
+            textbox_area.find('.logic_textbox').prop("disabled", true);
+            //$box.find('.logic_textbox').prop("disabled", false);
+        }
+        image_zoom_view_mark();
+    };
+
+    // arrow navigation
+    var arrowsOn = function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var $this = $( this );
+        var isLeft = $this.hasClass('arrow-left');
+        moveImage(isLeft);
+    };
+
+    var moveImage = function(isLeft) {
+        var selector = $('#image-zoom-view').data('selector');
+        if (!selector) {
+            return;
+        }
+
+        var $target = getRealTarget(selector);
+        var index = $target.index(selector);
+        var next;
+        var displayFlg = false;
+        while (!displayFlg) {
+            if (isLeft) {
+                index = index - 1;
+                if (!$(selector).eq(index).length) {
+                    index = $(selector).length;
+                }
+            }else{
+                index = index + 1;
+                if (!$(selector).eq(index).length) {
+                    index = 0;
+                }
+            }
+            next = $(selector).get(index);
+            if ($(next).is(':visible')) {
+                displayFlg = true;
+            }
+        }
+        applyTextboxChanges();
+
+        showImage(next);
+    };
+
+    function getRealTarget(selector) {
+        var touchMode = $('#image-zoom-view').data('touchMode');
+        var caption = $('#image-zoom-view .image-wrapper img').data('encodedCaption');
+        if (touchMode) {
+            caption = $('#image-zoom-view-no-frame .image-wrapper img').data('encodedCaption');
+        }
+        var exSelecter = ' img[alt="' + caption + '"]';
+        return $(selector + exSelecter).closest(selector);
+    }
+
+    function check() {
+        $('#image-zoom-view .image-zoom-modal').addClass('checked');
+    };
+    function uncheck() {
+        $('#image-zoom-view .image-zoom-modal').removeClass('checked');
+    };
+
+    function isValidTarget( element ) {
+        return ($( element ).prop( 'tagName' ).toLowerCase() == 'a');
+    }
+
+    function showImage(target) {
+        var touchMode = $('#image-zoom-view').data('touchMode');
+
+        var imageUrl = $(target).attr('href');
+        var imageEL = $('#image-zoom-view .image-wrapper img');
+        var emptyEL = $('#image-zoom-view .image-wrapper .empty');
+        if (touchMode) {
+            imageEL = $('#image-zoom-view-no-frame .image-wrapper img');
+            emptyEL = $('#image-zoom-view-no-frame .image-wrapper .empty');
+        }
+        imageEL.data("src", imageUrl);
+        if (/^no-image-/.test(imageUrl)) {
+            emptyEL.show();
+            imageEL.hide();
+            imageEL.attr("src", "#");
+        } else {
+            emptyEL.hide();
+            imageEL.show();
+            imageEL.attr("src", imageUrl);
+        }
+        var alt = $(target).find('img').attr('alt');
+        imageEL.data("encodedCaption", alt);
+        var noCaption = $(target).closest('.choice-block').find('.no-caption').length;
+        noCaption = noCaption || $(target).hasClass('no-caption');
+        var captionEL = $('#image-zoom-view .caption');
+        if (!noCaption) {
+            captionEL.html(decodeURIComponent(alt));
+        }else{
+            captionEL.empty();
+        }
+        var selector = $('#image-zoom-view').data('selector');
+        if (!selector) {
+            return;
+        }
+        var textboxes = $(target).closest('.textbox-in');
+        if (textboxes.length) {
+            setupTextbox(textboxes);
+            $('#image-zoom-view').addClass('has-textbox');
+        } else {
+            $('#image-zoom-view .afterEdit').empty();
+            $('#image-zoom-view').removeClass('has-textbox');
+        }
+        setTimeout(function() {
+            var textbox_area = $('#image-zoom-view .afterEdit');
+            var textareaHeight = textbox_area.find('.logic_textbox').height();
+            
+            var imageArea = $('#image-zoom-view .image-area');
+            imageArea.css({"padding-bottom": (CAPTION_HEIGHT + textareaHeight) + "px"});
+            
+            var captionArea = $('#image-zoom-view .caption-area');
+            captionArea.css({
+                "bottom": textareaHeight + "px",
+                "font-family": "'" + FONT_FAMILY + "'"
+            });
+            
+            textbox_area.height(textareaHeight);
+
+            var $target = getRealTarget(selector);
+            var uiCheck = $target.closest('.uiCheck');
+            var uiRadio = $target.closest('.uiRadio');
+            if (uiCheck.length) {
+                if (uiCheck.hasClass('checked')) {
+                    check();
+                } else {
+                    uncheck();
+                }
+            } else if (uiRadio.length) {
+                if (uiRadio.hasClass('checked')) {
+                    check();
+                } else {
+                    uncheck();
+                }
+            } else {
+                uncheck();
+            }
+            textbox_area.find('.logic_textbox').blur();
+        }, 10);
+        image_zoom_view_mark();
+   }
+
+    function choiceImage(selector, touchMode) {
+        if (! $.fn.imageLightbox) {
+            return;
+        }
+        // 二重ハンドラ防止
+        if (_.indexOf(window.$choiceImageSelectors, selector) > -1) {
+            return;
+        }
+        window.$choiceImageSelectors.push(selector);
+
+        $(document).on('click', selector, function(e) {
+            var target = e.target;
+            if (!isValidTarget(e.target)) {
+                target = $(e.target).closest(selector);
+            }
+
+            e.preventDefault();
+            e.stopPropagation();
+            $('#image-zoom-view').data('selector', selector);
+            $('#image-zoom-view').data('touchMode', touchMode);
+            showImage(target);
+            $('#choiceimage-grayout').fadeIn();
+            if (!touchMode) {
+                $('#image-zoom-view').fadeIn();
+            } else {
+                $('#image-zoom-view-no-frame').fadeIn();
+            }
+        });
+    };
+
+    window.$choiceImageSelectors = [];
+    $(init);
+    return choiceImage;
+}));
+
+</script>
+
+</body>
+</html>

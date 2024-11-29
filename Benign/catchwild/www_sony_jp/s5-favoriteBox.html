@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>s5-favoriteBox.html</title>
+</head>
+<body>
+
+<script>
+
+;( function ( $ ) {
+
+  'use strict';
+
+  var API_URL_AV_TOGGLE   = 'https://orijinfro.store.sony.jp/api/av_favorite_regist/';
+  var API_URL_VAIO_TOGGLE = 'https://orijinfro.store.sony.jp/api/vaio_favorite_regist/';
+  var API_URL_LIST        = 'https://orijinfro.store.sony.jp/api/favorite_confirm/';
+  var FAVORITEBOX_SETTING = '/share5/js/s5-favoriteBox-setting.js';
+
+  // 外部JSON（./s5-favoriteBox-setting.json）から
+  // Ajaxであとで取得して保管される。
+  var disabledList = {
+    productcode    : [],
+    productgroupid : [],
+    productcodevaio: []
+  };
+
+  // via https://developer.mozilla.org/ja/docs/Web/API/Document/cookie
+  //
+  //  :: cookies.js ::
+  //
+  //  A complete cookies reader/writer framework with full unicode support.
+  //
+  //  https://developer.mozilla.org/en-US/docs/DOM/document.cookie
+  //
+  //  Syntaxes:
+  //
+  //  * docCookies.getItem(name)
+  //  * docCookies.hasItem(name)
+  //
+
+  var docCookies = {
+    getItem: function (sKey) {
+      if (!sKey || !this.hasItem(sKey)) { return null; }
+      return unescape(document.cookie.replace(new RegExp("(?:^|.*;\\s*)" + escape(sKey).replace(/[\-\.\+\*]/g, "\\$&") + "\\s*\\=\\s*((?:[^;](?!;))*[^;]?).*"), "$1"));
+    },
+    hasItem: function (sKey) {
+      return (new RegExp("(?:^|;\\s*)" + escape(sKey).replace(/[\-\.\+\*]/g, "\\$&") + "\\s*\\=")).test(document.cookie);
+    }
+  }
+
+  // JSONP のコールバック関数用に
+  // ランダムな文字列を返す関数
+  var getRandomString = function () {
+
+    var i = 0|0;
+    var text = '';
+    var possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+
+    for ( ; i < 8; i = ( i + 1 ) | 0 ) {
+
+      text += possible.charAt( ( Math.random() * possible.length ) | 0 );
+
+    }
+
+    return text;
+
+  }
+
+  // 「,」カンマまたは「|」パイプ区切りのテキストを配列にする
+  var stringToArray = function ( string ) {
+
+    return string.replace( /\s/g, '' ).split( /,|\|/ );
+
+  }
+
+  // 「お気に入り」のモデル
+  var Model = Backbone.Model.extend( {
+
+    defaults: {
+      id: null,             // お気に入り番号 (削除API用 favorite_no)
+      type: null,           // 'AV' or 'VAIO'
+      productcode: [],      // AVの `product_id` または VAIOの `html_name`
+      productgroupid: [],   // AVの `productgrp_id`、VAIOの場合は利用しない
+      channel: null,        // VAIO 専用、販路ID
+      kind: null,           // VAIO 専用、種別ID
+      isAdded: false,       // 登録判定
+      alreadyAdded: false        // 既存登録判定
+    },
+
+    isOrder: 0,
+    isLoading: false,
+    isAjaxFailed: false,
+    lastLoadedTime: Date.now() - 10000,
+
+    initialize: function ( data ) {},
+
+    // 「AVお気に入り登録API」、「VAIOお気に入り登録API」操作
+    toggleFav: function (isOrder) {
+
+      if ( this.isLoading ) { return; }
+
+      var that = this;
+      var type = this.get( 'type' );
+      var url;
+      var order = isOrder; // response_cd:10 時に order を更新して次の id でリクエストする
+      var nextOrderConnect = false; // response_cd:10 時に次の id でリクエスト中は実行しない
+      var idLength = 0;
+      var data = {}
+      var productcodes;
+
+      var doConnectApi = function (order) {
+        if (type === 'AV') {
+
+          url = API_URL_AV_TOGGLE;
+
+          // AV API 仕様により
+          // リクエストパラメータの
+          // - PRODUCTGRP_ID
+          // - 商品13桁コード
+          // の両方が設定された場合は入力エラーで返却されるため
+          // 片方のみを送る
+
+          if (that.get('productgroupid').length !== 0) {
+
+            data.productgrp_id = that.get('productgroupid')[order];
+            idLength = that.get('productgroupid').length;
+            productcodes = data.productgrp_id;
+
+          } else if (that.get('productcode').length !== 0) {
+
+            data.product_id = that.get('productcode')[order];
+            idLength = that.get('productcode').length;
+            productcodes = data.product_id;
+
+          }
+
+        } else if (type === 'VAIO') {
+
+          url = API_URL_VAIO_TOGGLE;
+          data.html_name = that.get('productcode')[order];
+          data.channel = that.get('channel');
+          data.kind = that.get('kind');
+          idLength = that.get('productcode').length;
+          productcodes = data.html_name;
+
+        } else {
+
+          // AV でも VAIO でもなければ操作終了
+          return;
+
+        }
+
+        that.isLoading = true;
+        that.isAjaxFailed = false;
+        that.trigger('ajaxBegen');
+
+        if (!url) { return }
+
+        $.ajax({
+          url: url,
+          cache: true,
+          jsonpCallback: 'ss_callback' + getRandomString(),
+          dataType: 'jsonp',
+          data: data
+        }).done(function (data) {
+
+          // response_cd の内容
+          // 0x | 正常終了            | ---
+          // 00 | 登録成功            | APIが正常に終了した(もともと未登録時には、登録され00が返る)
+          // 01 | 削除成功            | APIが正常に終了した(もともと登録済み時には、削除され01が返る)
+          // 1x | 入力エラー          | ---
+          // 10 | 入力エラー          | APIのリクエストパラメータが正しくない
+          // 2x | Cookie状態エラー    | ---
+          // 20 | サインアウト状態      | APIを実行すべきサインイン状態ではない（ゲスト）
+          // 3x | 内部状態エラー      | ---
+          // 30 | サインイン状態不整合  | サインイン状態(Cookie)と内部情報が一致しない
+          // 5x | システムエラー      | ---
+          // 50 | システムエラー/内部 | フロントサインインでシステムエラーが発生
+          if (data.response_cd === '00') {
+
+            nextOrderConnect = false;
+            that.set({ 'isAdded': true, 'alreadyAdded': false });
+
+            var s = s_gi(s_account);
+            s.linkTrackVars = 'products,eVar40,eVar41,events';
+            s.linkTrackEvents = 'event20';
+            s.eVar40 = "favIconOn";
+            s.eVar41 = s.pageName;
+            s.products = ';' + productcodes + ';;;events=event20;eVar40=favIconOn';
+            s.events = 'event20';
+            s.tl(that, 'o', 'favIconOn');
+
+          } else if (data.response_cd === '01') {
+
+            nextOrderConnect = false;
+            that.set({ 'isAdded': false, 'alreadyAdded': false });
+
+            var s = s_gi(s_account);
+            s.linkTrackVars = 'products,eVar40,eVar41,events';
+            s.linkTrackEvents = 'event21';
+            s.eVar40 = "favIconOff";
+            s.eVar41 = s.pageName;
+            s.products = ';' + productcodes + ';;;events=event21;eVar40=favIconOff';
+            s.events = 'event21';
+            s.tl(that, 'o', 'favIconOff_products');
+
+          } else if (data.response_cd === '10') {
+            // 親商品に対して、 id は複数存在している
+            // 基本は最初の id でリクエストするが
+            // 一つ目の id が未発売の場合など、10が返却されるため、
+            // そう言った場合を考慮して次の id で再帰的にリクエストする
+            order++;
+
+            if (order < idLength) {
+              nextOrderConnect = true; // 次の order でリクエストするため true。ajaxDone のトリガーを引かせない。
+              doConnectApi(order);
+            } else {
+              nextOrderConnect = false; // order をリクエストしきった時に false
+              that.isAjaxFailed = true;
+            }
+
+          } else {
+
+            nextOrderConnect = false;
+            that.isAjaxFailed = true;
+
+          }
+
+          if (nextOrderConnect !== true) {
+            that.isLoading = false;
+            that.lastLoadedTime = Date.now();
+            that.trigger('ajaxDone');
+          }
+
+        }.bind(that));
+      }
+
+      doConnectApi(order);
+    }
+
+  } );
+
+
+  // 「お気に入り」モデルのコレクション
+  var collection = new ( Backbone.Collection.extend( {
+
+    model: Model,
+
+    _isLoggedIn : false,
+
+    // ページ中のHTML要素からデータモデルを作成する
+    // 一度のみ実行可能
+    applyFromSessionStorage: function () {
+
+      var that = this;
+      var restoredSession = window.sessionStorage.getItem( strageManager.key );
+
+      if ( restoredSession === null ) {
+
+        return;
+
+      }
+
+      var restoredData = JSON.parse( restoredSession );
+
+      _.each( restoredData.data, function ( item ) {
+
+        var model;
+        var existedModel;
+        var type = ( item.product_id    !== '' ) ? 'AV' :
+                   ( item.productgrp_id !== '' ) ? 'AV' :
+                   ( item.html_name     !== '' ) ? 'VAIO' : null;
+
+        if ( type === 'AV' ) {
+
+          existedModel = collection.findByIdList( { productcode : [ item.product_id ] } );
+
+          if ( !!existedModel && item.product_id !== '' ) {
+
+            existedModel.set( { isAdded : true } );
+            existedModel.set( { alreadyAdded : false } );
+            return false;
+
+          }
+
+          existedModel = collection.findByIdList( { productgroupid : [ item.productgrp_id ] } );
+
+          if ( !!existedModel && item.productgrp_id !== '' ) {
+
+            existedModel.set( { isAdded : true } );
+            existedModel.set( { alreadyAdded : false } );
+            return false;
+
+          }
+
+          model = new Model( {
+            type           : type,
+            productcode    : !!item.product_id    ? [ item.product_id ]    : [],
+            productgroupid : !!item.productgrp_id ? [ item.productgrp_id ] : [],
+            isAdded        : true,
+            alreadyAdded   : false
+          } );
+
+          that.add( model );
+          return false;
+
+        } else if ( type === 'VAIO' ) {
+
+          existedModel = collection.findByIdList( { productcode : [ item.html_name ] } );
+
+          if ( !!existedModel ) {
+
+            existedModel.set( { isAdded : true } );
+            existedModel.set( { alreadyAdded : false } );
+            return false;
+
+          }
+
+          model = new Model( {
+            type        : type,
+            productcode : [ item.html_name ],
+            isAdded     : true,
+            alreadyAdded: false,
+            channel     : item.channel,
+            kind        : item.kind
+          } );
+
+          that.add( model );
+          return false;
+
+        }
+
+      } );
+
+      s5.vent.trigger( 'needsFavoritBoxUpdate' );
+      return;
+
+    },
+
+    isLoggedIn: function () {
+
+      return this._isLoggedIn;
+
+    },
+
+    setLoggedIn: function ( state ) {
+
+      this._isLoggedIn = state;
+      this.trigger( 'change:loginState' );
+
+    },
+
+    findByIdList: function ( idList ) {
+
+      var key = _.keys( idList )[ 0 ];
+      var existedModel;
+
+      if (
+        key !== 'productcode' &&
+        key !== 'productgroupid'
+      ) {
+
+        return false;
+
+      }
+
+      var isExisted = _.some( idList[ key ], function ( id ) {
+
+        return collection.some( function ( model ) {
+
+          return _.some( model.get( key ), function ( el ) {
+
+            var isExisted = ( el === id );
+
+            if ( isExisted ) {
+
+              existedModel = model;
+              return true;
+
+            }
+
+          } );
+
+        } );
+
+      } );
+
+      if ( isExisted ) {
+
+        return existedModel;
+
+      } else {
+
+        return null;
+
+      }
+
+    }
+
+  } ) );
+
+
+  var strageManager = {
+
+    // 登録済み「お気に入り」のリスト
+    //
+    // 「お気に入り基本設計書」内「AVお気に入り確認フロー」に該当。
+    // サーバ負荷軽減のため
+    // 登録済みのお気に入りリストを
+    // セッションストレージ( 'ssfl-favorites' )に保存する
+    // この内容がcollectionに適用される
+    //
+    // isCookieLoggedIn の内容を利用するため
+    // isCookieLoggedIn が付与された後に実行する。
+    //
+    // - ログインしていない場合は、
+    //   セッションストレージ 'ssfl-favorites' を削除して終了 [1]
+    // - ログインしている場合
+    //   - セッションストレージ 'ssfl-favorites' が存在しなければ
+    //     「お気に入り登録確認API」を再取得しセッションストレージに保存して終了 [2]
+    //   - お気に入り情報管理Cookie「FAV_IFMK」が、
+    //     'ssfl-favorites'に保存された内容と一致しなければ
+    //     「お気に入り登録確認API」を再取得しセッションストレージに保存して終了 [3]
+    //     (お気に入り登録、削除を行うとCookie「FAV_IFMK」は更新される)
+    key: 'ssfl-favorites',
+    init: function () {
+
+      // 終了を待ってcollectionに反映するために
+      // deferred を返す
+      var d = new $.Deferred;
+
+      if ( typeof window.sessionStorage === 'undefined' ) { return; }
+
+      // フロントログインにて「ログアウト」を実行するとき
+      // セッションストレージを消去する
+      ssfl.vent.on( 'beforelogout', function () {
+
+        window.sessionStorage.removeItem( this.key );
+
+      } );
+
+
+      if ( !ssfl.userModel.get( 'isCookieLoggedIn' ) ) {
+
+        window.sessionStorage.removeItem( this.key );
+        d.resolve();
+        return d.promise();// [1]
+
+      }
+
+      var restoredSession = window.sessionStorage.getItem( this.key );
+
+      if ( restoredSession === null ) {
+
+        $.when( this.fetchFavListAPI() ).done( function () {
+          d.resolve();
+        } );
+        return d.promise();// [2]
+
+      }
+
+      var restoredSessionData = JSON.parse( restoredSession );
+      // docCookies.setItem( 'FAV_IFMK', '20160730235900' ); //デバグ用
+      // お気に入り情報管理Cookie。値は「YYYYMMddHHmmss」
+      var timestamp = docCookies.getItem( 'FAV_IFMK' );
+
+      if ( restoredSessionData.timestamp !== timestamp ) {
+
+        $.when( this.fetchFavListAPI() ).done( function () {
+          d.resolve();
+        } );
+        return d.promise();// [3]
+
+      }
+
+    },
+
+    fetchFavListAPI: function () {
+
+      var that = this;
+      var d = new $.Deferred;
+
+      $.ajax( {
+        type: 'GET',
+        url: API_URL_LIST,
+        dataType: 'jsonp',
+        jsonpCallback: 'ss_callback_favlist',
+        timeout: 15000,
+        cache: true
+      } ).done( function ( data ) {
+
+        // '00' で正常終了、それ以外は異常のため無視
+        if ( data.response_cd !== '00' ) {
+
+          d.resolve();
+          return;
+
+        }
+
+        // 「お気に入り登録確認API」から取得できる配列データの要素の内容
+        // - productgrp_id : AV の商品グループID
+        // - product_id    : AV の商品13桁コード
+        // - html_name     : VAIO の `html_name`
+        // - channel       : VAIO 専用、販路ID
+        // - kind          : VAIO 専用、種別ID
+
+        // APIにアクセスすると「お気に入り情報管理Cookie「FAV_IFMK」」の内容が更新される
+        window.sessionStorage.setItem(
+          that.key,
+          JSON.stringify( {
+            timestamp: docCookies.getItem( 'FAV_IFMK' ),
+            data: data.favorite
+          } )
+        );
+
+        d.resolve();
+
+      } );
+
+      return d.promise();
+
+    }
+
+  };
+
+
+  var View = Backbone.View.extend( {
+
+    events: {
+      'mouseover  .s5-favoriteBox__icon' : 'onmouseover',
+      'focus      .s5-favoriteBox__icon' : 'onmouseover',
+      'mouseleave .s5-favoriteBox__icon' : 'onmouseleave',
+      'blur       .s5-favoriteBox__icon' : 'onmouseleave',
+      'click      .s5-favoriteBox__icon' : 'onclick'
+    },
+
+    initialize: function ( options ) {
+
+      this.$el.attr( { 'data-s5favorite-cid': this.model.cid } );
+
+      collection.on( 'change:loginState', this.render.bind( this ) );
+      this.model.on( 'change',    this.render.bind( this ) );
+      this.model.on( 'ajaxBegen', this.render.bind( this ) );
+      this.model.on( 'ajaxDone',  this.render.bind( this ) );
+      this.model.on( 'ajaxDone',  this.afterLoadedRender.bind( this ) );
+      this.render();
+
+      $( window ).on( 'resize', _.throttle( this.onresize.bind( this ), 200 ) );
+
+    },
+
+    render: function () {
+
+      var template = _.template( [
+        '<button class="s5-favoriteBox__icon" aria-label="<%= text %>"></button>',
+        '<span class="s5-favoritBox__content"><%= text %></span>'
+      ].join( '\n' ) );
+
+      var templateMSA = _.template( [
+        '<button class="s5-favoriteBox__icon -isMySonyApp"></button>',
+        '<span class="s5-favoritBox__content -isMySonyApp"><%= text %></span>'
+      ].join('\n'));
+
+      var templateMSAButton = _.template([
+        '<button class="s5-favoriteBox__icon MSAProductsStorePrice__button -isMySonyApp"><%= text %></button>'
+      ].join('\n'));
+
+      var modifier_selected = 's5-favoritBox--selected';
+
+      return function ( options ) {
+
+        var isAdded      = this.model.get( 'isAdded' );
+        var alreadyAdded = this.model.get( 'alreadyAdded' );
+        var isLoading    = this.model.isLoading;
+        var isAjaxFailed = this.model.isAjaxFailed;
+        // ↓Ajax通信直後はしばらく吹き出しを出すため
+        var isAfterLoadedWithin1000 = this.isAfterLoadedWithin1000();
+        var data = {
+          text: !collection.isLoggedIn()                              ? 'サインインしてお気に入りに追加する' :
+                 isLoading                                            ? '読込中' :
+                !isAfterLoadedWithin1000 && !isAdded                  ? 'お気に入りに追加する' :
+                !isAfterLoadedWithin1000 &&  isAdded                  ? 'お気に入りに登録済みです' : // なにが該当？
+                 isAfterLoadedWithin1000 &&  isAdded && alreadyAdded  ? 'お気に入りに登録済みです' :
+                 isAfterLoadedWithin1000 && isAjaxFailed              ? 'お気に入りに登録できませんでした' :
+                 // フェイズ2対応
+                 // [*1] 吹き出し内容を、登録直後でも'登録済みです'に暫定的に変更する
+                 isAfterLoadedWithin1000 &&  isAdded && !alreadyAdded ? 'お気に入りに追加しました' : // 'お気に入りに追加しました' :
+                 isAfterLoadedWithin1000 && !isAdded                  ? 'お気に入りを削除しました' :
+                                                                         ''
+        };
+
+        if ( isAdded ) { this.$el.addClass( modifier_selected ); }
+        else           { this.$el.removeClass( modifier_selected ); }
+
+        if ( !( options && options.needsDOMUpdate === false ) ) {
+
+          if (this.$el.attr('data-s5favorite-layout') === 'msa_icon') {
+            this.$el.html(templateMSA(data));
+          } else if (this.$el.attr('data-s5favorite-layout') === 'msa_button') {
+            this.$el.html(templateMSAButton(data));
+          } else {
+            this.$el.html( template( data ) );
+          }
+
+          this.$content = this.$el.find( '.s5-favoritBox__content' );
+
+        }
+
+        // ロード中、またはロード直後は吹き出しを閉じない
+        if ( !isLoading && !isAfterLoadedWithin1000 && !this.inFadeOut ) {
+
+          this.$content.hide();
+
+        }
+
+        this.onresize();
+
+      }
+
+    }(),
+
+    afterLoadedRender: function () {
+
+      // 登録API/削除APIのロード完了後
+      // 数秒間吹き出しを出し続けた後に「消す」
+
+      setTimeout( function () {
+
+        $.when(
+          this.onmouseleave()
+        ).done( function () {
+
+          this.render();
+
+        }.bind( this ) );
+
+      }.bind( this ), 1000 );
+
+    },
+
+    isAfterLoadedWithin1000: function () {
+
+      return ( Date.now() - this.model.lastLoadedTime < 1000 );
+
+    },
+
+    onclick: function () {
+
+      if ( collection.isLoggedIn() ) {
+
+        this.model.toggleFav(this.model.isOrder);
+
+      } else {
+
+        // サインインしていない場合は
+        // お気に入り登録ではなく、
+        // サインインページに飛ばす
+        ssfl.login();
+
+      }
+
+    },
+
+    onmouseover: function () {
+
+      this.$content.stop().fadeIn();
+
+    },
+
+    onmouseleave: function () {
+
+      if ( this.model.isLoading ) { return; }
+      if ( this.isAfterLoadedWithin1000() ) { return; }
+
+      var d = new $.Deferred;
+
+      this.$content.stop().fadeOut( function () {
+
+        d.resolve();
+
+      } );
+
+      return d.promise();
+
+    },
+
+    onresize: function () {
+
+      // window サイズに応じて
+      // 吹き出しを下、左、右のどこに出すかを決める
+      // これをしないと吹き出しが画面外に切れて出てしまう
+
+      // アプリの場合は移動しないので付けない
+      if (this.$el.attr('data-s5favorite-layout') === 'msa_icon') {
+        return;
+      }
+
+      var modifierLeft  = 's5-favoritBox__content--left';
+      var modifierRight = 's5-favoritBox__content--right';
+      var boxWidth = 222;
+      var boxWidthHalf = boxWidth * 0.5;
+
+      var viewWidth = s5.viewportWidth;
+      var left  = this.$el.offset().left;
+      var right = left + this.$el.width();
+
+      if ( left - boxWidthHalf < 0 ) {
+
+        this.$content.addClass( modifierLeft );
+        this.$content.removeClass( modifierRight );
+        return;
+
+      }
+
+      if ( right + boxWidthHalf > viewWidth ) {
+
+        this.$content.removeClass( modifierLeft );
+        this.$content.addClass( modifierRight );
+        return;
+
+      }
+
+      this.$content.removeClass( modifierLeft );
+      this.$content.removeClass( modifierRight );
+      return;
+
+    }
+
+  } );
+
+
+  var activate = function () {
+
+    // 外から `s5.vent.trigger( 'needsFavoritBoxUpdate' );` を引き起こした時は
+    // ssfl のチェックは入っていないことがわかった。
+    // フロントログインがない場合はいずれにせよ利用できないので終了させる
+    if (!window.ssfl) { return; }
+
+    $( '.s5-favoritBox' ).each( function () {
+
+      // ## APIに送る内容が入っている各データ属性 (AVは2種、vaioは3種)
+      // AV用
+      // - data-s5favorite-productcode="T0000528292" // 商品13桁コード
+      // - data-s5favorite-productgroupid
+      // Vaio用
+      // - data-s5favorite-productcodevaio="VJZ12A1"
+      // - data-s5favorite-channelid="2" // 販路
+      // - data-s5favorite-kindid="1"    // 種別
+
+      var $el = $( this );
+      var isAV   = !!$el.attr( 'data-s5favorite-productcode' ) ||
+                   !!$el.attr( 'data-s5favorite-productgroupid' );
+      var isVaio = !!$el.attr( 'data-s5favorite-productcodevaio' );
+      var disabled = checkDisabled(
+        $el.attr( 'data-s5favorite-productcode' ),
+        $el.attr( 'data-s5favorite-productgroupid' ),
+        $el.attr( 'data-s5favorite-productcodevaio' )
+      );
+      var hasApplied = !!$el.attr( 'data-s5favorite-cid' );
+      var model;
+      var data = {};
+
+      // ストアの購入ページが生成されないと
+      // お気に入り登録APIの方でも受け入れができないため
+      // 無効化リストと一致したらお気に入りボタンを出力しない
+      if ( disabled ) { return; }
+
+      if ( hasApplied ) { return; }
+
+      if ( isAV ) {
+
+        var productcode    = $el.attr( 'data-s5favorite-productcode' );
+        var productgroupid = $el.attr( 'data-s5favorite-productgroupid' );
+
+        data.type = 'AV';
+
+        // 「productcodeが空、productgroupidのみ値あり」の場合がある
+        if ( !!productcode ) {
+
+          data.productcode = stringToArray( productcode );
+          model = collection.findByIdList( { productcode: data.productcode } );
+
+        } else if ( !!productgroupid ) {
+
+          data.productgroupid = stringToArray( productgroupid );
+          model = collection.findByIdList( { productgroupid: data.productgroupid } );
+
+        }
+
+      } else if ( isVaio ) {
+
+        var productcode  = $el.attr( 'data-s5favorite-productcodevaio' );
+
+        data.type = 'VAIO';
+        data.productcode = stringToArray( productcode );
+        data.channel     = $el.attr( 'data-s5favorite-channelid' );
+        data.kind        = $el.attr( 'data-s5favorite-kindid' );
+
+        model = collection.findByIdList( { productcode: data.productcode } );
+
+      }
+
+      if ( !data.type ) { return }
+
+      if ( !model ) {
+
+        model = new Model( data );
+        collection.add( model );
+
+      }
+
+      new View( { el: $el, model: model } );
+
+    } );
+
+  }
+
+  // 外から `s5.vent.trigger( 'needsFavoritBoxUpdate' );` を引き起こした時に
+  // activate() を実行できるようにする
+  // Ajax で DOM が追加された際などにイベントがtriggerされる想定
+  s5.vent.on( 'needsFavoritBoxUpdate', activate );
+
+
+
+  var init = function () {
+
+    // SSFL の状態変化時（SSFLバー初回展開時など）に実行される
+    var onSsflChange = function () {
+
+      collection.setLoggedIn( ssfl.userModel.get( 'isCookieLoggedIn' ) );
+
+      if ( collection.isLoggedIn() ) {
+
+        $.when( strageManager.init() ).done( function () {
+
+          collection.applyFromSessionStorage();
+          s5.vent.trigger( 'needsFavoritBoxUpdate' );
+
+        } );
+
+      } else {
+
+        // サインインしていない場合、モデルは空のまま実行
+        s5.vent.trigger( 'needsFavoritBoxUpdate' );
+
+      }
+
+    }
+
+    onSsflChange();
+    ssfl.vent.on( 'updated', onSsflChange );
+
+  };
+
+
+  // ---------------------------------------------------------------------------
+  // ssfl の読み込み完了を待つ必要がある
+  var ssflReady = function () {
+
+      var d = new $.Deferred();
+      var elapsed = 0;
+
+      // ssflが見つかるまで、200ms毎に判定
+      ( function loop () {
+
+          if ( !window.ssfl && elapsed < 30000 ) {
+
+              elapsed += 200;
+              setTimeout( loop, 200 );
+              return;
+
+          } else {
+
+            if (window.ssfl) {
+              // ssfl が見付かれば後続処理
+              d.resolve();
+              return;
+            } else {
+              // ssfl が見つからなければ後続処理行わずreturn
+              return;
+            }
+          }
+
+      } )();
+
+      return d;
+
+  }
+
+  $.when(
+      ssflReady(),
+      requestSetting()
+  ).done( function () {
+
+      $( init );
+
+  } );
+  // ---------------------------------------------------------------------------
+
+
+  // 商品詳細ページのナビゲーションとかぶる際の処置
+  $( function () {
+
+    // 商品詳細特長のナビがあるときに処理
+    if ( $('.s5-productHeaderV2__nav,.s5-productHeaderV2__favorite--desktop').length ) {
+
+      // 商品詳細特長のボタンを数える
+      var featureNavCount = $('.s5-productHeaderV2__nav > ul > li').length;
+
+      // 7個以上の場合はボタンがかぶるのでtopで調整
+      if ( featureNavCount === 7 ) {
+        $('.s5-productHeaderV2__favorite--desktop').css('top', '-23px');
+      }
+
+    }
+
+  } );
+
+  function requestSetting () {
+
+    var d = new $.Deferred();
+
+    $.ajax( {
+      url: FAVORITEBOX_SETTING,
+      dataType: 'jsonp',
+      jsonpCallback: 'favoriteBoxSetting'
+    } ).done( function ( json ) {
+
+      // JSONで与えられた文字列を「,」か「|」で区切って配列にする
+      var put = function ( type ) {
+
+        _.forEach( json.disable[ type ], function ( line ) {
+
+          var items = line.split( /,|\|/ );
+
+          _.forEach( items, function ( item ) {
+
+            var notIncluded = ( disabledList[ type ].indexOf( item ) === - 1 );
+
+            if ( notIncluded ) {
+
+              disabledList[ type ].push( item );
+
+            }
+
+          } );
+
+        } );
+
+      };
+
+      put( 'productcode' );
+      put( 'productgroupid' );
+      put( 'productcodevaio' );
+
+      // console.log( disabledList );
+      d.resolve();
+
+    } );
+
+    return d;
+
+  }
+
+  function checkDisabled( productcode, productgroupid, productcodevaio ) {
+
+    if (
+      !! productcode &&
+      disabledList[ 'productcode' ].some( function ( value ) {
+
+        return productcode.split( /,|\|/ ).indexOf( value ) !== - 1;
+
+      } )
+    ) { return true; }
+
+    if (
+      !! productgroupid &&
+      disabledList[ 'productgroupid' ].some( function ( value ) {
+
+        return productgroupid.split( /,|\|/ ).indexOf( value ) !== - 1;
+
+      } )
+    ) { return true; }
+
+    if (
+      !! productcodevaio &&
+      disabledList[ 'productcodevaio' ].some( function ( value ) {
+
+        return productcodevaio.split( /,|\|/ ).indexOf( value ) !== - 1;
+
+      } )
+    ) { return true; }
+
+  }
+
+} )( jQuery );
+
+</script>
+
+</body>
+</html>

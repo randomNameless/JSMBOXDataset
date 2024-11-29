@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>live-column.html</title>
+</head>
+<body>
+
+<script>
+
+;(function ($) {
+
+    var isRun = false;
+    var timer;
+    function slider() {
+        var $box = $('.live-items');
+        var ul_w = $('.live-items ul').width();
+        var left = $box.scrollLeft() + 1;
+        left = left >= ul_w/2 ? 0 : left;
+        $box.scrollLeft(left);
+        timer = setTimeout(function () {
+            slider();
+        }, 15);
+    }
+
+    function resetSlider () {
+        var $box = $('.live-items');
+        var $ul = $('.live-items ul');
+        var $li = $('.live-items li');
+        var ul_w = $li.size() * $li.outerWidth(true);
+        $box.scrollLeft(0);
+        clearTimeout(timer);
+
+        if (ul_w > $ul.width()) {
+            isRun = true;
+            $ul.append($ul.html());
+            $ul.width(ul_w * 2);
+            slider();
+        } 
+    }
+
+    // 榧犳爣鎮仠鍋滄婊氬姩
+    $('body').on({
+        mouseover: function () {
+            clearTimeout(timer)
+        },
+        mouseout: function () {
+            isRun && slider()
+        }
+    }, '.live-items');
+
+    // 榧犳爣鎮仠閬僵涓婂崌
+    $('body').on({
+        mouseenter: function () {
+            $(this).addClass('hover');
+            var $content = $(this).find('.live-shadow');
+            var top = 144 - $content.outerHeight(true);
+            $content.stop().animate({ top: top }, 200);
+        },
+        mouseleave: function () {
+            var self = this;
+            var $content = $(this).find('.live-shadow');
+            $content.stop().animate({ top: 110 }, 200, 'linear', function () {
+                $(self).removeClass('hover');
+            });
+        }
+    }, '.live-items li');
+
+
+    function render (container, list, number) {
+        var compiled = _.template($('#liveTpl').html());
+        var len = list.length;
+        if (len > 3 || location.href.indexOf('www.ofweek.com') > -1) {
+            number = number === 0 ? len : number;
+            $(container).html(compiled({ data: list.slice(0, number) }));
+            resetSlider();
+        }
+    }
+
+    function getData (url, options, success) {
+        options = options || {}
+        $.getJSON(url, options, function (data) {
+            if (data.code === 0 || data.status === 0) {
+            	//data.data = []
+                success(data.data)
+            } else {
+                console.log('鑾峰彇鐩存挱鍒楄〃澶辫触')
+            }
+        })
+    }
+
+    /**
+     * 鐩存挱妯″潡鍒濆鍖�
+     * @param { String } container DOM閫夋嫨鍣紝鐢ㄤ簬瀛樻斁鐩存挱妯″潡
+     * @param { Number } options.number 灞曠ず鏁伴噺锛岄粯璁�15锛�0锛氬叏閮ㄥ睍绀�
+     * @param { Object } options.live 瀵硅薄锛宎pi锛歄Fweek鐩存挱鏁版嵁鍦板潃锛沺arams锛氬彲閫夊弬鏁�
+     * @param { Object } options.hall 瀵硅薄锛宎pi锛氬睍鍘呮暟鎹湴鍧€锛沺arams锛氬彲閫夊弬鏁�
+    */
+    window.initLiveModule = function (container, options) {
+        var defaultOptions = {
+            number: 15,
+            live: {
+                api: $('#liveURL').val()
+            }
+        }
+        options = options || {}
+        _.defaults(options, defaultOptions);
+
+        var list = [];
+        
+        getData(options.live.api, options.live.params, function (data) {
+            list = list.concat(data)
+            render(container, list, options.number)
+        });
+    }
+    
+    $(function () {
+    	initLiveModule('#expolive');
+    })
+
+})(jQuery);
+
+</script>
+
+</body>
+</html>

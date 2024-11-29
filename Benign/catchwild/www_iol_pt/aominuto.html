@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>aominuto.html</title>
+</head>
+<body>
+
+<script>
+var TEAM_A,TEAM_B,MATCH_ID={},LIVE_MATCH,MATCH_STATE={},MATCH_STARTED_INDICATOR,MATCH_ENDED_INDICATOR,PLAYERS,LAST_ITEM,LAST_EVENT_ITEM,LAST_VIDEO_ITEM,ITEMS_COUNT=0,EVENT_ITEMS_COUNT=0,VIDEO_ITEMS_COUNT=0,ITEMS_MOBILE_MREC_LOADED=!1,EVENT_ITEMS_MOBILE_MREC_LOADED=!1,VIDEO_ITEMS_MOBILE_MREC_LOADED=!1,COMERCIAL_INTERVAL=10,COMERCIAL_MREC_POSITION=3,BLOCK_TABS=!1,TIMELINE_PIXELS_BETWEEN_LINES=17,TIMELINE_MAX_BAR_TIME=120,TIMELINE_MAX_BAR_SIZE=93,TIMELINE_EVENTS_OVERLAP=1,GAME_TIMER,CURRENT_GAME_TIME=
+{};function initMatch(a,b,c,e,d,g,f,h){MATCH_ID[a]=a;TEAM_A={name:c,goals:d,timelineID:"#teamA-timeline",timelinePosition:"bottom",events:{},subsInQueue:[],subsOutQueue:[]};TEAM_B={name:e,goals:g,timelineID:"#teamB-timeline",timelinePosition:"top",events:{},subsInQueue:[],subsOutQueue:[]};MATCH_STATE[a]=b;LIVE_MATCH=f;MATCH_ENDED_INDICATOR=MATCH_STARTED_INDICATOR=!1;PLAYERS=[];CURRENT_GAME_TIME[a]=h;0<CURRENT_GAME_TIME[a]&&"PLAYING"===b&&startCounter(a)}
+function initLiveEvents(a,b){if(a&&"PLAYED"!==MATCH_STATE[b]){a=atmosphere;var c=new atmosphere.AtmosphereRequest;c.url="https://newrt.iol.pt/pubsub/"+MATCH_ID[b];c.connectTimeout=5E3;c.reconnectInterval=5E3;c.timeout=6E5;c.trackMessageLength=!0;c.logLevel="debug";c.enableXDR=!0;c.shared=!0;c.maxReconnectOnClose=20;c.transport="websocket";c.fallbackTransport="long-polling";c.onMessage=function(a){var b=a.responseBody;if(200===a.status){try{var c=JSON.parse(b)}catch(f){return}processEvent(c,c.objetoAfetado)}};
+a.subscribe(c)}}function startCounter(a){console.log("START TIME GAME");updateMatchTime(a,!1)}function stopCounter(){console.log("STOP TIME GAME")}
+function processEvent(a,b){switch(a.tipo){case "DELETE":CURRENT_GAME_TIME[b.jogo.id]=b.minuto;updateMatchTime(b.jogo.id,b.jogo.comProlongamento);deleteEvent(b.id,b.tipo);break;case "EDIT":editEvent(b);CURRENT_GAME_TIME[b.jogo.id]=b.minuto;updateMatchTime(b.jogo.id,b.jogo.comProlongamento);break;case "CREATE":createEvent(b)}isGoal(b.tipo)&&(document.querySelectorAll("[data-goals-equipaA-jogo-id\x3d'"+b.jogo.id+"']").forEach(function(a){a.innerText=null!=b.jogo.comProlongamento&&b.jogo.comProlongamento?
+b.jogo.resultadoTempoExtraA:b.resultadoA}),document.querySelectorAll("[data-goals-equipaB-jogo-id\x3d'"+b.jogo.id+"']").forEach(function(a){a.innerText=null!=b.jogo.comProlongamento&&b.jogo.comProlongamento?b.jogo.resultadoTempoExtraB:b.resultadoB}))}
+function createEvent(a){a.minuto>CURRENT_GAME_TIME[a.jogo.id]&&(CURRENT_GAME_TIME[a.jogo.id]=a.minuto,updateMatchTime(a.jogo.id,a.jogo.comProlongamento));"CRONICA"!==a.tipo&&"DESTAQUES"!==a.tipo&&setEventData(a.id,a.tipo,a.minuto,"CREATE",a.jogo.id)}function editEvent(a){"CRONICA"===a.tipo?createEvent(a):"DESTAQUES"===a.tipo?createEvent(a):setEventData(a.id,a.tipo,a.minuto,"EDIT",a.jogo.id)}function deleteEvent(a,b){}
+function updateMatchTime(a,b){totalMinsJogo=b?120:90;document.querySelectorAll("[data-minutos-jogo-id\x3d'"+a+"']").forEach(function(b){b.innerText=CURRENT_GAME_TIME[a]+"'";b.dataset.liveMinutes=CURRENT_GAME_TIME[a]});document.querySelectorAll("[data-barra-minutos-jogo-id\x3d'"+a+"']").forEach(function(b){b.style.width="calc("+100*CURRENT_GAME_TIME[a]/totalMinsJogo+"%)"});document.querySelectorAll("[data-barra-marker-jogo-id\x3d'"+a+"']").forEach(function(b){b.style.left="calc("+100*CURRENT_GAME_TIME[a]/
+totalMinsJogo+"% - 3px)"})}function isGoal(a){return"GOAL"===a||"OWN_GOAL"===a||"PENALTY_GOAL"===a}
+function setEventData(a,b,c,e,d){"END"===b&&(MATCH_ENDED_INDICATOR=!0,"CREATE"===e&&(MATCH_STATE[d]="PLAYED",document.querySelectorAll("[data-card-jogo-id\x3d'"+d+"']").forEach(function(a){a.classList.remove("live");document.querySelectorAll("[data-match-div-minutes\x3d'"+d+"']").forEach(function(a){a.classList.remove("match-minutes");a.classList.add("match-time");a.innerText="Finalizado"})})));"BEGIN"===b&&(MATCH_STARTED_INDICATOR=!0,"CREATE"===e&&(MATCH_STATE[d]="PLAYING",document.querySelectorAll("[data-card-jogo-id\x3d'"+
+d+"']").forEach(function(a){a.classList.add("live");document.querySelectorAll("[data-match-minutes\x3d'"+d+"']").forEach(function(a){a.removeAttribute("data-match-minutes");a.setAttribute("data-match-div-minutes",d);a.innerHTML='\x3cdiv class\x3d"match-minutes" data-match-div-minutes\x3d"'+d+'"\x3e\x3cem data-minutos-jogo-id\x3d"'+d+'" data-live-minutes\x3d"'+c+'"\x3e'+c+'\'\x3c/em\x3e\n                                \x3cdiv class\x3d"match-minutes-graph"\x3e\n                                    \x3cdiv class\x3d"match-minutes-bar"\x3e\n                                        \x3cdiv class\x3d"match-minutes-current time-up" data-barra-minutos-jogo-id\x3d"'+
+d+'" style\x3d"|width: calc('+100*c/90+'%)|"\x3e\x3c/div\x3e\n                                        \x3cdiv class\x3d"marker time-up" data-barra-marker-jogo-id\x3d"'+d+'" th:style\x3d"|left: calc('+100*c/90+'% - 3px)|"\x3e\x3c/div\x3e\n                                    \x3c/div\x3e\n                                \x3c/div\x3e\n                            \x3c/div\x3e'})})))}
+function normaliza(a){if(void 0===a||""===a)return"";a=a.normalize("NFD").replace(/[\u0300-\u036f]/g,"");return a.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\p{InCombiningDiacriticalMarks}+/g,"").replace(/[^A-Za-z0-9]+/g,"-").replace(/[^A-Za-z0-9]+$/g,"").replace(/^[^A-Za-z0-9]+/g,"")};
+</script>
+
+</body>
+</html>

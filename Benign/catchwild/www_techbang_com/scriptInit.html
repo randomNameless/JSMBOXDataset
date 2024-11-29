@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>scriptInit.html</title>
+</head>
+<body>
+
+<script>
+import { reactive } from 'https://unpkg.com/petite-vue?module';
+import {postMessageScript} from '/scripts/scriptPostMessage.js';
+import {redirectSoundScript} from '/scripts/scriptRedirectSound.js';
+import {chapterScript} from '/scripts/scriptChapter.js';
+import {subtitlesScript} from '/scripts/scriptSubtitles.js';
+import {displayScript} from '/scripts/scriptDisplay.js';
+import {playerScript} from '/scripts/scriptPlayer.js';
+import {eventScript} from '/scripts/scriptEvent.js';
+import {radioMetadataScript} from '/scripts/scriptRadioMetadata.js';
+import {pharmedigroupScript} from '/scripts/scriptPharmedigroup.js';
+import {$store} from '/scripts/store.js';
+export const initScript = reactive({
+
+  initMiniplayer() {
+    displayScript.initDisplay();
+    postMessageScript.postMessage("SaootiMiniplayer");
+    redirectSoundScript.listenToParentMessage();
+    this.initPodcasts();
+    if ("RADIO"===miniplayerRequestParams.type) {
+      radioMetadataScript.initRadioBehavior();
+      pharmedigroupScript.initPharmedigroupCall();
+    } else {
+      this.initMiniplayerBehavior();
+      if(miniplayerRequestParams.autoplay){
+        eventScript.clickPlayPauseButton(0);
+      }
+    }
+    postMessageScript.handleResizeBind();
+    postMessageScript.postMessage({event :'octopus_player_ready'});
+  },
+
+  initPodcasts(){
+    for (let i = 0; i < listPodcasts.length; i++) {
+      $store.info[i].visibility =(parameters.keyCheck || listPodcasts[i].availability.visibility) && listPodcasts[i].valid;
+      if (!$store.info[i].visibility) {
+        continue;
+      }  
+      $store.state[i].audio = document.getElementById("audio-id-" + i);
+      $store.state[i].video = document.getElementById("video-id-" + i);
+      if (listPodcasts[i].processingStatus === "READY_TO_RECORD") {
+        playerScript.initPodcastLive(i);
+      }
+    }
+  },
+
+  initMiniplayerBehavior() {
+    $store.isAutoplayFirstPlay = miniplayerRequestParams.autoplay && listPodcasts.length && "READY"===listPodcasts[0].processingStatus;
+    subtitlesScript.checkIfSubtitles();
+    displayScript.initTitleAnimate();
+    let language = navigator.language.toLowerCase();
+    dayjs.locale(language);
+    for (let i = 0; i < listPodcasts.length; i++) {
+      chapterScript.loadChapters(i);
+      displayScript.initDisplayPodcast(i)
+    }
+    $store.proceedWithNext = miniplayerRequestParams.proceed;
+    $store.useVast = miniplayerRequestParams.vast;
+    this.initKeyUpBehavior();
+  },
+
+  initKeyUpBehavior(){
+    document.body.onkeyup = (e) => {
+      if (" " === e.key || "Spacebar" === e.key) {
+        playerScript.clickPlay($store.lastPlayIndex);
+        return;
+      }
+      if ("ArrowRight" === e.key && e.shiftKey) {
+        if ($store.lastPlayIndex < this.listPodcasts.length - 1) {
+          playerScript.clickPlay($store.lastPlayIndex + 1);
+        }
+        return;
+      }
+      if ("ArrowLeft" === e.key && e.shiftKey) {
+        if (0 !== $store.lastPlayIndex) {
+          playerScript.clickPlay($store.lastPlayIndex - 1);
+        }
+        return;
+      }
+      if ("ArrowRight" === e.key && e.ctrlKey) {
+        if ($store.state[$store.lastPlayIndex].is_loaded) {
+          playerScript.seekAudio(
+            $store.lastPlayIndex,
+            $store.source($store.lastPlayIndex).currentTime + 15,
+          );
+        }
+        return;
+      }
+      if (
+        "ArrowLeft" === e.key &&
+        e.ctrlKey &&
+        $store.state[$store.lastPlayIndex].is_loaded
+      ) {
+        playerScript.seekAudio(
+          $store.lastPlayIndex,
+          $store.source($store.lastPlayIndex).currentTime - 15,
+        );
+      }
+    };
+  },
+
+  
+  goToOctopusPodcastPage(i) {
+    let src = octopusUrl + "/main/pub/podcast/" + listPodcasts[i].podcastId;
+    if (miniplayerRequestParams.distributorId) {
+      src += "&distributorId=" + miniplayerRequestParams.distributorId;
+    }
+    window.open(src, "_blank");
+  },
+
+  copyToClipboard() {
+    navigator.clipboard.writeText(document.location.href);
+  },
+
+  changeSpeed(i) {
+    $store.state[i].speedIndex += 1;
+    if ($store.state[i].speedIndex > $store.speedArray.length - 1) {
+      $store.state[i].speedIndex = 0;
+    }
+    $store.source(i).playbackRate =
+    $store.speedArray[$store.state[i].speedIndex];
+  },
+
+  goToChapter(indexPodcast, seconds){
+    if(!$store.state[indexPodcast].is_loaded){
+      playerScript.clickPlay(indexPodcast);
+    }
+    playerScript.seekAudio(indexPodcast, seconds);
+  },
+});
+</script>
+
+</body>
+</html>

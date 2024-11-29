@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>app.config.html</title>
+</head>
+<body>
+
+<script>
+// ** objest list **
+// app
+// _LANGUAGE
+// _NO_IMAGE
+// prototype extension (String.trim, Array.filter, Array.forEach, Array.contains
+
+//domain 맞춰 줌.
+document.domain = "cgv.co.kr";
+
+//browser detect
+var browser = (function () {
+    var s = navigator.userAgent.toLowerCase();
+    var match = /(webkit)[ \/](\w.]+)/.exec(s) ||
+              /(opera)(?:.*version)?[ \/](\w.]+)/.exec(s) ||
+              /(msie) ([\w.]+)/.exec(s) ||
+              /(mozilla)(?:.*? rv:([\w.]+))?/.exec(s) ||
+             [];
+    return { name: match[1] || "", version: match[2] || "0" };
+} ());
+
+var app = new function () {
+    var _config = {
+        'useLog': { 'editable': false, 'value': true },
+        'webDomain': { 'editable': false, 'value': location.protocol + "//" + location.host },
+        'staticDomain': { 'editable': true, 'value': location.protocol + "//" + location.host },
+        'imageDomain': { 'editable': true, 'value': location.protocol + "//" + location.host },
+        'contextPath': { 'editable': true, 'value': '/' },
+        'commonUrl': { 'editable': false, 'value': '' },
+        'html': { 'editable': false, 'value': {
+            'about_collage': '/popup/about_collage.html',
+            'grade_info': '/popup/gradeinfo.html',
+            'grade_info_en': '/popup/gradeinfo_en.html',
+            'reservation_cancel': '/popup/reservation_cancel.html',
+            'reservation_cancel_eng': '/popup/reservation_cancel_eng.html'
+
+        }
+        },
+
+        'isLogin': { 'editable': true, 'value': false }
+    };
+
+    this.config = function (n, v) {
+        var _self = this.config, exec = get;
+        if (v !== undefined) exec = set;
+
+        function set(n, v) {
+            if (_config[n] && _config[n].editable) {
+                if (n == 'isLogin' && typeof v == 'string') {
+                    v = v == 'True';
+                }
+                _config[n].value = v; _config[n].editable = false;
+            }
+            return app;
+        }
+        function get(n) { return _config[n] ? _config[n].value : null; }
+        return exec(n, v);
+    };
+};
+
+/*
+* @name : mainMotion
+* @desc : {interface} ad area stop.
+*/
+var mainMotion = {}
+
+var _LANGUAGE = {
+    ok: '확인',
+    cancel: '취소',
+    remove: '삭제',
+    close: '닫기',
+    today: '오늘',
+    current: '현재',
+    now: '지금',
+    display: { none: '비노출', block: '노출' },
+    suffix: {
+        year: '년', month: '월', day: '일',
+        time: '시간', hour: '시', minute: '분', second: '초'
+    },
+    month: {
+        prev: '이전달',
+        next: '다음달',
+        names: ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월']
+    },
+    day: {
+        names: ['일', '월', '화', '수', '목', '금', '토']
+    },
+    validation: {
+        title: '유효성 검사',
+        select: {
+            link: '링크 영역을 선택하신 후 설정하실 수 있습니다.'
+        }
+    },
+    noSelect: '선택항목이 없습니다.',
+    error: {
+        notdefined: 'not defined!'
+    },
+    state: {
+        error: 'ERROR!'
+    },
+    loginConfirm: '로그인이 필요한 서비스입니다.\n로그인 페이지로 이동하시겠습니까?'
+};
+
+/*
+* @name : NO_IMAGE
+* @desc : error_image final(constant).
+*/
+var _NO_IMAGE = {
+    'small': 'http://img.cgv.co.kr/R2014/images/common/default_73_107.gif',
+    'portrait': 'http://img.cgv.co.kr/R2014/images/common/default_214_312.gif',
+    'landscape': 'http://img.cgv.co.kr/R2014/images/common/default_240_200.gif',
+    'square': 'http://img.cgv.co.kr/R2014/images/common/default_320_370.gif',
+    'profile': 'http://img.cgv.co.kr/R2014/images/common/default_profile.gif',
+    'people': 'http://img.cgv.co.kr/R2014/images/common/default_100_136.gif',
+    'review': 'http://img.cgv.co.kr/R2014/images/common/default_150_84.gif',
+    'peoplelarge': 'http://img.cgv.co.kr/R2014/images/common/default_230_260.gif'
+};
+
+/*
+* @name : NO_IMAGE
+* @desc : error_image final(constant).
+*/
+var _REGEXP = {
+    trim: /(^[\s　]+)|([\s　]+$)/g,
+    number: /(\d{3})(?=\d)/g,
+    date_format: /(yyyy|yy|MM|dd|E|hh|mm|ss|a\/p)/gi
+};
+
+/*
+* @name : trim [String]
+* @desc : 공백 제거
+* @param : 
+*/
+if (typeof String.prototype.trim != 'function') {
+    String.prototype.trim = function () {
+        return this.replace(_REGEXP.trim, "");
+    };
+};
+
+/*
+* @name : getByteLength [String]
+* @desc : 문자열의 Byte 값 반환.
+* @param : 
+*/
+if (typeof String.prototype.getByteLength != 'function') {
+    String.prototype.getByteLength = function () {
+        var _this = this, b, i, c;
+        for (b = i = 0; c = _this.charCodeAt(i++); b += c >> 11 ? 2 : c >> 7 ? c : 1);
+        return b;
+    };
+};
+
+/*
+* @name : formatMoney [Number]
+* @params : decPlaces
+* @params : thouSeparator
+* @params : decSeparator
+* @params : currencySymbol
+* @desc : 
+*/
+if (typeof Number.prototype.formatMoney != 'function') {
+    Number.prototype.formatMoney = function (decPlaces, thouSeparator, decSeparator, currencySymbol) {
+        // check the args and supply defaults:
+        decPlaces = isNaN(decPlaces = Math.abs(decPlaces)) ? 0 : decPlaces;
+        decSeparator = decSeparator == undefined ? '.' : decSeparator;
+        thouSeparator = thouSeparator == undefined ? ',' : thouSeparator;
+        currencySymbol = currencySymbol == undefined ? '' : currencySymbol;
+
+        var n = this,
+	        sign = n < 0 ? "-" : "",
+	        i = parseInt(n = Math.abs(+n || 0).toFixed(decPlaces)) + "",
+	        j = (j = i.length) > 3 ? j % 3 : 0;
+
+        return sign + currencySymbol + (j ? i.substr(0, j) + thouSeparator : "") + i.substr(j).replace(_REGEXP.number, "$1" + thouSeparator) + (decPlaces ? decSeparator + Math.abs(n - i).toFixed(decPlaces).slice(2) : "");
+    };
+};
+
+/*
+* @name : zf [String]
+*/
+//if (typeof String.prototype.zf != 'function') {
+//	String.prototype.zf = function (len) { return "0".substr(0, len - this.length) + this; };
+//};
+/*
+* @name : filter [Array]
+* @desc : 배열을 필터하여 새로운 배열 반환
+* @param : [filter condition function.]
+*/
+if (typeof Array.prototype.filter != 'function') {
+    Array.prototype.filter = function (_function) {
+        var newArray = [],
+			_this = this;
+
+        for (var i = 0, len = _this.length; i < len; i++) {
+            if (_function(_this[i], i, _this)) {
+                newArray.push(_this[i]);
+            }
+        }
+        return newArray;
+    };
+};
+/*
+* @name : forEach [Array]
+* @desc : 배열 순환하며 조건 처리.
+* @param : 
+*/
+if (typeof Array.prototype.forEach != 'function') {
+    Array.prototype.forEach = function (_function) {
+        var _this = this;
+
+        for (var i = 0, len = _this.length; i < len; i++) {
+            _function.call(_this, _this[i], i, _this);
+        }
+    };
+};
+/*
+* @name : contains [Array]
+* @desc : 배열에 존재하는 원소인지 확인.
+* @param : 
+*/
+if (typeof Array.prototype.contains != 'function') {
+    Array.prototype.contains = function (compareValue) {
+        var _this = this;
+        for (var i = 0, len = _this.length; i < len; i++) {
+            if (_this[i] === compareValue) {
+                return true;
+                break;
+            }
+        }
+        return false;
+    };
+};
+
+
+/*
+* @name : addDate [Date]
+* @desc : addDate.
+* @param : int.
+*/
+if (typeof Date.prototype.addDate != 'function') {
+    Date.prototype.addDate = function (days) {
+        var dat = new Date(this.valueOf());
+        dat.setDate(dat.getDate() + days);
+        return dat;
+    };
+};
+
+
+var date = new Date();
+date.addDate(1);
+
+
+/*
+* @name : format [Date]
+* @desc : Date format.
+* @params : 
+*/
+//if (typeof Date.prototype.format != 'function') {
+//	Date.prototype.format = function (f) {
+//		if (!this.valueOf()) return " ";
+
+//		var weekName = ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"];
+//		var d = this;
+
+//		return f.replace(/(yyyy|yy|MM|dd|E|hh|mm|ss|a\/p)/gi, function ($1) {
+//			switch ($1) {
+//				case "yyyy": return d.getFullYear();
+//				case "yy": return (d.getFullYear() % 1000).zf(2);
+//				case "MM": return (d.getMonth() + 1).zf(2);
+//				case "dd": return d.getDate().zf(2);
+//				case "E": return weekName[d.getDay()];
+//				case "HH": return d.getHours().zf(2);
+//				case "hh": return ((h = d.getHours() % 12) ? h : 12).zf(2);
+//				case "mm": return d.getMinutes().zf(2);
+//				case "ss": return d.getSeconds().zf(2);
+//				case "a/p": return d.getHours() < 12 ? "오전" : "오후";
+//				default: return $1;
+//			}
+//		});
+//	};
+//};
+
+
+/*
+* @name : zf [Number]
+*/
+//if (typeof Number.prototype.zf != 'function') {
+//	Number.prototype.zf = function (len) { return this.toString().zf(len); };
+//}
+
+
+</script>
+
+</body>
+</html>

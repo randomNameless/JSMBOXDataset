@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>content_yorum.html</title>
+</head>
+<body>
+
+<script>
+$('.yrmlike').mouseover(function(){
+	$(this).attr("src","/_img/yrm/like_yesil.gif");
+  }).mouseout(function () {
+	var dsrc = $(this).attr("dsrc");
+	$(this).attr("src",dsrc);
+});
+
+$('.yrmdislike').mouseover(function(){
+	$(this).attr("src","/_img/yrm/dislike_kirmizi.gif");
+}).mouseout(function () {
+	var dsrc = $(this).attr("dsrc");
+	$(this).attr("src",dsrc);
+});
+
+
+$('.yrmlike').click(function() {
+	var yorumId   = $(this).attr("yid");
+	$.ajax({
+	  url: '/_ajax/yorum_like.php?st=like&yorumId='+yorumId,
+	  success: function(ajaxData) {
+		eval(ajaxData);
+	  }
+	});
+});
+$('.yrmdislike').click(function() {
+	var yorumId   = $(this).attr("yid");
+	$.ajax({
+	  url: '/_ajax/yorum_like.php?st=dislike&yorumId='+yorumId,
+	  success: function(ajaxData) {
+		eval(ajaxData);
+	  }
+	});
+});
+
+
+function yorumCevap(yorumId){
+	$("#yorumMesaj").html("<div class=\"kutu blue\"><strong>Hatırlatma:</strong> Başka bir yoruma yanıt yazmaktasınız. Yazmış olduğunuz mesaj yanıtladığınız yorumun altında listelenecektir. Doğrudan bu sayfaya yorum yazmak istiyorsanız <a href=\"#yorumyaz\" onClick=\"$('#frm_parentId').val(0);$('#yorumMesaj').html('');\"><u>tıklayın</u></a></div>");
+	$("#frm_parentId").val(yorumId);
+}
+
+function yorumTaraftarDiyorkiCevap(yorumId){
+    $("#messageNotify").html("<strong>Hatırlatma:</strong> Başka bir yoruma yanıt yazmaktasınız. Yazmış olduğunuz mesaj yanıtladığınız yorumun altında listelenecektir. Doğrudan yorum yazmak istiyorsanız <div onClick=\"\$('#parentId').val(false);\$('#messageNotify').html('');\"><u>tıklayın</u></div>");
+    $("#parentId").val(yorumId);
+}
+
+function yorumSenolsanCevap(yorumId){
+    $("#messageNotify").html("<strong>Hatırlatma:</strong> Başka bir yoruma yanıt yazmaktasınız. Yazmış olduğunuz mesaj yanıtladığınız yorumun altında listelenecektir. Doğrudan yorum yazmak istiyorsanız <div onClick=\"\$('#parentId').val(false);\$('#messageNotify').html('');\"><u>tıklayın</u></div>");
+    $("#parentId").val(yorumId);
+}
+
+function yorumlikeOK(yorumId){
+	jQuery(document).trigger('close.facebox');
+	$('#yrmavatar').load('/_ajax/uye_box_avatar.php');
+	$('#yrmtepe').load('/_ajax/uye_box_logintext.php?fonk=yorumlikeOK&param1='+yorumId);
+	$.ajax({
+	  url: '/_ajax/yorum_like.php?st=like&yorumId='+yorumId,
+	  success: function(ajaxData) {
+		eval(ajaxData);
+	  }
+	});
+}
+
+function yorumdislikeOK(yorumId){
+	jQuery(document).trigger('close.facebox');
+	$('#yrmavatar').load('/_ajax/uye_box_avatar.php');
+	$('#yrmtepe').load('/_ajax/uye_box_logintext.php?fonk=yorumdislikeOK&param1='+yorumId);
+	$.ajax({
+	  url: '/_ajax/yorum_like.php?st=dislike&yorumId='+yorumId,
+	  success: function(ajaxData) {
+		eval(ajaxData);
+	  }
+	});
+}
+
+function commentOK(contentId){
+	var bustxx = Math.floor(89999999*Math.random()+10000000);
+	jQuery(document).trigger('close.facebox');
+	$('#yrmstatus').html('');
+	$('#yrmavatar').load('/_ajax/uye_box_avatar.php');
+	$('#yrmtepe').load('/_ajax/uye_box_logintext.php?fonk=commentOK&param1='+contentId);
+	contentYorumSubmit(document.forms['frmyorum']);
+}
+
+function commentLogOut(contentId){
+	$('#yrmstatus').html('');
+	$('#yrmavatar').load('/_ajax/uye_box_avatar.php');
+	$('#yrmtepe').load('/_ajax/uye_box_logintext.php?fonk=commentOK&param1='+contentId);
+	$('#fbsharetext').html('');
+}
+
+function contentYorumSubmit(loginform) {
+	$.ajax({
+		type : "GET",
+		url : "//www.webaslan.com/_login/content_yorum_submit_jsonp.php",
+		dataType : "jsonp",
+		data : $(loginform).serialize(),
+		success : function(data) {
+			eval(data.js);
+		}
+	});
+	return false;
+}
+
+function yorum_page(frm_page) {
+	var contentType = $('#contentyorumdiv').attr("type");
+	var contentId = $('#contentyorumdiv').attr("cid");
+	var yorumId = $('#contentyorumdiv').attr("yid");
+
+	$.ajax({
+		type : "GET",
+		url : "//www.webaslan.com/_login/content_yorum_jsonp.php?contentType=" + contentType + "&contentId=" + contentId + "&yorumId=" + yorumId + "&frm_page=" + frm_page,
+		dataType : "jsonp",
+		success : function(data) {
+			$("#contentyorumdiv").html(data.html);
+		}
+	});
+}
+
+
+function checkboxIsaretle(permission){
+
+	FB_RequireFeatures(["XFBML"], function(){
+		FB.init("7a9b7cc97552cb8e04653c80e782c82b","/xd_receiver.htm",{permsToRequestOnConnect : "email"});
+		//FB.init("7a9b7cc97552cb8e04653c80e782c82b","/xd_receiver.htm");
+
+		var checked = $('#checkbox_share').attr('checked');
+		if(checked && !permission){
+			FB.Connect.showPermissionDialog('publish_stream', null);
+		}
+	});
+	//$('#checkbox_share').attr('checked',true);
+}
+
+function limitChars(textid, limit, infodiv){
+	var text = $('#'+textid).val();
+	var textlength = text.length;
+	if(textlength > limit){
+		$('#' + infodiv).html('En fazla '+limit+' karakter yazabilirsiniz!');
+		$('#'+textid).val(text.substr(0,limit));
+		return false;
+	}
+	else{
+		$('#' + infodiv).html('Kalan karakter sayısı : <strong>'+ (limit - textlength) +'</strong>');
+		return true;
+	}
+}
+
+
+function site_uye_logout(fonk,param1,param2){
+	$.ajax({
+		type: 'GET',
+		url: '/_ajax/uyelik_logout.php?fonk='+fonk+'&param1='+param1+'&param2='+param2,
+		success: function(ajaxData) {
+			eval(ajaxData);
+		}
+	});
+	return false;
+}
+
+function tum_yorumlar(contentId){
+	jQuery.facebox({ ajax: '/_ajax/content_yorum_tumu.php?id='+contentId});
+}
+
+$(function(){
+ 	$('#frm_yorum').keyup(function(){
+ 		limitChars('frm_yorum', 600, 'charlimitinfo');
+ 	});
+
+	if ($('#contentyorumdiv').length) {
+		var contentType = $('#contentyorumdiv').attr("type");
+		var contentId = $('#contentyorumdiv').attr("cid");
+		var yorumId = $('#contentyorumdiv').attr("yid");
+		var ads = $('#contentyorumdiv').attr("ads");
+
+		var _url = "//www.webaslan.com/_login/content_yorum_jsonp.php?contentType=" + contentType + "&contentId=" + contentId + "&yorumId=" + yorumId + "&ads=" + ads;
+
+		$.ajax({
+			type : "GET",
+			url : _url,
+			dataType : "jsonp",
+			success : function(data) {
+				$("#contentyorumdiv").html(data.html);
+				$("#contentyorumdiv").on('click', '.fancyboxAx', function(e) {
+					e.preventDefault();
+					$.fancybox({
+						type : 'ajax',
+						href : $(this).attr('href'),
+						closeBtn : true,
+						padding : 20
+					});
+				});
+			}
+		});
+
+	}
+});
+
+
+</script>
+
+</body>
+</html>

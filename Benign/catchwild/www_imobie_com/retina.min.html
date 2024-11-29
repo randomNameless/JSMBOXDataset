@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>retina.min.html</title>
+</head>
+<body>
+
+<script>
+var retinaImageSuffix = "@2x",
+	domain = "imobie", //document.domain,
+	root = (typeof exports === 'undefined' ? window : exports);
+
+function isRetina() {
+	var mediaQuery = '(-webkit-min-device-pixel-ratio: 1.5), (min--moz-device-pixel-ratio: 1.5), (-o-min-device-pixel-ratio: 3/2), (min-resolution: 1.5dppx)';
+	if (root.devicePixelRatio > 1) {
+		return true;
+	}
+	if (root.matchMedia && root.matchMedia(mediaQuery).matches) {
+		return true;
+	}
+	return false;
+}
+
+var regexMatch = /\.\w+$/;
+
+function getretinapath(imgpath) {
+	if (typeof imgpath !== "undefined" && imgpath !== "") {
+		if (imgpath.indexOf("http") >= 0) {
+			if (imgpath.indexOf(domain) < 0) {
+				return false;
+			}
+		}
+		var suffix = imgpath.substring(imgpath.lastIndexOf("."));
+		var retinapath = imgpath.replace(regexMatch, retinaImageSuffix);
+		retinapath = retinapath + suffix;
+		return retinapath;
+	}
+	return false;
+}
+
+function setretinaimg(obj) {
+	if (typeof obj !== "undefined") {
+		var imgsrc = obj.getAttribute("src");
+		if (typeof imgsrc !== "undefined" && imgsrc !== "") {
+			var retinaimgpath = getretinapath(imgsrc);
+			if (retinaimgpath === false) {
+				return false;
+			}
+			var imgwidth = obj.width,
+				imgheight = obj.height;
+			if (imgwidth == 0 || typeof imgwidth === "undefined") {
+				return false;
+			}
+			if (typeof retinaimgpath !== false) {
+				var img = new Image();
+				img.src = retinaimgpath;
+				if (img.complete) {
+					obj.setAttribute("src", retinaimgpath);
+					if (obj.getAttribute("height") === null && obj.getAttribute("width") === null) {
+						obj.setAttribute("width", imgwidth);
+						obj.setAttribute("height", imgheight);
+					}
+					return false;
+				}
+				img.onload = function() {
+					obj.setAttribute("src", retinaimgpath);
+					if (obj.getAttribute("height") === null && obj.getAttribute("width") === null) {
+						obj.setAttribute("width", imgwidth);
+						obj.setAttribute("height", imgheight);
+					}
+				}
+			}
+		}
+	}
+}
+
+function retina() {
+	if (isRetina()) {
+		var allimg = $("img");
+		for (var i = 0, len = allimg.length; i < len; i++) {
+			setretinaimg(allimg[i])
+		}
+	}
+}
+
+window.onload = function() {
+	//	retina();
+	var currenturl = window.location.href;
+	currenturl = currenturl.replace("//", "");
+	currenturl = currenturl.split("/");
+	currenturl = currenturl[1];
+	if (currenturl == "support" || currenturl == "guide" || currenturl == "daily-tip") {
+		return false;
+	}
+	retina();
+}
+</script>
+
+</body>
+</html>

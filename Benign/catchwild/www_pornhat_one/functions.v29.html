@@ -1,0 +1,1168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>functions.v29.html</title>
+</head>
+<body>
+
+<script>
+$(document).ready(function () {
+    initAddFavourites();
+    toggleLightTheme();
+    togglePreviewNav();
+
+    var searchParams = new URLSearchParams(window.location.search);
+    param = searchParams.get('ad_sub');
+    if (param != null) {
+      $('#search_form').attr('data-url', $('#search_form').data('url') + `?ad_sub=${param}`);
+      $('a').each(function (i, elem) {
+        var href = $(this).attr('href');
+        if (href != undefined) {
+          if (href[0] == '/') {
+            if (href.indexOf('?') != -1) {
+              $(this).attr('href', `${href}&ad_sub=${param}`);
+            } else {
+              $(this).attr('href', `${href}?ad_sub=${param}`);
+            }
+          }
+        }
+      });
+    }
+  
+    $('.lang-select a').each(function (i, elem) {
+      var charValue = $(elem).attr('href').indexOf('?');
+      if (charValue !== -1) {
+        var temporary = $(elem).attr('href').slice(0, charValue);
+        $(elem).attr('href', temporary);
+      }
+    })
+  
+  
+    function initKVSPlayTrailerOnHover() {
+      var timeout1;
+      var timeout2;
+      var interval;
+      var count = 0;
+      function trailerPlay(el) {
+        var $this = el.parents('.thumb-bl').find('.thumb-video a');
+        $('.thumb-video a video').not($this).hide();
+  
+        $this.addClass('video-playing');
+        var $video = $this.find('video');
+        var $image = $this.find('img');
+        if ($video.length) {
+          $video.show();
+        } else {
+          $('.js-swipe').hide();
+          var $loader = $('<div class="preview-progress" style="position: absolute;z-index: 99;top: 0;right: 0;left: 0;width: 0;height: 3px;background: rgb(64,175,100);transition: width 1.2s;-webkit-backface-visibility: hidden;backface-visibility: hidden;will-change: width;"></div>');
+          $this.append($loader);
+          setTimeout(function () {
+            $loader.css({ 'width': '100%' });
+          });
+  
+          timeout1 = setTimeout(function () {
+            //avoid downloading video with quick hover 
+            var video_url = $this.attr('data-preview-custom');
+            var video_subtitles = $this.attr('data-subtitles');
+            // var $new_video = $('<video autoplay loop muted playsinline src="' + video_url + '"><track default kind="subtitles" src="' + video_subtitles + '" srclang="ru"></video>');
+            var $new_video = $('<video autoplay loop muted playsinline src="' + video_url + '" style="position: absolute; left: 0px; top: 0px; width: 100%; height: 100%; background: rgb(0, 0, 0);z-index: 9;"></video>');
+  
+            function playVideo() {
+              $this.append($new_video);
+              $new_video.css({ 'position': "absolute", 'left': "0", 'top': "0", 'width': '100%', 'height': "100%", 'background': "#000000" })
+              $new_video.get(0).play();
+              $loader.remove();
+            }
+            timeout2 = setTimeout(function () {
+              if ($new_video.get(0).readyState > 0) {
+                //play video if already loaded in 1000 ms
+                playVideo();
+              } else {
+                interval = setInterval(function () {
+                  //wait and play once loaded
+                  if ($new_video.get(0).readyState > 0) {
+                    playVideo();
+                    clearInterval(interval);
+                  }
+                }, 100);
+              }
+            }, 1000);
+          }, 200);
+        }
+      }
+  
+  
+      // $('body').on('mouseenter', '[data-preview-custom]', function () {
+      // 	trailerPlay($(this));
+      // }).on('mouseleave', '[data-preview-custom]', function () {
+      // 	clearTimeout(timeout1);
+      // 	clearTimeout(timeout2);
+      // 	clearInterval(interval);
+      // 	var $this = $(this);
+      // 	var $image = $this.find('img');
+      // 	$image.show();
+      // 	var $video = $this.find('video');
+      // 	if ($video.length) {
+      // 		$video.get(0).remove();
+      // 	} 
+      // 	$this.find('.preview-progress').remove();
+      // });
+  
+  
+      $(document).click(function (e) {
+        if (!$(e.target).closest('.thumb-bl .preview').length) {
+          $('.thumb-bl a video').hide();
+          return;
+        }
+  
+      });
+  
+      $('body').on('click', '.thumb-bl .preview', function (e) {
+        var res = $(this).parents('.thumb-bl').find('a').data('preview-custom');
+        if (res != undefined) {
+          trailerPlay($(this));
+        }
+  
+      })
+  
+    };
+  
+  
+    initKVSPlayTrailerOnHover();
+    function sizeHeader() {
+      // if ($(window).width() < 966 && $(window).width() > 800) {
+      // 	var l = $('.thumb-bl').width() / 323;
+      // 	var t = (322 - (322 * l)) / 2;
+      // 	var h = (182 - (182 * l)) / 2;
+      // 	$('.head-wrapper').css({
+      // 		transform: "scale(" + l + ")",
+      // 		margin: "-"+ h +"px -"+ t +"px"
+      // 	})
+      // } else {
+      // 	$('.head-wrapper').css({
+      // 		transform: "scale(1)",
+      // 		margin: "0px 0px"
+      // 	});
+      // };
+  
+      // if ($(window).width() < 1307 && $(window).width() > 781) {
+      //   var l = $(window).width() / $('.wrapper').width();
+      //   var t = ($('.wrapper').width() - ($('.wrapper').width() * l)) / 2;
+      //   var h = ($('.wrapper').height() - ($('.wrapper').height() * l)) / 2;
+      //   var num = 1.36;
+      //   if (l > Number(num.toFixed(2))) {
+      //     l = 1.36;
+      //     h = 0;
+      //     t = 0;
+      //   };
+  
+      //   $('.wrapper').css({
+      //     transform: "scale(" + l + ")",
+      //     margin: "-" + h + "px -" + t + "px"
+      //   });
+      // } else {
+      //   $('.wrapper').css({
+      //     transform: "scale(1)",
+      //     margin: "0px auto"
+      //   });
+      // };
+  
+      // 966px old value
+      if ($(window).width() < 966 && $(window).width() > 781) {
+        var l = $(window).width() / $('.wrapper').width();
+        var t = ($('.wrapper').width() - ($('.wrapper').width() * l)) / 2;
+        var h = ($('.wrapper').height() - ($('.wrapper').height() * l)) / 2;
+        var num = 1.36;
+        if (l > 1) {
+          l = 1;
+          h = 0;
+          t = 0;
+        };
+  
+        $('.wrapper').css({
+          transform: "scale(" + l + ")",
+          margin: "-" + h + "px -" + t + "px"
+        });
+      } else {
+        $('.wrapper').css({
+          transform: "scale(1)",
+          margin: "0px auto"
+        });
+      };
+  
+  
+    };
+    sizeHeader();
+  
+    $(window).on("resize", function () {
+      sizeHeader();
+    })
+  
+    $('.search_toggle').click(function () {
+      $('.open-menu-desktop').removeClass('show')
+      $head = $('.head-wrapper');
+      if ($head.hasClass('search-active')) {
+        $head.removeClass('search-active');
+      } else {
+        $head.addClass('search-active');
+      }
+    })
+  
+    $("body").click(function (e) {
+      if (!$(e.target).closest('.search_toggle, .search, .head').length) {
+        $('.head-wrapper').removeClass('search-active')
+      }
+  
+      if (!$(e.target).closest('.mob-nav, .head-open-menu').length) {
+        $('body').removeClass('open')
+      }
+  
+      if ($(e.target).closest('.close-aside').length) {
+        $('body').removeClass('open')
+      }
+
+      if (!$(e.target).closest('.open-menu-desktop').length) {
+        $('.open-menu-desktop').removeClass('show')
+      }
+    })
+  
+    $(".head-open-menu").click(function (e) {
+      $('.head-wrapper').removeClass('search-active')
+      $body = $('body');
+      if ($body.hasClass('open')) {
+        $body.removeClass('open');
+      } else {
+        $body.addClass('open');
+      }
+    })
+
+    $(".open-menu-desktop").click(function (e) {
+      $('.head-wrapper').removeClass('search-active')
+      $('body').removeClass('open')
+      $this = $(this);
+      if ($this.hasClass('show')) {
+        $this.removeClass('show');
+      } else {
+        $this.addClass('show');
+      }
+    })
+  
+    $('.on-player-close').click(
+      function () {
+        $('.on-player-wrap').hide();
+      });
+  
+    //scroll to letter on TAG page
+    $('.js-letter-tag [data-letter]').on('click', function () {
+      var $this = $(this);
+      var value = $this.attr('data-letter');
+  
+      var found = false;
+      $('.tags-holder .letter').each(function () {
+        var $this = $(this);
+        if ($this.text() == value) {
+          found = true;
+          $('html').animate({
+            scrollTop: $this.parent().offset().top
+          }, 500);
+        }
+      });
+  
+      return false;
+    });
+    //scroll to letter on TAG page
+  
+    $('.show-title').on('click', function () {
+      if ($('.video-info').hasClass('show')) {
+        $('.video-info').removeClass('show');
+      } else {
+        $('.video-info').addClass('show');
+      }
+      return false;
+    });
+  
+    $('.js-search-form').on('submit', function () {
+      var $this = $(this);
+      var url = $this.attr('action');
+      var q = $this.find('[name="q"]').val();
+      if (q == '') {
+        return false;
+      }
+      window.location.href = url + q.replace(/\s/g, "-") + '/'
+  
+      return false;
+    });
+  
+    $('.alphabet-open').on('click', function () {
+      $parent = $(this).parents('.top-bl');
+      $alphabet = $parent.find('.alphabet');
+  
+      if ($parent.hasClass('open')) {
+        $(this).removeClass('open');
+        $parent.removeClass('open');
+      } else {
+        $('.alphabet-open').removeClass('open');
+        $(this).addClass('open');
+        $parent.addClass('open');
+      }
+    });
+  
+    $(document).on("click", function (e) {
+      if ((!$(e.target).closest(".alphabet, .alphabet-open").length) || ($(e.target).closest(".alphabet .cross").length)) {
+        $(".top-bl-models, .top-bl-channels, .alphabet-open ").removeClass("open");
+      }
+    });
+  
+    function getCookie(name) {
+      var nameEQ = name + "=";
+      var ca = document.cookie.split(';');
+      for (var i = 0; i < ca.length; i++) {
+        var c = ca[i];
+        while (c.charAt(0) == ' ') c = c.substring(1, c.length);
+        if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
+      }
+      return null;
+    };
+  
+    $('.vr-close').on('click', function () {
+      var date = new Date(new Date().getTime() + 7 * 24 * 60 * 60 * 1000);
+      document.cookie = "vr_alert=hide; path=/; expires=" + date.toUTCString();
+      $('.vr-wrap').css({ "display": "none" });
+    });
+  
+    if (navigator.userAgent.search("VR") >= 0 || navigator.userAgent.search("MobileVR") >= 0 || navigator.userAgent.search("Oculus") >= 0 || navigator.userAgent.search("OculusBrowser") >= 0) {
+      var vr_alert = getCookie('vr_alert');
+      if (vr_alert == null) {
+        $('.vr-wrap').css({
+          "display": "block"
+        })
+      }
+    }
+  
+    if ($('.seo_wrap').get(0) && $(window).width() < 800) {
+      $container = $('.seo_wrap');
+      $showMore = $container.find('.show_more');
+  
+      $seoBlock = $container.find('.mix_seo_text');
+      $seoBlockHeight = $('.mix_seo_text').height()
+      $fontSize = parseInt($seoBlock.css('line-height')) * 3;
+      if ($seoBlockHeight > $fontSize) {
+        $container.addClass('close')
+        $seoBlock.css('height', $fontSize);
+        $showMore.show();
+  
+        $showMore.on('click', function (e) {
+          $showMoreBtn = $(this);
+  
+          if ($container.hasClass('close')) {
+            $container.removeClass('close');
+            $seoBlock.css('height', 'auto');
+            $showMoreBtn.text('Show Less');
+          } else {
+            $container.addClass('close');
+            $seoBlock.css('height', $fontSize);
+            $showMoreBtn.text('Show More')
+          }
+        })
+      } else {
+        $('.show_more').remove()
+      }
+    }
+  
+    if ($('.js-filter-tags').length) {
+      $('.js-filter-tags').keyup(function (e) {
+        $substring = $('.js-filter-tags').val().toLowerCase();
+        $tags = $('.tags-holder .item');
+        $tags_holder = $('.tags-holder');
+        $alphabet = $('.alphabet');
+        $empty = $alphabet.attr('data-empty');
+        $letters = $alphabet.find('[data-letter]');
+  
+        $tags.each(function () {
+          $item = $(this);
+          $itemText = $item.text().toLowerCase();
+  
+          if (!($itemText.indexOf($substring) >= 0)) {
+            $item.addClass('hide');
+            $item.css('display', 'none');
+          } else {
+            $item.removeClass('hide');
+            $item.css('display', 'inline-block');
+          }
+        });
+  
+        $letters.each(function () {
+          $letter = $(this).attr('data-letter');
+          $holder = $(`[data-holder="${$letter}"]`);
+          if (!$holder) $(this).remove();
+  
+          if (($holder.find('.item').length === $holder.find('.item.hide').length) || $holder.find('.item').length == 0) {
+            $holder.css('display', 'none');
+            $alphabet.find($(`[data-letter="${$letter}"]`)).css('display', 'none');
+            $(`[data-letter="${$letter}"]`).addClass('hidden');
+          } else {
+            $holder.css('display', 'block');
+            $alphabet.find($(`[data-letter="${$letter}"]`)).css('display', 'inline-block');
+            $(`[data-letter="${$letter}"]`).removeClass('hidden');
+          }
+        });
+  
+        if ($alphabet.find('a').length == $alphabet.find('.hidden').length) {
+          if (!$alphabet.find('.no_results').get(0)) {
+            $no_result = $('<div class="no_results"></div>').text($empty)
+            $alphabet.append($no_result);
+          }
+        } else {
+          if ($alphabet.find('.no_results').get(0)) {
+            $alphabet.find('.no_results').remove();
+          }
+        }
+  
+        sizeHeader();
+      })
+    }
+    function setLanguage() {
+      var ww = $(window).width();
+      if (ww >= 800) {
+        $('.head').find('.lang-select').show();
+      } else {
+        $('.head').find('.lang-select').hide();
+      }
+  
+      $(document).on('click', '.lang_trigger', function () {
+        $this = $(this);
+        $parent = $this.closest('.lang-select')
+        console.log($parent.hasClass('active'));
+  
+        if ($parent.hasClass('active')) {
+          $parent.removeClass('active');
+        } else {
+          $parent.addClass('active');
+        }
+        return false;
+      })
+  
+      $(document).on('click', function (e) {
+        if (!$(e.target).closest('.lang-select').get(0)) {
+          $('.lang-select').removeClass('active')
+        }
+      })
+    }
+    setLanguage()
+    // $(window).on('resize', setLanguage)
+});
+
+function fetchDataFromIndexedDB() {
+  var dbName = 'user_data_db';
+  var storeNames = ['favourites_videos', 'favourites_models', 'favourites_dvd_group', 'favourites_tags'];
+
+  return new Promise((resolve, reject) => {
+    var request = indexedDB.open(dbName);
+
+    request.onsuccess = function(event) {
+      var db = event.target.result;
+      var transaction = db.transaction(storeNames, 'readonly');
+      var data = {};
+      let remainingStores = storeNames.length;
+
+      storeNames.forEach(function(storeName) {
+        var store = transaction.objectStore(storeName);
+        var getAllRequest = store.getAll();
+
+        getAllRequest.onsuccess = function(event) {
+          data[storeName] = event.target.result;
+          remainingStores--;
+
+          if (remainingStores === 0) {
+            resolve(data);
+          }
+        };
+
+        getAllRequest.onerror = function() {
+          reject('Failed to fetch data from store: ' + storeName);
+        };
+      });
+    };
+
+    request.onerror = function() {
+      reject('Failed to open IndexedDB');
+    };
+  });
+}
+
+function transformData(originalData) {
+  const transformedData = {
+    favourites_videos: (originalData.favourites_videos || []).map(video => ({
+      video_id: video.video_id,
+      timestamp: video.videos && video.videos[0].timestamp ? video.videos[0].timestamp : null
+    })),
+    favourites_models: (originalData.favourites_models || []).map(model => ({
+      model_id: model.model_id,
+      timestamp: model.models && model.models[0].timestamp ? model.models[0].timestamp : null
+    })),
+    favourites_dvd_group: (originalData.favourites_dvd_group || []).map(dvd => ({
+      dvd_group_id: dvd.dvd_group_id,
+      timestamp: dvd.dvds && dvd.dvds[0].timestamp ? dvd.dvds[0].timestamp : null
+    })),
+    favourites_tags: (originalData.favourites_tags || []).map(tag => ({
+      tag_id: tag.tag_id,
+      timestamp: tag.tags && tag.tags[0].timestamp ? tag.tags[0].timestamp : null
+    }))
+  };
+  console.log(transformedData);
+  return transformedData;
+}
+
+function createBackupJSON() {
+  return fetchDataFromIndexedDB().then(function(data) {
+    const cleanedData = transformData(data);
+    return JSON.stringify(cleanedData, null, 2);
+  }).catch(function(error) {
+    console.error('Error:', error);
+  });
+}
+
+function generatePassword(length) {
+  var characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let password = '';
+  for (let i = 0; i < length; i++) {
+    var randomIndex = Math.floor(Math.random() * characters.length);
+    password += characters[randomIndex];
+  }
+  return password;
+}
+
+function initAddFavourites() {
+  var user_data_db_v = localStorage.getItem('user_data_db_v');
+  if(user_data_db_v===null) {
+    user_data_db_v = 1;
+  }
+  var request = indexedDB.open('user_data_db', user_data_db_v);
+  request.onupgradeneeded = function(event) {
+    var db = event.target.result;
+    if (!db.objectStoreNames.contains('favourites_videos')) {
+      db.createObjectStore('favourites_videos', { keyPath: 'video_id' });
+      console.log("The 'favourites_videos' object repository has been successfully created.");
+    }
+
+    if (!db.objectStoreNames.contains('favourites_models')) {
+      db.createObjectStore('favourites_models', { keyPath: 'model_id' });
+      console.log("The 'favourites_models' object repository has been successfully created.");
+    }
+
+    if (!db.objectStoreNames.contains('favourites_dvd_group')) {
+      db.createObjectStore('favourites_dvd_group', { keyPath: 'dvd_group_id' });
+      console.log("The 'favourites_dvd_group' object repository has been successfully created.");
+    }
+    
+    if (!db.objectStoreNames.contains('favourites_tags')) {
+      db.createObjectStore('favourites_tags', { keyPath: 'tag_id' });
+      console.log("The 'favourites_tags' object repository has been successfully created.");
+    }
+  };
+
+	$(document).on('click', '.js-favourites, .js-favourites-thumb, .js-favourites-player, .js-fav-player-content', function () {
+		var $this = $(this);
+		var $action = $this.attr('data-action');
+    var $type = $this.attr('data-type');
+    var $setup = $this.attr('data-setup') ? JSON.parse($this.attr('data-setup')) : [];
+		var $timestamp = new Date().getTime();
+    if ($type=='video') {
+      $favourites_bd = 'favourites_videos';
+      if ($this.hasClass('js-favourites-thumb')) {
+		    $object_id = $this.attr('data-video_id');
+      } else {
+        $object_id = $this.attr('data-object_id');
+      }
+    } else if ($type=='model') {
+      $favourites_bd = 'favourites_models';
+      if ($this.hasClass('js-favourites-thumb')) {
+		    $object_id = $this.attr('data-model_id');
+      } else {
+		    $object_id = $this.attr('data-object_id');
+      }
+    } else if ($type=='dvd_group') {
+      $favourites_bd = 'favourites_dvd_group';
+      if ($this.hasClass('js-favourites-thumb')) {
+		    $object_id = $this.attr('data-dvd_group_id');
+      } else {
+        $object_id = $this.attr('data-object_id');
+      }
+    } else if ($type=='tag') {
+      $favourites_bd = 'favourites_tags';
+      $object_id = $this.attr('data-object_id');
+    }
+
+    var user_data_db_v = localStorage.getItem('user_data_db_v');
+    if(user_data_db_v===null) {
+      user_data_db_v = 1;
+    }
+		var request = indexedDB.open('user_data_db', user_data_db_v);
+		request.onsuccess = function(event) {
+			var db = event.target.result;
+			var transaction = db.transaction([$favourites_bd], 'readwrite');
+			var store = transaction.objectStore($favourites_bd);
+
+			if ($action=='add') {
+				var request = store.get($object_id);
+				request.onerror = function(event) {
+          console.error("Error reading data from IndexedDB:", event.target.errorCode);
+				};
+				request.onsuccess = function(event) {
+          if ($type=='video') {
+					  var existingVideo = event.target.result;
+					  var videos = existingVideo ? existingVideo.videos : [];
+            var newVideoInfo = {
+              video_id: $setup['video_id'],
+              url: $setup['url'],
+              title: $setup['title'],
+              duration: $setup['duration'],
+              dir: $setup['dir'],
+              screenshot: $setup['screenshot'],
+              mode_related: $setup['mode_related'],
+              preview: $setup['preview'],
+              timestamp: $timestamp,
+              video_viewed: $setup['video_viewed'],
+              post_date: $setup['post_date'],
+              player_prev: $setup['player_prev'],
+              player_next: $setup['player_next']
+            };
+
+            var models = [];
+            var tags = [];
+        
+            $('.js-thumb_model').each(function() {
+              let data = $(this).attr('data-setup');
+              try {
+                let model = JSON.parse(data);
+                models.push(model);
+              } catch (e) {
+                console.error('error JSON:', e);
+              }
+            });
+            models.sort((a, b) => b.rank - a.rank);
+            let $topModels = models.slice(0, 3);
+            newVideoInfo['models'] = $topModels;
+        
+            $('.js-thumb_tags').each(function() {
+              let data = $(this).attr('data-setup');
+              try {
+                let tag = JSON.parse(data);
+                tags.push(tag);
+              } catch (e) {
+                console.error('error JSON:', e);
+              }
+            });
+            tags.sort((a, b) => b.avg_videos_popularity - a.avg_videos_popularity);
+            let $toptags = tags.slice(0, 10);
+            // newVideoInfo['tags'] = $toptags;
+
+            if ($('.js-thumb_dvd').attr('data-setup')!=undefined) {
+              let $dvd = JSON.parse($('.js-thumb_dvd').attr('data-setup'));
+              newVideoInfo['dvd'] = $dvd;
+            }
+
+
+            var existingIndex = videos.findIndex(function(video) {
+              return video.video_id === $history_id;
+            });
+      
+            if (existingIndex !== -1) {
+              videos.splice(existingIndex, 1);
+            }
+      
+            videos.push(newVideoInfo);
+    
+            videos.sort(function(a, b) {
+              return b.timestamp - a.timestamp;
+            });
+            var updateRequest = store.put({ video_id: $history_id, videos: videos });
+          } else if ($type=='model') {
+					  var existingModel = event.target.result;
+            var models = existingModel ? existingModel.models : [];
+            $model_id = $setup['model_id'];
+            var newModelInfo = {
+              model_id: $setup['model_id'],
+              title: $setup['title'],
+              screenshot: $setup['screenshot'],
+              screenshot2: $setup['screenshot2'],
+              dir: $setup['dir'],
+              url: $setup['url'],
+              total_videos: $setup['total_videos'],
+              player_prev: $setup['player_prev'],
+              player_next: $setup['player_next'],
+              timestamp: $timestamp
+            };
+
+            var existingIndex = models.findIndex(function(model) {
+              return model.model_id === $model_id;
+            });
+      
+            if (existingIndex !== -1) {
+              models.splice(existingIndex, 1);
+            }
+      
+            models.push(newModelInfo);
+    
+            models.sort(function(a, b) {
+              return b.timestamp - a.timestamp;
+            });
+            var updateRequest = store.put({ model_id: $model_id, models: models });
+          } else if ($type=='dvd_group') {
+            var existingDvd = event.target.result;
+            var dvds = existingDvd ? existingDvd.dvds : [];
+            $dvd_group_id = $setup['dvd_group_id'];
+            var newDvdGroupInfo = {
+              dvd_group_id: $setup['dvd_group_id'],
+              title: $setup['title'],
+              screenshot: $setup['screenshot'],
+              dir: $setup['dir'],
+              url: $setup['url'],
+              total_videos: $setup['total_videos'],
+              player_prev: $setup['player_prev'],
+              player_next: $setup['player_next'],
+              timestamp: $timestamp
+            };
+            var existingIndex = dvds.findIndex(function(model) {
+              return model.dvd_group_id === $dvd_group_id;
+            });
+      
+            if (existingIndex !== -1) {
+              dvds.splice(existingIndex, 1);
+            }
+      
+            dvds.push(newDvdGroupInfo);
+    
+            dvds.sort(function(a, b) {
+              return b.timestamp - a.timestamp;
+            });
+            var updateRequest = store.put({ dvd_group_id: $dvd_group_id, dvds: dvds });
+
+          } else if ($type=='tag') {
+            var existingTag = event.target.result;
+            var tags = existingTag ? existingTag.tags : [];
+            $tag_id = $setup['tag_id'];
+            var newDvdGroupInfo = {
+              tag_id: $setup['tag_id'],
+              title: $setup['title'],
+              dir: $setup['dir'],
+              url: $setup['url'],
+              total_videos: $setup['total_videos'],
+              player_prev: $setup['player_prev'],
+              player_next: $setup['player_next'],
+              timestamp: $timestamp
+            };
+
+            var existingIndex = tags.findIndex(function(tag) {
+              return tag.dvd_group_id === $dvd_group_id;
+            });
+      
+            if (existingIndex !== -1) {
+              tags.splice(existingIndex, 1);
+            }
+      
+            tags.push(newDvdGroupInfo);
+    
+            tags.sort(function(a, b) {
+              return b.timestamp - a.timestamp;
+            });
+            var updateRequest = store.put({ tag_id: $tag_id, tags: tags });
+          }
+					updateRequest.onerror = function(event) {
+            console.error("Error writing data to IndexedDB:", event.target.errorCode);
+					};
+	
+					updateRequest.onsuccess = function(event) {
+            if ($type=='video') {
+              $('[data-type="' + $type + '"][data-object_id="' + $object_id + '"]').attr('data-action', 'delet');
+            } else {
+						  $this.attr('data-action', 'delet');
+            }
+            db.close();
+						console.log("Data successfully written to IndexedDB");
+					};
+				};
+			} else {
+        user_data_db_v = +user_data_db_v + 0;
+        localStorage.setItem('user_data_db_v',user_data_db_v);
+				var deleteRequest = store.delete($object_id);
+				deleteRequest.onerror = function(event) {
+					console.error("Error deleting data from IndexedDB:", event.target.errorCode);
+				};
+				deleteRequest.onsuccess = function(event) {
+          if ($this.hasClass('js-favourites-thumb')) {
+            $this.closest('.thumb-bl').hide();
+          } else {
+            if ($type=='video') {
+              $('[data-type="' + $type + '"][data-object_id="' + $object_id + '"]').attr('data-action', 'add');
+            } else {
+  					  $this.attr('data-action', 'add');
+            }
+          }
+
+          db.close();
+				};
+			}
+		};
+		return false;
+	})
+
+  if ($('.js-favourites').length>0) {
+    $('.js-favourites').each(function(index, element) {
+      var $btn = $(this);
+      var $type = $btn.attr('data-type');
+      var $object_id = $btn.attr('data-object_id');
+      if ($type=='video') {
+        $favourites_bd = 'favourites_videos';
+      } else if ($type=='model') {
+        $favourites_bd = 'favourites_models';
+      } else if ($type=='dvd_group') {
+        $favourites_bd = 'favourites_dvd_group';
+      } else if ($type=='tag') {
+        $favourites_bd = 'favourites_tags';
+      }
+
+      var user_data_db_v = localStorage.getItem('user_data_db_v');
+      if(user_data_db_v===null) {
+        user_data_db_v = 1;
+      }
+
+      var openRequest = indexedDB.open('user_data_db', user_data_db_v);
+      openRequest.onsuccess = function(event) {
+        var db = event.target.result;
+        var transaction = db.transaction([$favourites_bd], 'readwrite');
+        var store = transaction.objectStore($favourites_bd);
+        var getRequest = store.get($object_id);
+    
+        getRequest.onerror = function(event) {
+          if (event.target.error.name === 'QuotaExceededError') {
+            alert('You have reached the maximum number of favorite content. Please remove some content from your favorites so that you can add new ones');
+          } else {
+            console.error("Error reading data from IndexedDB:", event.target.errorCode);
+          }
+        };
+        
+        getRequest.onsuccess = function(event) {
+          var video = getRequest.result;
+          if (video!=undefined) {
+            $btn.attr('data-action', 'delet');
+          } else {
+            $btn.attr('data-action', 'add');
+          }
+        };
+      };
+    });
+  }
+
+  $(document).on('click', '.js-save-favourites', function () {
+    $(this).addClass('loading');
+    createBackupJSON().then(function(backupData) {
+      var currentUrl = window.location.href;
+      var name = generatePassword(12);
+      var $link = currentUrl + '' + name + '/';
+      $.ajax({
+        url: currentUrl,
+        method: 'POST',
+        data: {
+          action: "save_favourites",
+          format: "json",
+          mode: "async",
+          name: name,
+          favouritesData: JSON.stringify(backupData)
+        },
+        success: function (response) {
+          var timeout_save = setTimeout(function(){
+            clearTimeout(timeout_save);
+            $('.js-save-favourites').hide(0);
+            $('.save_link').find('a').html($link).attr('href',$link);
+            $('.save_link').find('.js-copy-link').attr('data-copy',$link);
+            $('.save_link').show(0);
+
+            var qrCodeElement = $('#qrcode');
+            qrCodeElement.empty();
+            var qr = new QRCode(qrCodeElement[0], {
+              text: $link,
+              width: 140,
+              height: 140
+            });
+            $(this).removeClass('loading');
+          }, 500);
+        },
+        error: function (error) {
+          console.error('Error:', error);
+        },
+        complete: function () {
+        }
+      });
+
+    }).catch(function(error) {
+      console.error('Error fetching backup:', error);
+    }).finally(() => {
+    });
+
+    return false;
+    // createBackupFile().then(function(blob) {
+    //   if (blob) {
+    //     var currentUrl = window.location.href;
+
+    //     var name = generatePassword(12);
+    //     var $link = currentUrl + '' + name + '/';
+    //     var formData = new FormData();
+    //     formData.append('file', blob, name + '.json');
+
+    //     $.ajax({
+    //         url: '/user_upload_favorites.php',
+    //         type: 'POST',
+    //         data: formData,
+    //         processData: false,
+    //         contentType: false,
+    //         success: function(response) {
+    //           console.log('Backup file uploaded successfully:', response);
+    //           var timeout_save = setTimeout(function(){
+    //             clearTimeout(timeout_save);
+    //             $('.js-save-favourites').hide(0);
+    //             $('.save_link').find('a').html($link).attr('href',$link);
+    //             $('.save_link').find('.js-copy-link').attr('data-copy',$link);
+    //             $('.save_link').show(0);
+
+    //             var qrCodeElement = $('#qrcode');
+    //             qrCodeElement.empty();
+    //             var qr = new QRCode(qrCodeElement[0], {
+    //               text: $link,
+    //               width: 140,
+    //               height: 140
+    //             });
+    //           }, 500);
+    //         },
+    //         error: function(jqXHR, textStatus, errorThrown) {
+    //           console.error('Failed to upload backup file:', textStatus, errorThrown);
+    //         }
+    //     });
+    //   }
+    // });
+  });
+  
+  $('.js-copy-link').click(function(){
+    var textToCopy = $(this).attr('data-copy');
+    var tempInput = $('<input>');
+    $('body').append(tempInput);
+    tempInput.val(textToCopy).select();
+    document.execCommand('copy');
+    tempInput.remove();
+  });
+
+	$(document).on('click', '.js-delete-history', function () {
+    var $this = $(this);
+    var $video_id = $this.attr('data-video_id');
+		var videosJSON = localStorage.getItem('history_videos');
+		var videos = videosJSON ? JSON.parse(videosJSON) : [];
+    var existingIndex = videos.findIndex(function(video) {
+			return video.video_id === $video_id;
+		});
+		if (existingIndex !== -1) {
+			videos.splice(existingIndex, 1);
+		}
+		localStorage.setItem('history_videos', JSON.stringify(videos));
+    $this.closest('.thumb-bl').hide();
+		return false;
+	})
+}
+
+function togglePreviewNav() {
+    var body = $('body');
+    var date = new Date(new Date().getTime() + 365 * 24 * 60 * 60 * 1000);
+    $('.js-preview-nav').on('click', function () {
+        if (body.hasClass('preview-right')) {
+            body.removeClass('preview-right');
+            document.cookie = "kt_rt_preview_nav=left; path=/; expires=" + date.toUTCString() + "; domain=.pornhat.com";
+        } else {
+            body.addClass('preview-right');
+            document.cookie = "kt_rt_preview_nav=right; path=/; expires=" + date.toUTCString() + "; domain=.pornhat.com";
+        }
+        return false;
+    });
+}
+
+function toggleLightTheme() {
+    var body = $('body');
+    var $logo_light = $('.js-logo').attr('data-light');
+    var $logo_dark = $('.js-logo').attr('data-dark');
+    var date = new Date(new Date().getTime() + 365 * 24 * 60 * 60 * 1000);
+    $('.js-themes').on('click', function () {
+        if (!body.hasClass('dark')) {
+            body.addClass('dark');
+            body.removeClass('light');
+            $('.js-themes').addClass('active');
+            $('.js-logo').attr('src',$logo_dark);
+            document.cookie = "kt_rt_theme=dark; path=/; expires=" + date.toUTCString() + "; domain=.pornhat.com";
+        } else {
+            body.addClass('light');
+            body.removeClass('dark');
+            $('.js-themes').removeClass('active');
+            $('.js-logo').attr('src',$logo_light);
+            document.cookie = "kt_rt_theme=light; path=/; expires=" + date.toUTCString() + "; domain=.pornhat.com";
+        }
+        if ($('body').width()>799) {
+            $('html, body').scrollTop($(document).height());
+        }
+
+        return false;
+    });
+  
+    var kt_rt_theme = readCookieDelit('kt_rt_theme');
+    if (kt_rt_theme === 'dark') {
+        body.addClass('dark');
+        body.removeClass('light');
+        $('.js-themes').addClass('active');
+    }
+}
+  
+  //cookies alert
+  window.addEventListener("load", function () {
+    var locale = window.location.origin.split('.')[0].split('//')[1];
+    if ($.cookie('cookiesBanner') == null && locale.toLowerCase() != 'de' && locale.toLowerCase() != 'fr') {
+      $('.cookiesBanner').removeClass('hidden')
+    }
+  
+  
+    $('.cookiesBanner .okButton').on('click', function () {
+      $('.cookiesBanner').addClass('hidden')
+  
+      var domain = window.location.origin;
+      var isMain = domain.indexOf('pornhat.com') >= 0 ? true : false;
+      var expires = new Date();
+      expires.setTime(expires.getTime() + (1200 * 60 * 60 * 1000));
+  
+      if (isMain) {
+        document.cookie = 'cookiesBanner=true;expires=' + expires.toUTCString() + ';domain=.pornhat.com;path=/';
+      } else {
+        document.cookie = 'cookiesBanner=true;expires=' + expires.toUTCString() + ';domain=.pornhat.one;path=/';
+      }
+    });
+  
+    $('.cookiesBanner .closeButton').on('click', function () {
+      $('.cookiesBanner').addClass('hidden')
+    });
+  
+  });
+  
+  function setCoutnryCookie(cookieName, cookieValue, limit) {
+    if (checkDomainIsCom()) {
+      $.cookie(cookieName, cookieValue, { expires: limit, domain: '.pornhat.com', path: '/' });
+    } else {
+      $.cookie(cookieName, cookieValue, { expires: limit, domain: '.pornhat.one', path: '/' });
+    }
+  }
+  
+  function removeCoutnryCookie() {
+    if (checkDomainIsCom()) {
+      $.removeCookie('countryCode', { domain: '.pornhat.com', path: '/' });
+    } else {
+      $.removeCookie('countryCode', { domain: '.pornhat.one', path: '/' });
+    }
+  }
+  
+  function checkDomainIsCom() {
+    var domain = window.location.origin,
+      isCom = domain.indexOf('pornhat.com') >= 0 ? true : false;
+    return isCom;
+  }
+  
+  function showLangTopAlert() {
+    $topLangAlert = $('.lang-alert');
+    $topLangAlertCross = $topLangAlert.find('.cross');
+    $topLangAlertLink = $topLangAlert.find('a');
+  
+    $.cookie('hideLangAlert') == 'true' ? $topLangAlert.remove() : $topLangAlert.show();
+  
+    $topLangAlert.on('click', hideAlert);
+    
+    //handlers 
+    function hideAlert(e) {
+      var target = $(e.target);
+      if (target.closest($topLangAlertLink).length) {
+        e.preventDefault();
+        var cookieName = 'countryCode',
+          cookieValue = $topLangAlert.attr('data-native'),
+          limit = 365 * 10;
+      } else if (target.closest($topLangAlertCross).length) {
+        var cookieName = 'hideLangAlert',
+          cookieValue = 'true',
+          limit = 30;
+      } else {
+        langAlertClick(target);
+      }
+  
+      setCoutnryCookie(cookieName, cookieValue, limit)
+  
+      if (target.closest($topLangAlertCross).length) $topLangAlert.remove();
+      if (target.closest($topLangAlertLink).length) window.location.replace($topLangAlertLink.attr('href'));
+    }
+  
+    function langAlertClick(target) {
+      var isMobileWrap = $(window).width() < 767 && !$(target).closest($topLangAlertCross).length;
+      console.log($topLangAlertLink);
+      if (isMobileWrap) $topLangAlertLink.click();
+    }
+  }
+  
+function addTextToLangTopAlert() {
+    $lang = (navigator.language || navigator.userLanguage).split('-');
+    $hostname = location.host.replace('www.', '');
+    $pathname = location.pathname;
+    $acceptLang = ['en', 'de', 'fr', 'it', 'es', 'pt', 'hi'];
+    $languageUrl = ["www.", "de.", "fr.", "it.", "es.", "pt.", "hi."];
+    $languageFull = ['English', 'Deutsch', 'Français', 'Italiano', 'Español', 'Português', 'हिन्दी'];
+    $isSuported = $.inArray($lang[0], $acceptLang);
+
+    $lang_alert = {
+        "www": `You are now viewing PornHat in English. <a href='%NATIVE_LINK%' data-langCookie='${$lang[0]}'>Switch to %NATIVE_LANG%.</a>`,
+        "de": `Du siehst PornHat jetzt auf Englisch. <a href='%NATIVE_LINK%' data-langCookie='${$lang[0]}'>Wechsel zu %NATIVE_LANG%.</a>`,
+        "fr": `Vous consultez maintenant PornHat en anglais. <a href='%NATIVE_LINK%' data-langCookie='${$lang[0]}'>Passer au %NATIVE_LANG%.</a>`,
+        "it": `Stai visualizzando PornHat in inglese. <a href='%NATIVE_LINK%' data-langCookie='${$lang[0]}'>Passa all\'%NATIVE_LANG%.</a>`,
+        "es": `Ahora estás viendo PornHat en inglés. <a href='%NATIVE_LINK%' data-langCookie='${$lang[0]}'>Cambiar a %NATIVE_LANG%.</a>`,
+        "pt": `Agora você está vendo PornHat em inglês. <a href='%NATIVE_LINK%' data-langCookie='${$lang[0]}'>Trocar para %NATIVE_LANG%.</a>`,
+        "hi": `अब आप PornHat को अंग्रेजी में देख रहे हैं। <a href='%NATIVE_LINK%' data-langCookie='${$lang[0]}'>%NATIVE_LANG% पर बदलें।</a>`,
+    };
+
+    if ($isSuported >= 0) {
+        $precastLink = `//${$languageUrl[$isSuported]}${$hostname}${$pathname}`;
+        if ($lang_alert[$lang[0]]) {
+            $text = $lang_alert[$lang[0]]
+            .replace('%NATIVE_LINK%', $precastLink)
+            .replace('%NATIVE_LANG%', $languageFull[$isSuported]);
+
+            $('.lang-alert').prepend($text);
+        } else {
+            $('.lang-alert').remove();
+        }
+    } else {
+        $('.lang-alert').remove();
+    }
+}
+
+  
+if ($('.lang-alert').length) {
+    addTextToLangTopAlert();
+    showLangTopAlert();
+} 
+
+$(document).on('click', '[data-langCookie]', function (e) {
+    // e.preventDefault();
+    var target = $(e.target).closest('a'),
+        targetHref = target.attr('href'),
+        cookieValue = target.attr('data-langCookie'),
+        limit = 365 * 10;
+
+    cookieValue == 'none' ? removeCoutnryCookie() : setCoutnryCookie('countryCode', cookieValue, limit);
+
+    window.location.replace(targetHref);
+});
+
+
+</script>
+
+</body>
+</html>

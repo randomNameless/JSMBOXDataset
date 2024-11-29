@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>trans.html</title>
+</head>
+<body>
+
+<script>
+var defaultEncoding = 1;
+var translateDelay = 0;
+var cookieDomain = "121ds.cc";
+var msgToTraditionalChinese = "繁体版";
+var msgToSimplifiedChinese = "简体版";
+var translateButtonId = "translatelink";
+var currentEncoding = defaultEncoding;
+var targetEncodingCookie = "targetEncoding" + cookieDomain.replace(/\./g, "");
+var targetEncoding = 2;
+var translateButtonObject;
+var isTransReady = 0;
+$(function(){
+	if(getCookie_trans(targetEncodingCookie) && getCookie_trans(targetEncodingCookie) != 2){
+        currentEncoding = 1;
+        targetEncoding = 2;
+		translatePage();
+	}
+});
+function translateText(a) {
+    if (a == "" || a == null) return "";
+    if (currentEncoding == 1 && targetEncoding == 2) return Traditionalized(a);
+    else if (currentEncoding == 2 && targetEncoding == 1) return Simplized(a);
+    else return a
+}
+function translateBody(a) {
+    if (typeof(a) == "object") var b = a.childNodes;
+    else var b = document.body.childNodes;
+    for (var i = 0; i < b.length; i++) {
+        var c = b.item(i);
+        if ("||BR|HR|TEXTAREA|".indexOf("|" + c.tagName + "|") > 0 || c == translateButtonObject) continue;
+        if (c.title != "" && c.title != null) c.title = translateText(c.title);
+        if (c.alt != "" && c.alt != null) c.alt = translateText(c.alt);
+        if (c.tagName == "INPUT" && c.value != "" && c.type != "text" && c.type != "hidden") c.value = translateText(c.value);
+        if (c.nodeType == 3) c.data = translateText(c.data);
+        else translateBody(c)
+    }
+}
+
+function translatePage() {
+    if (!isTransReady) {
+        loadTransScript('//asset.121ds.cc/js/trans_func.js', function () {
+            isTransReady = 1;
+            doTrans();
+        });
+    } else {
+        doTrans();
+    }
+}
+
+function doTrans()
+{
+    translateButtonObject = document.getElementById(translateButtonId);
+    if (targetEncoding == 1) {
+        translateBody();
+        currentEncoding = 1;
+        targetEncoding = 2;
+        translateButtonObject.innerHTML = msgToTraditionalChinese;
+        setCookie_trans(targetEncodingCookie, targetEncoding, 7);
+    } else if (targetEncoding == 2) {
+        translateBody();
+        currentEncoding = 2;
+        targetEncoding = 1;
+        translateButtonObject.innerHTML = msgToSimplifiedChinese;
+        setCookie_trans(targetEncodingCookie, targetEncoding, 7);
+    }
+}
+
+function loadTransScript(url, callback) {
+    var script = document.createElement('script');// 创建script元素
+    script.type = "text/javascript"; // 定义script元素的类型(可省略)
+    if (typeof (callback) != "undefined") { // 判断是否使用回调方法(第二个参数)
+        if (script.readyState) {// js状态
+            //console.log(script.onreadystatechange); // onreadystatechange：js状态改变时执行下方函数
+            script.onreadystatechange = function () {
+                if (script.readyState == "loaded" || script.readyState == "complete") { // loaded：是否下载完成 complete：js执行完毕
+                    script.onreadystatechange = null;
+                    callback();
+                }
+            }
+        } else {
+            script.onload = function () {
+                callback();
+            }
+        }
+    }
+    script.src = url; // js地址
+    document.body.appendChild(script);// 插入body可改为head
+}
+
+function Traditionalized(a) {
+    var b = '';
+    var c = JTPYStr();
+    var d = FTPYStr();
+    for (var i = 0; i < a.length; i++) {
+        if (a.charCodeAt(i) > 10000 && c.indexOf(a.charAt(i)) != -1) b += d.charAt(c.indexOf(a.charAt(i)));
+        else b += a.charAt(i)
+    }
+    return b
+}
+function Simplized(a) {
+    var b = '';
+    var c = JTPYStr();
+    var d = FTPYStr();
+    for (var i = 0; i < a.length; i++) {
+        if (a.charCodeAt(i) > 10000 && d.indexOf(a.charAt(i)) != -1) b += c.charAt(d.indexOf(a.charAt(i)));
+        else b += a.charAt(i)
+    }
+    return b
+}
+function setCookie_trans(a, b, c) {
+    if (c) {
+        var d = new Date();
+        d.setTime(d.getTime() + (c * 24 * 60 * 60 * 1000));
+        var e = "; expires=" + d.toGMTString()
+    } else var e = "";
+    document.cookie = a + "=" + b + e + "; path=/"
+}
+function getCookie_trans(a) {
+    var b = a + "=";
+    var d = document.cookie.split(';');
+    for (var i = 0; i < d.length; i++) {
+        var c = d[i];
+        while (c.charAt(0) == ' ') c = c.substring(1, c.length);
+        if (c.indexOf(b) == 0) return c.substring(b.length, c.length)
+    }
+    return null
+}
+function translateInitilization() {
+    translateButtonObject = document.getElementById(translateButtonId);
+    if (translateButtonObject) {
+        with(translateButtonObject) {
+            if (typeof(document.all) != "object") {
+                href = "javascript:translatePage();"
+            } else {
+                href = "#";
+                onclick = new Function("translatePage(); return false;")
+            }
+        }
+        if (currentEncoding != targetEncoding) {
+            setTimeout("translateBody()", translateDelay);
+            if (targetEncoding == 1) translateButtonObject.innerHTML = msgToSimplifiedChinese;
+            else translateButtonObject.innerHTML = msgToTraditionalChinese
+        }
+    }
+}
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>collection.pc.form.html</title>
+</head>
+<body>
+
+<script>
+//var verifyCount = 0;
+//var graphCodeShow = false;
+//$(function(){
+//	if(isPreview == 1){
+//		$.getScript(jsPath+"/js/jquery.watermark.js",function(){
+//			$('body').watermark({
+//			    texts : ["收集项预览"], //水印文字
+//			    textColor : "#d2d2d2", //文字颜色
+//			    textFont : '14px 微软雅黑', //字体
+//			    width : 200, //水印文字的水平间距
+//			    height : 100,  //水印文字的高度间距（低于文字高度会被替代）
+//			    textRotate : -30 //-90到0， 负数值，不包含-90
+//			});
+//		});
+//	}
+//});
+layui.use(['jquery','laydate','layer','form'], function(){
+	var $ = layui.jquery,laydate = layui.laydate,layer = layui.layer,form = layui.form;
+	var fields = $.parseJSON($('#json_fields').html());
+	if(isPreview == 1)$("input[type=submit]").css('background','#DCDCDC').prop('disabled',true);
+	console.log(fields);
+	var timeFormat = {time:'HH:mm',date:'yyyy-MM-dd',datetime:'yyyy-MM-dd HH:mm'};
+	var aid = $.trim($('input[name=aid]').val());
+	$('input[name=ref]').val(window.location.href);
+	$.each(fields,function(index,entry){
+		//console.log(entry);
+		if($.inArray(entry.formType,['time','date','datetime']) > -1){
+			var obj = $('#'+entry.name).find('input[name='+entry.name+']');
+			var dateType = obj.attr('date-type');
+			var dateFormat = timeFormat[dateType];
+			laydate.render({
+			    elem: obj[0]
+			    ,type:dateType
+			    ,format:dateFormat
+			 });
+		}else if(entry.formType == 'score'){
+			setScore($('#'+entry.name));
+		}else if(entry.formType == 'imageUpload'){
+			$('#'+entry.name).find('input[type=file]').change(function(){
+				handleInputChange(entry.name);
+			});
+		}else if(entry.formType == 'fileUpload'){
+			$('#'+entry.name).find('input[type=file]').change(function(){
+				handleInput2Change(entry.name);
+			});
+		}else if(entry.formType == 'selectTwo'){
+			var firstSelect = $('#'+entry.name).find('select').eq(0);
+			var secondSelect = $('#'+entry.name).find('select').eq(1);
+			firstSelect.find('option:first').text(entry.defaultValue);
+			secondSelect.find('option:first').text(entry.secondDefaultValue);
+			firstSelect.change(function(){
+				var secondSelectOptions = "<option value=''>"+entry.secondDefaultValue+"</option>";
+				var firstSelectValue = $(this).val();
+				if(entry.data.hasOwnProperty(firstSelectValue)){
+					for(var i in entry.data[firstSelectValue]){
+						secondSelectOptions += "<option value='"+entry.data[firstSelectValue][i]+"'>"+entry.data[firstSelectValue][i]+"</option>";	
+					}
+				}
+				secondSelect.empty().append(secondSelectOptions);
+				$('#'+entry.name).find('input[name='+entry.name+']').val('');
+			});
+			secondSelect.change(function(){
+				var firstSelectValue = firstSelect.find("option:selected").val();
+				var secondSelectValue = secondSelect.find("option:selected").val();
+				if(secondSelectValue != ''){
+					$('#'+entry.name).find('input[name='+entry.name+']').val(firstSelectValue+' '+secondSelectValue);
+				}else{
+					$('#'+entry.name).find('input[name='+entry.name+']').val('');
+				}
+			});
+		}else if(entry.formType == 'select'){
+			if(entry.type == 'pmc'){
+				var data = [];
+				var picked = parseInt(entry.picked);
+				var provinceAppoint = entry.provinceAppoint;
+				var cityAppoint = entry.cityAppoint;
+				$.each(entry.data,function(index,entry){
+					if($.inArray(picked,[1,2]) > -1 && entry !=  provinceAppoint)return true;
+					var itemData = {};
+					itemData.value = entry;
+					itemData.text = entry;
+					itemData.children = [];
+					var cities = (typeof regions.provinces[entry] != 'undefined')?regions.provinces[entry].cities:regions[entry].cities;
+					$.each(cities,function(c_index,c_entry){
+						if(picked == 2 && c_index !=  cityAppoint)return true;
+						var cityData = {};
+						cityData.value = c_index;
+						cityData.text = c_index;
+						cityData.children = [];
+						$.each(c_entry.areasArr,function(a_index,a_entry){
+							var areaData = {};
+							areaData.value = a_entry;
+							areaData.text = a_entry;
+							cityData.children.push(areaData);
+						});
+						itemData.children.push(cityData);
+					});
+					data.push(itemData);
+				});
+				var firstSelect = $('#'+entry.name).find('select').eq(0);
+				var secondSelect = $('#'+entry.name).find('select').eq(1);
+				var threeSelect = $('#'+entry.name).find('select').eq(2);
+				firstSelect.find('option:first').text('省');
+				secondSelect.find('option:first').text('市');
+				threeSelect.find('option:first').text('行政区');
+				if(data.length > 0){
+					var firstSelectOptions = "<option value=''>省</option>";
+					$.each(data,function(index,entry){
+						firstSelectOptions += "<option value='"+entry.text+"'>"+entry.text+"</option>";
+					});
+					firstSelect.empty().append(firstSelectOptions);
+					firstSelect.change(function(){
+						var firstSelectValue = firstSelect.find("option:selected").val();
+						var secondSelectOptions = "<option value=''>市</option>";
+						$.each(data,function(index,entry){
+							if(entry.text == firstSelectValue){
+								$.each(entry.children,function(s_index,s_entry){
+									secondSelectOptions += "<option value='"+s_entry.text+"'>"+s_entry.text+"</option>";
+								});
+								return false;
+							}
+						});
+						secondSelect.empty().append(secondSelectOptions);
+						threeSelect.empty().append("<option value=''>行政区</option>");
+						$('#'+entry.name).find('input[name='+entry.name+']').val('');
+					});
+					secondSelect.change(function(){
+						var firstSelectValue = firstSelect.find("option:selected").val();
+						var secondSelectValue = secondSelect.find("option:selected").val();
+						var threeSelectOptions = "<option value=''>行政区</option>";
+							$.each(data,function(index,entry){
+								if(entry.text == firstSelectValue){
+									$.each(entry.children,function(s_index,s_entry){
+										if(s_entry.text == secondSelectValue){
+											$.each(s_entry.children,function(t_index,t_entry){
+												threeSelectOptions += "<option value='"+t_entry.text+"'>"+t_entry.text+"</option>";
+											});
+											return false;
+										}
+									});
+									return false;
+								}
+						});
+						threeSelect.empty().append(threeSelectOptions);
+					});
+					threeSelect.change(function(){
+						var firstSelectValue = firstSelect.find("option:selected").val();
+						var secondSelectValue = secondSelect.find("option:selected").val();
+						var threeSelectValue = threeSelect.find("option:selected").val();
+						if(threeSelectValue != ''){
+							$('#'+entry.name).find('input[name='+entry.name+']').val(firstSelectValue+' '+secondSelectValue+' '+threeSelectValue);
+						}else{
+							$('#'+entry.name).find('input[name='+entry.name+']').val('');
+						}
+					});
+				}
+			}else{
+				var firstSelect = $('#'+entry.name).find('select').eq(0);
+				firstSelect.find('option:first').text(entry.defaultValue);
+			}
+		}else if(entry.formType == 'text'){
+				if(entry.name == 'mobile'){//对手机验证码进行处理
+					if(entry.verification == 1){//开启了手机验证码
+						//graphCodeWrap
+						var msgCodeWrap = $('#msgCodeWrap').clone();
+						var graphCodeWrap = $('#graphCodeWrap').clone();
+						 $('#msgCodeWrap').remove();
+						 $('#graphCodeWrap').remove();
+						//将验证码与图片验证码放在手机输入框后方
+						$('#'+entry.name).after(msgCodeWrap);
+						$('#msgCodeWrap').after(graphCodeWrap);
+						$('#graphCodeWrap').hide();
+						$('#graphCodeWrap').find('img').click(function(){
+							getGraphCodeImg(entry.name,entry.reg,aid);
+						});
+						//为发送验证码绑定处理函数
+						$('#msgCodeWrap').find('input[type=button]').click(function(){
+							var mobileNumber = $.trim($('#'+entry.name).find('input[name='+entry.name+']').val());
+							var checkPhone = checkMobile(mobileNumber,entry.reg);
+							if(checkPhone){
+									//发送验证码逻辑处理
+								    sendMobileVerfyCode(entry.name,entry.reg,mobileNumber,aid);	
+							}
+						});
+					}else{
+						 $('#msgCodeWrap').remove();
+						 $('#graphCodeWrap').remove();
+					}
+				}
+			}
+	});
+	$('#collectionForm').ajaxForm({
+		beforeSubmit:function(){
+			//console.log(fields);
+			var isSubmit = true;
+			//对表单进行验证
+			$.each(fields,function(index,entry){
+				if($.inArray(entry.formType,['text','textarea','time','date','datetime','score','imageUpload','fileUpload']) > -1){
+					var isCheckFormat = false;
+					var isCheckLength = false;
+					var choiceNumber = 0;
+					if(typeof entry.choiceNumber != 'undefined' && entry.choiceNumber > 0)choiceNumber = entry.choiceNumber;
+					var inputTextValue = '';
+					if(entry.formType == 'textarea')inputTextValue = $('#'+entry.name).find('textarea[name='+entry.name+']').val();
+					else inputTextValue = $('#'+entry.name).find('input[name='+entry.name+']').val();
+					inputTextValue = $.trim(inputTextValue);
+					console.log(inputTextValue);
+					if(entry.required){//必填
+						if(inputTextValue == ''){
+							var msg = entry.label+"：不能为空";
+							if($.inArray(entry.formType,['time','date','datetime']) > -1)msg = "请填写"+entry.label;
+							if(entry.formType == 'score')msg = entry.label+"：您还未评分";
+							if(entry.formType == 'imageUpload')msg = entry.label+"：请上传图片";
+							layer.msg(msg);
+							isSubmit = false;
+							return false;
+						}
+						if(entry.hasOwnProperty("reg") && entry.reg != '')isCheckFormat = true;
+						if(choiceNumber > 0)isCheckLength = true;
+					}else{//非必填
+						if(inputTextValue != ''){
+							if(entry.hasOwnProperty("reg") && entry.reg != '')isCheckFormat = true;
+							if(choiceNumber > 0)isCheckLength = true;
+						}
+					}
+					if(isCheckFormat){
+							var regexStr = entry.reg.substring(1,entry.reg.length-1);
+							var regex = new RegExp(regexStr);
+							if(!regex.test(inputTextValue)){
+								layer.msg(entry.label+"：格式不正确");
+								isSubmit = false;
+								return false;
+							}
+					}
+					if(isCheckLength){
+						if(inputTextValue.length > choiceNumber){
+							layer.msg(entry.label+"：最长"+choiceNumber+'字符,当前字符长度'+inputTextValue.length);
+							isSubmit = false;
+							return false;
+						}
+					}
+					//对手机验证码做单独处理
+					if(entry.name == 'mobile' && inputTextValue != ''){
+						if(entry.verification == 1){
+							var mobileVerifyCode = $('#msgCodeWrap').find('input[name=msgCode]').val();
+							if(mobileVerifyCode == ''){
+								layer.msg(entry.label+"：请输入手机验证码");
+								isSubmit = false;
+								return false;
+							}
+							var mobileVerifyCodeRegex = new RegExp('^[\\d]{1,10}$');
+							if(!mobileVerifyCodeRegex.test(mobileVerifyCode)){
+								layer.msg(entry.label+"：请输入正确的手机验证码");
+								isSubmit = false;
+								return false;
+							}
+						}
+					}
+				}else if(entry.formType == 'radio'){
+					var radioValue = '';
+					$('#'+entry.name).find('input[type=radio]').each(function(){
+						var radio = $(this);
+						if(radio.prop('checked')){
+							radioValue = $.trim(radio.val());
+							return false;
+						}
+					});
+					if(entry.required){
+						if(radioValue == ''){
+							layer.msg(entry.label+'：请选择'+entry.label);
+							isSubmit = false;
+							return false;
+						}
+					}
+				}else if(entry.formType == 'checkbox'){
+					var checkboxValue = [];
+					var isCheckNumber = false;
+					var choiceNumber = 0;
+					if(typeof entry.choiceNumber != 'undefined' && entry.choiceNumber > 0)choiceNumber = entry.choiceNumber;
+					$('#'+entry.name).find('input[type=checkbox]').each(function(){
+						var checkbox = $(this);
+						if(checkbox.prop('checked')){
+							checkboxValue.push($.trim(checkbox.val()));
+						}
+					});
+					if(entry.required){//必填
+						if(checkboxValue.length == 0){
+							layer.msg(entry.label+'：请选择'+entry.label);
+							isSubmit = false;
+							return false;
+						}
+					}
+					if(choiceNumber > 0 && checkboxValue.length > choiceNumber){
+						layer.msg(entry.label+'：最多选择'+choiceNumber+'个选项');
+						isSubmit = false;
+						return false;
+					}
+				}else if(entry.formType == 'select'){
+					if(entry.type == 'pmc'){
+						var firstSelect = $('#'+entry.name).find('select').eq(0),secondSelect = $('#'+entry.name).find('select').eq(1),threeSelect = $('#'+entry.name).find('select').eq(2);
+						var firstSelectValue = $.trim(firstSelect.find("option:selected").val()),secondSelectValue = $.trim(secondSelect.find("option:selected").val()),threeSelectValue = $.trim(threeSelect.find("option:selected").val());
+						if(entry.required){
+							if(firstSelectValue == ''){
+								layer.msg(entry.label+'：请选择省份');
+								isSubmit = false;
+								return false;
+							}
+							if(secondSelectValue == ''){
+								layer.msg(entry.label+'：请选择城市');
+								isSubmit = false;
+								return false;
+							}
+							if(threeSelectValue == ''){
+								layer.msg(entry.label+'：请选择区域');
+								isSubmit = false;
+								return false;
+							}
+						}else{
+							if(firstSelectValue != ''){
+								if(secondSelectValue == ''){
+									layer.msg(entry.label+'：请选择城市');
+									isSubmit = false;
+									return false;
+								}
+								if(threeSelectValue == ''){
+									layer.msg(entry.label+'：请选择区域');
+									isSubmit = false;
+									return false;
+								}
+							}
+						}
+					}else{
+						var select = $('#'+entry.name).find('select');
+						var selectValue = $.trim(select.find("option:selected").val());
+						if(entry.required){
+							if(selectValue == ''){
+								layer.msg(entry.label+'：请选择'+entry.label);
+								isSubmit = false;
+								return false;
+							}
+						}
+					}
+				}else if(entry.formType == 'selectTwo'){
+					var firstSelect = $('#'+entry.name).find('select').eq(0);
+					var secondSelect = $('#'+entry.name).find('select').eq(1);
+					var firstSelectValue = $.trim(firstSelect.find("option:selected").val()),secondSelectValue = $.trim(secondSelect.find("option:selected").val());
+					if(entry.required){
+						if(firstSelectValue == ''){
+							layer.msg(entry.label+'：请选择第一项');
+							isSubmit = false;
+							return false;
+						}
+						if(secondSelectValue == ''){
+							layer.msg(entry.label+'：请选择第二项');
+							isSubmit = false;
+							return false;
+						}
+					}else{
+						if(firstSelectValue != ''){
+							if(secondSelectValue == ''){
+								layer.msg(entry.label+'：请选择第二项');
+								isSubmit = false;
+								return false;
+							}
+						}
+					}
+				}
+			});
+			if(isSubmit){
+				if(!$('#userlicense_check').prop('checked')){
+					layer.msg('请先同意用户服务条款!');
+					isSubmit = false;
+				}
+			}
+			if(isPreview == 1)isSubmit = false;
+			if(isSubmit)$("input[type=submit]").prop("disabled",true);	
+			return isSubmit;
+		},
+		success:function(data){
+			console.log(data);
+			layer.msg(data.msg);
+			if(data.errno != 0){
+				if(data.errno == 100)$("input[type=submit]").remove();
+				else $("input[type=submit]").prop("disabled",false);	
+			}else{
+				if(typeof st === "function"){
+					st('default', {apply_id:data.md5Id});
+				}
+        		if(typeof data.redirect !='undefined' && data.redirect != ''){
+        			setTimeout(function() {
+        				window.location.href=data.redirect;
+                    },1000);
+        		}else{
+					setTimeout(function() {
+        				window.location.reload();
+        			},1000);
+        		}
+			}
+		},
+		time:3000
+	});
+});
+function setScore(obj){
+	obj.find('span').click(function(){
+		var span = $(this);
+		var score=parseInt(span.attr("alt"));
+		var basicClass = span.attr('basic-class');
+		span.removeClass(basicClass).removeClass(basicClass+"_light").addClass(basicClass+"_light");
+		span.prevAll().removeClass(basicClass).removeClass(basicClass+"_light").addClass(basicClass+"_light");
+		span.nextAll().removeClass(basicClass).removeClass(basicClass+"_light").addClass(basicClass);
+		obj.find('input[type=hidden]').val(score);
+	});
+}
+function handleInputChange(name) {
+	var obj = $('#'+name);
+	var fileObj = obj.find(".imgUploadBtn"); 
+	var aid = $.trim($('input[name=aid]').val());
+	fileObj = fileObj[0].files[0];
+    var url =  serverHost+"/collection/ajax_collectionuploadimage?id="+aid; 
+     var form = new FormData(); 
+     form.append("file", fileObj); 
+     xhr = new XMLHttpRequest();  
+     xhr.open("post", url, true);
+     xhr.onload = function(evt){
+     	uploadComplete(evt,name); //请求完成
+     };
+     //xhr.onerror =  uploadFailed; //请求失败
+     //xhr.upload.onprogress = progressFunction;
+     xhr.send(form); //开始上传，发送form数据
+ }
+ function uploadComplete(evt,name) {
+	var data = JSON.parse(evt.target.responseText);
+	var obj = $('#'+name);
+	if(data.errno==0){
+		var bg=imgPath+data.data.path;
+		obj.find('.PictureUploading').css("background","url("+bg+") no-repeat");
+		obj.find('.PictureUploading').css("background-size","100% 100%");
+		obj.find('img').css('display','none');
+		obj.find('input[name='+name+']').val(data.data.path);
+	}else{
+		layer.msg(data.msg);
+	}
+}
+function handleInput2Change(name) {
+	var obj = $('#'+name);
+	var fileObj = obj.find(".imgUploadBtn2"); 
+	var aid = $.trim($('input[name=aid]').val());
+	fileObj = fileObj[0].files[0];
+	var url =  serverHost+"/collection/ajax_collectionuploadfile?id="+aid; 
+	var form = new FormData(); 
+	form.append("file", fileObj); 
+	xhr = new XMLHttpRequest();  
+	xhr.open("post", url, true);
+	xhr.onload = function(evt){
+	uploadComplete2(evt,name); //请求完成
+	}
+	xhr.send(form); //开始上传，发送form数据
+}
+function uploadComplete2(evt,name) {
+	var data = JSON.parse(evt.target.responseText);
+	var obj = $('#'+name);
+	layer.msg(data.msg);
+	if(data.errno==0){
+		obj.find('input[name='+name+']').val(data.data.path);
+	}
+}
+function sendMobileVerfyCode(name,reg,phone,aid){
+	data = {};
+	data.status= 1;
+	data.id = aid;
+	data.phone = phone;
+	data.code3 = '';
+	if(!$('#graphCodeWrap').is(":hidden")){
+		data.code3 = $('#graphCodeWrap').find('input[name=graphCode]').val();
+		if(data.code3 == ''){
+			layer.msg('请输入验证码');
+			return false;
+		}
+	}
+	$.ajax({
+		url:serverHost+'/collection/ajax_collectionverifymobile',
+		type:'GET',
+		dataType:'json',
+		data:data,
+		success:function(data){
+			layer.msg(data.msg);
+			if(data.res == 1){
+				//产生倒计时
+				var sendButton = $('#msgCodeWrap').find('.validatebtn');
+				var curCount= 60;
+				sendButton.attr("disabled","true");
+				sendButton.val(curCount+"s后重新发送");
+				sendButton.addClass("unactive");
+				if(!$('#graphCodeWrap').is(":hidden"))getGraphCodeImg(name,reg,aid);
+				var remainTime = setInterval(function(){
+					if(curCount > 0){
+						curCount--;
+	        			sendButton.val(curCount + "s后重新获取");
+					}else{
+						window.clearInterval(remainTime);
+					  	sendButton.removeAttr("disabled");
+				        sendButton.val("重新获取验证码");
+						sendButton.removeClass("unactive");
+					}
+				},1000);
+			}else{
+				if(data.res == 100){//无需验证
+					$('#msgCodeWrap').remove();
+					$('#graphCodeWrap').remove();
+				}else{
+					if(data.res == 5){
+						if($('#graphCodeWrap').is(":hidden"))$('#graphCodeWrap').show();
+						getGraphCodeImg(name,reg,aid);
+					}
+				}
+			}
+		}
+	});
+}
+function checkMobile(mobileNumber,reg){
+	var bool = true;
+	if(mobileNumber == ''){
+		layer.msg('请输入手机号');
+		bool = false;
+	}else{//判定格式是否正确
+		var regexStr = reg.substring(1,reg.length-1);
+		var regex = new RegExp(regexStr);
+		if(!regex.test(mobileNumber)){
+			layer.msg("手机格式不正确");
+			bool = false;
+		}
+	}
+	return bool;
+}
+function getGraphCodeImg(name,reg,aid){
+	var phone = $.trim($('#'+name).find('input[name='+name+']').val());
+	var checkPhone = checkMobile(phone,reg);
+	if(checkPhone){
+		var url=serverHost+"/collection/ajax_collectionverifymobile?status=3&phone="+phone+"&id="+aid+"&time="+new Date().getTime();
+		$("#graphCodeWrap img").attr("src",url);
+	}
+}
+</script>
+
+</body>
+</html>

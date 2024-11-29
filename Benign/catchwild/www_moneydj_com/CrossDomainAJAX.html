@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CrossDomainAJAX.html</title>
+</head>
+<body>
+
+<script>
+(function() {
+		var CrossDomain_hash = {};
+		$.CrossDomainAJAX = function(domain){
+			var LocalDomain = window.location.hostname;
+			var REMOTE = $.trim(domain.toLowerCase().replace("http://","https://"));
+
+		    this.get = function(url, success, type){ this.ajax( { url: url, type: type, success: success } ); };
+		    this.getJson = function(url, success) { this.get(url, success, 'json') };
+		    this.post = function(url, data, success, type){ this.ajax( { url: url, method: 'POST', data: data, type: type, success: success } ); };
+
+			if ( ("https://" + LocalDomain + "/").toLowerCase() != REMOTE ){ //如果不同domain就跨domain捉資料，否則就是自己domain捉資料 REMOTE != "http://127.0.0.1/"
+				 var xhr = CrossDomain_hash[REMOTE];
+				 if(!xhr){
+				    xhr = new easyXDM.Rpc({
+				        swf: REMOTE + "/xdm/easyxdm.swf",
+				        remote: REMOTE + "/xdm/cors/index.htm"
+				    	}, {
+				        remote: {
+				            request: {}
+				        }
+				    });
+				    CrossDomain_hash[REMOTE] = xhr;
+			    }
+			    
+			    this.ajax = function(opt){
+			    	var abort = false;
+			    	if(!opt['type']) opt['type'] = 'json';
+			    	if(!opt['method']) opt['method'] = 'GET';
+					if(!opt['success']) opt['success'] = function(){};
+			        xhr.request({
+			            url: opt.url,
+			            method: opt.method,
+			            data: opt.data
+			        }, function(rpcdata){
+			        	if(abort) return;
+			        	if(opt.type == 'json'){
+			        		var json = easyXDM.getJSONObject().parse(rpcdata.data);
+				        	opt.success(json);
+			        	}
+			            else if(opt.type == 'xml'){
+			                var xml = $.parseXML(rpcdata.data);
+			                opt.success(xml);
+			            }
+			            else
+			        		opt.success(rpcdata.data);
+			        });
+			        return { abort: function(){ abort = true;} };
+			    };
+			}else{
+				this.ajax = function(opt){	
+			    	return jQuery.get( opt.url, opt.data, opt.success, opt.type );
+			    };
+			}		   
+		   
+		};
+})();
+</script>
+
+</body>
+</html>

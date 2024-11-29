@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ccl.sso.html</title>
+</head>
+<body>
+
+<script>
+(function (Carnival) {
+    Carnival = Carnival || {};
+    Carnival.SSO = Carnival.SSO || {};
+
+    var LOGIN_URL = "/profilemanagement/accounts/login?returnUrl=" + encodeURIComponent(document.location.href);
+    var LOGOUT_URL = "/profilemanagement/accounts/logout?returnUrl=" + encodeURIComponent("/profilemanagement/accounts/login");
+    var JOIN_URL = "/profilemanagement/accounts/register";
+
+    Carnival.SSO.openLoginRegisterComponent = function (route) {
+        if (isSsoPopupEnabled()) {
+            initAndOpenLoginSignUpModal(route);
+            return false;
+        } else {
+            if (route === '/login') {
+                var carnivalUser = Carnival.UserLogin.carnivalUser();
+                var urlToRedirect = carnivalUser && carnivalUser.loggedIn ? LOGOUT_URL : LOGIN_URL;
+                document.location.href = urlToRedirect;
+            }
+            else if (route === '/register') {
+                document.location.href = JOIN_URL;
+            }
+        }
+    };
+
+    Carnival.SSO.IsEnableSingleSignOnExperienceOnHeader = function () {
+        return isSsoPopupEnabled();
+    };
+
+    function loadJS(src, cb) {
+        var ref = document.getElementsByTagName('script')[0];
+        var script = document.createElement('script');
+        script.src = src;
+        script.async = true;
+
+        if (ref.parentNode) {
+            ref.parentNode.insertBefore(script, ref);
+            if (cb && typeof (cb) === 'function') {
+                script.onload = cb;
+            }
+            return script;
+        }
+    }
+
+    function initAndOpenLoginSignUpModal(route) {
+        if (window.LoginRegisterApp) {
+            openLoginSignUpModal(route);
+        } else {
+            loadJS("/profilemanagement/cclr-login-register-app/static/js/main.js",
+                function () {
+                    loginSignUpModalFirstRun(route);
+                });
+        }
+    }
+
+    function loginSignUpModalFirstRun(route) {
+        if (window.LoginRegisterApp) {
+            openLoginSignUpModal(route);
+        } else {
+            setTimeout(
+                function () {
+                    loginSignUpModalFirstRun(route);
+                },
+                500);
+        }
+    }
+
+    function openLoginSignUpModal(route) {
+        var cclHomeContainer = document.getElementById("ccl_homepage");
+        var options = {
+            mode: 'modal',
+            initialRoute: route,
+            mainContent: cclHomeContainer,
+            onLogin: ssoOnLogin,
+            enrollMethod: Carnival.EnrollMethod,
+            isDayFirst: cclUtilities.LocalityService.getLocality() !== cclUtilities.LocalityService.LocalityEnum.US
+        };
+        window.LoginRegisterApp.open(options);
+    }
+
+    function ssoOnLogin(token, isBooked) {
+        var bookingManagerUrl = "/booked/redirect?goal=MyBooking";
+        if (isBooked) {
+            window.location.href = bookingManagerUrl;
+        } else {
+            window.location.reload();
+        }
+    }
+
+    function isSsoPopupEnabled() {
+        var cookie = decodeURIComponent(getCookie("CclSessionOverrides"));
+        if (cookie) {
+            if (cookie.indexOf("Core.CoreMiscConfigDto.EnableSingleSignOnExperienceOnHeader=false") >= 0) {
+                return false;
+            } else if (cookie.indexOf("Core.CoreMiscConfigDto.EnableSingleSignOnExperienceOnHeader=true") >= 0) {
+                return true;
+            }
+        }
+        return Carnival.EnableSingleSignOnExperienceOnHeader;
+    }
+
+    function getCookie(name) {
+        var value = "; " + document.cookie;
+        var parts = value.split("; " + name + "=");
+        if (parts.length === 2) return parts.pop().split(";").shift();
+    }
+
+    window.Carnival = Carnival;
+
+})(window.Carnival);
+</script>
+
+</body>
+</html>

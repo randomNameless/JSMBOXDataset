@@ -1,0 +1,2433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>main.html</title>
+</head>
+<body>
+
+<script>
+$(document).ready(function () {
+	customCheckbox();
+	function customCheckbox() {
+		$(document).on('click', 'input:checkbox ~ label', function (e) {
+			$(this)
+				.siblings('checkbox')
+				.prop('checked', !$(this).siblings('checkbox').is(':checked'))
+				.change();
+		});
+		$(document).on('change', 'input:checkbox', function () {
+			if ($(this).is(':checked')) {
+				$(this).siblings('label').addClass('checked');
+			} else {
+				$(this).siblings('label').removeClass('checked');
+			}
+		});
+	}
+
+	//new OverlayAd('f69fff4c2a5c4adeaad7cf038e74f4f5');
+	function OverlayAd(zoneId) {
+		var href, timer, $target;
+
+		$(document).on('click', 'a', onOpenClick);
+		$(document).on('touchstart', '.player-holder', onOpenClick);
+		if (isMobileSafari()) $(document).on('touchstart', '.thumbs-wrap .item a', onOpenClick);
+		$('.intr-inner .close').on('click', closeOverlay);
+
+		function onOpenClick(e) {
+			$target = $(e.currentTarget);
+			if ($(window).width() > 768) return;
+			if ($target.is('.fp-play')) return;
+			if (isExternalLink()) return;
+			if (getCookie('intrsttl') === '1') return;
+
+			setCookie('intrsttl', '1', 6);
+
+			href = getHref();
+			if (href) e.preventDefault();
+			showOverlay();
+		}
+
+		function showOverlay() {
+			$('.intr-wrap')
+				.css('top', 0)
+				.find('iframe')
+				.attr('src', '//tsyndicate.com/api/v1/direct/' + zoneId +
+					'?w='+$(window).width()+'' +
+					'&h='+$(window).height())
+				.load(function () {
+					if (timer) clearTimeout(timer);
+				});
+
+			timer = setTimeout(closeOverlay, 5000);
+		}
+
+		function closeOverlay() {
+			if (href) {
+				window.location.href = href;
+				return;
+			}
+
+			$('.intr-wrap')
+				.css('top', '')
+				.find('iframe')
+				.attr('src', 'about:blank');
+
+			if (timer) clearTimeout(timer);
+		}
+
+		function getHref() {
+			var href = $target.attr('href');
+			if (!href) return false;
+			if (!~href.indexOf(window.location.hostname)) return false;
+			return href;
+		}
+
+		function isExternalLink() {
+			var href = $target.attr('href');
+			if (!href) return false;
+			if (href.indexOf('#') === 0) return false;
+			if (href.indexOf(window.location.protocol+'//'+window.location.hostname) === 0) return false;
+
+			return true;
+		}
+
+		function isMobileSafari() {
+			var userAgent = window.navigator.userAgent;
+			if (userAgent.match(/iPad/i) || userAgent.match(/iPhone/i)) return true;
+
+			return false;
+		}
+
+		function setCookie(name,value,hours) {
+			var expires = "";
+			if (hours) {
+				var date = new Date();
+				date.setTime(date.getTime() + (hours*60*60*1000));
+				expires = "; expires=" + date.toUTCString();
+			}
+			document.cookie = name + "=" + (value || "")  + expires + "; path=/";
+		}
+		function getCookie(name) {
+			var nameEQ = name + "=";
+			var ca = document.cookie.split(';');
+			for(var i=0;i < ca.length;i++) {
+				var c = ca[i];
+				while (c.charAt(0)==' ') c = c.substring(1,c.length);
+				if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length);
+			}
+			return null;
+		}
+	}
+
+
+	String.prototype.trim = function() {
+		return this.replace(/^\s+/, '').replace(/\s+$/, '');
+	};
+
+	if (!('ontouchstart' in document)) {
+		$('body').addClass('no-touch');
+	}
+
+	$.fn.exists = function () {
+		return this.length > 0;
+	};
+
+	(function() {
+		var storage = {};
+
+		var pageContext = window['pageContext'];
+
+		var lazyLoadDefOptions = {
+			effect: 'fadeIn',
+			placeholder: 'data:image/gif;base64,R0lGODlhAQABAIAAAAUEBAAAACwAAAAAAQABAAACAkQBADs=',
+			threshold: 200
+		};
+
+		var listNonCachableBlocks = {
+			'list_videos_my_favourite_videos': 1,
+			'list_videos_my_uploaded_videos': 1,
+			'list_albums_my_favourite_albums': 1,
+			'list_albums_my_created_albums': 1,
+			'list_playlists_my_created_playlists': 1,
+			'list_dvds_my_created_channels': 1,
+			'list_videos_my_channel_videos': 1,
+			'list_members_subscriptions_my_subscriptions': 1,
+			'list_videos_videos_from_my_subscriptions': 1,
+			'list_albums_albums_from_my_subscriptions': 1,
+			'list_videos_my_purchased_videos': 1,
+			'list_albums_my_purchased_albums': 1,
+			'list_members_my_conversations': 1,
+			'list_members_my_friends': 1,
+			'list_messages_my_conversation_messages': 1
+		};
+
+		var isMobileDevice = (/iphone|ipad|Android|webOS|iPod|BlackBerry|Windows Phone/gi).test(navigator.appVersion);
+
+		var utilitiesMergeOptions = function(def, contextKey) {
+			if (pageContext && pageContext[contextKey]) {
+				for (var prop in pageContext[contextKey]) {
+					if (pageContext[contextKey].hasOwnProperty(prop)) {
+						def[prop] = pageContext[contextKey][prop];
+					}
+				}
+			}
+			return def;
+		};
+
+		var utilitiesLoadSmileys = function($container) {
+			$container.find('img[data-src]').each(function () {
+				var originalSrc = $(this).attr('data-src');
+				if (originalSrc) {
+					this.src = originalSrc;
+					$(this).removeAttr('data-src');
+				}
+			});
+		};
+
+		var utilitiesScrollTo = function($obj, speed) {
+			if (typeof speed == 'undefined') {
+				speed = 400;
+			}
+			if ($obj.exists()) {
+				var windowTop = $(document).scrollTop();
+				var windowBottom = windowTop + $(window).height();
+				var objectTop = $obj.offset().top;
+				if (objectTop > windowTop && objectTop < windowBottom) {
+					return;
+				}
+			}
+			$.scrollTo($obj, speed, {offset: -100});
+		};
+
+		var utilitiesParseParameters = function(str) {
+			var result = {};
+			if (str) {
+				var params = str.split(';');
+				for (var i = 0; i < params.length; i++) {
+					var pair = params[i].split(':');
+					if (pair.length == 2) {
+						var paramNames = pair[0].split('+');
+						for (var j = 0; j < paramNames.length; j++) {
+							result[paramNames[j]] = decodeURIComponent(pair[1]).replace(/[+]/g,' ');
+						}
+					}
+				}
+			}
+			return result;
+		};
+
+		var utilitiesGetBlock = function (blockId, sender, args, params) {
+			var url = (args.url ? args.url : window.location.href);
+			if (url.indexOf('#') > 0) {
+				url = url.substring(0, url.indexOf('#'));
+			}
+			$.ajax({
+				url: url + (url.indexOf('?') >= 0 ? '&' : '?') + 'mode=async&function=get_block&block_id=' + blockId + (params ? '&' + $.param(params) : ''),
+				type: 'GET',
+				cache: false,
+				beforeSend: function () {
+					$(sender).block({message: null});
+					if (args.beforeSend) {
+						args.beforeSend(sender);
+					}
+				},
+				complete: function () {
+					$(sender).unblock();
+					if (args.complete) {
+						args.complete(sender);
+					}
+				},
+				success: function (html) {
+					storage[blockId] = params;
+					if (args.success) {
+						args.success(sender, html);
+					}
+				},
+				error: function () {
+					if (args.error) {
+						args.error(sender);
+					}
+				}
+			});
+		};
+
+		var utilitiesAjaxRequest = function(sender, params, successCallback) {
+			var url = window.location.href;
+			if (url.indexOf('#') > 0) {
+				url = url.substring(0, url.indexOf('#'));
+			}
+			$.ajax({
+				url: url + (url.indexOf('?') >= 0 ? '&' : '?') + 'mode=async&format=json&' + $.param(params),
+				type: 'GET',
+				beforeSend: function () {
+					$(sender).block({message: null});
+				},
+				complete: function () {
+					$(sender).unblock();
+				},
+				success: function (json) {
+					if (typeof json != 'object') {
+						json = JSON.parse(json);
+					}
+					if (json && successCallback) {
+						successCallback(json);
+					}
+				}
+			});
+		};
+
+		var utilitiesAjaxForm = function($form, callbacks) {
+			var considerFormBlocking = function($form, isBlock) {
+				var $popupParent = $form.parents('.popup-holder');
+				if ($popupParent.exists()) {
+					$form = $popupParent;
+				}
+				isBlock ? $form.block({ message: null }) : $form.unblock();
+			};
+
+			var defaultErrorMessage = 'Unexpected server response received. Please contact support.';
+			if (pageContext && pageContext['server_error']) {
+				defaultErrorMessage = pageContext['server_error'];
+			}
+
+			$form.ajaxForm({
+				data: {
+					format: 'json',
+					mode: 'async'
+				},
+
+				beforeSerialize: function () {
+					var $autoPopulates = $form.find('[data-form-populate-from]');
+					$autoPopulates.each(function() {
+						var populateFromName = $(this).attr('data-form-populate-from');
+						if (populateFromName) {
+							var $populateFrom = $form.find('[name="' + populateFromName + '"]');
+							if ($populateFrom.exists()) {
+								$(this).val($populateFrom.val());
+							}
+						}
+					});
+					if (callbacks && callbacks['beforeSerialize']) {
+						callbacks['beforeSerialize']($form);
+					}
+				},
+
+				beforeSubmit: function (data) {
+					var confirmText = $form.attr('data-confirm') || '';
+					if (confirmText && !confirm(confirmText)) {
+						return false;
+					}
+
+					var result = true;
+					if (callbacks && callbacks['beforeSubmit']) {
+						result = callbacks['beforeSubmit']($form, data);
+					}
+					considerFormBlocking($form, result);
+					return result;
+				},
+
+				uploadProgress: function(event, position, total, percent) {
+					if (callbacks && callbacks['uploadProgress']) {
+						callbacks['uploadProgress']($form, percent);
+					}
+				},
+
+				success: function (response, statusText, xhr) {
+					$form.find('.generic-error').empty().hide();
+					considerFormBlocking($form, false);
+
+					if (xhr.getResponseHeader('Content-Type').indexOf('application/json') >= 0) {
+						if (typeof response != 'object') {
+							response = JSON.parse(response);
+						}
+
+						if (response['status'] == 'failure') {
+							for (var i = 0; i < response['errors'].length; i++) {
+								var error = response['errors'][i];
+
+								var fieldName = error['field'];
+								var errorCode = error['code'];
+								var errorMessage = error['message'];
+
+								var $errorContainer = null;
+								if (fieldName) {
+									var $field = $form.find('[name="' + fieldName + '"]');
+									if (!$field.exists()) {
+										$field = $form.find('[data-name="' + fieldName + '"] [type="text"]');
+									}
+									if (!$field.exists()) {
+										$field = $form.find('[data-name="' + fieldName + '"] select');
+									}
+									if ($field.exists()) {
+										$field.addClass('error');
+										$field.parents('.file-control').find('[type="text"]').addClass('error');
+										$errorContainer = $field.parent().find('.field-error');
+										if (!$errorContainer.exists()) {
+											var fieldTitle = $field.parent().find('label').text();
+											if (fieldTitle) {
+												errorMessage += ' (' + fieldTitle + ')';
+											}
+										}
+										if (i==0) {
+											$field.focus();
+										}
+									} else {
+										errorMessage += ' (' + fieldName + ')';
+									}
+								}
+								if (!$errorContainer || !$errorContainer.exists()) {
+									$errorContainer = $form.find('.generic-error');
+								}
+
+								$errorContainer.empty().text(errorMessage).fadeIn();
+
+								if (fieldName == 'code' && errorCode != 'required') {
+									var $captcha = $form.find('.captcha-control img');
+									if ($captcha.exists()) {
+										$captcha.attr('src', $captcha.attr('src').replace(new RegExp('rand=\\d+'),'rand=' + new Date().getTime()));
+										$form.find('.captcha-control .textfield').val('');
+									}
+								}
+							}
+							if (callbacks && callbacks['error']) {
+								callbacks['error']($form);
+							}
+							utilitiesScrollTo($form, 0);
+						} else if (response['status'] == 'success') {
+							if (callbacks && callbacks['success']) {
+								callbacks['success']($form, response['data']);
+							} else if (response['redirect']) {
+								window.location = response['redirect'];
+							} else {
+								var $reloader = $('[data-reload-to]');
+								if ($reloader.exists()) {
+									window.location = $reloader.attr('data-reload-to');
+								} else {
+									window.location.reload();
+								}
+							}
+						} else {
+							$form.find('.generic-error').text(defaultErrorMessage).show();
+							utilitiesScrollTo($form, 0);
+							if (callbacks && callbacks['error']) {
+								callbacks['error']($form);
+							}
+						}
+
+					} else if (xhr.getResponseHeader('Content-Type').indexOf('text/html') >= 0) {
+						if (callbacks && callbacks['success']) {
+							callbacks['success']($form, response);
+						} else {
+							if ($(response).attr('data-fancybox') == 'message' || $(response).find('[data-fancybox="message"]').exists()) {
+								$.fancybox($(response), {
+									topRatio: 0.3,
+
+									beforeClose: function() {
+										var $redirectTo = this.inner.find('[data-fancybox-redirect-to]');
+										if ($redirectTo.exists()) {
+											window.location = $redirectTo.attr('data-fancybox-redirect-to');
+										} else {
+											window.location.reload();
+										}
+										return true;
+									}
+								});
+							} else {
+								$form.empty().append(response);
+							}
+						}
+					} else {
+						$form.find('.generic-error').text(defaultErrorMessage).show();
+						utilitiesScrollTo($form, 0);
+						if (callbacks && callbacks['error']) {
+							callbacks['error']($form);
+						}
+					}
+				},
+
+				error: function () {
+					considerFormBlocking($form, false);
+					$form.find('.generic-error').text(defaultErrorMessage).show();
+					utilitiesScrollTo($form, 0);
+					if (callbacks && callbacks['error']) {
+						callbacks['error']($form);
+					}
+				},
+
+				complete: function() {
+					if (callbacks && callbacks['complete']) {
+						callbacks['complete']($form);
+					}
+				}
+			});
+
+			$form.find('input, select, textarea').each(function() {
+				var $field = $(this);
+
+				var hideErrorFunction = function() {
+					var $errorContainer = $field.parent().find('.field-error');
+					$errorContainer.fadeOut();
+					$field.removeClass('error');
+					$field.parents('fieldset').removeClass('error');
+					$field.parents('.file-control').find('[type="text"]').removeClass('error');
+				};
+
+				$field.change(hideErrorFunction);
+				if ($field.get(0).tagName.toLowerCase() == 'textarea' || $field.get(0).type == 'text' || $field.get(0).type == 'password') {
+					$field.keypress(hideErrorFunction);
+				}
+			});
+
+			$form.find('.file-control [type="file"]').change(function() {
+				var $input = $(this);
+				var value = $input.val();
+				if (value.lastIndexOf('/') >= 0) {
+					value = value.substring(value.lastIndexOf('/') + 1);
+				}
+				if (value.lastIndexOf('\\') >= 0) {
+					value = value.substring(value.lastIndexOf('\\') + 1);
+				}
+				var files = $input.prop("files");
+				if (files && files.length > 1) {
+					value = '';
+					for (var i = 0; i < files.length; i++) {
+						if (value) {
+							value += ', ';
+						}
+						if (i >= 3) {
+							value += '...';
+							break;
+						}
+						value += files[i].name;
+					}
+				}
+
+				var $container = $input.parents('.file-control');
+				if ($input.attr('multiple') && (!files || files.length == 1)) {
+					var $clone = $container.clone(true, true);
+					$clone.wrap('<form>').parent('form').trigger('reset');
+					$clone.unwrap();
+					$container.parent().append($clone);
+				}
+				$container.find('[type="text"]').val($container.find('.button').html().trim() + ' ' + value);
+			});
+
+			$form.find('.list-selector').each(function() {
+				var $container = $(this);
+
+				$container.find('[type="text"]').focus(function() {
+					var $input = $(this);
+					var url = $container.attr('data-selector');
+					var name = $container.attr('data-name');
+					var selected = ($container.attr('data-selected') || '').split(',');
+
+					if (!$container.find('.list-selector-popup').exists()) {
+						if (url && name) {
+							$.ajax({
+								url: url,
+								type: 'GET',
+								beforeSend: function () {
+									$input.block({message: null});
+									$input.css({cursor: 'wait'});
+								},
+								complete: function () {
+									$input.unblock();
+									$input.css({cursor: 'text'});
+								},
+								success: function (html) {
+									var selectedIds = [];
+									var selectedLabels = [];
+									var filterValue = '';
+									var $popupContent = $('<div class="list-selector-popup">' + html + '</div>');
+
+									var $filterInput = $popupContent.find('[name="filter"]');
+									for (var i = 0; i < selected.length; i++) {
+										var id = selected[i].trim();
+										if (id) {
+											var $checkbox = $popupContent.find('input[type="checkbox"][value="' + id + '"],input[type="radio"][value="' + id + '"]');
+											var $label = $popupContent.find('label[for="' + $checkbox.attr('id') + '"]');
+											$checkbox.prop('checked', true);
+											selectedIds.push(id);
+											selectedLabels.push($label.html());
+										}
+									}
+
+									$container.append($popupContent);
+									$popupContent.find('input[type="checkbox"]').click(function() {
+										var $checkbox = $(this);
+										var i = 0;
+										var $label = $popupContent.find('label[for="' + $checkbox.attr('id') + '"]');
+										if ($label.html()) {
+											var value = $checkbox.prop('value');
+											if ($checkbox.prop('checked')) {
+												selectedIds.push(value);
+												selectedLabels.push($label.html());
+												$container.append($('<input type="hidden" name="' + name + '[]" value="' + value + '"/>'))
+											} else {
+												for (i = 0; i < selectedIds.length; i++) {
+													if (selectedIds[i] == value) {
+														selectedIds.splice(i, 1);
+														selectedLabels.splice(i, 1);
+														break;
+													}
+												}
+												$container.find('input[type="hidden"][value="' + value + '"]').remove();
+											}
+											var selectedText = '';
+											for (i = 0; i < selectedLabels.length; i++) {
+												if (selectedText != '') {
+													selectedText += ', ';
+												}
+												selectedText += selectedLabels[i];
+											}
+											$input.prop('value', selectedText);
+											$input.change();
+										}
+									}).focus(function() {
+										$filterInput.focus();
+									});
+
+									$popupContent.find('input[type="radio"]').change(function() {
+										var $checkbox = $(this);
+										var i = 0;
+										var $label = $popupContent.find('label[for="' + $checkbox.attr('id') + '"]');
+										if ($label.html()) {
+											var value = $checkbox.prop('value');
+											if ($checkbox.prop('checked')) {
+												$container.find('input[type="hidden"][name="' + name + '[]"]').remove();
+												selectedIds[0] = value;
+												selectedLabels[0] = $label.html();
+												$container.append($('<input type="hidden" name="' + name + '[]" value="' + value + '"/>'))
+											}
+											var selectedText = selectedLabels[0];
+											$input.prop('value', selectedText);
+											$input.change();
+										}
+									}).focus(function() {
+										$filterInput.focus();
+									});
+
+									$filterInput.focus().keyup(function() {
+										if ($filterInput.val() == filterValue) {
+											return;
+										}
+										filterValue = this.value.toLowerCase();
+
+										$container.find('.item').each(function() {
+											var $item = $(this);
+											if (filterValue == '') {
+												$item.show();
+											} else {
+												$item.toggle($item.find('label').html().toLowerCase().indexOf(filterValue) >= 0);
+											}
+										});
+									});
+
+									$(document).mouseup(function(e) {
+										if (!$container.is(e.target) && $container.has(e.target).length === 0)
+										{
+											$popupContent.hide();
+										}
+									});
+								}
+							});
+						}
+					} else {
+						$container.find('.list-selector-popup').show();
+						$container.find('[name="filter"]').focus();
+					}
+				});
+			});
+
+			$form.find('input[placeholder],textarea[placeholder]').placeholder();
+
+			$form.find('.smileys-support img').each(function() {
+				$(this).attr('title', $(this).attr('alt'));
+				$(this).click(function() {
+					var $textarea = $(this).parents('.smileys-support').find('textarea');
+					if (!$textarea.exists()) {
+						return;
+					}
+					var textarea = $textarea.get(0);
+					var smiley = $(this).attr('alt');
+
+					if (document.selection) {
+						textarea.focus();
+						var sel = document.selection.createRange();
+						sel.text = smiley;
+						textarea.focus();
+					} else if (textarea.selectionStart || textarea.selectionStart == '0') {
+						var startPos = textarea.selectionStart;
+						var endPos = textarea.selectionEnd;
+						var scrollTop = textarea.scrollTop;
+						textarea.value = textarea.value.substring(0, startPos) + smiley + textarea.value.substring(endPos, textarea.value.length);
+						textarea.focus();
+						textarea.selectionStart = startPos + smiley.length;
+						textarea.selectionEnd = startPos + smiley.length;
+						textarea.scrollTop = scrollTop;
+					} else {
+						textarea.value += smiley;
+						textarea.focus();
+					}
+				});
+			});
+
+			$form.find('[data-expand-id]').click(function() {
+				var $button = $(this);
+				var contentId = $button.attr('data-expand-id');
+				if (contentId) {
+					var $content = $('#' + contentId);
+					if ($button.hasClass('expand')) {
+						$content.slideDown(400, function () {
+							$(window).trigger('scroll');
+							if (storage['movable']) {
+								storage['movable']();
+							}
+						});
+						$button.removeClass('expand').addClass('collapse');
+					} else {
+						$content.slideUp(400, function () {
+							if (storage['movable']) {
+								storage['movable']();
+							}
+						});
+						$button.removeClass('collapse').addClass('expand');
+					}
+				}
+			});
+
+			$form.find('[data-action="choose"]').each(function() {
+				$(this).click(function() {
+					if ($(this).hasClass('disabled')) {
+						return;
+					}
+
+					var $form = $(this).parents('form');
+					var $radio = $(this).find('input');
+					$form.find('[data-action="choose"] [type="radio"]').prop('checked', false);
+					$radio.prop('checked', true);
+
+					if ($radio.prop('checked')) {
+						$form.find('[data-action="choose"]').removeClass('active');
+						$(this).addClass('active');
+
+						var $captchaControl = $form.find('.captcha-control');
+						if ($captchaControl.exists()) {
+							if ($radio.attr('name') == 'payment_option') {
+								$captchaControl.append($captchaControl.parent().find('[type="submit"]'));
+								$captchaControl.parent().find('label').removeClass('hidden');
+								$captchaControl.removeClass('hidden');
+							} else if ($radio.attr('name') == 'card_package_id') {
+								$captchaControl.parent().append($captchaControl.find('[type="submit"]'));
+								$captchaControl.parent().find('label').addClass('hidden');
+								$captchaControl.addClass('hidden');
+							}
+						}
+					}
+				});
+			});
+		};
+
+		var utilitiesAjaxFancyBox = function ($sender, url, afterShowCallback) {
+			$.fancybox([{href: url, type: 'ajax'}], {
+				afterShow: function() {
+					if (!afterShowCallback) {
+						this.inner.find('[data-form="ajax"]').each(function () {
+							utilitiesAjaxForm($(this));
+						});
+						this.inner.find('[data-fancybox="ajax"]').each(function() {
+							$(this).click(function(e) {
+								e.preventDefault();
+								utilitiesAjaxFancyBox($(this), this.href || $(this).attr('data-href'));
+							});
+						});
+					}
+					utilitiesLoadSmileys(this.inner);
+					if (afterShowCallback) {
+						afterShowCallback.call(this);
+					}
+				},
+
+				beforeClose: function() {
+					if (this.inner.find('[data-fancybox="refresh"]').exists()) {
+						if ($sender && $sender.attr('data-fancybox-refresh-id')) {
+							utilitiesReloadBlock($sender.attr('data-fancybox-refresh-id'), $sender, false, true);
+						} else {
+							window.location.reload();
+						}
+					} else if ($sender && $sender.attr('data-fancybox-refresh-id')) {
+						utilitiesReloadBlock($sender.attr('data-fancybox-refresh-id'), $sender, false, true);
+					}
+					return true;
+				},
+
+				helpers: {
+					overlay: {closeClick: false}
+				},
+
+				type: 'ajax',
+				topRatio: 0.3
+			});
+		};
+
+		var utilitiesReloadBlock = function(blockId, sender, scroll, animate) {
+			if (!blockId) {
+				window.location.reload();
+				return;
+			}
+			var params = null;
+			if (storage[blockId]) {
+				params = storage[blockId];
+			}
+
+			var args = {};
+			args.success = function (sender, html) {
+				storage[blockId] = params;
+				var animationOpacity = 0.1;
+				if (!animate) {
+					animationOpacity = 1;
+				}
+				if (scroll) {
+					utilitiesScrollTo($('#' + blockId));
+				}
+				$('#' + blockId).animate({opacity: animationOpacity}, 400, function () {
+					var div = document.createElement('div');
+					div.innerHTML = html;
+
+					var content = $(div).children().first();
+					$(content).css('opacity', animationOpacity);
+					$(this).replaceWith(content);
+					$('#' + blockId).animate({opacity: 1}, 400);
+					initAjaxLists($('#' + blockId));
+
+					if (typeof(Storage) !== 'undefined') {
+						var userId = '';
+						if (pageContext && pageContext['userId']) {
+							userId = pageContext['userId'] + ':';
+						}
+						sessionStorage.setItem(userId + location.href + '#' + blockId, $('#' + blockId).html());
+						sessionStorage.setItem(userId + location.href + '#' + blockId + ':params', JSON.stringify(params));
+					}
+				});
+			};
+
+			var errorTries = 0;
+			args.error = function () {
+				errorTries++;
+				var hasFromParameter = false;
+				for (var paramName in params) {
+					if (params.hasOwnProperty(paramName)) {
+						if (paramName.indexOf('from') == 0 && parseInt(params[paramName])>1) {
+							params[paramName] = parseInt(params[paramName]) - 1;
+							if (errorTries > 1) {
+								params[paramName] = 1;
+							}
+							hasFromParameter = true;
+						}
+					}
+				}
+				if (!hasFromParameter) {
+					params = null;
+				}
+
+				if (errorTries > 1) {
+					delete args.error;
+				}
+
+				utilitiesGetBlock(blockId, sender, args, params);
+			};
+
+			utilitiesGetBlock(blockId, sender, args, params);
+		};
+
+		var initMenu = function () {
+			$('.navigation button').click(function() {
+				$(this).parents('.navigation').toggleClass('open');
+			});
+		};
+
+		var initTabs = function () {
+			var $tabLinks = $('.tabs-menu li a');
+			if ($tabLinks.exists()) {
+				var tabLinks = {};
+				var tabQuery = '';
+				var currentActiveTab = '';
+				$tabLinks.each(function() {
+					if ($(this).attr('href').indexOf('#') == 0) {
+						var tabId = $(this).attr('href');
+						if (!currentActiveTab || tabId == window.location.hash) {
+							currentActiveTab = tabId;
+						}
+						tabLinks[tabId] = $(this);
+						tabQuery += ',' + tabId;
+					}
+				});
+
+				var $tabs = $(tabQuery ? tabQuery.substr(1) : '');
+				$tabs.hide();
+
+				if (currentActiveTab) {
+					tabLinks[currentActiveTab].addClass('active');
+					$(currentActiveTab).show();
+				}
+
+				$tabLinks.click(function(e) {
+					if ($(this).attr('href').indexOf('#') == 0) {
+						e.preventDefault();
+						var tabId = $(this).attr('href');
+						$tabLinks.removeClass('active');
+						$tabs.hide();
+						$(tabId).show();
+						if (tabLinks[tabId]) {
+							tabLinks[tabId].addClass('active');
+						}
+
+						$(window).trigger('scroll');
+					}
+				});
+			}
+		};
+
+		var initMovable = function () {
+			var $movable = $('.movable-top, .movable-bottom');
+
+			var movableFunc = function () {
+				$movable.each(function () {
+					var heightDiff;
+					if ($(this).hasClass('movable-top')) {
+						heightDiff = $(this).parent().height() - $(this).height();
+						if (heightDiff > 0) {
+							var parentTopOffset = $(this).parent().offset().top - $(document).scrollTop();
+							var maxOffset = $(this).parent().height() - $(this).height();
+							if (parentTopOffset < 0) {
+								var offset = Math.min(-parentTopOffset, maxOffset);
+								$(this).css({top: offset + 'px'});
+							} else {
+								$(this).css({top: '0px'});
+							}
+						} else if ($(this).offset().top > 0) {
+							$(this).css({top: '0px'});
+						}
+					} else {
+						heightDiff = $(this).parent().height() - $(this).height();
+						if (heightDiff > 0) {
+							var windowBottom = $(window).height() + $(document).scrollTop();
+							var movableBottom = $(this).height() + $(this).parent().offset().top;
+							var diff = windowBottom - movableBottom;
+							if (diff > 0) {
+								diff = Math.min(diff, heightDiff);
+								$(this).css({top: diff + 'px'});
+							} else {
+								$(this).css({top: '0px'});
+							}
+						} else if ($(this).offset().top > 0) {
+							$(this).css({top: '0px'});
+						}
+					}
+				});
+			};
+
+			if ($movable.exists()) {
+				$(window).on('scroll', movableFunc);
+				$movable.parent().on('click', movableFunc);
+			}
+			storage['movable'] = movableFunc;
+		};
+
+		var initFancyBox = function () {
+			$('[data-fancybox="ajax"]').each(function() {
+				$(this).click(function(e) {
+					e.preventDefault();
+					utilitiesAjaxFancyBox($(this), this.href || $(this).attr('data-href'));
+				});
+			});
+
+			$('.block-album .images a.item, .block-screenshots a.item, .list-albums-images a, .list-videos-screenshots a').fancybox({
+				openEffect: 'none',
+				closeEffect: 'none',
+				prevEffect: 'none',
+				nextEffect: 'none',
+				helpers: {
+					title: {
+						type: 'inside'
+					},
+					buttons: {
+						position: 'bottom'
+					}
+				}
+			});
+
+			if (window.location.href.indexOf('?login') > 0) {
+				$('#login').click();
+			}
+		};
+
+		var initRating = function () {
+			var $ratingContainer = $('.rating-container');
+			var $links = $ratingContainer.find('.rate-like, .rate-dislike');
+			$links.click(function(e) {
+				e.preventDefault();
+				var $link = $(this);
+				if ($link.hasClass('disabled') || $link.hasClass('voted')) {
+					return;
+				}
+
+				var vote = parseInt($link.attr('data-vote')) || 0;
+				var videoId = $link.attr('data-video-id');
+				var albumId = $link.attr('data-album-id');
+				var playlistId = $link.attr('data-playlist-id');
+				var postId = $link.attr('data-post-id');
+				var modelId = $link.attr('data-model-id');
+				var csId = $link.attr('data-cs-id');
+				var dvdId = $link.attr('data-dvd-id');
+				var flagId = $link.attr('data-flag-id');
+				if (videoId || albumId || playlistId || modelId || csId || postId || dvdId) {
+					utilitiesAjaxRequest($link, {action: 'rate', video_id: videoId, album_id: albumId, playlist_id: playlistId, model_id: modelId, cs_id: csId, post_id: postId, dvd_id: dvdId, vote: vote}, function(json) {
+						if (json['status']=='success') {
+							$links.addClass('disabled');
+							$link.removeClass('disabled').addClass('voted');
+							$ratingContainer.find('.voters').html($ratingContainer.find('.voters').attr('data-success'));
+
+							var $scale = $ratingContainer.find('.scale');
+							var oldRating = parseFloat($scale.attr('data-rating'));
+							var oldRatingVotes = parseInt($scale.attr('data-votes'));
+							if (oldRatingVotes > 0) {
+								if (oldRating == 0) {
+									oldRatingVotes = 0;
+								}
+								var newRating = (oldRating * oldRatingVotes + vote) / (oldRatingVotes + 1) / 5 * 100;
+								if (newRating > 100) {
+									newRating = 100;
+								}
+								$ratingContainer.find('.scale').css({width: newRating + '%'});
+							}
+						} else {
+							$links.addClass('disabled');
+							$ratingContainer.find('.voters').html($ratingContainer.find('.voters').attr('data-error'));
+						}
+					});
+					if (flagId) {
+						utilitiesAjaxRequest($link, {action: 'flag', video_id: videoId, album_id: albumId, playlist_id: playlistId, postId: postId, dvdId: dvdId, flag_id: flagId}, function() {});
+					}
+				}
+			});
+		};
+
+		var initAddToFavourites = function () {
+			$('.btn-favourites li a').click(function(e) {
+				var $link = $(this);
+				var videoId = $link.attr('data-video-id');
+				var albumId = $link.attr('data-album-id');
+				var favType = $link.attr('data-fav-type') || 0;
+				var createPlaylistUrl = $link.attr('data-create-playlist-url');
+				var playlistId = $link.attr('data-playlist-id') || 0;
+				if ((videoId || albumId)) {
+					e.preventDefault();
+					if ($link.hasClass('delete')) {
+						utilitiesAjaxRequest($link.parents('li'), {action: 'delete_from_favourites', video_id: videoId, album_id: albumId, fav_type: favType, playlist_id: playlistId}, function(json) {
+							if (json['status']=='success') {
+								if (playlistId > 0) {
+									$link.parents('li').addClass('hidden');
+									$link.parents('ul').find('#add_playlist_' + playlistId).removeClass('hidden');
+								} else {
+									$link.parents('li').addClass('hidden');
+									$link.parents('ul').find('#add_fav_' + favType).removeClass('hidden');
+								}
+							}
+						});
+					} else {
+						if (favType == 10 && !playlistId) {
+							if (createPlaylistUrl) {
+								utilitiesAjaxFancyBox($link, createPlaylistUrl, function () {
+									var $form = this.inner.find('form');
+									utilitiesAjaxForm($form, {
+										success: function($form, newPlaylistData) {
+											$.fancybox.close();
+
+											newPlaylistData = $(newPlaylistData);
+											playlistId = newPlaylistData.attr('data-playlist-id');
+											var playlistTitle = newPlaylistData.attr('data-playlist-title');
+
+											if (playlistId) {
+												utilitiesAjaxRequest($link.parents('li'), {action: 'add_to_favourites', video_id: videoId, album_id: albumId, fav_type: favType, playlist_id: playlistId}, function(json) {
+													if (json['status']=='success') {
+														var $newItem = $link.parents('ul').find('#add_playlist_').clone(true, true);
+														$newItem.find('a').each(function() {
+															if ($(this).attr('data-playlist-id')) {
+																$(this).attr('data-playlist-id', $(this).attr('data-playlist-id').replace('%ID%', playlistId));
+															}
+															if ($(this).attr('href')) {
+																$(this).attr('href', $(this).attr('href').replace('%ID%', playlistId));
+															}
+															$(this).html($(this).html().replace('%1%', playlistTitle));
+														});
+														$newItem.attr('id', 'add_playlist_' + playlistId);
+														$newItem.insertBefore($link.parents('li'));
+														$newItem = $link.parents('ul').find('#delete_playlist_').clone(true, true);
+														$newItem.find('a').each(function() {
+															if ($(this).attr('data-playlist-id')) {
+																$(this).attr('data-playlist-id', $(this).attr('data-playlist-id').replace('%ID%', playlistId));
+															}
+															if ($(this).attr('href')) {
+																$(this).attr('href', $(this).attr('href').replace('%ID%', playlistId));
+															}
+															$(this).html($(this).html().replace('%1%', playlistTitle));
+														});
+														$newItem.attr('id', 'delete_playlist_' + playlistId);
+														$newItem.removeClass('hidden');
+														$newItem.insertBefore($link.parents('li'));
+													}
+												});
+											}
+										}
+									});
+								});
+							}
+						} else {
+							utilitiesAjaxRequest($link.parents('li'), {action: 'add_to_favourites', video_id: videoId, album_id: albumId, fav_type: favType, playlist_id: playlistId}, function(json) {
+								if (json['status']=='success') {
+									if (playlistId > 0) {
+										$link.parents('li').addClass('hidden');
+										$link.parents('ul').find('#delete_playlist_' + playlistId).removeClass('hidden');
+									} else {
+										$link.parents('li').addClass('hidden');
+										$link.parents('ul').find('#delete_fav_' + favType).removeClass('hidden');
+									}
+								}
+							});
+						}
+					}
+				}
+			});
+		};
+
+		var initErrorFlaggingForm = function () {
+			var $blockFlagging = $('.block-flagging');
+			if ($blockFlagging.exists()) {
+				var $flaggingForm = $blockFlagging.find('form');
+				if ($flaggingForm.exists()) {
+					utilitiesAjaxForm($flaggingForm, {
+						success: function($form) {
+							$form.find('.success').show();
+							$form.find('.block-radios, .block-textarea').hide();
+						}
+					});
+				}
+			}
+		};
+
+		var initShareForm = function () {
+			var $blockShare = $('.block-share');
+			if ($blockShare.exists()) {
+				if (typeof window['getEmbed'] == 'function') {
+					$blockShare.find('.embed-code').val(window['getEmbed']());
+				}
+				$blockShare.find('.embed-button').click(function (e) {
+					e.preventDefault();
+					if (typeof window['getEmbed'] == 'function') {
+						var embedSize = $(this).attr('data-embed-size');
+						if (embedSize && embedSize.indexOf('x') > 0) {
+							var embedWidth = parseInt(embedSize.substr(0, embedSize.indexOf('x')));
+							var embedHeight = parseInt(embedSize.substr(embedSize.indexOf('x') + 1));
+							$blockShare.find('.embed-code').val(window['getEmbed'](embedWidth, embedHeight));
+						}
+					}
+				});
+				$blockShare.find('.embed-code-custom-width, .embed-code-custom-height').on('keyup blur', function () {
+					var $widthField = $blockShare.find('.embed-code-custom-width');
+					var $heightField = $blockShare.find('.embed-code-custom-height');
+					if (parseInt($widthField.val()) && parseInt($heightField.val())) {
+						$blockShare.find('.embed-code-custom-width-label').html(parseInt($widthField.val()));
+						$blockShare.find('.embed-code-custom-height-label').html(parseInt($heightField.val()));
+						$blockShare.find('.embed-button-custom').attr('data-embed-size', parseInt($widthField.val()) + 'x' + parseInt($heightField.val()));
+					}
+				});
+			}
+		};
+
+		var initCommentForm = function () {
+			var $blockComments = $('.block-comments');
+			var $blockNewComment = $blockComments.find('.block-new-comment');
+			if ($blockComments.exists() && $blockNewComment.exists()) {
+				$blockComments.find('.toggle-button').click(function (e) {
+					e.preventDefault();
+					$(this).toggleClass('active');
+					$blockNewComment.toggle();
+					$blockComments.find('.success').hide();
+					if ($blockNewComment.is(':visible')) {
+						var $captcha = $blockNewComment.find('.captcha-control img');
+						if ($captcha.exists()) {
+							if ($captcha.attr('data-src')) {
+								$captcha.attr('src', $captcha.attr('data-src').replace(new RegExp('rand=\\d+'),'rand=' + new Date().getTime()));
+							} else {
+								$captcha.attr('src', $captcha.attr('src').replace(new RegExp('rand=\\d+'),'rand=' + new Date().getTime()));
+							}
+						}
+					}
+
+					utilitiesLoadSmileys($blockNewComment);
+
+					if (storage['movable']) {
+						storage['movable']();
+					}
+				});
+
+				var $commentsForm = $blockComments.find('form');
+				if ($commentsForm.exists()) {
+					utilitiesAjaxForm($commentsForm, {
+						success: function($form, newCommentData) {
+							var $anonymousUsernameField = $form.find('[name="anonymous_username"]');
+							var anonymousUsername = $anonymousUsernameField.val();
+							if (anonymousUsername) {
+								$.cookie('kt_anonymous_username', anonymousUsername, {path: '/'});
+							}
+
+							$form.get(0).reset();
+							$anonymousUsernameField.val(anonymousUsername || '');
+
+							var $captcha = $form.find('.captcha-control img');
+							if ($captcha.exists()) {
+								$captcha.attr('src', $captcha.attr('src').replace(new RegExp('rand=\\d+'),'rand=' + new Date().getTime()));
+							}
+
+							if ($blockComments.find('.toggle-button').exists())
+							{
+								$blockNewComment.hide();
+								$blockComments.find('.toggle-button').removeClass('active');
+							}
+
+							var commentsBlockId = $blockComments.attr('data-block-id');
+							var $commentsList = $('.list-comments');
+							if (newCommentData && newCommentData['approved'] && commentsBlockId && $commentsList.exists()) {
+								var args = {
+									success: function(sender, html) {
+										if (typeof(Storage) !== 'undefined') {
+											var userId = '';
+											if (pageContext && pageContext['userId']) {
+												userId = pageContext['userId'] + ':';
+											}
+											sessionStorage.removeItem(userId + location.href + '#' + commentsBlockId);
+											sessionStorage.removeItem(userId + location.href + '#' + commentsBlockId + ':params');
+										}
+
+										var resultElement = document.createElement('DIV');
+										resultElement.innerHTML = html;
+
+										var $newItem = $(resultElement).find('.item[data-comment-id="' + (newCommentData['comment_id'] || newCommentData['entry_id']) + '"]').addClass('hidden');
+										$commentsList.find('#' + commentsBlockId + '_items').prepend($newItem);
+
+										setTimeout(function() {
+											$commentsList.show();
+											$newItem.fadeIn();
+
+											if (storage['movable']) {
+												storage['movable']();
+											}
+										}, 200);
+									}
+								};
+								utilitiesGetBlock(commentsBlockId, null, args);
+							} else {
+								$commentsForm.find('.success').show();
+							}
+
+							if (storage['movable']) {
+								storage['movable']();
+							}
+						}
+					});
+				}
+
+				$commentsForm.find('[name="anonymous_username"]').val($.cookie('kt_anonymous_username') || '');
+			}
+		};
+
+		var initCommentActions = function () {
+			$('.list-comments').on('click', '.comment-options a', function(e) {
+				var $link = $(this);
+				var $item = $(this).parents('.item');
+				var $container = $(this).parents('.comment-options');
+				var $rating = $container.find('.comment-rating');
+				var $ratingLinks = $container.find('.comment-like, .comment-dislike');
+				var commentId = $item.attr('data-comment-id');
+
+				if (($link.hasClass('comment-like') || $link.hasClass('comment-dislike'))) {
+					e.preventDefault();
+					if ($link.hasClass('disabled')) {
+						return;
+					}
+					var increment = ($link.hasClass('comment-dislike') ? -1 : 1);
+					utilitiesAjaxRequest($link, {action: 'vote_comment', vote: increment, comment_id: commentId}, function(json) {
+						if (json['status'] == 'success') {
+							$ratingLinks.fadeOut();
+							if ($rating.exists()) {
+								var ratingValue = parseInt($rating.html());
+								if (!isNaN(ratingValue)) {
+									ratingValue += increment;
+									$rating.html(ratingValue);
+									if (ratingValue > 0) {
+										$rating.addClass('positive');
+									} else if (ratingValue < 0) {
+										$rating.addClass('negative');
+										$item.addClass('dim-comment');
+									} else if (ratingValue == 0) {
+										$rating.removeClass('positive').removeClass('negative');
+										$item.removeClass('dim-comment');
+									}
+								}
+							}
+						} else {
+							$ratingLinks.addClass('disabled');
+						}
+					});
+				} else if ($link.hasClass('comment-edit')) {
+					e.preventDefault();
+					$.fancybox($('.popup-edit-comment').clone(true, true), {
+						afterShow: function () {
+							var $form = this.inner.find('form');
+							$form.find('[name="comment_id"], [name="entry_id"]').val(commentId);
+
+							var originalText = $item.find('.original-text').html() || '';
+							originalText = originalText.replace(/<br>/gi, '\n').replace(/&gt;/gi, '>').replace(/&lt;/gi, '<').replace(/&#34;/gi, '"');
+							originalText = originalText.replace(/<img.*?alt=['"](.*?)['"].*?>/gi, '$1');
+							$form.find('[name="comment"], [name="entry"]').val(originalText);
+
+							utilitiesAjaxForm($form, {
+								success: function() {
+									$.fancybox.close();
+									var $blockComments = $('.block-comments');
+									var commentsBlockId = $blockComments.attr('data-block-id');
+									if (commentsBlockId) {
+										var args = {
+											success: function(sender, html) {
+												if (typeof(Storage) !== 'undefined') {
+													var userId = '';
+													if (pageContext && pageContext['userId']) {
+														userId = pageContext['userId'] + ':';
+													}
+													sessionStorage.removeItem(userId + location.href + '#' + commentsBlockId);
+													sessionStorage.removeItem(userId + location.href + '#' + commentsBlockId + ':params');
+												}
+
+												var resultElement = document.createElement('DIV');
+												resultElement.innerHTML = html;
+
+												var newCommentText = $(resultElement).find('.item[data-comment-id="' + commentId + '"] .comment-text').html() || '';
+												$item.find('.comment-text').html(newCommentText);
+											}
+										};
+										utilitiesGetBlock(commentsBlockId, null, args);
+									}
+								}
+							});
+							utilitiesLoadSmileys(this.inner);
+						},
+
+						helpers: {
+							overlay: {closeClick: false}
+						},
+
+						topRatio: 0.3
+					});
+				}
+			});
+		};
+
+		var initAdditional = function () {
+			if ($('.block-additional').get(0)) {
+				$('.btn-add').toggle(function () {
+					$(this).text('- Additional info you\'d like to share');
+					$('.block-additional').slideDown('slow');
+					return false;
+				}, function () {
+					$(this).text('+ Additional info you\'d like to share');
+					$('.block-additional').slideUp('slow');
+					return false;
+				});
+			}
+		};
+
+		var initAjaxLists = function ($container) {
+			if (!$container) {
+				$container = $(document);
+
+				if (typeof(Storage) !== 'undefined') {
+					var ajaxIds = {};
+					$container.find('[data-action="ajax"]').each(function() {
+						var id = $(this).attr('data-block-id');
+						if (!ajaxIds[id]) {
+							ajaxIds[id] = true;
+						}
+					});
+
+					var userId = '';
+					if (pageContext && pageContext['userId']) {
+						userId = pageContext['userId'] + ':';
+					}
+
+					for (var blockId in ajaxIds) {
+						if (ajaxIds.hasOwnProperty(blockId)) {
+							var html = sessionStorage.getItem(userId + location.href + '#' + blockId);
+							if (!html) {
+								html = sessionStorage.getItem(location.href + '#' + blockId);
+							}
+							if (html) {
+								$('#' + blockId).html(html).find('[data-fancybox="ajax"]').each(function() {
+									$(this).click(function(e) {
+										e.preventDefault();
+										utilitiesAjaxFancyBox($(this), this.href || $(this).attr('data-href'));
+									});
+								});
+							}
+							var params = sessionStorage.getItem(userId + location.href + '#' + blockId + ':params');
+							if (!params) {
+								params = sessionStorage.getItem(location.href + '#' + blockId + ':params');
+							}
+							if (params) {
+								try {
+									storage[blockId] = JSON.parse(params);
+								} catch (e) {}
+
+								if (listNonCachableBlocks[blockId]) {
+									$('#' + blockId).find('img.lazy-load').removeClass('lazy-load');
+									utilitiesReloadBlock(blockId, blockId, false, false);
+								}
+							}
+						}
+					}
+				}
+			} else {
+				$container.find('[data-fancybox="ajax"]').each(function() {
+					$(this).click(function(e) {
+						e.preventDefault();
+						utilitiesAjaxFancyBox($(this), this.href || $(this).attr('data-href'));
+					});
+				});
+			}
+
+			if ($.fn.lazyload) {
+				if (isMobileDevice) {
+					$container.find('img.lazy-load').each(function() {
+						var originalSrc = $(this).attr('data-original');
+						if (originalSrc) {
+							this.src = originalSrc;
+						}
+					});
+				} else {
+					$container.find('img.lazy-load').lazyload(utilitiesMergeOptions(lazyLoadDefOptions, 'lazyload'));
+				}
+			}
+
+			if ($.fn.thumbs) {
+				if (!isMobileDevice) {
+					$container.find('img[data-cnt]').thumbs();
+				}
+			}
+			if ($.fn.videopreview) {
+				if (!isMobileDevice) {
+					$container.find('img[data-preview]').videopreview();
+				}
+			}
+
+			$container.find('[data-action="ajax"]').click(function (e) {
+				e.preventDefault();
+
+				var args = {};
+				var $sender = $(this);
+				var appendTo = $sender.attr('data-append-items-to');
+				var maxQueries = parseInt($sender.attr('data-max-queries')) || 0;
+
+				var blockId = $sender.attr('data-block-id');
+				if (!blockId) {
+					return;
+				}
+				var containerId = $sender.attr('data-container-id');
+
+				if (maxQueries && appendTo) {
+					var currentQueries = parseInt($('#' + appendTo).attr('data-current-queries')) || 0;
+					if (currentQueries < maxQueries) {
+						currentQueries++;
+						if (currentQueries == maxQueries) {
+							$('#' + containerId).remove();
+						} else {
+							$('#' + appendTo).attr('data-current-queries', currentQueries);
+						}
+					} else {
+						return;
+					}
+				}
+
+				var params = utilitiesParseParameters($sender.attr('data-parameters'));
+
+				var userId = '';
+				if (pageContext && pageContext['userId']) {
+					userId = pageContext['userId'] + ':';
+				}
+
+				args.success = function (sender, html) {
+					if (appendTo) {
+						var resultElement = document.createElement('DIV');
+						resultElement.innerHTML = html;
+
+						if (containerId) {
+							var $newContainer = $(resultElement).find('#' + containerId);
+							if ($newContainer.exists()) {
+								$('#' + containerId).replaceWith($newContainer);
+								initAjaxLists($newContainer);
+							} else {
+								$('#' + containerId).remove();
+							}
+						}
+
+						var $itemsToAppend = $(resultElement).find('#' + appendTo + ' .item');
+						$itemsToAppend.css({display: 'none'});
+						if ($('#' + appendTo).attr('data-append-to-beginning') == 'true') {
+							$itemsToAppend.insertBefore($('#' + appendTo).find('.item').first());
+						} else {
+							$itemsToAppend.insertAfter($('#' + appendTo).find('.item').last());
+						}
+						$itemsToAppend.fadeIn().promise().done(function () {
+							for (var paramName in params) {
+								if (params.hasOwnProperty(paramName)) {
+									if (paramName.indexOf('from') == 0 && parseInt(params[paramName])>1) {
+										delete params[paramName];
+										break;
+									}
+								}
+							}
+							if (!listNonCachableBlocks[blockId]) {
+								if (typeof(Storage) !== 'undefined') {
+									sessionStorage.setItem(userId + location.href + '#' + blockId, $('#' + blockId).html());
+									sessionStorage.setItem(userId + location.href + '#' + blockId + ':params', JSON.stringify(params));
+								}
+							}
+						});
+						initAjaxLists($itemsToAppend);
+
+					} else {
+						utilitiesScrollTo($('#' + blockId));
+						$('#' + blockId).animate({opacity: 0.1}, 400, function () {
+							var div = document.createElement('div');
+							div.innerHTML = html;
+
+							var content = $(div).find('#' + blockId);
+							$(content).css('opacity', '0.1');
+							$(this).replaceWith(content);
+							$('#' + blockId).animate({opacity: 1}, 400);
+							initAjaxLists($('#' + blockId));
+
+							if (typeof(Storage) !== 'undefined') {
+								sessionStorage.setItem(userId + location.href + '#' + blockId, $('#' + blockId).html());
+								sessionStorage.setItem(userId + location.href + '#' + blockId + ':params', JSON.stringify(params));
+							}
+						});
+					}
+				};
+
+				utilitiesGetBlock(blockId, containerId ? $('#' + containerId) : $sender, args, params);
+			});
+
+			$container.find('[data-rt]').mousedown(function() {
+				var rotatorParams = $(this).attr('data-rt');
+				if (rotatorParams) {
+					var url = window.location.href;
+					if (url.indexOf('#') > 0) {
+						url = url.substring(0, url.indexOf('#'));
+					}
+					var img = new Image();
+					img.src = url + (url.indexOf('?') >= 0 ? '&' : '?') + 'mode=async&action=rotator_videos&pqr=' + rotatorParams;
+					$(this).attr('data-rt', '');
+				}
+			});
+
+			$container.find('[data-playlist-item]').click(function(e) {
+				e.preventDefault();
+
+				$container.find('[data-playlist-item]').removeClass('selected');
+
+				var $item = $(this);
+				$item.addClass('selected');
+
+				var playlistItemUrl = $item.attr('data-playlist-item');
+				if (playlistItemUrl) {
+					storage['playlist_state'] = playlistItemUrl;
+
+					var args = {};
+					args.url = playlistItemUrl;
+					args.success = function (sender, html) {
+						$('.player').html('').append($(html.trim()).find('.player-holder'));
+						$('.player-holder').find('[data-fancybox="ajax"]').each(function() {
+							$(this).click(function(e) {
+								e.preventDefault();
+								utilitiesAjaxFancyBox($(this), this.href || $(this).attr('data-href'));
+							});
+						});
+						$('.player-holder').find('[data-form="ajax"]').each(function () {
+							utilitiesAjaxForm($(this));
+						});
+						setTimeout(function() {
+							utilitiesScrollTo($('.player'), 0);
+						}, 0);
+					};
+					utilitiesGetBlock('video_view_video_view', $item, args);
+				}
+			});
+			if (!storage['playlist_state']) {
+				var $defaultItem = $container.find('[data-playlist-item]').first();
+				if ($defaultItem.exists()) {
+					$defaultItem.addClass('selected').click();
+				}
+			} else {
+				$container.find('[data-playlist-item]').each(function() {
+					if ($(this).attr('data-playlist-item') == storage['playlist_state']) {
+						$(this).addClass('selected');
+					}
+				});
+			}
+
+			$container.find('[data-fav-video-id]').click(function(e) {
+				e.preventDefault();
+				e.stopPropagation();
+
+				var $link = $(this);
+				var videoId = $link.attr('data-fav-video-id');
+				var favType = $link.attr('data-fav-type') || 0;
+				utilitiesAjaxRequest($link, {action: 'add_to_favourites', video_id: videoId, video_ids: [videoId], fav_type: favType, playlist_id: 0}, function(json) {
+					if (json['status'] == 'failure' && json['errors'] && json['errors'][0] && json['errors'][0]['code'] == 'not_logged_in') {
+						if (pageContext && pageContext['loginUrl']) {
+							utilitiesAjaxFancyBox($link, pageContext['loginUrl']);
+						}
+					} else {
+						$link.addClass('fixed');
+					}
+				});
+			});
+			$container.find('[data-fav-album-id]').click(function(e) {
+				e.preventDefault();
+				e.stopPropagation();
+
+				var $link = $(this);
+				var albumId = $link.attr('data-fav-album-id');
+				var favType = $link.attr('data-fav-type') || 0;
+				utilitiesAjaxRequest($link, {action: 'add_to_favourites', album_id: albumId, album_ids: [albumId], fav_type: favType}, function(json) {
+					if (json['status'] == 'failure' && json['errors'] && json['errors'][0] && json['errors'][0]['code'] == 'not_logged_in') {
+						if (pageContext && pageContext['loginUrl']) {
+							utilitiesAjaxFancyBox($link, pageContext['loginUrl']);
+						}
+					} else {
+						$link.addClass('fixed');
+					}
+				});
+			});
+
+			function createDeleteCallback($form, $sender, blockId) {
+				return function(json) {
+					if (json['status'] == 'success') {
+						utilitiesReloadBlock(blockId, $sender, true, true);
+						if ($form.attr('data-refresh-block-ids')) {
+							var blockIds = $form.attr('data-refresh-block-ids').split(',');
+							for (var j = 0; j < blockIds.length; j++) {
+								utilitiesReloadBlock(blockIds[j], $sender, false, true);
+							}
+						} else if ($sender.attr('data-redirect-url')) {
+							window.location = $sender.attr('data-redirect-url');
+						}
+					} else {
+						for (var i = 0; i < json['errors'].length; i++) {
+							var error = json['errors'][i];
+							var errorMessage = error['message'];
+							if (errorMessage) {
+								$form.find('.generic-error').empty().text(errorMessage).fadeIn();
+							}
+						}
+						utilitiesScrollTo($('#' + blockId), 0);
+					}
+				};
+			}
+
+			$container.find('[data-action="select"]').each(function() {
+				$(this).click(function(e) {
+					if ($(this).hasClass('disabled')) {
+						return;
+					}
+
+					var $form = $(this).parents('form');
+					var $checkbox = $(this).find('input');
+					if (!$(e.target).is($checkbox)) {
+						$checkbox.prop('checked', !$checkbox.prop('checked'));
+					}
+
+					var selectedNumber = parseInt($form.attr('data-selected-cnt')) || 0;
+					if ($checkbox.prop('checked')) {
+						$(this).addClass('active');
+						selectedNumber++;
+					} else {
+						$(this).removeClass('active');
+						selectedNumber = Math.max(selectedNumber - 1, 0);
+					}
+					$form.find('input[data-mode="selection"]').prop('disabled', selectedNumber == 0);
+					$form.find('input[data-action="select_all"]').toggleClass('active', selectedNumber == $form.find('input[type=checkbox]').length - $form.find('input[type=checkbox][disabled]').length);
+					$form.attr('data-selected-cnt', selectedNumber);
+				});
+			});
+
+			$container.find('[data-action="choose"]').each(function() {
+				$(this).click(function() {
+					if ($(this).hasClass('disabled')) {
+						return;
+					}
+
+					var $form = $(this).parents('form');
+					var $radio = $(this).find('input');
+					$radio.prop('checked', true);
+
+					if ($radio.prop('checked')) {
+						$form.find('[data-action="choose"]').removeClass('active');
+						$(this).addClass('active');
+					}
+				});
+			});
+
+			$container.find('[data-action="delete"]').each(function() {
+				$(this).click(function(e) {
+					e.preventDefault();
+
+					if ($(this).hasClass('disabled')) {
+						return;
+					}
+
+					var $form = $(this).parents('form');
+					var $button = $(this);
+					var confirmText = $button.attr('data-confirm') || '';
+					if (!confirmText || confirm(confirmText)) {
+						var objectId = $button.attr('data-id');
+						if (!objectId) {
+							return;
+						}
+
+						var blockId = $form.attr('data-block-id');
+						var params = utilitiesParseParameters($form.attr('data-parameters'));
+						params['function'] = 'get_block';
+						params['block_id'] = blockId;
+						params['delete'] = [objectId];
+						utilitiesAjaxRequest($button, params, createDeleteCallback($form, $button, blockId));
+					}
+				});
+			});
+
+			$container.find('form[data-controls]').each(function () {
+				var $form = $(this);
+				var blockId = $form.attr('data-block-id');
+
+				$form.find('input[type="button"]').each(function() {
+					$(this).click(function(e) {
+						e.preventDefault();
+
+						var $button = $(this);
+						var confirmText = $button.attr('data-confirm') || '';
+						if (confirmText) {
+							var selectedNumber = parseInt($form.attr('data-selected-cnt')) || 0;
+							confirmText = confirmText.replace(/\[count\](.*)\[\/count\]/gi, function(match, p1) {
+								var defaultValue = '';
+								var values = p1.split('||');
+								for (var i = 0; i < values.length; i++) {
+									var temp = values[i].split(':', 2);
+									if (temp.length == 1) {
+										defaultValue = temp[0].trim();
+									} else {
+										var compareExamples = temp[0].split(',');
+										for (var j = 0; j < compareExamples.length; j++) {
+											var compareExample = compareExamples[j].trim();
+											if (compareExample.indexOf('//') == 0) {
+												if (selectedNumber % 100 == parseInt(compareExample.substring(2))) {
+													return temp[1].trim().replace('%1%', '' + selectedNumber);
+												}
+											} else if (compareExample.indexOf('/') == 0) {
+												if (selectedNumber % 10 == parseInt(compareExample.substring(1))) {
+													return temp[1].trim().replace('%1%', '' + selectedNumber);
+												}
+											} else if (selectedNumber == parseInt(temp[0].trim())) {
+												return temp[1].trim().replace('%1%', '' + selectedNumber);
+											}
+										}
+									}
+								}
+								return defaultValue;
+							}).replace('%1%', '' + selectedNumber);
+						}
+						var params = {};
+						if (!confirmText || confirm(confirmText)) {
+							if ($button.attr('data-action') == 'select_all') {
+								if ($button.hasClass('active')) {
+									$form.find('input[type=checkbox]').each(function() {
+										if (this.checked) {
+											$(this).click();
+										}
+									});
+								} else {
+									$form.find('input[type=checkbox]').each(function() {
+										if (!this.checked) {
+											$(this).click();
+										}
+									});
+								}
+							} else if ($button.attr('data-action') == 'delete_multi') {
+								params = utilitiesParseParameters($form.attr('data-parameters'));
+								params['function'] = 'get_block';
+								params['block_id'] = blockId;
+								params['delete'] = [];
+								$form.find('input[type=checkbox]').each(function() {
+									if (this.checked) {
+										params['delete'].push(this.value);
+									}
+								});
+
+								utilitiesAjaxRequest($button, params, createDeleteCallback($form, $button, blockId));
+							} else if ($button.attr('data-action') == 'move_multi') {
+								var playlistSelectorUrl = $button.attr('data-href');
+								if (playlistSelectorUrl) {
+									utilitiesAjaxFancyBox($button, playlistSelectorUrl, function () {
+										var $inner_form = this.inner.find('form');
+										utilitiesAjaxForm($inner_form, {
+											beforeSubmit: function($inner_form) {
+												$.fancybox.close();
+
+												var playlistId = parseInt($inner_form.find('[name="playlist_id"]:checked').val());
+												if (playlistId) {
+													params = utilitiesParseParameters($form.attr('data-parameters'));
+													params['function'] = 'get_block';
+													params['block_id'] = blockId;
+													params['move_to_playlist_id'] = playlistId;
+													params['delete'] = [];
+													$form.find('input[type=checkbox]').each(function() {
+														if (this.checked) {
+															params['delete'].push(this.value);
+														}
+													});
+
+													utilitiesAjaxRequest($button, params, createDeleteCallback($form, $button, blockId));
+												} else {
+													var createPlaylistUrl = $inner_form.attr('data-create-playlist-url');
+													if (createPlaylistUrl) {
+														utilitiesAjaxFancyBox($button, createPlaylistUrl, function () {
+															var $inner_form = this.inner.find('form');
+															utilitiesAjaxForm($inner_form, {
+																success: function($inner_form, newPlaylistData) {
+																	$.fancybox.close();
+
+																	newPlaylistData = $(newPlaylistData);
+																	playlistId = newPlaylistData.attr('data-playlist-id');
+
+																	if (playlistId) {
+																		params = utilitiesParseParameters($form.attr('data-parameters'));
+																		params['function'] = 'get_block';
+																		params['block_id'] = blockId;
+																		params['move_to_playlist_id'] = playlistId;
+																		params['delete'] = [];
+																		$form.find('input[type=checkbox]').each(function() {
+																			if (this.checked) {
+																				params['delete'].push(this.value);
+																			}
+																		});
+
+																		utilitiesAjaxRequest($button, params, createDeleteCallback($form, $button, blockId));
+																	}
+																}
+															});
+														});
+													}
+												}
+												return false;
+											}
+										});
+									});
+								}
+							} else if ($button.attr('data-action') == 'redirect') {
+								var redirectUrl = $button.attr('data-redirect-url');
+								if (!redirectUrl) {
+									return;
+								}
+
+								window.location = redirectUrl;
+							} else if ($button.attr('data-action') == 'delete_playlist') {
+								var playlistId = $button.attr('data-id');
+								if (!playlistId) {
+									return;
+								}
+
+								params['action'] = 'delete_playlists';
+								params['delete'] = [playlistId];
+								utilitiesAjaxRequest($button, params, createDeleteCallback($form, $button, blockId));
+							} else if ($button.attr('data-action') == 'delete_dvd') {
+								var dvdId = $button.attr('data-id');
+								if (!dvdId) {
+									return;
+								}
+
+								params['action'] = 'delete_dvds';
+								params['delete'] = [dvdId];
+								utilitiesAjaxRequest($button, params, createDeleteCallback($form, $button, blockId));
+							}
+						}
+					});
+				})
+			});
+
+			if (storage['movable']) {
+				storage['movable']();
+			}
+		};
+
+		var initAjaxForms = function () {
+			$('[data-form="ajax"]').each(function () {
+				utilitiesAjaxForm($(this));
+			});
+		};
+
+		var initSubscriptions = function () {
+			var $btnSubscriptions = $('[data-subscribe-to], [data-unsubscribe-to]');
+			$btnSubscriptions.click(function(e) {
+				e.preventDefault();
+
+				var $btn = $(this);
+				if ($btn.hasClass('done')) {
+					return;
+				}
+				var subscriptionTo = $btn.attr('data-subscribe-to') || $btn.attr('data-unsubscribe-to');
+				var subscriptionId = $btn.attr('data-id');
+				if (subscriptionTo && subscriptionId) {
+					var params = {action: 'subscribe'};
+					if (!$btn.attr('data-subscribe-to')) {
+						params['action'] = 'unsubscribe';
+					}
+					if (subscriptionTo == 'category') {
+						params[params['action'] + '_category_id'] = subscriptionId;
+					} else if (subscriptionTo == 'model') {
+						params[params['action'] + '_model_id'] = subscriptionId;
+					} else if (subscriptionTo == 'content_source') {
+						params[params['action'] + '_cs_id'] = subscriptionId;
+					} else if (subscriptionTo == 'user') {
+						params[params['action'] + '_user_id'] = subscriptionId;
+					} else if (subscriptionTo == 'playlist') {
+						params[params['action'] + '_playlist_id'] = subscriptionId;
+					} else if (subscriptionTo == 'dvd') {
+						params[params['action'] + '_dvd_id'] = subscriptionId;
+					}
+					utilitiesAjaxRequest($btn, params, function(json) {
+						if (json['status'] == 'success') {
+							$btn.addClass('done');
+							var $buttonInfo = $btn.parents().first().find('.button-info');
+							if ($buttonInfo.exists()) {
+								if (params['action'] == 'subscribe') {
+									$buttonInfo.html(parseInt($buttonInfo.html()) + 1);
+								} else {
+									$buttonInfo.html(parseInt($buttonInfo.html()) - 1);
+								}
+							}
+						}
+					});
+				}
+			});
+		};
+
+		var initSearch = function () {
+			if (typeof(Storage) !== 'undefined') {
+				var userId = '';
+				if (pageContext && pageContext['userId']) {
+					userId = pageContext['userId'] + ':';
+				}
+
+				var selectedOptions = sessionStorage.getItem(userId + location.href + '#search_filter');
+				if (!selectedOptions) {
+					selectedOptions = sessionStorage.getItem(location.href + '#search_filter');
+				}
+				if (selectedOptions) {
+					selectedOptions = JSON.parse(selectedOptions);
+					for (var id in selectedOptions) {
+						$('#' + id).prop('checked', true);
+					}
+					if (!selectedOptions.search_string_filter) {
+						$('#search_string_filter').prop('checked', false);
+					}
+				}
+			}
+
+			$('#search_form').submit(function(e) {
+				try {
+					if (this['q'].value == '') {
+						this['q'].focus();
+						e.preventDefault();
+						return;
+					}
+					if ($(this).attr('data-url')) {
+						var value = this['q'].value.replace(/[ ]+/g, '-').replace(/[?]/g, '').replace(/[&]/g, '%26').replace(/[?]/g, '%3F').replace(/[/]/g, '%2F');
+						window.location = $(this).attr('data-url').replace('%QUERY%', encodeURIComponent(value));
+						e.preventDefault();
+					}
+				} catch (e) {}
+			});
+
+			$('#search_form .search-button').click(function() {
+				$(this).submit();
+			});
+
+			$('[data-search-filter-ids] input').click(function() {
+				var $container = $(this).parents('[data-search-filter-ids]');
+
+				if (typeof(Storage) !== 'undefined') {
+					var userId = '';
+					if (pageContext && pageContext['userId']) {
+						userId = pageContext['userId'] + ':';
+					}
+
+					var selectedOptions = sessionStorage.getItem(userId + location.href + '#search_filter');
+					if (!selectedOptions) {
+						selectedOptions = sessionStorage.getItem(location.href + '#search_filter');
+					}
+					if (selectedOptions) {
+						selectedOptions = JSON.parse(selectedOptions);
+					} else {
+						selectedOptions = {search_string_filter: true};
+					}
+					if ($(this).attr('id')) {
+						if ($(this).prop('checked')) {
+							selectedOptions[$(this).attr('id')] = true;
+						} else {
+							delete selectedOptions[$(this).attr('id')];
+						}
+					}
+					sessionStorage.setItem(userId + location.href + '#search_filter', JSON.stringify(selectedOptions));
+				}
+
+				var blockIds = $container.attr('data-search-filter-ids').split(',');
+
+				var params = {};
+				var paramGroups = {};
+				$container.find('input').each(function () {
+					var $input = $(this);
+					if ($input.prop('type') == 'hidden' || ($input.prop('type') == 'checkbox' && $input.prop('checked'))) {
+						if ($input.prop('name').indexOf('[]') > 0) {
+							var paramName = $input.prop('name').replace('[]', '');
+							if ($input.attr('data-group-id')) {
+								var groupMap = paramGroups[paramName] || {};
+								var group = groupMap[$input.attr('data-group-id')] || [];
+								group.push($input.prop('value'));
+								groupMap[$input.attr('data-group-id')] = group;
+								paramGroups[paramName] = groupMap;
+							} else {
+								params[paramName] = $input.prop('value') + (params[paramName] ? ',' + params[paramName] : '');
+							}
+						} else {
+							params[$input.prop('name')] = $input.prop('value');
+						}
+					}
+				});
+
+				for (var groupName in paramGroups) {
+					if (paramGroups.hasOwnProperty(groupName)) {
+						var groupedArray = [];
+						for (var groupId in paramGroups[groupName]) {
+							if (paramGroups[groupName].hasOwnProperty(groupId)) {
+								groupedArray.push('(' + paramGroups[groupName][groupId].join(',') + ')');
+							}
+						}
+						params[groupName] = groupedArray.join('|');
+					}
+				}
+
+
+				for (var paramName in params) {
+					if (params.hasOwnProperty(paramName)) {
+						if (params[paramName] == 'all') {
+							delete params[paramName];
+						}
+					}
+				}
+
+				for (var i = 0; i < blockIds.length; i++) {
+					storage[blockIds[i]] = params;
+					utilitiesReloadBlock(blockIds[i], $container, false, true);
+				}
+			});
+		};
+
+		var initVideoUploadForm = function() {
+			$('[data-form="ajax-upload"]').each(function () {
+				var $form = $(this);
+				var redirectUrl = $form.attr('data-redirect-url');
+				var progressUrl = $form.attr('data-progress-url');
+				var continueForm = $form.attr('data-continue-form');
+				var lastPercent = 0;
+				var timeoutId = null;
+
+				var progressFunction = function(percent) {
+					percent = Math.min(percent || 0, 100);
+					if (percent > lastPercent) {
+						$form.find('.progressbar .progress').stop(true, true).animate({width: percent + '%'});
+						$form.find('.progressbar .text').html(percent + '%');
+						lastPercent = percent;
+					}
+				};
+
+				utilitiesAjaxForm($form, {
+					success: function($form, uploadData) {
+						$form.find('.progressbar .progress').css({width: '100%'});
+
+						if (uploadData && uploadData['filename'] && redirectUrl) {
+							window.location = redirectUrl.replace('%HASH%', uploadData['filename']);
+						} else if (uploadData && uploadData['filename'] && continueForm) {
+							$form.remove();
+							$('#' + continueForm).find('input[type="submit"]').enable(true);
+							$('#' + continueForm).find('input[name="file"]').val(uploadData['filename'] + '.mp4');
+							$('#' + continueForm).find('input[name="file_hash"]').val(uploadData['filename']);
+						}
+					},
+
+					beforeSerialize: function($form) {
+						var md5filename = '';
+						if ($form.find('[name="url"]').val() || $form.find('[name="content"]').val() || $form.find('[name="content[]"]').val() || $form.find('[name="embed"]').val()) {
+							for (var i = 0; i < 32; i++) {
+								md5filename += '' + Math.floor((Math.random() * 10));
+							}
+							$form.find('[name="filename"]').val(md5filename);
+						} else {
+							$form.find('[name="filename"]').val(md5filename);
+						}
+					},
+
+					beforeSubmit: function($form) {
+						lastPercent = 0;
+						$form.append($('<div class="progressbar"><div class="progress"></div><div class="text"></div></div>'));
+						if ($form.find('[name="upload_option"]:checked').val() == 'url' && progressUrl) {
+							var md5filename = $form.find('[name="filename"]').val();
+							if (md5filename) {
+								var checkProgressFunction = function() {
+									$.ajax({
+										url: progressUrl.replace('%HASH%', md5filename),
+										type: 'GET',
+										timeout: 10000,
+										cache: false,
+
+										success: function(xml) {
+											if (xml && xml.documentElement) {
+												var loaded = $(xml.documentElement).find('loaded').text() || 0;
+												var total = $(xml.documentElement).find('total').text() || 1;
+												progressFunction(Math.floor(loaded / total * 100));
+											}
+										},
+
+										complete: function() {
+											timeoutId = setTimeout(checkProgressFunction, 1000);
+										}
+									});
+								};
+								timeoutId = setTimeout(checkProgressFunction, 1000);
+							}
+						}
+						return true;
+					},
+
+					uploadProgress: function($form, percent) {
+						if ($form.find('[name="upload_option"]:checked').val() != 'url') {
+							progressFunction(percent);
+						}
+					},
+
+					complete: function($form) {
+						$form.find('.progressbar').hide().remove();
+						if (timeoutId) {
+							clearTimeout(timeoutId);
+						}
+					}
+				});
+
+				$form.find('[name="upload_option"]').change(function() {
+					var $radio = $(this);
+					if ($radio.prop('checked')) {
+						var disabledProp = 'disabled';
+						if ($radio.val() == 'file') {
+							$form.find('[name="content"]').parents('.file-control').find('input').removeAttr(disabledProp).click();
+							$form.find('[name="url"]').attr(disabledProp, disabledProp).val('').change();
+							$form.find('[name="embed"]').attr(disabledProp, disabledProp).val('').change().parents('.row').find('label').removeClass('required');
+							$form.find('[name="duration"]').attr(disabledProp, disabledProp).val('').change().parents('.row').find('label').removeClass('required');
+							$form.find('[name="screenshot"]').parents('.file-control').find('input').attr(disabledProp, disabledProp).val('').change().parents('.row').find('label').removeClass('required');
+						} else if ($radio.val() == 'url') {
+							$form.find('[name="content"]').parents('.file-control').find('input').attr(disabledProp, disabledProp).val('').change();
+							$form.find('[name="url"]').removeAttr(disabledProp).focus();
+							$form.find('[name="embed"]').attr(disabledProp, disabledProp).val('').change().parents('.row').find('label').removeClass('required');
+							$form.find('[name="duration"]').attr(disabledProp, disabledProp).val('').change().parents('.row').find('label').removeClass('required');
+							$form.find('[name="screenshot"]').parents('.file-control').find('input').attr(disabledProp, disabledProp).val('').change().parents('.row').find('label').removeClass('required');
+						} else if ($radio.val() == 'embed') {
+							$form.find('[name="url"]').attr(disabledProp, disabledProp).val('').change();
+							$form.find('[name="content"]').parents('.file-control').find('input').attr(disabledProp, disabledProp).val('').change();
+							$form.find('[name="embed"]').removeAttr(disabledProp).focus().parents('.row').find('label').addClass('required');
+							$form.find('[name="duration"]').removeAttr(disabledProp).parents('.row').find('label').addClass('required');
+							$form.find('[name="screenshot"]').parents('.file-control').find('input').removeAttr(disabledProp).parents('.row').find('label').addClass('required');
+						}
+					}
+				});
+
+				var params = {mode: 'async', format: 'json', action: $form.find('[name="action"]').val()};
+				$form.attr('action', ($form.attr('action') || '') + (($form.attr('action') || '').indexOf('?') >=0 ? '&' : '?') + $.param(params));
+			});
+		};
+
+		var initProfile = function() {
+			$('[data-action="message"],[data-action="add_to_friends"]').click(function(e) {
+				e.preventDefault();
+
+				var $btn = $(this);
+				if ($btn.hasClass('done')) {
+					return;
+				}
+
+				var popupClass = '.popup-send-message';
+				if ($btn.attr('data-action') == 'add_to_friends') {
+					popupClass = '.popup-add-to-friends';
+				}
+				$.fancybox($(popupClass).clone(true, true), {
+					afterShow: function () {
+						var $form = this.inner.find('form');
+						utilitiesAjaxForm($form, {
+							success: function() {
+								$btn.addClass('done');
+								$.fancybox.close();
+								if ($btn.attr('data-action') == 'add_to_friends') {
+									window.location.reload();
+								}
+							}
+						});
+						utilitiesLoadSmileys(this.inner);
+					},
+
+					helpers: {
+						overlay: {closeClick: false}
+					},
+
+					topRatio: 0.3
+				});
+			});
+		};
+
+		var initMessages = function () {
+			var $messageForm = $('#send_message_form');
+			if ($messageForm.exists()) {
+				utilitiesLoadSmileys($messageForm);
+				utilitiesAjaxForm($messageForm, {
+					success: function($form, newMessageData) {
+						var editing = false;
+						if ($form.find('[name="message_id"]').val() == newMessageData['message_id']) {
+							editing = true;
+						}
+						$form.get(0).reset();
+						$form.find('[name="message_id"]').val('');
+
+						var messagesBlockId = $form.attr('data-block-id');
+						var $messagesList = $('.list-messages');
+						if (newMessageData && messagesBlockId && $messagesList.exists()) {
+							var args = {
+								success: function(sender, html) {
+									var resultElement = document.createElement('DIV');
+									resultElement.innerHTML = html;
+
+									if (editing) {
+										$messagesList.find('.item[data-message-id="' + newMessageData['message_id'] + '"]').replaceWith($(resultElement).find('.item[data-message-id="' + newMessageData['message_id'] + '"]'));
+									} else {
+										var $newItem = $(resultElement).find('.item[data-message-id="' + newMessageData['message_id'] + '"]').addClass('hidden');
+										$messagesList.find('#' + messagesBlockId + '_items').append($newItem);
+
+										setTimeout(function() {
+											$messagesList.show();
+											$newItem.fadeIn();
+										}, 200);
+									}
+								}
+							};
+							utilitiesGetBlock(messagesBlockId, null, args);
+						}
+					}
+				});
+			}
+
+			$('[data-action="delete_conversation"], [data-action="ignore_conversation"]').click(function(e) {
+				e.preventDefault();
+
+				var $button = $(this);
+				var confirmText = $button.attr('data-confirm') || '';
+				if (!confirmText || confirm(confirmText)) {
+					var userId = $button.attr('data-user-id');
+					if (!userId) {
+						return;
+					}
+
+					var blockId = $button.attr('data-block-id');
+					var params = {};
+					params['function'] = 'get_block';
+					params['block_id'] = blockId;
+					params['action'] = $button.attr('data-action');
+					params['conversation_user_id'] = userId;
+					utilitiesAjaxRequest($button, params, function(json) {
+						if (json['status'] == 'success') {
+							window.location.reload();
+						}
+					});
+				}
+			});
+
+			$(document).on('click', '.list-messages [data-edit-message-id]', function(e) {
+				e.preventDefault();
+
+				var $button = $(this);
+				var messageId = $button.attr('data-edit-message-id');
+				if (!messageId) {
+					return;
+				}
+
+				var $form = $('#send_message_form');
+				if ($form.find('[name="message_id"]').val()) {
+					return;
+				}
+				$form.find('[name="message_id"]').val(messageId);
+				utilitiesScrollTo($form);
+
+				var $item = $button.parents('.item[data-message-id="' + messageId + '"]');
+				$item.addClass('editing');
+
+				var originalText = $item.find('.original-text').html() || '';
+				originalText = originalText.replace(/<br>/gi, '\n').replace(/&gt;/gi, '>').replace(/&lt;/gi, '<').replace(/&#34;/gi, '"');
+				originalText = originalText.replace(/<img.*?alt=['"](.*?)['"].*?>/gi, '$1');
+				originalText = originalText.trim();
+				$form.find('[name="message"]').val(originalText).focus();
+			});
+		};
+
+		var initStats = function() {
+			var sendStatsReq = function(action) {
+				var statsUrl = window.location.href;
+				if (statsUrl.indexOf('#') > 0) {
+					statsUrl = statsUrl.substring(0, statsUrl.indexOf('#'));
+				}
+				if (statsUrl.indexOf('?') >= 0) {
+					statsUrl += '&';
+				} else {
+					statsUrl += '?';
+				}
+
+				if (action == 'js_stats' && pageContext) {
+					if (pageContext['disableStats']) {
+						return;
+					}
+					if (pageContext['videoId']) {
+						statsUrl += 'video_id=' + pageContext['videoId'] + '&';
+					}
+					if (pageContext['albumId']) {
+						statsUrl += 'album_id=' + pageContext['albumId'] + '&';
+					}
+				}
+
+				var img = new Image();
+				img.src = statsUrl + 'mode=async&action=' + action + '&rand=' + new Date().getTime();
+			};
+
+			$.cookie('kt_tcookie', '1', {expires: 7, path: '/'});
+			if ($.cookie('kt_tcookie') == '1') {
+				sendStatsReq('js_stats');
+			}
+
+			if (pageContext && pageContext['userId']) {
+				var reporter = function() {
+					sendStatsReq('js_online_status');
+				};
+				reporter();
+				setInterval(reporter, 60 * 1000);
+			}
+		};
+
+		var initAutoscroll = function() {
+			var $autoscroll = $('[data-autoscroll="true"]');
+			if ($autoscroll.exists()) {
+				utilitiesScrollTo($autoscroll.first());
+			}
+		};
+
+		var initMethods = [
+			initMenu,
+			initTabs,
+			initMovable,
+			initFancyBox,
+			initRating,
+			initAddToFavourites,
+			initErrorFlaggingForm,
+			initShareForm,
+			initCommentForm,
+			initCommentActions,
+			initAdditional,
+			initAjaxLists,
+			initAjaxForms,
+			initSubscriptions,
+			initSearch,
+			initVideoUploadForm,
+			initProfile,
+			initMessages,
+			initStats,
+			initAutoscroll
+		];
+
+		for (var i = 0; i < initMethods.length; i++) {
+			if (typeof initMethods[i] == 'function') {
+				try {
+					initMethods[i].call(this);
+				} catch (e) {
+					if (console && console.error) {
+						console.error(e);
+					}
+				}
+			}
+		}
+	})();
+	$('#next-thumb').click(function() {
+	  event.preventDefault();
+	  $('.block-video .table.next .thumbs-wrap').animate({
+	    scrollLeft: "+=200px"
+	  }, "slow");
+	});
+
+	 $('#prev-thumb').click(function() {
+	  event.preventDefault();
+	  $('.block-video .table.next .thumbs-wrap').animate({
+	    scrollLeft: "-=200px"
+	  }, "slow");
+	});	
+	/*$(document).on('click ontouchstart', '.burger', function() {
+		$('.main-navigation').toggleClass('show');
+		$('body').toggleClass('scroll-off');
+	});*/
+
+	/*$(function() {
+		if ($(window).width() < 1201) {
+	   $(".main-navigation").overlayScrollbars({ });
+	}
+	});*/
+
+	$(document).on('click ontouchstart', '.file-control .button', function() {
+		$('.file-control .file').focus().trigger( "click" );
+	});
+
+	$(document).on('click ontouchstart', 'a[data-fancybox="ajax"]', function() {
+		setTimeout(function(){
+			$('.fancybox-inner').overlayScrollbars({ });
+		}, 200);
+	});
+
+// $(document).on('click ontouchstart', '.fancybox-close', function() {
+// 	$('.fancybox-inner').overlayScrollbars({ });
+// });
+});
+// $(document).ready(function(){String.prototype.trim=function(){return this.replace(/^\s+/,"").replace(/\s+$/,"")},"ontouchstart"in document||$("body").addClass("no-touch"),$.fn.exists=function(){return this.length>0},function(){for(var a={},b=window.pageContext,c={effect:"fadeIn",placeholder:"data:image/gif;base64,R0lGODlhAQABAIAAAAUEBAAAACwAAAAAAQABAAACAkQBADs=",threshold:200},d={list_videos_my_favourite_videos:1,list_videos_my_uploaded_videos:1,list_albums_my_favourite_albums:1,list_albums_my_created_albums:1,list_playlists_my_created_playlists:1,list_dvds_my_created_channels:1,list_videos_my_channel_videos:1,list_members_subscriptions_my_subscriptions:1,list_videos_videos_from_my_subscriptions:1,list_albums_albums_from_my_subscriptions:1,list_videos_my_purchased_videos:1,list_albums_my_purchased_albums:1,list_members_my_conversations:1,list_members_my_friends:1,list_messages_my_conversation_messages:1},e=/iphone|ipad|Android|webOS|iPod|BlackBerry|Windows Phone/gi.test(navigator.appVersion),f=function(a,c){if(b&&b[c])for(var d in b[c])b[c].hasOwnProperty(d)&&(a[d]=b[c][d]);return a},g=function(a){a.find("img[data-src]").each(function(){var a=$(this).attr("data-src");a&&(this.src=a,$(this).removeAttr("data-src"))})},h=function(a,b){if(void 0===b&&(b=400),a.exists()){var c=$(document).scrollTop(),d=c+$(window).height(),e=a.offset().top;if(e>c&&e<d)return}$.scrollTo(a,b,{offset:-100})},i=function(a){var b={};if(a)for(var c=a.split(";"),d=0;d<c.length;d++){var e=c[d].split(":");if(2==e.length)for(var f=e[0].split("+"),g=0;g<f.length;g++)b[f[g]]=decodeURIComponent(e[1]).replace(/[+]/g," ")}return b},j=function(b,c,d,e){var f=d.url?d.url:window.location.href;f.indexOf("#")>0&&(f=f.substring(0,f.indexOf("#"))),$.ajax({url:f+(f.indexOf("?")>=0?"&":"?")+"mode=async&function=get_block&block_id="+b+(e?"&"+$.param(e):""),type:"GET",cache:!1,beforeSend:function(){$(c).block({message:null}),d.beforeSend&&d.beforeSend(c)},complete:function(){$(c).unblock(),d.complete&&d.complete(c)},success:function(f){a[b]=e,d.success&&d.success(c,f)},error:function(){d.error&&d.error(c)}})},k=function(a,b,c){var d=window.location.href;d.indexOf("#")>0&&(d=d.substring(0,d.indexOf("#"))),$.ajax({url:d+(d.indexOf("?")>=0?"&":"?")+"mode=async&format=json&"+$.param(b),type:"GET",beforeSend:function(){$(a).block({message:null})},complete:function(){$(a).unblock()},success:function(a){"object"!=typeof a&&(a=JSON.parse(a)),a&&c&&c(a)}})},l=function(c,d){var e=function(a,b){var c=a.parents(".popup-holder");c.exists()&&(a=c),b?a.block({message:null}):a.unblock()},f="Unexpected server response received. Please contact support.";b&&b.server_error&&(f=b.server_error),c.ajaxForm({data:{format:"json",mode:"async"},beforeSerialize:function(){c.find("[data-form-populate-from]").each(function(){var a=$(this).attr("data-form-populate-from");if(a){var b=c.find('[name="'+a+'"]');b.exists()&&$(this).val(b.val())}}),d&&d.beforeSerialize&&d.beforeSerialize(c)},beforeSubmit:function(a){var b=c.attr("data-confirm")||"";if(b&&!confirm(b))return!1;var f=!0;return d&&d.beforeSubmit&&(f=d.beforeSubmit(c,a)),e(c,f),f},uploadProgress:function(a,b,e,f){d&&d.uploadProgress&&d.uploadProgress(c,f)},success:function(a,b,g){if(c.find(".generic-error").empty().hide(),e(c,!1),g.getResponseHeader("Content-Type").indexOf("application/json")>=0)if("object"!=typeof a&&(a=JSON.parse(a)),"failure"==a.status){for(var i=0;i<a.errors.length;i++){var j=a.errors[i],k=j.field,l=j.code,m=j.message,n=null;if(k){var o=c.find('[name="'+k+'"]');if(o.exists()||(o=c.find('[data-name="'+k+'"] [type="text"]')),o.exists()||(o=c.find('[data-name="'+k+'"] select')),o.exists()){if(o.addClass("error"),o.parents(".file-control").find('[type="text"]').addClass("error"),n=o.parent().find(".field-error"),!n.exists()){var p=o.parent().find("label").text();p&&(m+=" ("+p+")")}0==i&&o.focus()}else m+=" ("+k+")"}if(n&&n.exists()||(n=c.find(".generic-error")),n.empty().text(m).fadeIn(),"code"==k&&"required"!=l){var q=c.find(".captcha-control img");q.exists()&&(q.attr("src",q.attr("src").replace(new RegExp("rand=\\d+"),"rand="+(new Date).getTime())),c.find(".captcha-control .textfield").val(""))}}d&&d.error&&d.error(c),h(c,0)}else if("success"==a.status)if(d&&d.success)d.success(c,a.data);else if(a.redirect)window.location=a.redirect;else{var r=$("[data-reload-to]");r.exists()?window.location=r.attr("data-reload-to"):window.location.reload()}else c.find(".generic-error").text(f).show(),h(c,0),d&&d.error&&d.error(c);else g.getResponseHeader("Content-Type").indexOf("text/html")>=0?d&&d.success?d.success(c,a):"message"==$(a).attr("data-fancybox")||$(a).find('[data-fancybox="message"]').exists()?$.fancybox($(a),{topRatio:.3,beforeClose:function(){var a=this.inner.find("[data-fancybox-redirect-to]");return a.exists()?window.location=a.attr("data-fancybox-redirect-to"):window.location.reload(),!0}}):c.empty().append(a):(c.find(".generic-error").text(f).show(),h(c,0),d&&d.error&&d.error(c))},error:function(){e(c,!1),c.find(".generic-error").text(f).show(),h(c,0),d&&d.error&&d.error(c)},complete:function(){d&&d.complete&&d.complete(c)}}),c.find("input, select, textarea").each(function(){var a=$(this),b=function(){a.parent().find(".field-error").fadeOut(),a.removeClass("error"),a.parents("fieldset").removeClass("error"),a.parents(".file-control").find('[type="text"]').removeClass("error")};a.change(b),"textarea"!=a.get(0).tagName.toLowerCase()&&"text"!=a.get(0).type&&"password"!=a.get(0).type||a.keypress(b)}),c.find('.file-control [type="file"]').change(function(){var a=$(this),b=a.val();b.lastIndexOf("/")>=0&&(b=b.substring(b.lastIndexOf("/")+1)),b.lastIndexOf("\\")>=0&&(b=b.substring(b.lastIndexOf("\\")+1));var c=a.prop("files");if(c&&c.length>1){b="";for(var d=0;d<c.length;d++){if(b&&(b+=", "),d>=3){b+="...";break}b+=c[d].name}}var e=a.parents(".file-control");if(a.attr("multiple")&&(!c||1==c.length)){var f=e.clone(!0,!0);f.wrap("<form>").parent("form").trigger("reset"),f.unwrap(),e.parent().append(f)}e.find('[type="text"]').val(e.find(".button").html().trim()+" "+b)}),c.find(".list-selector").each(function(){var a=$(this);a.find('[type="text"]').focus(function(){var b=$(this),c=a.attr("data-selector"),d=a.attr("data-name"),e=(a.attr("data-selected")||"").split(",");a.find(".list-selector-popup").exists()?(a.find(".list-selector-popup").show(),a.find('[name="filter"]').focus()):c&&d&&$.ajax({url:c,type:"GET",beforeSend:function(){b.block({message:null}),b.css({cursor:"wait"})},complete:function(){b.unblock(),b.css({cursor:"text"})},success:function(c){for(var f=[],g=[],h="",i=$('<div class="list-selector-popup">'+c+"</div>"),j=i.find('[name="filter"]'),k=0;k<e.length;k++){var l=e[k].trim();if(l){var m=i.find('input[type="checkbox"][value="'+l+'"],input[type="radio"][value="'+l+'"]'),n=i.find('label[for="'+m.attr("id")+'"]');m.prop("checked",!0),f.push(l),g.push(n.html())}}a.append(i),i.find('input[type="checkbox"]').click(function(){var c=$(this),e=0,h=i.find('label[for="'+c.attr("id")+'"]');if(h.html()){var j=c.prop("value");if(c.prop("checked"))f.push(j),g.push(h.html()),a.append($('<input type="hidden" name="'+d+'[]" value="'+j+'"/>'));else{for(e=0;e<f.length;e++)if(f[e]==j){f.splice(e,1),g.splice(e,1);break}a.find('input[type="hidden"][value="'+j+'"]').remove()}var k="";for(e=0;e<g.length;e++)""!=k&&(k+=", "),k+=g[e];b.prop("value",k),b.change()}}).focus(function(){j.focus()}),i.find('input[type="radio"]').change(function(){var c=$(this),h=i.find('label[for="'+c.attr("id")+'"]');if(h.html()){var j=c.prop("value");c.prop("checked")&&(a.find('input[type="hidden"][name="'+d+'[]"]').remove(),f[0]=j,g[0]=h.html(),a.append($('<input type="hidden" name="'+d+'[]" value="'+j+'"/>')));var k=g[0];b.prop("value",k),b.change()}}).focus(function(){j.focus()}),j.focus().keyup(function(){j.val()!=h&&(h=this.value.toLowerCase(),a.find(".item").each(function(){var a=$(this);""==h?a.show():a.toggle(a.find("label").html().toLowerCase().indexOf(h)>=0)}))}),$(document).mouseup(function(b){a.is(b.target)||0!==a.has(b.target).length||i.hide()})}})})}),c.find("input[placeholder],textarea[placeholder]").placeholder(),c.find(".smileys-support img").each(function(){$(this).attr("title",$(this).attr("alt")),$(this).click(function(){var a=$(this).parents(".smileys-support").find("textarea");if(a.exists()){var b=a.get(0),c=$(this).attr("alt");if(document.selection){b.focus();document.selection.createRange().text=c,b.focus()}else if(b.selectionStart||"0"==b.selectionStart){var e=b.selectionStart,f=b.selectionEnd,g=b.scrollTop;b.value=b.value.substring(0,e)+c+b.value.substring(f,b.value.length),b.focus(),b.selectionStart=e+c.length,b.selectionEnd=e+c.length,b.scrollTop=g}else b.value+=c,b.focus()}})}),c.find("[data-expand-id]").click(function(){var b=$(this),c=b.attr("data-expand-id");if(c){var d=$("#"+c);b.hasClass("expand")?(d.slideDown(400,function(){$(window).trigger("scroll"),a.movable&&a.movable()}),b.removeClass("expand").addClass("collapse")):(d.slideUp(400,function(){a.movable&&a.movable()}),b.removeClass("collapse").addClass("expand"))}}),c.find('[data-action="choose"]').each(function(){$(this).click(function(){if(!$(this).hasClass("disabled")){var a=$(this).parents("form"),b=$(this).find("input");if(a.find('[data-action="choose"] [type="radio"]').prop("checked",!1),b.prop("checked",!0),b.prop("checked")){a.find('[data-action="choose"]').removeClass("active"),$(this).addClass("active");var c=a.find(".captcha-control");c.exists()&&("payment_option"==b.attr("name")?(c.append(c.parent().find('[type="submit"]')),c.parent().find("label").removeClass("hidden"),c.removeClass("hidden")):"card_package_id"==b.attr("name")&&(c.parent().append(c.find('[type="submit"]')),c.parent().find("label").addClass("hidden"),c.addClass("hidden")))}}})})},m=function(a,b,c){$.fancybox([{href:b,type:"ajax"}],{afterShow:function(){c||(this.inner.find('[data-form="ajax"]').each(function(){l($(this))}),this.inner.find('[data-fancybox="ajax"]').each(function(){$(this).click(function(a){a.preventDefault(),m($(this),this.href||$(this).attr("data-href"))})})),g(this.inner),c&&c.call(this)},beforeClose:function(){return this.inner.find('[data-fancybox="refresh"]').exists()?a&&a.attr("data-fancybox-refresh-id")?n(a.attr("data-fancybox-refresh-id"),a,!1,!0):window.location.reload():a&&a.attr("data-fancybox-refresh-id")&&n(a.attr("data-fancybox-refresh-id"),a,!1,!0),!0},helpers:{overlay:{closeClick:!1}},type:"ajax",topRatio:.3})},n=function(c,d,e,f){if(!c)return void window.location.reload();var g=null;a[c]&&(g=a[c]);var i={};i.success=function(d,i){a[c]=g;var j=.1;f||(j=1),e&&h($("#"+c)),$("#"+c).animate({opacity:j},400,function(){var a=document.createElement("div");a.innerHTML=i;var d=$(a).children().first();if($(d).css("opacity",j),$(this).replaceWith(d),$("#"+c).animate({opacity:1},400),z($("#"+c)),"undefined"!=typeof Storage){var e="";b&&b.userId&&(e=b.userId+":"),sessionStorage.setItem(e+location.href+"#"+c,$("#"+c).html()),sessionStorage.setItem(e+location.href+"#"+c+":params",JSON.stringify(g))}})};var k=0;i.error=function(){k++;var a=!1;for(var b in g)g.hasOwnProperty(b)&&0==b.indexOf("from")&&parseInt(g[b])>1&&(g[b]=parseInt(g[b])-1,k>1&&(g[b]=1),a=!0);a||(g=null),k>1&&delete i.error,j(c,d,i,g)},j(c,d,i,g)},o=function(){$(".navigation button").click(function(){$(this).parents(".navigation").toggleClass("open")})},p=function(){var a=$(".tabs-menu li a");if(a.exists()){var b={},c="",d="";a.each(function(){if(0==$(this).attr("href").indexOf("#")){var a=$(this).attr("href");d&&a!=window.location.hash||(d=a),b[a]=$(this),c+=","+a}});var e=$(c?c.substr(1):"");e.hide(),d&&(b[d].addClass("active"),$(d).show()),a.click(function(c){if(0==$(this).attr("href").indexOf("#")){c.preventDefault();var d=$(this).attr("href");a.removeClass("active"),e.hide(),$(d).show(),b[d]&&b[d].addClass("active"),$(window).trigger("scroll")}})}},q=function(){var b=$(".movable-top, .movable-bottom"),c=function(){b.each(function(){var a;if($(this).hasClass("movable-top"))if((a=$(this).parent().height()-$(this).height())>0){var b=$(this).parent().offset().top-$(document).scrollTop(),c=$(this).parent().height()-$(this).height();if(b<0){var d=Math.min(-b,c);$(this).css({top:d+"px"})}else $(this).css({top:"0px"})}else $(this).offset().top>0&&$(this).css({top:"0px"});else if((a=$(this).parent().height()-$(this).height())>0){var e=$(window).height()+$(document).scrollTop(),f=$(this).height()+$(this).parent().offset().top,g=e-f;g>0?(g=Math.min(g,a),$(this).css({top:g+"px"})):$(this).css({top:"0px"})}else $(this).offset().top>0&&$(this).css({top:"0px"})})};b.exists()&&($(window).on("scroll",c),b.parent().on("click",c)),a.movable=c},r=function(){$('[data-fancybox="ajax"]').each(function(){$(this).click(function(a){a.preventDefault(),m($(this),this.href||$(this).attr("data-href"))})}),$(".block-album .images a.item, .block-screenshots a.item, .list-albums-images a, .list-videos-screenshots a").fancybox({openEffect:"none",closeEffect:"none",prevEffect:"none",nextEffect:"none",helpers:{title:{type:"inside"},buttons:{position:"bottom"}}}),window.location.href.indexOf("?login")>0&&$("#login").click()},s=function(){var a=$(".rating-container"),b=a.find(".rate-like, .rate-dislike");b.click(function(c){c.preventDefault();var d=$(this);if(!d.hasClass("disabled")&&!d.hasClass("voted")){var e=parseInt(d.attr("data-vote"))||0,f=d.attr("data-video-id"),g=d.attr("data-album-id"),h=d.attr("data-playlist-id"),i=d.attr("data-post-id"),j=d.attr("data-model-id"),l=d.attr("data-cs-id"),m=d.attr("data-dvd-id"),n=d.attr("data-flag-id");(f||g||h||j||l||i||m)&&(k(d,{action:"rate",video_id:f,album_id:g,playlist_id:h,model_id:j,cs_id:l,post_id:i,dvd_id:m,vote:e},function(c){if("success"==c.status){b.addClass("disabled"),d.removeClass("disabled").addClass("voted"),a.find(".voters").html(a.find(".voters").attr("data-success"));var f=a.find(".scale"),g=parseFloat(f.attr("data-rating")),h=parseInt(f.attr("data-votes"));if(h>0){0==g&&(h=0);var i=(g*h+e)/(h+1)/5*100;i>100&&(i=100),a.find(".scale").css({width:i+"%"})}}else b.addClass("disabled"),a.find(".voters").html(a.find(".voters").attr("data-error"))}),n&&k(d,{action:"flag",video_id:f,album_id:g,playlist_id:h,postId:i,dvdId:m,flag_id:n},function(){}))}})},t=function(){$(".btn-favourites li a").click(function(a){var b=$(this),c=b.attr("data-video-id"),d=b.attr("data-album-id"),e=b.attr("data-fav-type")||0,f=b.attr("data-create-playlist-url"),g=b.attr("data-playlist-id")||0;(c||d)&&(a.preventDefault(),b.hasClass("delete")?k(b.parents("li"),{action:"delete_from_favourites",video_id:c,album_id:d,fav_type:e,playlist_id:g},function(a){"success"==a.status&&(g>0?(b.parents("li").addClass("hidden"),b.parents("ul").find("#add_playlist_"+g).removeClass("hidden")):(b.parents("li").addClass("hidden"),b.parents("ul").find("#add_fav_"+e).removeClass("hidden")))}):10!=e||g?k(b.parents("li"),{action:"add_to_favourites",video_id:c,album_id:d,fav_type:e,playlist_id:g},function(a){"success"==a.status&&(g>0?(b.parents("li").addClass("hidden"),b.parents("ul").find("#delete_playlist_"+g).removeClass("hidden")):(b.parents("li").addClass("hidden"),b.parents("ul").find("#delete_fav_"+e).removeClass("hidden")))}):f&&m(b,f,function(){var a=this.inner.find("form");l(a,{success:function(a,f){$.fancybox.close(),f=$(f),g=f.attr("data-playlist-id");var h=f.attr("data-playlist-title");g&&k(b.parents("li"),{action:"add_to_favourites",video_id:c,album_id:d,fav_type:e,playlist_id:g},function(a){if("success"==a.status){var c=b.parents("ul").find("#add_playlist_").clone(!0,!0);c.find("a").each(function(){$(this).attr("data-playlist-id")&&$(this).attr("data-playlist-id",$(this).attr("data-playlist-id").replace("%ID%",g)),$(this).attr("href")&&$(this).attr("href",$(this).attr("href").replace("%ID%",g)),$(this).html($(this).html().replace("%1%",h))}),c.attr("id","add_playlist_"+g),c.insertBefore(b.parents("li")),c=b.parents("ul").find("#delete_playlist_").clone(!0,!0),c.find("a").each(function(){$(this).attr("data-playlist-id")&&$(this).attr("data-playlist-id",$(this).attr("data-playlist-id").replace("%ID%",g)),$(this).attr("href")&&$(this).attr("href",$(this).attr("href").replace("%ID%",g)),$(this).html($(this).html().replace("%1%",h))}),c.attr("id","delete_playlist_"+g),c.removeClass("hidden"),c.insertBefore(b.parents("li"))}})}})}))})},u=function(){var a=$(".block-flagging");if(a.exists()){var b=a.find("form");b.exists()&&l(b,{success:function(a){a.find(".success").show(),a.find(".block-radios, .block-textarea").hide()}})}},v=function(){var a=$(".block-share");a.exists()&&("function"==typeof window.getEmbed&&a.find(".embed-code").val(window.getEmbed()),a.find(".embed-button").click(function(b){if(b.preventDefault(),"function"==typeof window.getEmbed){var c=$(this).attr("data-embed-size");if(c&&c.indexOf("x")>0){var d=parseInt(c.substr(0,c.indexOf("x"))),e=parseInt(c.substr(c.indexOf("x")+1));a.find(".embed-code").val(window.getEmbed(d,e))}}}),a.find(".embed-code-custom-width, .embed-code-custom-height").on("keyup blur",function(){var b=a.find(".embed-code-custom-width"),c=a.find(".embed-code-custom-height");parseInt(b.val())&&parseInt(c.val())&&(a.find(".embed-code-custom-width-label").html(parseInt(b.val())),a.find(".embed-code-custom-height-label").html(parseInt(c.val())),a.find(".embed-button-custom").attr("data-embed-size",parseInt(b.val())+"x"+parseInt(c.val())))}))},w=function(){var c=$(".block-comments"),d=c.find(".block-new-comment");if(c.exists()&&d.exists()){c.find(".toggle-button").click(function(b){if(b.preventDefault(),$(this).toggleClass("active"),d.toggle(),c.find(".success").hide(),d.is(":visible")){var e=d.find(".captcha-control img");e.exists()&&(e.attr("data-src")?e.attr("src",e.attr("data-src").replace(new RegExp("rand=\\d+"),"rand="+(new Date).getTime())):e.attr("src",e.attr("src").replace(new RegExp("rand=\\d+"),"rand="+(new Date).getTime())))}g(d),a.movable&&a.movable()});var e=c.find("form");e.exists()&&l(e,{success:function(f,g){var h=f.find('[name="anonymous_username"]'),i=h.val();i&&$.cookie("kt_anonymous_username",i,{path:"/"}),f.get(0).reset(),h.val(i||"");var k=f.find(".captcha-control img");k.exists()&&k.attr("src",k.attr("src").replace(new RegExp("rand=\\d+"),"rand="+(new Date).getTime())),c.find(".toggle-button").exists()&&(d.hide(),c.find(".toggle-button").removeClass("active"));var l=c.attr("data-block-id"),m=$(".list-comments");if(g&&g.approved&&l&&m.exists()){j(l,null,{success:function(c,d){if("undefined"!=typeof Storage){var e="";b&&b.userId&&(e=b.userId+":"),sessionStorage.removeItem(e+location.href+"#"+l),sessionStorage.removeItem(e+location.href+"#"+l+":params")}var f=document.createElement("DIV");f.innerHTML=d;var h=$(f).find('.item[data-comment-id="'+(g.comment_id||g.entry_id)+'"]').addClass("hidden");m.find("#"+l+"_items").prepend(h),setTimeout(function(){m.show(),h.fadeIn(),a.movable&&a.movable()},200)}})}else e.find(".success").show();a.movable&&a.movable()}}),e.find('[name="anonymous_username"]').val($.cookie("kt_anonymous_username")||"")}},x=function(){$(".list-comments").on("click",".comment-options a",function(a){var c=$(this),d=$(this).parents(".item"),e=$(this).parents(".comment-options"),f=e.find(".comment-rating"),h=e.find(".comment-like, .comment-dislike"),i=d.attr("data-comment-id");if(c.hasClass("comment-like")||c.hasClass("comment-dislike")){if(a.preventDefault(),c.hasClass("disabled"))return;var m=c.hasClass("comment-dislike")?-1:1;k(c,{action:"vote_comment",vote:m,comment_id:i},function(a){if("success"==a.status){if(h.fadeOut(),f.exists()){var b=parseInt(f.html());isNaN(b)||(b+=m,f.html(b),b>0?f.addClass("positive"):b<0?(f.addClass("negative"),d.addClass("dim-comment")):0==b&&(f.removeClass("positive").removeClass("negative"),d.removeClass("dim-comment")))}}else h.addClass("disabled")})}else c.hasClass("comment-edit")&&(a.preventDefault(),$.fancybox($(".popup-edit-comment").clone(!0,!0),{afterShow:function(){var a=this.inner.find("form");a.find('[name="comment_id"], [name="entry_id"]').val(i);var c=d.find(".original-text").html()||"";c=c.replace(/<br>/gi,"\n").replace(/&gt;/gi,">").replace(/&lt;/gi,"<").replace(/&#34;/gi,'"'),c=c.replace(/<img.*?alt=['"](.*?)['"].*?>/gi,"$1"),a.find('[name="comment"], [name="entry"]').val(c),l(a,{success:function(){$.fancybox.close();var a=$(".block-comments"),c=a.attr("data-block-id");if(c){j(c,null,{success:function(a,e){if("undefined"!=typeof Storage){var f="";b&&b.userId&&(f=b.userId+":"),sessionStorage.removeItem(f+location.href+"#"+c),sessionStorage.removeItem(f+location.href+"#"+c+":params")}var g=document.createElement("DIV");g.innerHTML=e;var h=$(g).find('.item[data-comment-id="'+i+'"] .comment-text').html()||"";d.find(".comment-text").html(h)}})}}}),g(this.inner)},helpers:{overlay:{closeClick:!1}},topRatio:.3}))})},y=function(){$(".block-additional").get(0)&&$(".btn-add").toggle(function(){return $(this).text("- Additional info you'd like to share"),$(".block-additional").slideDown("slow"),!1},function(){return $(this).text("+ Additional info you'd like to share"),$(".block-additional").slideUp("slow"),!1})},z=function(g){function u(a,b,c){return function(d){if("success"==d.status)if(n(c,b,!0,!0),a.attr("data-refresh-block-ids"))for(var e=a.attr("data-refresh-block-ids").split(","),f=0;f<e.length;f++)n(e[f],b,!1,!0);else b.attr("data-redirect-url")&&(window.location=b.attr("data-redirect-url"));else{for(var g=0;g<d.errors.length;g++){var i=d.errors[g],j=i.message;j&&a.find(".generic-error").empty().text(j).fadeIn()}h($("#"+c),0)}}}if(g)g.find('[data-fancybox="ajax"]').each(function(){$(this).click(function(a){a.preventDefault(),m($(this),this.href||$(this).attr("data-href"))})});else if(g=$(document),"undefined"!=typeof Storage){var o={};g.find('[data-action="ajax"]').each(function(){var a=$(this).attr("data-block-id");o[a]||(o[a]=!0)});var p="";b&&b.userId&&(p=b.userId+":");for(var q in o)if(o.hasOwnProperty(q)){var r=sessionStorage.getItem(p+location.href+"#"+q);r||(r=sessionStorage.getItem(location.href+"#"+q)),r&&$("#"+q).html(r).find('[data-fancybox="ajax"]').each(function(){$(this).click(function(a){a.preventDefault(),m($(this),this.href||$(this).attr("data-href"))})});var s=sessionStorage.getItem(p+location.href+"#"+q+":params");if(s||(s=sessionStorage.getItem(location.href+"#"+q+":params")),s){try{a[q]=JSON.parse(s)}catch(a){}d[q]&&($("#"+q).find("img.lazy-load").removeClass("lazy-load"),n(q,q,!1,!1))}}}if($.fn.lazyload&&(e?g.find("img.lazy-load").each(function(){var a=$(this).attr("data-original");a&&(this.src=a)}):g.find("img.lazy-load").lazyload(f(c,"lazyload"))),$.fn.thumbs&&(e||g.find("img[data-cnt]").thumbs()),$.fn.videopreview&&(e||g.find("img[data-preview]").videopreview()),g.find('[data-action="ajax"]').click(function(a){a.preventDefault();var c={},e=$(this),f=e.attr("data-append-items-to"),g=parseInt(e.attr("data-max-queries"))||0,k=e.attr("data-block-id");if(k){var l=e.attr("data-container-id");if(g&&f){var m=parseInt($("#"+f).attr("data-current-queries"))||0;if(!(m<g))return;m++,m==g?$("#"+l).remove():$("#"+f).attr("data-current-queries",m)}var n=i(e.attr("data-parameters")),o="";b&&b.userId&&(o=b.userId+":"),c.success=function(a,b){if(f){var c=document.createElement("DIV");if(c.innerHTML=b,l){var e=$(c).find("#"+l);e.exists()?($("#"+l).replaceWith(e),z(e)):$("#"+l).remove()}var g=$(c).find("#"+f+" .item");g.css({display:"none"}),"true"==$("#"+f).attr("data-append-to-beginning")?g.insertBefore($("#"+f).find(".item").first()):g.insertAfter($("#"+f).find(".item").last()),g.fadeIn().promise().done(function(){for(var a in n)if(n.hasOwnProperty(a)&&0==a.indexOf("from")&&parseInt(n[a])>1){delete n[a];break}d[k]||"undefined"!=typeof Storage&&(sessionStorage.setItem(o+location.href+"#"+k,$("#"+k).html()),sessionStorage.setItem(o+location.href+"#"+k+":params",JSON.stringify(n)))}),z(g)}else h($("#"+k)),$("#"+k).animate({opacity:.1},400,function(){var a=document.createElement("div");a.innerHTML=b;var c=$(a).find("#"+k);$(c).css("opacity","0.1"),$(this).replaceWith(c),$("#"+k).animate({opacity:1},400),z($("#"+k)),"undefined"!=typeof Storage&&(sessionStorage.setItem(o+location.href+"#"+k,$("#"+k).html()),sessionStorage.setItem(o+location.href+"#"+k+":params",JSON.stringify(n)))})},j(k,l?$("#"+l):e,c,n)}}),g.find("[data-rt]").mousedown(function(){var a=$(this).attr("data-rt");if(a){var b=window.location.href;b.indexOf("#")>0&&(b=b.substring(0,b.indexOf("#")));(new Image).src=b+(b.indexOf("?")>=0?"&":"?")+"mode=async&action=rotator_videos&pqr="+a,$(this).attr("data-rt","")}}),g.find("[data-playlist-item]").click(function(b){b.preventDefault(),g.find("[data-playlist-item]").removeClass("selected");var c=$(this);c.addClass("selected");var d=c.attr("data-playlist-item");if(d){a.playlist_state=d;var e={};e.url=d,e.success=function(a,b){$(".player").html("").append($(b.trim()).find(".player-holder")),$(".player-holder").find('[data-fancybox="ajax"]').each(function(){$(this).click(function(a){a.preventDefault(),m($(this),this.href||$(this).attr("data-href"))})}),$(".player-holder").find('[data-form="ajax"]').each(function(){l($(this))}),setTimeout(function(){h($(".player"),0)},0)},j("video_view_video_view",c,e)}}),a.playlist_state)g.find("[data-playlist-item]").each(function(){$(this).attr("data-playlist-item")==a.playlist_state&&$(this).addClass("selected")});else{var t=g.find("[data-playlist-item]").first();t.exists()&&t.addClass("selected").click()}g.find("[data-fav-video-id]").click(function(a){a.preventDefault(),a.stopPropagation();var c=$(this),d=c.attr("data-fav-video-id"),e=c.attr("data-fav-type")||0;k(c,{action:"add_to_favourites",video_id:d,video_ids:[d],fav_type:e,playlist_id:0},function(a){"failure"==a.status&&a.errors&&a.errors[0]&&"not_logged_in"==a.errors[0].code?b&&b.loginUrl&&m(c,b.loginUrl):c.addClass("fixed")})}),g.find("[data-fav-album-id]").click(function(a){a.preventDefault(),a.stopPropagation();var c=$(this),d=c.attr("data-fav-album-id"),e=c.attr("data-fav-type")||0;k(c,{action:"add_to_favourites",album_id:d,album_ids:[d],fav_type:e},function(a){"failure"==a.status&&a.errors&&a.errors[0]&&"not_logged_in"==a.errors[0].code?b&&b.loginUrl&&m(c,b.loginUrl):c.addClass("fixed")})}),g.find('[data-action="select"]').each(function(){$(this).click(function(a){if(!$(this).hasClass("disabled")){var b=$(this).parents("form"),c=$(this).find("input");$(a.target).is(c)||c.prop("checked",!c.prop("checked"));var d=parseInt(b.attr("data-selected-cnt"))||0;c.prop("checked")?($(this).addClass("active"),d++):($(this).removeClass("active"),d=Math.max(d-1,0)),b.find('input[data-mode="selection"]').prop("disabled",0==d),b.find('input[data-action="select_all"]').toggleClass("active",d==b.find("input[type=checkbox]").length-b.find("input[type=checkbox][disabled]").length),b.attr("data-selected-cnt",d)}})}),g.find('[data-action="choose"]').each(function(){$(this).click(function(){if(!$(this).hasClass("disabled")){var a=$(this).parents("form"),b=$(this).find("input");b.prop("checked",!0),b.prop("checked")&&(a.find('[data-action="choose"]').removeClass("active"),$(this).addClass("active"))}})}),g.find('[data-action="delete"]').each(function(){$(this).click(function(a){if(a.preventDefault(),!$(this).hasClass("disabled")){var b=$(this).parents("form"),c=$(this),d=c.attr("data-confirm")||"";if(!d||confirm(d)){var e=c.attr("data-id");if(!e)return;var f=b.attr("data-block-id"),g=i(b.attr("data-parameters"));g.function="get_block",g.block_id=f,g.delete=[e],k(c,g,u(b,c,f))}}})}),g.find("form[data-controls]").each(function(){var a=$(this),b=a.attr("data-block-id");a.find('input[type="button"]').each(function(){$(this).click(function(c){c.preventDefault();var d=$(this),e=d.attr("data-confirm")||"";if(e){var f=parseInt(a.attr("data-selected-cnt"))||0;e=e.replace(/\[count\](.*)\[\/count\]/gi,function(a,b){for(var c="",d=b.split("||"),e=0;e<d.length;e++){var g=d[e].split(":",2);if(1==g.length)c=g[0].trim();else for(var h=g[0].split(","),i=0;i<h.length;i++){var j=h[i].trim();if(0==j.indexOf("//")){if(f%100==parseInt(j.substring(2)))return g[1].trim().replace("%1%",""+f)}else if(0==j.indexOf("/")){if(f%10==parseInt(j.substring(1)))return g[1].trim().replace("%1%",""+f)}else if(f==parseInt(g[0].trim()))return g[1].trim().replace("%1%",""+f)}}return c}).replace("%1%",""+f)}var g={};if(!e||confirm(e))if("select_all"==d.attr("data-action"))d.hasClass("active")?a.find("input[type=checkbox]").each(function(){this.checked&&$(this).click()}):a.find("input[type=checkbox]").each(function(){this.checked||$(this).click()});else if("delete_multi"==d.attr("data-action"))g=i(a.attr("data-parameters")),g.function="get_block",g.block_id=b,g.delete=[],a.find("input[type=checkbox]").each(function(){this.checked&&g.delete.push(this.value)}),k(d,g,u(a,d,b));else if("move_multi"==d.attr("data-action")){var h=d.attr("data-href");h&&m(d,h,function(){var c=this.inner.find("form");l(c,{beforeSubmit:function(c){$.fancybox.close();var e=parseInt(c.find('[name="playlist_id"]:checked').val());if(e)g=i(a.attr("data-parameters")),g.function="get_block",g.block_id=b,g.move_to_playlist_id=e,g.delete=[],a.find("input[type=checkbox]").each(function(){this.checked&&g.delete.push(this.value)}),k(d,g,u(a,d,b));else{var f=c.attr("data-create-playlist-url");f&&m(d,f,function(){var c=this.inner.find("form");l(c,{success:function(c,f){$.fancybox.close(),f=$(f),(e=f.attr("data-playlist-id"))&&(g=i(a.attr("data-parameters")),g.function="get_block",g.block_id=b,g.move_to_playlist_id=e,g.delete=[],a.find("input[type=checkbox]").each(function(){this.checked&&g.delete.push(this.value)}),k(d,g,u(a,d,b)))}})})}return!1}})})}else if("redirect"==d.attr("data-action")){var j=d.attr("data-redirect-url");if(!j)return;window.location=j}else if("delete_playlist"==d.attr("data-action")){var n=d.attr("data-id");if(!n)return;g.action="delete_playlists",g.delete=[n],k(d,g,u(a,d,b))}else if("delete_dvd"==d.attr("data-action")){var o=d.attr("data-id");if(!o)return;g.action="delete_dvds",g.delete=[o],k(d,g,u(a,d,b))}})})}),a.movable&&a.movable()},A=function(){$('[data-form="ajax"]').each(function(){l($(this))})},B=function(){$("[data-subscribe-to], [data-unsubscribe-to]").click(function(a){a.preventDefault();var b=$(this);if(!b.hasClass("done")){var c=b.attr("data-subscribe-to")||b.attr("data-unsubscribe-to"),d=b.attr("data-id");if(c&&d){var e={action:"subscribe"};b.attr("data-subscribe-to")||(e.action="unsubscribe"),"category"==c?e[e.action+"_category_id"]=d:"model"==c?e[e.action+"_model_id"]=d:"content_source"==c?e[e.action+"_cs_id"]=d:"user"==c?e[e.action+"_user_id"]=d:"playlist"==c?e[e.action+"_playlist_id"]=d:"dvd"==c&&(e[e.action+"_dvd_id"]=d),k(b,e,function(a){if("success"==a.status){b.addClass("done");var c=b.parents().first().find(".button-info");c.exists()&&("subscribe"==e.action?c.html(parseInt(c.html())+1):c.html(parseInt(c.html())-1))}})}}})},C=function(){if("undefined"!=typeof Storage){var c="";b&&b.userId&&(c=b.userId+":");var d=sessionStorage.getItem(c+location.href+"#search_filter");if(d||(d=sessionStorage.getItem(location.href+"#search_filter")),d){d=JSON.parse(d);for(var e in d)$("#"+e).prop("checked",!0);d.search_string_filter||$("#search_string_filter").prop("checked",!1)}}$("#search_form").submit(function(a){try{if(""==this.q.value)return this.q.focus(),void a.preventDefault();if($(this).attr("data-url")){var b=this.q.value.replace(/[ ]+/g,"-").replace(/[?]/g,"").replace(/[&]/g,"%26").replace(/[?]/g,"%3F").replace(/[/]/g,"%2F");window.location=$(this).attr("data-url").replace("%QUERY%",encodeURIComponent(b)),a.preventDefault()}}catch(a){}}),$("#search_form .search-button").click(function(){$(this).submit()}),$("[data-search-filter-ids] input").click(function(){var c=$(this).parents("[data-search-filter-ids]");if("undefined"!=typeof Storage){var d="";b&&b.userId&&(d=b.userId+":");var e=sessionStorage.getItem(d+location.href+"#search_filter");e||(e=sessionStorage.getItem(location.href+"#search_filter")),e=e?JSON.parse(e):{search_string_filter:!0},$(this).attr("id")&&($(this).prop("checked")?e[$(this).attr("id")]=!0:delete e[$(this).attr("id")]),sessionStorage.setItem(d+location.href+"#search_filter",JSON.stringify(e))}var f=c.attr("data-search-filter-ids").split(","),g={},h={};c.find("input").each(function(){var a=$(this);if("hidden"==a.prop("type")||"checkbox"==a.prop("type")&&a.prop("checked"))if(a.prop("name").indexOf("[]")>0){var b=a.prop("name").replace("[]","");if(a.attr("data-group-id")){var c=h[b]||{},d=c[a.attr("data-group-id")]||[];d.push(a.prop("value")),c[a.attr("data-group-id")]=d,h[b]=c}else g[b]=a.prop("value")+(g[b]?","+g[b]:"")}else g[a.prop("name")]=a.prop("value")});for(var i in h)if(h.hasOwnProperty(i)){var j=[];for(var k in h[i])h[i].hasOwnProperty(k)&&j.push("("+h[i][k].join(",")+")");g[i]=j.join("|")}for(var l in g)g.hasOwnProperty(l)&&"all"==g[l]&&delete g[l];for(var m=0;m<f.length;m++)a[f[m]]=g,n(f[m],c,!1,!0)})},D=function(){$('[data-form="ajax-upload"]').each(function(){var a=$(this),b=a.attr("data-redirect-url"),c=a.attr("data-progress-url"),d=a.attr("data-continue-form"),e=0,f=null,g=function(b){(b=Math.min(b||0,100))>e&&(a.find(".progressbar .progress").stop(!0,!0).animate({width:b+"%"}),a.find(".progressbar .text").html(b+"%"),e=b)};l(a,{success:function(a,c){a.find(".progressbar .progress").css({width:"100%"}),c&&c.filename&&b?window.location=b.replace("%HASH%",c.filename):c&&c.filename&&d&&(a.remove(),$("#"+d).find('input[type="submit"]').enable(!0),$("#"+d).find('input[name="file"]').val(c.filename+".mp4"),$("#"+d).find('input[name="file_hash"]').val(c.filename))},beforeSerialize:function(a){var b="";if(a.find('[name="url"]').val()||a.find('[name="content"]').val()||a.find('[name="content[]"]').val()||a.find('[name="embed"]').val()){for(var c=0;c<32;c++)b+=""+Math.floor(10*Math.random());a.find('[name="filename"]').val(b)}else a.find('[name="filename"]').val(b)},beforeSubmit:function(a){if(e=0,a.append($('<div class="progressbar"><div class="progress"></div><div class="text"></div></div>')),"url"==a.find('[name="upload_option"]:checked').val()&&c){var b=a.find('[name="filename"]').val();if(b){var d=function(){$.ajax({url:c.replace("%HASH%",b),type:"GET",timeout:1e4,cache:!1,success:function(a){if(a&&a.documentElement){var b=$(a.documentElement).find("loaded").text()||0,c=$(a.documentElement).find("total").text()||1;g(Math.floor(b/c*100))}},complete:function(){f=setTimeout(d,1e3)}})};f=setTimeout(d,1e3)}}return!0},uploadProgress:function(a,b){"url"!=a.find('[name="upload_option"]:checked').val()&&g(b)},complete:function(a){a.find(".progressbar").hide().remove(),f&&clearTimeout(f)}}),a.find('[name="upload_option"]').change(function(){var b=$(this);if(b.prop("checked")){var c="disabled";"file"==b.val()?(a.find('[name="content"]').parents(".file-control").find("input").removeAttr(c).click(),a.find('[name="url"]').attr(c,c).val("").change(),a.find('[name="embed"]').attr(c,c).val("").change().parents(".row").find("label").removeClass("required"),a.find('[name="duration"]').attr(c,c).val("").change().parents(".row").find("label").removeClass("required"),a.find('[name="screenshot"]').parents(".file-control").find("input").attr(c,c).val("").change().parents(".row").find("label").removeClass("required")):"url"==b.val()?(a.find('[name="content"]').parents(".file-control").find("input").attr(c,c).val("").change(),a.find('[name="url"]').removeAttr(c).focus(),a.find('[name="embed"]').attr(c,c).val("").change().parents(".row").find("label").removeClass("required"),a.find('[name="duration"]').attr(c,c).val("").change().parents(".row").find("label").removeClass("required"),a.find('[name="screenshot"]').parents(".file-control").find("input").attr(c,c).val("").change().parents(".row").find("label").removeClass("required")):"embed"==b.val()&&(a.find('[name="url"]').attr(c,c).val("").change(),a.find('[name="content"]').parents(".file-control").find("input").attr(c,c).val("").change(),a.find('[name="embed"]').removeAttr(c).focus().parents(".row").find("label").addClass("required"),a.find('[name="duration"]').removeAttr(c).parents(".row").find("label").addClass("required"),a.find('[name="screenshot"]').parents(".file-control").find("input").removeAttr(c).parents(".row").find("label").addClass("required"))}});var h={mode:"async",format:"json",action:a.find('[name="action"]').val()};a.attr("action",(a.attr("action")||"")+((a.attr("action")||"").indexOf("?")>=0?"&":"?")+$.param(h))})},E=function(){$('[data-action="message"],[data-action="add_to_friends"]').click(function(a){a.preventDefault();var b=$(this);if(!b.hasClass("done")){var c=".popup-send-message";"add_to_friends"==b.attr("data-action")&&(c=".popup-add-to-friends"),$.fancybox($(c).clone(!0,!0),{afterShow:function(){var a=this.inner.find("form");l(a,{success:function(){b.addClass("done"),$.fancybox.close(),"add_to_friends"==b.attr("data-action")&&window.location.reload()}}),g(this.inner)},helpers:{overlay:{closeClick:!1}},topRatio:.3})}})},F=function(){var a=$("#send_message_form");a.exists()&&(g(a),l(a,{success:function(a,b){var c=!1;a.find('[name="message_id"]').val()==b.message_id&&(c=!0),a.get(0).reset(),a.find('[name="message_id"]').val("");var d=a.attr("data-block-id"),e=$(".list-messages");if(b&&d&&e.exists()){j(d,null,{success:function(a,f){var g=document.createElement("DIV");if(g.innerHTML=f,c)e.find('.item[data-message-id="'+b.message_id+'"]').replaceWith($(g).find('.item[data-message-id="'+b.message_id+'"]'));else{var h=$(g).find('.item[data-message-id="'+b.message_id+'"]').addClass("hidden");e.find("#"+d+"_items").append(h),setTimeout(function(){e.show(),h.fadeIn()},200)}}})}}})),$('[data-action="delete_conversation"], [data-action="ignore_conversation"]').click(function(a){a.preventDefault();var b=$(this),c=b.attr("data-confirm")||"";if(!c||confirm(c)){var d=b.attr("data-user-id");if(!d)return;var e=b.attr("data-block-id"),f={};f.function="get_block",f.block_id=e,f.action=b.attr("data-action"),f.conversation_user_id=d,k(b,f,function(a){"success"==a.status&&window.location.reload()})}}),$(document).on("click",".list-messages [data-edit-message-id]",function(a){a.preventDefault();var b=$(this),c=b.attr("data-edit-message-id");if(c){var d=$("#send_message_form");if(!d.find('[name="message_id"]').val()){d.find('[name="message_id"]').val(c),h(d);var e=b.parents('.item[data-message-id="'+c+'"]');e.addClass("editing");var f=e.find(".original-text").html()||"";f=f.replace(/<br>/gi,"\n").replace(/&gt;/gi,">").replace(/&lt;/gi,"<").replace(/&#34;/gi,'"'),f=f.replace(/<img.*?alt=['"](.*?)['"].*?>/gi,"$1"),f=f.trim(),d.find('[name="message"]').val(f).focus()}}})},G=function(){var a=function(a){var c=window.location.href;if(c.indexOf("#")>0&&(c=c.substring(0,c.indexOf("#"))),c.indexOf("?")>=0?c+="&":c+="?","js_stats"==a&&b){if(b.disableStats)return;b.videoId&&(c+="video_id="+b.videoId+"&"),b.albumId&&(c+="album_id="+b.albumId+"&")}(new Image).src=c+"mode=async&action="+a+"&rand="+(new Date).getTime()};if($.cookie("kt_tcookie","1",{expires:7,path:"/"}),"1"==$.cookie("kt_tcookie")&&a("js_stats"),b&&b.userId){var c=function(){a("js_online_status")};c(),setInterval(c,6e4)}},H=function(){var a=$('[data-autoscroll="true"]');a.exists()&&h(a.first())},I=[o,p,q,r,s,t,u,v,w,x,y,z,A,B,C,D,E,F,G,H],J=0;J<I.length;J++)if("function"==typeof I[J])try{I[J].call(this)}catch(a){console&&console.error&&console.error(a)}}()});
+
+</script>
+
+</body>
+</html>

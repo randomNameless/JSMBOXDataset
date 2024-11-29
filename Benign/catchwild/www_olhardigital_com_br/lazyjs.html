@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>lazyjs.html</title>
+</head>
+<body>
+
+<script>
+(function(){
+	const stack = {a:[], d:[], n:[]}; 
+	const guiEvents = ["keydown", "wheel", "mousedown", "mousemove", "touchmove", "touchstart", "touchend"];
+	const eventSettings = {once: true, passive: true};
+	const addListeners = () => guiEvents.forEach(type => window.addEventListener(type, eventTriggered, eventSettings));
+	const removeListeners = () => guiEvents.forEach(type => window.removeEventListener(type, eventTriggered, eventSettings));
+	const loadScripts = () => {fillStack(); drainStack();};
+	const fillStack = () => {
+		document.querySelectorAll("script[type=lazyjs]").forEach( t => {
+			if (!t.hasAttribute('src')) stack.n.push(t);
+			else if (t.hasAttribute("async") && t.async !== false) stack.a.push(t);
+			else if (t.hasAttribute("defer") && t.defer !== false) stack.d.push(t);
+			else stack.n.push(t);
+		});
+	};
+	const drainStack = () => {
+		var s = false, t;
+		if (s == false && stack.n.length) s = stack.n.shift();
+		if (s == false && stack.d.length) s = stack.d.shift();
+		if (s == false && stack.a.length) s = stack.a.shift();
+		if (s !== false) {
+			window.setTimeout(drainStack, 1);
+			t = parseInt(s.getAttribute('data-lazy-delay'), 10);
+			if (!isNaN(t) && t > 0) window.setTimeout(()=>loadScript(s), t*1000);
+			else loadScript(s);
+		}
+	};
+	const loadScript = (s) => {
+		var real = document.createElement("script");
+		Array.from(s.attributes).filter(a=>(a.nodeName != 'type' && a.nodeName != 'data-lazy-delay')).forEach(a=>real.setAttribute(a.nodeName, a.nodeValue));
+		if (!s.hasAttribute("src")) real.text = s.text;
+		s.parentNode.replaceChild(real, s);
+	};
+	const eventTriggered = (event) => {
+		removeListeners();
+		if (document.readyState == 'loading') document.addEventListener("DOMContentLoaded", loadScripts);
+		else loadScripts(); 
+	};
+	addListeners();
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>jeeva.html</title>
+</head>
+<body>
+
+<script>
+function InboundCapture() {
+    this.valid_script = false;
+    this.valid_account = false;
+    this.valid_domain = false;
+    this.valid_geo = false;
+    this.using_proxy = false;
+    this.has_valid_id = false;
+    this.ver = '';
+    this.has_ls = false;
+    this.do_debug = false;
+    this.has_console = (window.console && console.error);
+    this.script_url = document.currentScript.src;
+    this.label = "065621a0-abdf-4dad-b9b3-28b202628b05";
+    this.auto_trigger_collection_after_time = null;
+    this.auto_trigger_collection_after_pageviews = 1;
+    this.domains = ["circleci.com"];
+    this.disable_events = false;
+    this.geo_fence = true;
+    this.wait_for_hs = false;
+    this.api_gateway = "btbpyze574";
+}
+
+InboundCapture.prototype.prep_service = function () {
+    try {this.ver = jeeva.SNIPPET_VERSION;} catch {}
+
+    _jeeva.validate_script();
+    _jeeva.check_double_load();
+    _jeeva.check_local_storage();
+    _jeeva.process_url();
+    _jeeva.fetch_keys();
+    _jeeva.check_geo();
+}
+
+InboundCapture.prototype.validate_script = function () {
+    this.valid_script = this.script_url.startsWith("https://r2d2-inbound-js-store-production.s3.us-east-1.amazonaws.com");
+
+    if (navigator.cookieEnabled) {
+    } else {
+        this.valid_script = false;
+    }
+
+    let ua = navigator.userAgent || navigator.vendor || window.opera;
+    if ((ua.indexOf("Instagram") > -1) || (ua.indexOf("Googlebot") > -1) || (ua.indexOf("Bingbot") > -1) || (ua.indexOf("Msnbot") > -1) || (ua.indexOf("yandex") > -1) || (ua.indexOf("facebookexternalhit") > -1)) {
+        this.valid_script = false;
+    }
+
+
+    let account_id_script = this.script_url.match(/jeeva.js/);
+
+    if (account_id_script[0].toLowerCase() === 'jeeva.js') {
+
+        this.valid_account = true;
+
+    }
+
+    if (this.domains.length > 0) {
+        for (let i = 0; i < this.domains.length; i++) {
+            let domain = this.domains[i];
+            if (location.host.includes(domain)) {
+                this.valid_domain = true;
+            }
+        }
+    }
+
+    if (location.href.includes("vge=true")) {
+        this.do_debug = true;
+    }
+}
+
+InboundCapture.prototype.check_double_load = function () {
+    if (window.location !== window.parent.location){
+        this.valid_script = false;
+        return;
+    }
+
+    let script_already_loaded = document.cookie.split("; ").find((row) => row.startsWith("_jeevaloaded="))?.split("=")[1];
+    if (script_already_loaded === "true") {
+        this.valid_script = false;
+        return;
+    }
+    document.cookie = "_jeevaloaded=true;max-age=1;secure;samesite=strict;path=/";
+}
+
+InboundCapture.prototype.check_local_storage = function () {
+    try {
+        if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('b2b_feature_test', 'yes');
+            if (localStorage.getItem('b2b_feature_test') === 'yes') {
+                localStorage.removeItem('b2b_feature_test');
+                this.has_ls = true;
+            }
+        }
+    } catch (e) {}
+}
+
+InboundCapture.prototype.process_url = function () {
+    if (document.referrer && document.referrer.hostname !== location.hostname) {
+        _jeeva.store_key("_jeevaref", document.referrer, 60 * 60 * 24 * 15, 0, true);
+    }
+}
+
+InboundCapture.prototype.process_triggers = function() {
+    try {
+        if (this.auto_trigger_collection_after_time !== null && this.auto_trigger_collection_after_time > 0) {
+            setTimeout(function(){ _jeeva.collect(); }, this.auto_trigger_collection_after_time * 1000);
+        }
+
+        if (this.auto_trigger_collection_after_pageviews !== null && this.auto_trigger_collection_after_pageviews > 0) {
+            if (this.auto_trigger_collection_after_pageviews === 1) {
+                _jeeva.collect();
+            } else {
+                let pv = document.cookie.split("; ").find((row) => row.startsWith("_jeevapv="))?.split("=")[1];
+                if (pv !== undefined) {
+                    pv = parseInt(pv) + 1;
+                    document.cookie = "_jeevapv=" + pv + ";max-age=" + (60 * 60) + ";secure;samesite=strict;path=/";
+                    if (pv >= this.auto_trigger_collection_after_pageviews) {
+                        _jeeva.collect();
+                    }
+                } else {
+                    document.cookie = "_jeevapv=1;max-age=" + (60 * 60) + ";secure;samesite=strict;path=/";
+                }
+            }
+        }
+    } catch {}
+}
+
+InboundCapture.prototype.process_key = function (key, remove_btao_key) {
+    let value = null;
+
+    if (this.has_ls) {
+        value = localStorage.getItem(key);
+    }
+    if (value === null) {
+        value = document.cookie.split("; ").find((row) => row.startsWith(key + '='))?.split("=")[1];
+    }
+    if (value !== null && value !== undefined && remove_btao_key && value.length >= 32) {
+        value = value.replace(this.label, '');
+        value = atob(value);
+        const base64Pattern = /^(?:[A-Za-z0-9+\/]{4})*(?:[A-Za-z0-9+\/]{2}==|[A-Za-z0-9+\/]{3}=)?$/;
+        if (base64Pattern.test(value)) {
+            value = atob(value);
+        } else {
+            console.error('Invalid base64 encoding');
+            return null; // or handle the error as appropriate
+        }
+    }
+    return value;
+}
+
+InboundCapture.prototype.store_key = function (key, value, age, btao_key_idx, load_to_local_storage) {
+    if (btao_key_idx > 0) {
+        value = btoa(value);
+        value = value.slice(0, btao_key_idx) + this.label + value.slice(btao_key_idx);
+    }
+    document.cookie = key + '=' + value + ";max-age=" + age + ";secure;samesite=strict;path=/";
+    if (load_to_local_storage && this.has_ls) localStorage.setItem(key, value);
+}
+
+InboundCapture.prototype.fetch_keys = function () {
+    if (this.valid_script) {
+        _jeeva.uuidv4();
+        _jeeva.session_id();
+
+        this.uuid = _jeeva.process_key("_jeevauid", false);
+        this.session_id = _jeeva.process_key("_jeevasessionID", false);
+        this.external_id = _jeeva.process_key("_jeevaeid", false);
+        this.li_md5 = _jeeva.process_key("_jeevali", true);
+        this.li_sha2 = _jeeva.process_key("_jeevasha", true);
+        this.td_md5 = _jeeva.process_key("_jeevatd", true);
+        this.fbp = _jeeva.process_key("_fbp", false);
+        this.fbc = _jeeva.process_key("_fbc", false);
+        this.referrer = _jeeva.process_key("_jeevaref", false);
+        this.geo = _jeeva.process_key("_jeevageo", false);
+        this.re_resolve = _jeeva.process_key("_jeevaresolve", false);
+        if (this.geo) {
+            let geo_data = JSON.parse(decodeURIComponent(this.geo));
+            if (geo_data.proxy == true)
+                this.using_proxy = true;
+            if (geo_data.countryCode == "US" || geo_data.countryCode == "IN" || geo_data.countryCode == "CA")
+                this.valid_geo = true;
+            if (!geo_data.hasOwnProperty("proxy")) {
+                document.cookie = "_jeevageo=;expires=Thu, 01 Jan 1970 00:00:00 GMT;secure;samesite=strict;path=/";
+            }
+        }
+
+        if (!this.geo_fence)
+            this.valid_geo = true;
+
+        if ((this.li_md5 && this.li_md5.length == 32) || (this.td_md5 && this.td_md5.length == 32)) {
+            this.has_valid_id = true;
+        }
+    }
+}
+
+InboundCapture.prototype.grab_other_cookies = function () {
+    this.hs_hubspotutk = _jeeva.process_key("hubspotutk", false);
+}
+
+InboundCapture.prototype.check_geo = function () {
+    if (this.valid_script) {
+        if (!this.geo) {
+            _jeeva.trigger_geo();
+        } else {
+            _jeeva.capture_ids();
+        }
+    }
+}
+
+InboundCapture.prototype.trigger_geo = function () {
+    fetch('https://pro.ip-api.com/json?key=4qtbCK0jfxUAoSf&fields=query,proxy,hosting,isp,lat,long,zip,city,region,status,country,timezone,regionName,countryCode,org')
+        .then(res => res.json())
+        .then(resJson => {
+            this.geo = encodeURIComponent(JSON.stringify(resJson));
+            if (resJson.proxy == true) {
+                this.using_proxy = true;
+            }
+            if (resJson.countryCode == "US") {
+                this.valid_geo = true;
+                _jeeva.capture_ids();
+            }
+            _jeeva.store_key("_jeevageo", encodeURIComponent(JSON.stringify(resJson)), 60 * 60 * 24 * 20, 0, false);
+        });
+}
+
+InboundCapture.prototype.capture_ids = function () {
+    if (this.valid_script && this.valid_geo) {
+        if (!this.has_valid_id) {
+            if (!this.re_resolve) {
+                this.re_resolve = 1;
+            } else {
+                this.re_resolve = parseInt(this.re_resolve) + 1;
+            }
+
+            if (this.re_resolve <= 5) {
+                document.cookie = '_jeevaresolve=' + this.re_resolve + ";max-age=" + (60 * 60 * 24 * 2) + ";secure;samesite=strict;path=/";
+
+                _jeeva.trigger_td();
+                _jeeva.trigger_li();
+            }
+        } else {
+            _jeeva.process_triggers();
+        }
+    }
+}
+
+InboundCapture.prototype.trigger_td = function () {
+    fetch('https://alocdn.com/c/vn3d8u2u/a/xtarget/p.json', {credentials: 'include'})
+        .then(res => res.json())
+        .then(resJson => {
+            if (resJson.md5_email) {
+                this.has_valid_id = true;
+                this.td_md5 = resJson.md5_email;
+                setTimeout(function() {_jeeva.process_triggers();}, 50);
+                _jeeva.store_key("_jeevatd", resJson.md5_email, 60 * 60 * 24 * 30, 9, false);
+            }
+        });
+}
+
+InboundCapture.prototype.trigger_li = function () {
+    window.liQ = window.liQ || [];
+    window.liQ.push({config: {sync: false, identityResolutionConfig: {publisherId: 72731}}})
+    let scriptTag = document.createElement('script');
+    scriptTag.src = 'https://b-code.liadm.com/lc2.js';
+    scriptTag['onload'] = function () {_jeeva.fetch_li_id();}
+    document.head.appendChild(scriptTag);
+}
+
+InboundCapture.prototype.fetch_li_id = function () {
+    var qf = 0.3
+    if (this.using_proxy)
+        qf = 0.7;
+
+    window.liQ.resolve(
+        function (rd) {
+            if (rd.md5) {
+                _jeeva.has_valid_id = true;
+                _jeeva.li_md5 = rd.md5;
+                setTimeout(function() {_jeeva.process_triggers();}, 50);
+                _jeeva.store_key("_jeevali", rd.md5, 60 * 60 * 24 * 30, 6, false);
+            }
+            if (rd.sha2) {
+                _jeeva.li_sha2 = rd.sha2;
+                _jeeva.store_key("_jeevasha", rd.sha2, 60 * 60 * 24 * 30, 18, false);
+            }
+        },
+        function (err) {},
+        {qf: qf, resolve: ["md5", "sha2"]});
+}
+
+InboundCapture.prototype.uuidv4 = function () {
+    let geuid = _jeeva.process_key("_jeevauid", 0);
+    if (geuid) {
+        return;
+    }
+
+    try {
+        geuid = ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, c => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16));
+    } catch {
+        geuid = Math.random().toString(36).substr(2, 7) + '-' + Math.random().toString(36).substr(2, 7) + '-' + Math.random().toString(36).substr(2, 7);
+    }
+
+    geuid = geuid + '-' + (new Date().getTime());
+
+    _jeeva.store_key("_jeevauid", geuid, 60 * 60 * 24 * 360, 0, true);
+}
+
+InboundCapture.prototype.session_id = function () {
+    let sessionID = _jeeva.process_key("_jeevasessionID", 0);
+    if (!sessionID) {
+        sessionID = "";
+        const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        for (let i = 0; i < 24; i++) {
+            const randomIndex = Math.floor(Math.random() * characters.length);
+            sessionID += characters.charAt(randomIndex);
+        }
+    }
+
+    _jeeva.store_key("_jeevasessionID", sessionID, 60 * 30, 0, false);
+}
+
+InboundCapture.prototype.assignIdentity = function (info) {
+    if (!info) {
+        _jeeva.log_error("Retention.com - invalid identity information");
+        return;
+    }
+
+    this.external_id = info.toString();
+    _jeeva.store_key("_jeevaeid", info.toString(), 60 * 60 * 24 * 360, 0, true);
+}
+
+InboundCapture.prototype.recollect = function () {
+    _jeeva.collect();
+}
+
+InboundCapture.prototype.collect = function () {
+    if (!this.valid_script || !this.valid_account || !this.valid_domain) {
+        return;
+    }
+
+    if (this.do_debug) {
+    } else {
+        if (!this.has_valid_id) return;
+        if (this.collect_triggered) return;
+
+
+        this.collect_triggered = true;
+        let ge_event = _jeeva.append_keys('collect');
+
+
+        _jeeva.send_to_gateway(ge_event, this.api_gateway, 'prod/j');
+    }
+};
+
+InboundCapture.prototype.send_to_gateway = function (event_obj, url, endpoint) {
+    if (this.has_valid_id && this.valid_geo && !this.disable_events) {
+        let u = "https://" + url + ".execute-api.us-east-1.amazonaws.com/" + endpoint;
+
+        let d = btoa(_jeeva.clean_string(JSON.stringify(event_obj)));
+        let resObj = {d}
+
+        fetch(u, {method: 'POST', headers: {'Content-Type': 'application/json', 'x-api-key': 'X5CoWP9aiL1FOnVbcTxfK5spTLhc9qDr159HPCkP'}, body: JSON.stringify(resObj)})
+    }
+}
+
+InboundCapture.prototype.append_keys = function (eventName) {
+    _jeeva.grab_other_cookies();
+
+    let re_obj = {account_data: {}, extra_data: {}};
+
+    re_obj.script_id = this.label;
+    re_obj.type = eventName;
+
+    if (this.li_md5) re_obj.account_data.li_md5 = this.li_md5;
+    if (this.li_sha2) re_obj.account_data.li_sha256 = this.li_sha2;
+    if (this.td_md5) re_obj.account_data.td_md5 = this.td_md5;
+    if (this.fbp) re_obj.extra_data.fbp = this.fbp;
+    if (this.fbc) re_obj.extra_data.fbc = this.fbc;
+    if (this.hs_hubspotutk) re_obj.extra_data.hs_hubspotutk = this.hs_hubspotutk;
+    if (this.external_id) re_obj.extra_data.external_id = this.external_id;
+    if (this.referrer) re_obj.extra_data.referrer = this.referrer;
+    if (document.referrer) re_obj.extra_data.last_referrer = document.referrer;
+    if (document.title) re_obj.extra_data.page_title = _jeeva.clean_string(document.title);
+    if (document.location && document.location.href)
+        re_obj.extra_data.url = document.location.href;
+    else if (document.documentURI)
+        re_obj.extra_data.url = document.documentURI;
+    re_obj.extra_data.session_id = this.session_id;
+    re_obj.extra_data.guid = this.uuid;
+    re_obj.extra_data.version = this.ver;
+    re_obj.extra_data.script_url = this.script_url;
+    if (this.extra_ids)
+        re_obj.extra_data.extra_ids = this.extra_ids;
+    if (this.geo)
+        re_obj.extra_data.geo = JSON.parse(decodeURIComponent(this.geo));
+
+    return re_obj
+}
+
+InboundCapture.prototype.clean_string = function (input) {
+    let output = "";
+    for (let i = 0; i < input.length; i++) {
+        if (input.charCodeAt(i) <= 127) {
+            output += input.charAt(i);
+        }
+    }
+    return output;
+}
+
+InboundCapture.prototype.log_error = function (message) {
+    if (this.has_console) {
+        console.log(message);
+    }
+};
+
+InboundCapture.prototype.run_pending_jobs = function (queue) {
+    if (!this.valid_script || !this.valid_domain) return;
+
+    if (queue === undefined) {
+        return;
+    }
+
+    if (queue && Array.isArray(queue)) {
+        queue.forEach(function (item) {
+            let fn = item.shift();
+            switch (fn) {
+                case "identify":
+                    _jeeva.identify(item[0]);
+                    break;
+            }
+        });
+    }
+};
+
+_jeeva = new InboundCapture();
+_jeeva.prep_service();
+_jeeva.run_pending_jobs(window.jeeva);
+window.jeeva = _jeeva;
+
+if (location.href.includes("verifyge=true")) {
+    if (window.opener && !window.opener.closed) {
+        window.opener.postMessage("verify_script~" + _jeeva.label, "*");
+        window.close();
+    }
+}
+</script>
+
+</body>
+</html>

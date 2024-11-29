@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>applePayService.html</title>
+</head>
+<body>
+
+<script>
+'use strict';
+
+angular.module('gmgApp').service('ApplePayService', [
+  '$rootScope', 'APPLE_PAY_CONSTANTS', '$window', '$interval',
+  function ($rootScope, APPLE_PAY_CONSTANTS, $window, $interval) {
+    var transactionInfo = null;
+    var applePaySession = $window.ApplePaySession;
+
+    var isApplePayAvailable = function () {
+      var merchantIdentifier = JSON.parse(JSON.parse(transactionInfo).ApplePayTransactionInfo).merchantIdentifier;
+      if (applePaySession) {
+        var promise = ApplePaySession.canMakePaymentsWithActiveCard(merchantIdentifier);
+        promise.then(function (canMakePayments) {
+          if (canMakePayments) {
+            var sendEvent = function (){ $rootScope.$broadcast(APPLE_PAY_CONSTANTS.EVENTS.APPLE_PAY_SUPPORTED); };
+            sendEvent();
+            $interval(sendEvent, 250, 20); // See PR description for explanation
+          }
+        });
+      }
+    };
+
+    return {
+      checkIfApplePayIsAvailable: function () {
+        isApplePayAvailable();
+      },
+      setApplePayTransactionInfo: function (info) {
+        transactionInfo = info;
+      },
+      getApplePayTransactionInfo: function () {
+        return JSON.parse(transactionInfo);
+      },
+      getApplePaySession: function () {
+        return applePaySession;
+      }
+    };
+  }
+]);
+
+</script>
+
+</body>
+</html>

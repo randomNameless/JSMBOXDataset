@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>sy-heade.html</title>
+</head>
+<body>
+
+<script>
+var currentUrl = window.location.href;
+// $('#loginBtn').attr("href", "https://passport.dongao.com/login");
+// $('#registerBtn').attr("href", "https://passport.dongao.com/register?redirectUrl=" + currentUrl);
+
+
+$(function () {
+    var __HOSTSTR = 'dongao';
+if(location.hostname.indexOf('.com') != -1 && location.hostname.indexOf('dongao')  != -1){
+	var ___HOSTNAME = location.hostname.split('.'),__HOSTSTR = ___HOSTNAME[___HOSTNAME.length -2];
+ }
+    /*登录部分 头像 用户名*/
+    var StringUtils = {
+        isEmpty: function (value) {
+            if (value == null || value == undefined || value == '') {
+                return true;
+            } else {
+                return false;
+            }
+        },
+        isNotEmpty: function (value) {
+            return !StringUtils.isEmpty(value);
+        }
+    };
+    var cookieFun = {
+        successCallBack: function (datas) {
+            $('#member_portrait').attr('src', datas);
+        },
+        showData: function (value) { // 解密并展示数据
+            var data = decodeURIComponent(value);
+            cookieFun.successCallBack(data);
+        },
+        saveRootCacheWithExpires: function (key, value, date) {
+            $.cookie(key, value, {
+                expires: date,
+                path: '/',
+                domain: 'dongao.com'
+            });
+        },
+        getCache: function (key) {
+            var value = $.cookie(key);
+            if (StringUtils.isEmpty(value)) {
+                return null;
+            } else {
+                return value;
+            }
+        }
+    };
+    var headView = {
+        init: function () {
+            this.initUserLogin();
+            this.showAvatar();
+        },
+        initUserLogin: function () {
+            var memInfo = document.cookie.match(/(^|)(memberinfo=)([^;]*)/)
+            if (!!memInfo) {
+                try {
+                    memInfo = JSON.parse(JSON.parse(memInfo[0].replace('memberinfo=', '')));
+                    // 已登录
+                    $('#noLogBar').css("display", "none");
+                    $('#logedBar').css("display", "inline-block");
+                    $('#loginName').html(decodeURI(memInfo.uname));
+                } catch {
+                    var url = '//passport.' + __HOSTSTR + '.com/api/showUserStatus?time=' + Math.random();
+                    $.getScript(url, function () {
+                        if (typeof (_user_id) == 'undefined' || _user_id == '') {
+
+                        } else {
+                            $('#noLogBar').css("display", "none");
+                            $('#logedBar').css("display", "inline-block");
+                            $('#loginName').html(function () {
+                                if (/^[1][3,4,5,7,8][0-9]{9}$/.test(_user_name.toString())) {
+                                    return _user_name.toString().substr(0, 3) + '****' + _user_name.toString().substr(7);
+                                } else {
+                                    return _user_name.toString();
+                                }
+                            });
+                        }
+                    });
+                }
+            }
+            $('#loginId').attr("href", '//passport.' + __HOSTSTR + '.com/login');
+            $('#registerBtn').attr("href", "https://passport.dongao.com/register?redirectUrl=" + currentUrl);
+
+        },
+        showAvatar: function () { // 展示用户头像
+            var value = cookieFun.getCache('memberAvatar');
+            if (StringUtils.isEmpty(value)) {
+                var url = '//my.dongao.com/img' + '?callback=?';
+                $.getJSON(url, function (result) {
+                    if (StringUtils.isNotEmpty(result)) {
+                        // $.cookie(key, value, {expires: date,path: '/' , domain: DOCUMENT_DOMAIN});
+                        cookieFun.saveRootCacheWithExpires('memberAvatar', result, 20);
+                        cookieFun.showData(result);
+                    } else {
+                        // 默认用户的头像
+                        $('#member_portrait').attr('src', '//files.dongao.com/static/shouye/shouye_img/user.png');
+                    }
+                });
+            } else {
+                cookieFun.showData(value);
+            }
+        }
+    };
+    headView.init();
+    // “快速导航”和“手机学习”hover
+    $('.header-type-box .header-type-item').hover(function () {
+        $(this).addClass('active');
+    }, function () {
+        $(this).removeClass('active');
+    });
+    // 注册hover
+    $('.header-login .header-reg-btn').hover(function () {
+        $('.reg-gift').show().addClass('zc-hover');
+    }, function () {
+        $('.reg-gift').hide().removeClass('zc-hover');
+    });
+    $('.reg-gift').hover(function () {
+        $('.reg-gift').show();
+    }, function () {
+        $('.reg-gift').hide();
+    });
+    // 已登录hover
+    $('.hader-hlogin-box').hover(function () {
+        $(this).addClass('active');
+    }, function () {
+        $(this).removeClass('active');
+    });
+})
+
+</script>
+
+</body>
+</html>

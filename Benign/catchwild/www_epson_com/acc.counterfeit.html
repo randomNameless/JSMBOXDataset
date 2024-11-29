@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>acc.counterfeit.html</title>
+</head>
+<body>
+
+<script>
+ACC.counterfeit = {
+    _autoload: [
+        ["bindCounterfeit", $("#counterfeitForm").length>0],
+        "ctfFileUploadPicker"
+    ],
+    handleDateRangeValidation: function(dateVal, el) {
+        var lrDateFormat = $(el).data('dateformat');
+        if (typeof lrDateFormat === 'undefined' || lrDateFormat === '') lrDateFormat = 'MM/DD/YYYY';
+        var row = $(el).parents('.calendar-input').find('.error-label');
+        var invalidDateMsg = 'Invalid Date';
+        if (dateVal.trim() === '') return;
+        var locale = $(el).data('date-locale');
+        var currentDate = moment().locale(locale);
+        var parsedDateFields = dateVal.split('/');
+        if (lrDateFormat === 'DD/MM/YYYY') {
+            parsedDate = moment({
+                day: parsedDateFields[0],
+                month: parsedDateFields[1] - 1,
+                year: parsedDateFields[2]
+            });
+        } else {
+            parsedDate = moment({
+                month: parsedDateFields[0] - 1,
+                day: parsedDateFields[1],
+                year: parsedDateFields[2]
+            });
+        }
+        if (dateVal !== '' && (parsedDateFields.length !== 3 || isNaN(parsedDate))) {
+            $(row).text(invalidDateMsg).show();
+            $(el).addClass('error').val('');
+        } else {
+            if (parsedDate !== '') {
+                var maxYears = $(el).data('max-years');
+                const diffTime = currentDate - parsedDate;
+                const diffYear = Math.ceil(diffTime / (1000 * 60 * 60 * 24 * 365.25));
+                if (diffTime < 0 || diffYear > maxYears) {
+                    $(row).text(invalidDateMsg).show();
+                    $(el).addClass('error').val('');
+                } else {
+                    $(row).hide();
+                    $(el).removeClass('error');
+                }
+            } else {
+                $(el).val('');
+            }
+        }
+    },
+    bindLRDatePicker: function(picker) {
+        var lrDateFormat = $(picker).data('dateformat') || 'MM/DD/YYYY';
+        var monthNames = $(picker).data('month-names') ? $(picker).data('month-names').split(',') : [
+            'January',
+            'February',
+            'March',
+            'April',
+            'May',
+            'June',
+            'July',
+            'August',
+            'September',
+            'October',
+            'November',
+            'December'
+        ];
+        var daysName = $(picker).data('day-names') ? $(picker).data('day-names').split(',') : [
+            'Su',
+            'Mo',
+            'Tu',
+            'We',
+            'Th',
+            'Fr',
+            'Sa'
+        ];
+        var applyLabel = $(picker).data('apply-label') ? $(picker).data('apply-label') : "Apply";
+        var cancelLabel = $(picker).data('cancel-label') ? $(picker).data('cancel-label') : "Cancel";
+        var maxYears = $(picker).data('max-years');
+        var startYear = (new Date().getFullYear()) - maxYears;
+
+        $(picker).daterangepicker({
+            "singleDatePicker": true,
+            "autoUpdateInput": false,
+            "showDropdowns": true,
+            "minDate": new Date(startYear, 0),
+            "maxDate": new Date(),
+            "locale": {
+                "monthNames": monthNames,
+                "format": lrDateFormat,
+                "daysOfWeek":daysName,
+                "applyLabel":applyLabel,
+                "cancelLabel":cancelLabel
+            }
+        });
+
+        $(picker).on('blur change', function(ev, picker) {
+            ACC.counterfeit.handleDateRangeValidation($(this).val(), $(this));
+        });
+
+        $(picker).on('apply.daterangepicker', function(ev, picker) {
+            $(this).val(picker.startDate.format(lrDateFormat));
+            ACC.counterfeit.handleDateRangeValidation($(this).val(), $(this));
+        });
+
+        $(picker).on('hide.daterangepicker', function(ev, picker) {
+            var val = $(this).val();
+            if (!val) {
+                $(this).val(picker.startDate.format(lrDateFormat));
+                ACC.counterfeit.handleDateRangeValidation($(this).val(), $(this));
+            }
+        });
+    },
+    captchaCallback: function() {
+        ACC.counterfeit.enableSubmitButton();
+        var $cbox = $('#colorbox');
+        var $input = $cbox.find('input[type=file]');
+        var $submit = $cbox.find('#ctf-fileAttach-submit');
+        if ($input.val().length) {
+            var files = $input.prop('files');
+            var shouldShowSubmit = false;
+            Array.from(files).forEach(function(file) {
+                var fileSize = file.size;
+                var fileType = file.type;
+                if (fileType !== '' && allowFileTypes.includes(fileType) && fileSize <= allowFileSizeMB * 1000 * 1000 && files.length <= maxFileUploads) {
+                    shouldShowSubmit = true;
+                }
+            });
+            if (shouldShowSubmit) {
+                $submit.show();
+            } else {
+                $submit.hide();
+            }
+        } else {
+            $submit.hide();
+        }
+    },
+    captchaExpiredCallback: function() {
+        var $cbox = $('#colorbox');
+        var $submit = $cbox.find('#ctf-fileAttach-submit');
+        $submit.hide();
+        ACC.counterfeit.enableSubmitButton();
+    },
+    bindCounterfeit: function() {
+        $(document).ready(function() {
+            var captcha = $("#counterfeitForm").find(".js-recaptcha-captchaaddonCtf");
+            if (captcha) ACC.captcha.bindWidgetCallback(captcha, 'recaptchaCtfFileupload');
+            document.getElementById('place_of_purchase').addEventListener('change', function() {
+                var onlineDetails = document.getElementById('online_details');
+                var offlineDetails = document.getElementById('offline_details');
+                if (this.value === 'ONLINE') {
+                    onlineDetails.style.display = 'block';
+                    offlineDetails.style.display = 'none';
+                } else if (this.value === 'OFFLINE') {
+                    onlineDetails.style.display = 'none';
+                    offlineDetails.style.display = 'block';
+                } else {
+                    onlineDetails.style.display = 'none';
+                    offlineDetails.style.display = 'none';
+                }
+            });
+
+            if ($('#counterfeitForm .js-calendar-picker').length) {
+                ACC.counterfeit.bindLRDatePicker($('#counterfeitForm .js-calendar-picker'));
+            }
+
+            function validateForm() {
+                var isValid = true;
+                var requiredFields = ['first_name', 'last_name', 'city', 'country', 'email', 'marketplace_name', 'seller_nickname', 'location_address'];
+
+                requiredFields.forEach(function(fieldId) {
+                    var field = document.getElementById(fieldId);
+                    if (field.value.trim() === '') {
+                        document.getElementById(fieldId + 'Error').style.display = 'block';
+                        isValid = false;
+                    } else {
+                        document.getElementById(fieldId + 'Error').style.display = 'none';
+                    }
+                });
+
+                var reasonChecked = Array.from(document.querySelectorAll('input[name="reportingReason"]:checked')).length > 0;
+                if (!reasonChecked) {
+                    document.getElementById('reasonError').style.display = 'block';
+                    isValid = false;
+                } else {
+                    document.getElementById('reasonError').style.display = 'none';
+                }
+
+                var selectedFile = document.getElementById("upload_file").files.length > 0;
+                if (!selectedFile) {
+                    document.getElementById('selectedFileError').style.display = 'block';
+                    isValid = false;
+                } else {
+                    document.getElementById('selectedFileError').style.display = 'none';
+                }
+
+                var relationToEpson = document.getElementById("relationshipToEpson").value;
+                if (!relationToEpson) {
+                    document.getElementById('relationToEpsonError').style.display = 'block';
+                    isValid = false;
+                } else {
+                    document.getElementById('relationToEpsonError').style.display = 'none';
+                }
+
+                return isValid;
+            }
+
+            $(document).on("keypress", '#counterfeitForm #telephone ,#counterfeitForm #vendor_telephone', function(e) {
+                var charCode = e.which || e.keyCode;
+                if (charCode > 31 && (charCode < 48 || charCode > 57)) {
+                    return false;
+                }
+                return true;
+            });
+
+
+            $(document).on("keyup change", '#counterfeitForm input:visible, #counterfeitForm #relationshipToEpson, #counterfeitForm #country, #counterfeitForm #upload, #counterfeitForm #place_of_purchase', function(e) {
+                ACC.counterfeit.enableSubmitButton();
+            });
+
+            $(document).on("keyup", '#counterfeitForm #email', function(e) {
+                var value = $(this).val().trim();
+                var $emailError = $('#emailError');
+                var regex = /^([a-zA-Z0-9_.+-]+)@(([a-zA-Z0-9-]+\.)+[a-zA-Z0-9]{2,4})+$/;
+
+                if (value.length > 0) {
+                    if (!regex.test(value)) {
+                        $emailError.show();
+                        $('#submitCounterfeit').attr('disabled', 'disabled');
+                    } else {
+                        $emailError.hide();
+                        ACC.counterfeit.enableSubmitButton();
+                    }
+                } else {
+                    $emailError.show();
+                }
+            });
+        });
+    },
+    enableSubmitButton: function() {
+        let allValid = true;
+        $('#counterfeitForm .required:visible').each(function() {
+            if ($(this).val() === '') {
+                allValid = false;
+            }
+        });
+        if (!allValid || $('#counterfeitForm .g-recaptcha-response').val().length < 1 || $('#relationshipToEpson').val() === null || $('#relationshipToEpson').val() === '' || $('#counterfeitForm #country').val() === null || $('#counterfeitForm #country').val() === '' || $('#counterfeitForm #upload').val() === null || $('#counterfeitForm #upload').val() === '' || $('#counterfeitForm #place_of_purchase').val() === null || $('#counterfeitForm #place_of_purchase').val() === '' || $('input[name="reportingReason"]:checked').length < 1 || $('.ctf-upload-cta input[type="hidden"]').length < 1) {
+            $('#submitCounterfeit').attr('disabled', 'disabled');
+        } else {
+            $('#submitCounterfeit').removeAttr('disabled');
+        }
+    },
+    ctfFileUploadPicker: function() {
+        var ctfSelectedFiles = [];
+        $('.ctf-upload-cta .ctf-file-attach').on('click', function(e) {
+            var popupLabel = $(this).data('popup-label') || '';
+            ACC.colorbox.open(popupLabel, {
+                html: $('.ctf-upload-modal__wrapper').html(),
+                className: 'ctf-upload-colorbox-popup',
+                maxWidth: '700px',
+                width: '90%',
+                title: '<div class="headline"><span class="headline-text">'+popupLabel+'</span></div>',
+                onComplete: function() {
+                    var $cbox = $('#colorbox');
+                    var $input = $cbox.find('#upload_file');
+                    var $submit = $cbox.find('#ctf-fileAttach-submit');
+                    var $recaptchaField = $cbox.find('.g-recaptcha-response');
+                    var sourceInput = $cbox.find('.js-file-input');
+                    var acceptValue = sourceInput.attr('accept');
+                    if (acceptValue !== undefined) {
+                        $input.attr('accept', acceptValue);
+                    }
+                    $input.attr('multiple', true);
+                    sourceInput.remove();
+
+                    if ($input.val().length && $recaptchaField.val().length) {
+                        $submit.show();
+                    } else {
+                        $submit.hide();
+                    }
+                    var captcha = $cbox.find("#ctfUploadForm .js-recaptcha-captchaaddon");
+                    if (captcha) ACC.captcha.bindWidgetCallback(captcha, 'recaptchaCtfFileupload');
+
+                }
+            });
+        });
+
+        $(document).on('click', '.ctf-upload-cta .ctf-file-upload', function() {
+            $('#colorbox .ctf-upload-cta #upload_file').trigger('click');
+        });
+
+        $(document).on('change', '#colorbox .ctf-upload-cta #upload_file', function(e) {
+            var $fileInput = $(this);
+            var $modaldiv = $fileInput.closest('.ctfUploadFormContainer');
+            var $textInput = $modaldiv.find('.js-ctf-input-file');
+            var $submit = $modaldiv.find('.ctf-fileAttach-submit');
+            var $recaptchaField = $modaldiv.find('.g-recaptcha-response');
+            var fileNames = [];
+            var preSize = $(this).data('pre-size') || 'File ';
+            var postSize = $(this).data('post-size') || 'exceeds the maximum size of ';
+            var sizeUnit = $(this).data('size-unit') || 'MB.';
+            var allowedTypes = $(this).data('allowed-types') || ' is not an allowed type.';
+            var preCount = $(this).data('pre-count') || 'You can only upload a maximum of ';
+            var postCount = $(this).data('post-count') || ' files.';
+
+            if (e.target.files.length > 0) {
+                var files = Array.from($fileInput.prop('files'));
+                var validFiles = [];
+                var invalidFileMessage = '';
+
+                $('#colorbox #invalidFileError').hide();
+
+                // Validate file types, sizes, and number of files
+                if (files.length > maxFileUploads) {
+                    invalidFileMessage = preCount + maxFileUploads + " " +postCount;
+                } else {
+                    files.forEach(function(file) {
+                        if (file.type !== "" && allowFileTypes.includes(file.type)) {
+                            if (file.size <= allowFileSizeMB * 1000 * 1000) {
+                                validFiles.push(file);
+                                fileNames.push(file.name);
+                            } else {
+                                invalidFileMessage = preSize + file.name + "  "+postSize + allowFileSizeMB + " " +sizeUnit;
+                            }
+                        } else {
+                            invalidFileMessage = preSize + file.name +" " +allowedTypes;
+                        }
+                    });
+                }
+
+                // Update file names and error messages
+                if (invalidFileMessage) {
+                    $('#colorbox #invalidFileError').text(invalidFileMessage).show();
+                    $submit.hide();
+                } else {
+                    ctfSelectedFiles = validFiles;
+                    $textInput.val(fileNames.join(', '));
+                    if ($textInput.val().length && $recaptchaField.val().length) {
+                        $submit.show();
+                    } else {
+                        $submit.hide();
+                    }
+                }
+            }
+        });
+        $(document).on('click', '#ctf-fileAttach-submit', function() {
+            $('#ctfUploadLoader .loader').show();
+            $('.vsp-loader').modal('show');
+            const storeOptions = {
+				workflows: [ workflowId ]
+			};
+			const uploadOptions = { };
+            var uploadPromises = ctfSelectedFiles.map(function(file) {
+                return client.upload(file, uploadOptions, storeOptions).then(function(response) {
+                    return response;
+                }).then(null, function(err) {
+                    return null;
+                });
+            });
+
+            Promise.all(uploadPromises).then(function(results) {
+                results.forEach(function(result, index) {
+                if (result) {
+                    setTimeout(function() {
+                        $.ajax({
+                            url: workflowUrl.replace('<FILE_HANDLE>', result.handle),
+                            type: 'GET',
+                            success: function(data) {
+                                var pollUrl = workflowPollUrl.replace('<JOB_ID>', data.jobid);
+                                setTimeout(function() {
+                                    ACC.servicePlan.pollWorkflow(pollUrl);
+                                }, 1000);
+                                $.colorbox.close();
+                                const $input = $('<input>', {
+                                    type: 'hidden',
+                                    value: cName + result.key,
+                                    id: result.handle,
+                                    name: 'files'
+                                });
+                                $('#counterfeitForm .ctf-upload-cta').append($input);
+                                $('<p>').text(result._file.name).addClass('ctfFileName').appendTo('#counterfeitForm .ctfUploadedFiles');
+                                ACC.counterfeit.enableSubmitButton();
+                            }
+                        });
+                    }, 500);
+                }
+                });
+            });
+        });
+
+        $(document).on('click','.ctf-upload-cta .clearSelection', function() {
+            $('.js-ctf-input-file').val('');
+            $('.ctfUploadedFiles').empty();
+            $('.ctf-upload-cta input[type="hidden"]').remove();
+            ctfSelectedFiles = [];
+            $('.ctf-fileAttach-submit').hide();
+            ACC.counterfeit.enableSubmitButton();
+        });
+    }
+};
+</script>
+
+</body>
+</html>

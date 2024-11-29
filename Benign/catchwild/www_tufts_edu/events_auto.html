@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>events_auto.html</title>
+</head>
+<body>
+
+<script>
+function uid() {
+  return (performance.now().toString(36)+Math.random().toString(36)).replace(/\./g,"");
+}
+
+function monthName(mon) {
+   return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][mon - 1];
+}
+
+function generateHtml(response, maxEvents, eventContainer, sibling) {
+  let numItems = response.length;
+  let numImages = 0;
+  const paragraphContainer = sibling;
+  if(maxEvents < numItems){ numItems = maxEvents; }
+  if(paragraphContainer.querySelector(".img_2")) {
+    numImages = 2;
+  } else if (paragraphContainer.querySelector(".img_1")) {
+    numImages = 1;
+  }
+  paragraphContainer.classList.add("num-items-" + numItems);
+  paragraphContainer.parentElement.classList.add('num-items-' + numItems);
+  if(numItems > 2 && numImages > 1) { paragraphContainer.classList.add("multiple-images"); }
+  if(numItems >= 3) { paragraphContainer.classList.add("num-items-3-and-up"); }
+  if(numItems >= 4) { paragraphContainer.classList.add("num-items-4-and-up"); }
+  if(numItems == 0) { eventContainer.innerHTML += `<div class="event__details"><b>No Upcoming Events</b></div>` }
+  for(let i = 0; i < numItems; i ++) {
+    if(response[i]['title'] !== null) {
+      const randomId = uid();
+      const title = response[i]['title'];
+      const eventLink = response[i]['permaLinkUrl'];
+      //Date Values Below
+      const startDateString = response[i]['startDateTime'].split(/-|T/);
+      const endDateString = response[i]['endDateTime'].split(/-|T/);
+      const startDateMonth = monthName(parseInt(startDateString[1]));
+      const startDateDay = parseInt(startDateString[2]).toString();
+      const endDateMonth = monthName(parseInt(endDateString[1]));
+      const endDateDay = parseInt(endDateString[2]).toString();
+
+      let multipleMonths = "";
+      if(startDateMonth !== endDateMonth) {
+        multipleMonths = " multiple-months";
+      }
+
+      let differentDay = "";
+      if(startDateMonth === endDateMonth && startDateDay !== endDateDay) {
+        differentDay = `<div class="event__date__spacer event__day__spacer">&mdash;</div>` +
+        `<div class="event__day event__day--end">${endDateDay}</div>`
+      }
+
+      let differentMonth = "";
+      if(startDateMonth !== endDateMonth) {
+        differentMonth = `<div class="event__date__spacer event__date__spacer__multiple-months">&mdash;</div>` +
+        `<div class="event__date__end">` +
+        `<div class="event__month event__month--end">${endDateMonth}</div>` +
+        `<div class="event__day event__day--end">${endDateDay}</div>` +
+        `</div>`
+      }
+
+      const eventStart = `<div class="event__date__start">` +
+      `<div class="event__month event__month--start">${startDateMonth}</div>` +
+      `<div class="event__days"><div class="event__day event__day--start">${startDateDay}</div>` +
+      differentDay +
+      `</div></div>`;
+
+      const eventTitleHtml = `<div class="event__title" id="event_title_${randomId}">${title}</div>` +
+      `<div class="event__list__caret"></div><a aria-labelledby="event_title_${randomId}" class="events__link" href="${eventLink}"></a>`;
+
+      eventContainer.innerHTML += `<div class="event__details"><div class="event__date` + multipleMonths + `">` + eventStart +
+      differentMonth +
+      `</div>` + eventTitleHtml + `</div>`;
+    }
+  }
+}
+
+function fetchEvents(script) {
+  clearInterval(checkDoc);
+  const scriptUrl = script.getAttribute('data-source-url');
+  const maxEvents = script.getAttribute('data-max-events');
+  const sibling = script.nextElementSibling;
+  const eventContainer = script.nextElementSibling.querySelector(".events__list");
+  fetch(scriptUrl)
+  .then((response) => {
+      return response.json();
+  })
+  .then((data) => {
+      //let yesterday = new Date();
+      //yesterday.setHours(23,58,0,0);
+      //let dataFiltered = [];
+      //yesterday.setDate(yesterday.getDate() - 1);
+      //for(let i = 0; i < data.length; i++) {
+      //  if(Date.parse(data[i].endDateTime) >= Date.parse(yesterday)) {
+      //    dataFiltered.push(data[i]);
+      //  }
+      //}
+      data = data.sort(function(a,b){
+        return Date.parse(a.startDateTime) - Date.parse(b.startDateTime);
+      });
+      generateHtml(data, maxEvents, eventContainer,sibling);
+  })
+  .catch(function(error) {
+    console.log(error);
+    sibling.classList.add("num-items-0");
+    sibling.parentElement.classList.add("num-items-0");
+    eventContainer.innerHTML += `<div class="event__details">Error Fetching Events</div>`
+  });
+}
+
+const eventScript = document.currentScript;
+
+let checkDoc = setInterval(function() {
+  if (eventScript && eventScript !== null && typeof eventScript !== 'undefined') {
+    fetchEvents(eventScript);
+  }
+}, 100);
+
+
+</script>
+
+</body>
+</html>

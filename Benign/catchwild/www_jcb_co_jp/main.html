@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>main.html</title>
+</head>
+<body>
+
+<script>
+(function() {
+
+  var Carousel = function () {
+    var self = this;
+
+    this.init = function () {
+
+      self.targetSelector = '#contents__top__hero__carousel';
+
+      var typeName = '';
+      if (docCookies.getItem('rp1')) {
+        typeName = 'member';
+      } else {
+        typeName = 'noMember';
+      }
+
+      self.getCarouselJson().done(function(data) {
+        if (!$.isEmptyObject(data)) {
+          self.build(data[typeName]);
+          self.addEvent();
+        }
+      });
+    };
+
+    this.getCarouselJson = function () {
+      return $.getJSON('/common_new/js/carousel/carousel.json', function(res) {
+        return res;
+      });
+    };
+
+    this.build = function (sliders) {
+      var slideArea = '';
+
+      $(sliders).each(function () {
+        slideArea += ''+
+        '<div class="module__hero'+ self.divideCardClass(this) + self.divideBannerClass(this) +'" style="'+ self.moduleStyle(this) +'" data-link="'+ this.link + this.linkParam +'">'+
+          self.contentAttachment(this) +
+          self.bannerAttachment(this) +
+        '</div>';
+      });
+
+      var carouselHTML ='<div id="theTarget">'+ slideArea +'</div>';
+
+      $(self.targetSelector).replaceWith(carouselHTML);
+
+      self.carouselStart();
+    };
+
+    this.divideCardClass = function (data) {
+      if (data.leftCardImg || data.rightCardImg) {
+        return ' moduleType--withCardlist';
+      }
+      return '';
+    };
+
+    this.divideBannerClass = function (data) {
+      if (data.bannerImgPC && data.bannerImgSP) {
+        return ' disney jcb_magical2017_block';
+      }
+      return '';
+    };
+
+    this.moduleStyle = function (data) {
+      if (data.backImg) {
+        var style = 'cursor: pointer;';
+        if (data.herofilterFlag) {
+          style += 'background-image: url(/common_new/images/common/bg_herofilter.png), url('+ data.backImg +');' +
+          'background-repeat: repeat-x, no-repeat;'+
+          'background-size: 1px 100%, cover;';
+        } else {
+          style += 'background-image: url('+ data.backImg +');';
+        }
+
+        return style;
+      }
+      return '';
+    };
+
+    this.contentAttachment = function (data) {
+      if (!data.bannerImgPC && !data.bannerImgSP) {
+        return ''+
+          '<div class="module__heroItem--text">'+
+            '<h3>'+
+              '<span>'+ data.heading +'</span>'+
+            '</h3>'+
+            '<p>'+
+              '<span>'+ data.desc +'</span>'+
+            '</p>'+
+          '</div>'+
+          self.cardImage(data);
+      }
+      return '';
+    };
+
+    this.cardImage = function (data) {
+      if (data.leftCardImg && data.rightCardImg) {
+        return ''+
+          '<ul class="module__heroItem--cardImage">'+
+            '<li><img src="'+ data.leftCardImg +'" alt=""></li>'+
+            '<li><img src="'+ data.rightCardImg +'" alt=""></li>'+
+          '</ul>';
+      } else if (data.leftCardImg) {
+        return '' +
+          '<ul class="module__heroItem--cardImage">'+
+            '<li><img src="'+ data.leftCardImg +'" alt=""></li>'+
+          '</ul>';
+      }
+      return '';
+    };
+
+    this.bannerAttachment = function (data) {
+      if (data.bannerImgPC && data.bannerImgSP) {
+        return ''+
+        '<span class="pc">'+
+          '<a href="'+ data.link + data.linkParam +'" style="text-align: center">'+
+            '<img src="'+ data.bannerImgPC +'">'+
+          '</a>'+
+        '</span>'+
+        '<span class="sp">'+
+          '<a href="'+ data.link + data.linkParam +'" style="text-align: center">'+
+            '<img src="'+ data.bannerImgSP +'">'+
+          '</a>'+
+        '</span>';
+      }
+      return '';
+    };
+
+    // カルーセル起動
+    this.carouselStart = function () {
+      if(navigator.userAgent.match(/(iPhone|iPod|Android.*Mobile)/i)) {
+        $('#theTarget').bxSlider({
+          auto: true,
+          speed: 300,
+          useCSS:false,
+          pause: 5000,
+        });
+      } else {
+        $('#theTarget').bxSlider({
+          auto: true,
+          speed: 300,
+          useCSS:false,
+          pause: 5000,
+          touchEnabled: false,
+        });
+      }
+    };
+    
+    this.addEvent = function () {
+      $('.module__hero').each(function () {
+        var linkStr = $(this).data('link');
+        if (!linkStr) return;
+
+        $(this).click(function () {
+          location.href = location.protocol + '//' + location.host + linkStr;
+        });
+      });
+    };
+  };
+
+  var carousel = new Carousel();
+  carousel.init();
+})();
+</script>
+
+</body>
+</html>

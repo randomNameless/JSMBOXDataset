@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>fix-links-with-call-to-action.html</title>
+</head>
+<body>
+
+<script>
+/*
+ * This file lives in the Sitevision file archive at "/System/js/fix-links-with-call-to-action.js"
+ * Make sure that the content of this file is pasted into the correct file in the file archive.
+ */
+
+function filterElements(elements) {
+  const predicateFn = (element) => {
+    const isPhoneNumber = (href) => {
+      return href.includes('mailto:');
+    };
+    const isEmailAddress = (href) => {
+      return href.includes('tel:');
+    };
+
+    const href = element.getAttribute('href');
+    return href && (!isPhoneNumber(href) && !isEmailAddress(href));
+  };
+
+  const filteredElements = [];
+
+  elements.forEach(element => {
+    if (predicateFn(element)) {
+      filteredElements.push(element);
+    }
+  });
+
+  return filteredElements;
+}
+
+function addCallToActionToParentsOf(elements) {
+  elements.forEach(element => {
+    const parentElementsIsButton = element.parentElement.classList.contains('button');
+    const textContentLengthIsSame = element.textContent === element.parentElement.textContent;
+
+    if (!parentElementsIsButton && textContentLengthIsSame) {
+      element.parentElement.classList.add('call-to-action');
+    }
+  });
+}
+
+/*
+* Links that are stand alone in a text module
+* should get the call-to-action class added to its element.
+* To make this work in edit mode (since sitevision reloads when adding new element)
+* we have to make sure that an interval is running so the class gets re-added
+* to the elements that should have the call-to-action class.
+*/
+window.addEventListener('DOMContentLoaded', () => {
+  setInterval(() => {
+    const selectorStatement = 'p.uu-text a:only-child';
+    const elements = document.querySelectorAll(selectorStatement);
+    addCallToActionToParentsOf(filterElements(elements));
+  }, 3000);
+});
+
+</script>
+
+</body>
+</html>

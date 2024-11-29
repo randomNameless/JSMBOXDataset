@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>siteseal.html</title>
+</head>
+<body>
+
+<script>
+(async () => {
+    const version = "v1.4.1";
+
+    const apiHost = "siteseal.gmo-cybersecurity.com";
+    const profileHost = "gmo-cybersecurity.com"
+
+    const imgTagID = "csi_siteseal_image";
+    const aTagID = "csi_siteseal_profile_link";
+    const apiEndpoint = `https://${apiHost}/api/v1/seal`;
+    const profileEndpoint = `https://${profileHost}/siteseal/profile`;
+
+    const localStorageKey = "csi_siteseal";
+
+    const imgTag = document.getElementById(imgTagID);
+    const fileName = imgTag.alt;
+    const storageRawData = localStorage && localStorage.getItem(localStorageKey);
+    const currentTimeStampSec = Math.floor(Date.now() / 1000);
+
+    let hit_cache = false;
+
+    /* search cache */
+    if (storageRawData !== null) {
+        const storageData = JSON.parse(storageRawData);
+        if (currentTimeStampSec < storageData.expiredAt) {
+            if (!storageData.valid) {
+                return;
+            }
+            if (storageData.fileName === fileName) {
+                imgTag.src = storageData.url;
+                hit_cache = true;
+            }
+        }
+    }
+
+    /* no cache */
+    if (!hit_cache) {
+        /* get url from api */
+        const res = await fetch(`${apiEndpoint}?file_name=${fileName}`);
+
+        /* negative cache in 5 mins */
+        if (!res.ok) {
+            localStorage && localStorage.setItem(localStorageKey, JSON.stringify({
+                url: "",
+                expiredAt: currentTimeStampSec + 300,
+                fileName: "",
+                valid: false,
+            }));
+            return;
+        }
+
+        /* get url of image */
+        const json = await res.json();
+        const url = json.url;
+        if (url == "") return;
+        imgTag.src = url;
+
+        /* save as cache */
+        localStorage && localStorage.setItem(localStorageKey, JSON.stringify({
+            url: url,
+            expiredAt: parseInt(new URL(url).searchParams.get("Expires")),
+            fileName: imgTag.alt,
+            valid: true,
+        }));
+    }
+
+    imgTag.style.display = "inline";
+    imgTag.style.cursor = "pointer";
+
+    /* action to profile modal */
+    const aTag = document.getElementById(aTagID);
+    aTag.onclick = () => {
+        const domain = location.hostname;
+        if (location.port !== '') domain = `${domain}:${location.port}`;
+        const url = `${profileEndpoint}/?domain=${domain}&utm_source=${domain}&utm_medium=referral&utm_campaign=customer_siteseal_banner`;
+        const win = window.open(url, '_blank', 'location=yes,height=575,width=600,scrollbars=yes,status=yes,resizable=no')
+        win.opener = null;
+        win.location = url;
+    }
+})()
+
+</script>
+
+</body>
+</html>

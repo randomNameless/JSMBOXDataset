@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>CollectionMetadataSection.html</title>
+</head>
+<body>
+<script>import {
+  resultContext,
+} from "https://static.cloud.coveo.com/atomic/v2/index.esm.js";
+import { replaceFunction } from "../utility-functions.js";
+
+//Title
+export class CollectionMetadataSection extends HTMLElement {
+  shadow;
+  result;
+  initialized = false;
+
+  async connectedCallback() {
+    if (this.initialized) {
+      return;
+    }
+
+    this.initialized = true;
+    this.shadow = this.attachShadow({ mode: "open" });
+
+    try {
+      this.result = await resultContext(this);
+      this.render();
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  render() {
+    const structure_type = this.result.raw.structuretype || '';
+    const officialDisplayDate = this.result.raw.officialdisplaydate;
+    const author = replaceFunction(this.result.raw.author || '');
+    const speaker = replaceFunction(this.result.raw.speaker || '');
+    const plCredit = this.result.raw.field_pl_credits || '';
+    const serCredit = this.result.raw.field_ser_credits || '';
+    let metadataHtml = "";
+    if (officialDisplayDate || author || speaker){
+      metadataHtml += `<div class="result-meta">`;
+      if(officialDisplayDate) {
+        metadataHtml+=`<span class="result-meta-item">${officialDisplayDate}</span>`;
+      }
+      if(structure_type==="Article" || structure_type==="Chapter" || structure_type==="Book") {
+        if(author) {
+          metadataHtml +=   `<span class="result-meta-item">
+                                <span class="author">${author}</span>
+                            </span>`;
+        }
+      }
+      if(structure_type==="Multimedia" || structure_type==="Webinar"){
+        if(speaker) {
+          metadataHtml +=   `<span class="result-meta-item">
+                                <span class="author">${speaker}</span>
+                            </span>`;
+        }
+      }
+      metadataHtml += `</div>`;
+      if (plCredit && plCredit !== 0) {
+        metadataHtml += `<div class="result-meta">
+                           <span class="tag">
+                             <span class="ce-credit">${plCredit}</span>
+                             ${
+                                serCredit && serCredit !== 0
+                                  ? `<span class="ser-credit">${serCredit}</span>`
+                                  : ""
+                              }
+                           </span>
+                         </div>`;
+      }
+    }
+
+    this.shadow.innerHTML = metadataHtml;
+  }
+}</script>
+</body>
+</html>

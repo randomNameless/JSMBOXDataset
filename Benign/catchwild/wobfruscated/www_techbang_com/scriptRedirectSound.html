@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>scriptRedirectSound.html</title>
+</head>
+<body>
+<script>import { reactive } from 'https://unpkg.com/petite-vue?module';
+import {postMessageScript} from '/scripts/scriptPostMessage.js';
+import {$store} from '/scripts/store.js';
+
+export const redirectSoundScript = reactive({
+  audioCtx: null,
+  audioCtxAd: null,
+  isRedirectSoundEnabled: false,
+
+  listenToParentMessage(){
+    window.addEventListener('message',(event)=> {
+      //console.log("Message received from the parent: " + event.data); //{ type: audioData, enabled: true }
+      if("audioData"===event?.data?.type){
+        const newValue = true===event?.data?.enabled; 
+        if(this.isRedirectSoundEnabled===newValue){return;}
+        this.toggleRedirection();
+      }
+    });
+  },
+
+  toggleRedirection(){
+    this.isRedirectSoundEnabled=!this.isRedirectSoundEnabled;
+    if(this.isRedirectSoundEnabled){
+      this.initRedirectSoundScript();
+      this.initRedirectAdvertisingSoundScript();
+    }else{
+      if(this.audioCtx){
+        this.audioCtx.close();
+        this.audioCtx = null;
+      }
+      if(this.audioCtxAd){
+        this.audioCtxAd.close();
+        this.audioCtxAd = null;
+      }
+    }
+  },
+
+  async initRedirectSoundScript(){
+    if(!this.isRedirectSoundEnabled){
+      return;
+    }
+    this.audioCtx = new AudioContext();
+    await this.audioCtx.audioWorklet.addModule("/scripts/AudioModuleProcessor.js");
+    const audioWorkletNode = new AudioWorkletNode(this.audioCtx, "audio-processor");
+    const sourceRadio = this.audioCtx.createMediaElementSource($store.state[0].audio);
+    sourceRadio.connect(audioWorkletNode);
+    audioWorkletNode.connect(this.audioCtx.destination); 
+    audioWorkletNode.port.onmessage = (e) => {
+      postMessageScript.postMessage(e.data);
+    };
+    if (!$store.state[0].is_playing) {
+      this.suspendRedirectSoundScript();
+    }
+  },
+
+  async initRedirectAdvertisingSoundScript(){
+    if(!this.isRedirectSoundEnabled){
+      return;
+    }
+    const advertisingVideoTag = document.getElementById('ad-container-0').getElementsByTagName('video')[0];
+    if(!advertisingVideoTag){return;}
+    this.audioCtxAd = new AudioContext();
+    await this.audioCtxAd.audioWorklet.addModule("/scripts/AudioModuleProcessor.js");
+    const audioWorkletNodeAd = new AudioWorkletNode(this.audioCtxAd, "audio-processor");
+    advertisingVideoTag.crossOrigin="anonymous";
+    const sourceAd = this.audioCtxAd.createMediaElementSource(advertisingVideoTag);
+    sourceAd.connect(audioWorkletNodeAd);
+    audioWorkletNodeAd.connect(this.audioCtxAd.destination); 
+    audioWorkletNodeAd.port.onmessage = (e) => {
+      postMessageScript.postMessage(e.data);
+    };
+    this.suspendRedirectAd();
+  },
+  suspendRedirectAd(){
+    if(this.audioCtxAd){
+      this.audioCtxAd.suspend();
+    }
+  },
+  resumeRedirectAd(){
+    if(this.audioCtxAd){
+      this.audioCtxAd.resume();
+    }
+  },
+  suspendRedirectSoundScript(){
+    if(this.audioCtx){
+      this.audioCtx.suspend();
+    }
+  },
+  resumeRedirect(){
+    if(this.audioCtx){
+      this.audioCtx.resume();
+    }
+  }
+});</script>
+</body>
+</html>

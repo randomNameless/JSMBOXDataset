@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>subject_selector.html</title>
+</head>
+<body>
+
+<script>
+if($('#subject_selector').length > 0){
+    const subjectSelector = $('#subject_selector');
+    const addSubjectBtn = $('#add_subject');
+    const body = $('body');
+    const subjectWidget = $('#subject_widget');
+    const locale = subjectSelector.attr('data-locale');
+    const levels = subjectSelector.attr('data-levels').split(',').map(function (str) {return parseInt(str);});
+    const journalSubjectIds = subjectSelector.attr('data-journal-subject-ids').split(',').map(function (str) {return parseInt(str);});
+    const journalSelected = parseInt(subjectSelector.attr('data-journal-selected'));
+    const subjectChoiceDataByLocale = subjectChoiceData[locale];
+    const childrenData = subjectChildrenData[locale];
+    const pageSize = 50;
+    const subjectContainer = $("ul.subject-container");
+    let selectedSubjectIds = [];
+
+    items = subjectChoiceDataByLocale.filter(function (e){
+        if(journalSelected == 1){
+            if(journalSubjectIds.length > 0){
+                return levels.includes(e.level) && journalSubjectIds.includes(e.id);
+            }else{
+                return [];
+            }
+        }else{
+            return levels.includes(e.level);
+        }
+    });
+
+    const subjectRequestModal = $("#subject_request_modal");
+    const subjectRequestModalBody = $("#subject_request_modal_body");
+    const alertUtil = new AlertUtil();
+    let requestedSubjectIds = [];
+
+    String.prototype.turkishToUpper = function(){
+        let string = this;
+        let letters = { "i": "İ", "ş": "Ş", "ğ": "Ğ", "ü": "Ü", "ö": "Ö", "ç": "Ç", "ı": "I" };
+        string = string.replace(/(([iışğüçö]))+/g, function(letter){ return letters[letter]; })
+        return string.toUpperCase();
+    }
+
+    jQuery.fn.select2.amd.require(["select2/data/array", "select2/utils"], function (ArrayData, Utils) {
+        function CustomData($element, options) {
+            CustomData.__super__.constructor.call(this, $element, options);
+        }
+        Utils.Extend(CustomData, ArrayData);
+        CustomData.prototype.query = function (params, callback) {
+            let results = [];
+            if (params.term && params.term !== '' && params.term !== '>') {
+                if(locale === 'tr'){
+                    results = items.filter(function(e) {
+                        return e.text.turkishToUpper().indexOf(params.term.turkishToUpper()) >= 0;
+                    });
+                }else{
+                    results = items.filter(function(e) {
+                        return e.text.toUpperCase().indexOf(params.term.toUpperCase()) >= 0;
+                    });
+                }
+            } else {
+                results = items;
+            }
+            if (!("page" in params)) {
+                params.page = 1;
+            }
+            const data = {};
+            data.results = results.slice((params.page - 1) * pageSize, params.page * pageSize);
+            data.pagination = {};
+            data.pagination.more = params.page * pageSize < results.length;
+            callback(data);
+        };
+
+        $(document).ready(function () {
+
+            subjectSelector.select2({
+                theme: 'bootstrap',
+                placeholder: Translator.trans('please.select.subject'),
+                dataAdapter: CustomData,
+                ajax: {},
+                language: {
+                    noResults: function(){
+                        return Translator.trans('select2.no.result.found');
+                    }
+                },
+                width: '100%',
+                allowClear: true
+            });
+
+            $('ul.subject-container li.selected-subject').each(function(){
+                selectedSubjectIds.push(parseInt($(this).attr('data-subject-id')));
+            });
+
+            subjectWidget.val(selectedSubjectIds.join(','));
+        });
+    });
+
+    body.on('click', '#add_subject', function (e){
+
+        if(subjectSelector.find(":selected").length == 0){
+            swal.fire({
+                title: Translator.trans('please.select.subject'),
+                text: "",
+                type: 'warning',
+                confirmButtonText: Translator.trans('close')
+            });
+            return;
+        }
+
+        let selectedSubjectValue = parseInt(subjectSelector.find(":selected").val().trim());
+        let selectedSubjectText = subjectSelector.find(":selected").text().trim();
+
+        if(selectedSubjectIds.includes(selectedSubjectValue) === true){
+            swal.fire({
+                title: Translator.trans('subject.have.added'),
+                text: selectedSubjectText,
+                type: 'warning',
+                confirmButtonText: Translator.trans('close')
+            });
+            return;
+        }
+
+        let selectedSubjects = [];
+        if(typeof childrenData[selectedSubjectValue] != "undefined"){
+            $.each(childrenData[selectedSubjectValue], function (tmpSubjectKey, tmpChildrenData){
+                selectedSubjects.push(tmpChildrenData);
+            });
+        }else{
+            selectedSubjects.push({'id': selectedSubjectValue, 'text': selectedSubjectText });
+        }
+
+        $.each(selectedSubjects, function (tmpSubjectId, tmpSubjectData){
+            if(selectedSubjectIds.includes(parseInt(tmpSubjectData.id)) === false){
+                let tmpSubjectId = parseInt(tmpSubjectData.id);
+                selectedSubjectIds.push(tmpSubjectId);
+                subjectWidget.val(selectedSubjectIds.join(','));
+                let newSelectedSubject = $('<li data-subject-id="'+ parseInt(tmpSubjectData.id) +'" class="selected-subject list-group-item d-flex justify-content-between align-items-center"></li>');
+                newSelectedSubject.html(tmpSubjectData.text + '<span class="badge badge-danger badge-pill selected-subject-remove"><i class="fas fa-trash"></i></span>');
+                subjectContainer.prepend(newSelectedSubject)
+            }
+        });
+
+        selectedSubjectIds = selectedSubjectIds.filter((value, index, array) => array.indexOf(value) === index);
+        // Get subject request
+        if(subjectRequestModal.length > 0){
+
+            if(selectedSubjectValue % 100 == 99 && requestedSubjectIds.includes(selectedSubjectValue) == false){
+                alertUtil.showLoadingSwal('please.wait');
+                let action = Routing.generate('ojs_core_subject_request', {id: selectedSubjectValue});
+                $.ajax({
+                        type: "GET",
+                        url: action,
+                        success: function(data){
+                            subjectRequestModalBody.html(data.html);
+                            alertUtil.closeLoadingSwal();
+                            subjectRequestModal.modal('show');
+                        },
+                        error: function () {
+                            alertUtil.closeLoadingSwal();
+                            alertUtil.showErrorSwal();
+                        }
+                    }
+                );
+            }
+        }
+
+        // Konu eklendikten sonra seçim kutusunda kalan konu silinir...
+        subjectSelector.val(null).trigger('change');
+    });
+
+    $("#send_subject_request").on('click', function (){
+
+        let _that = $(this);
+        alertUtil.showLoadingSpinner(_that);
+        let selectedSubjectValue = $("#selected_subject").attr('data-id');
+
+        $.ajax({
+            type: "POST",
+            data: { 'subject_request[nameTr]': $("#subject_request_nameTr").val(), 'subject_request[nameEn]': $("#subject_request_nameEn").val(), 'subject_request[_token]' : $("#subject_request__token").val() },
+            url:  Routing.generate('ojs_core_subject_request', {id: selectedSubjectValue}),
+            success: function(data){
+                alertUtil.closeLoadingSpinner(_that);
+                if(data.valid){
+                    requestedSubjectIds.push(selectedSubjectValue);
+                    $("#subject_request_name").val('');
+                    subjectRequestModal.modal('hide');
+                    alertUtil.showFeedback('thank.you.for.subject.request', 'your.subject.request.received');
+                }else{
+                    subjectRequestModalBody.html(data.html);
+                }
+            },
+            error: function() {
+                alertUtil.closeLoadingSpinner(_that);
+                subjectRequestModal.modal('hide');
+                alertUtil.showErrorSwal();
+            }
+        });
+    });
+
+    body.on('click', '.selected-subject-remove', function (){
+        let subjectRow = $(this).parents('li.selected-subject').first();
+        let subjectIndex = selectedSubjectIds.indexOf(parseInt(subjectRow.attr('data-subject-id')));
+        if (subjectIndex !== -1) {
+            selectedSubjectIds.splice(subjectIndex, 1);
+        }
+        subjectRow.remove();
+        subjectWidget.val(selectedSubjectIds.join(','));
+    });
+
+    body.on('click', '#close_subject_request', function (){
+        subjectRequestModal.modal('hide');
+    });
+
+    body.on('change', '#subject_selector', function () {
+        let selectedValue = $(this).val();
+        if (selectedValue > 0) {
+            addSubjectBtn.removeAttr('disabled');
+        } else {
+            addSubjectBtn.attr('disabled', 'disabled');
+        }
+    });
+}
+</script>
+
+</body>
+</html>

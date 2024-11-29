@@ -1,0 +1,1532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>autozep.html</title>
+</head>
+<body>
+
+<script>
+autozep = function () {
+    function init(z) {
+        if (testMode(window._zep.config.pubSettings) == true) { return };
+        if (localStorage.getItem('autozep_channel') == 'dev') {
+            injectDevChannel();
+            return window.autozep = []
+        };
+        throwDebug({ type: 'log', message: 'Started Loading...' });
+        setInitialConfig();
+        setPartnerNavegg();
+        setGPT(window.googletag);
+        setStyles();
+        setPrebid(window._zep.config.pubSettings.pbStatus);
+        setUAM(window._zep.config.pubSettings.uamStatus);
+        setGamMeasurements();
+        let sessionPlacements = filterPlacements(window._zep.placements);
+        sessionPlacements.forEach((p) => { setupPlacements(p) });
+        setPublisherKeyValues();
+        checkBlocklist();
+        setPartnerChoices();
+        setLazyLoading(window._zep.config.pubSettings.lazyLoading);
+        auctionTasks.startAuction(2000);
+        setEventListeners();
+
+    };
+    function clear() {
+        if (_zep.session) {
+            _zep.session.enqueue.forEach(e => {
+                googletag.destroySlots([e.slot]);
+                if (e.refreshHandler != undefined) {
+                    clearTimeout(e.refreshHandler);
+                }
+            });
+            if (window.azpbjs && window.azpbjs.libLoaded) { window.azpbjs.removeAdUnit(); }
+            if (typeof window.assertive != 'undefined') { window.assertive.nextPage() };
+            let eraseable = document.querySelectorAll('div[class*=autozep]');
+            eraseable.forEach(e => e.remove());
+            window._zep.session = []; window._zep.session.listeners = true;
+        };
+        init(window._zep);
+    };
+    function check () {
+        if (document.readyState!='loading') {
+            autozep.init(window._zep)
+        } else {
+            document.addEventListener('DOMContentLoaded', autozep.init, window._zep)
+        }
+    };
+    function testMode(v) {
+        check1 = v.testMode == true; //se o modo de teste está on E
+        check2 = localStorage.getItem('autozep_test') != 'true'; //se não existe flag de teste no localstorage E
+        check3 = window.location.search.indexOf('autozep_test') == -1; //se não existe flag na querystring
+        return (check1 && check2 && check3) ? true : false;
+    };
+    function injectDevChannel() {
+        var w = window.top, d = w.document, h = d.head || d.getElementsByTagName("head")[0];
+        var s = d.createElement("script");
+        s.src = '//autozep.adzep.com.br/autozep-dev.js';
+        s.type = 'text/javascript';
+        s.async = true;
+        s.setAttribute('data-cfasync', 'false');
+        h.appendChild(s);
+    };
+    function assembleElement(c) {
+        const w = window.top;
+        const d = w.document;
+        const h = d.head || d.getElementsByTagName('head')[0];
+        const b = d.body || d.getElementsByTagName('body')[0];
+        let element = d.createElement(c.type);
+        if (c.type == 'script') {
+            element.type = 'text/javascript';
+            element.async = true;
+        };
+        if (c.src != undefined) {
+            element.src = c.src;
+        };
+        if (c.async != undefined) {
+            element.async = true;
+        };
+        if (c.id != undefined) {
+            element.id = c.id;
+        };
+        if (c.attributes != undefined) {
+            const attr = Object.keys(c.attributes);
+            attr.forEach((key) => {
+                element.setAttribute(key, c.attributes[key]);
+            });
+        };
+        if (c.innerHtml != undefined) {
+            element.innerHTML = c.innerHtml;
+        };
+        return element
+    };
+    function throwDebug(c) {
+        const status = _zep.config.pubSettings.debugging == 1 || localStorage.getItem('autozep_debug') == 'true';
+        if (c.type == 'error') {
+            console.error('%c [AUTOZEP] ', 'background-color: #6ec9ff; color: #000', c.message);
+            return;
+        } else if (c.type == 'log' && status) {
+            console.log('%c [AUTOZEP] ', 'background-color: #6ec9ff; color: #000', c.message);
+        }
+    };
+    function decodeUTMs(queryString) {
+        if (queryString == '' || queryString == undefined) { return };
+        const qSArray = queryString.split('&');
+        const qSALength = qSArray.length;
+        const utms = ['utm_source', 'utm_medium', 'utm_campaign'];
+        let output = [];
+        for (let i = 0; i < qSALength; i++) {
+            let element = qSArray[i].split('=');
+            if (utms.includes(decodeURIComponent(element[0]))) {
+                output.push(decodeURIComponent(element[1]))
+            }
+        };
+        return output.toString()
+    };
+    function filterPlacements(placements) {
+        let filtered = [];
+        placements.forEach((p) => {
+            if (p.device != _zep.session.device) { return };
+            if (p.section != undefined && p.section != _zep.session.section) { return };
+            filtered.push(p);
+        });
+        return filtered
+    };
+    function setCohort(allocation, type) {
+        let levels = ((t = []) => {
+            allocation.forEach((e, i) => {
+                t.push(allocation.slice(0, i + 1).reduce((a, v) => {
+                    return a + v
+                }, 0) / 100)
+            });
+            return t
+        })();
+        let cohort = ((id = Math.random(), i = 0) => {
+            for (const e of levels) { if (id <= e) { return (i + 1) } i++ }
+        })();
+        return type != undefined ? type + cohort.toString() : cohort.toString();
+    };
+    function getMaxSize(metric, array) {
+        if (array.length > 1) {
+            if (array.indexOf('fluid') > -1) {
+                filteredArray = array.filter(size => size != "fluid")
+            } else {
+                filteredArray = array
+            };
+            transposedArray = filteredArray.map((_, colIndex) => filteredArray.map(row => row[colIndex]));
+            if (metric == 'max-width') {
+                return Math.max(...transposedArray[0])
+            } else {
+                return Math.max(...transposedArray[1])
+            }
+        };
+        if (array.indexOf('fluid') > -1 && array.length == 1) {
+            return metric == 'max-width' ? '100%' : 'unset';
+        };
+        if (array.length == 1) {
+            return metric == 'max-width' ? array[0][0] : array[0][1];
+        };
+        return 0
+    };
+    function refineSelector(c) {
+        isNodeOfType = (node,type) => {
+            if (node == type) {return true};
+            return false
+        };
+        queryAllElements = (arr) => {
+            children = [];
+            arr.forEach((e) => {
+                elementToPush = {
+                    type:e.nodeName,
+                    element:e,
+                    nodes:e.childNodes,
+                    nodeLength:e.childNodes.length,
+                    textLength:e.textContent.length || 0,
+                    height:0,
+                    width:0,
+                    margins: 0,
+                    distanceFromTop: null,
+                    distanceToBottom: null,
+                };
+                let position;
+                if (!isNodeOfType(e.nodeName,'#text')) {
+                    position = e.getBoundingClientRect() || null;
+                    elementToPush.height = Math.round(position.height);
+                    elementToPush.width = Math.round(position.width);
+                    elementToPush.distanceFromTop = Math.round(position.top);
+                    elementToPush.distanceToBottom = Math.round(position.bottom);
+                    computedStyles = getComputedStyle(e);
+                    elementToPush.margins = ((styles = getComputedStyle(e)) => {
+                        bottomMargin = styles.marginBottom.replace(/[^\d.-]/g,'');
+                        topMargin = styles.marginTop.replace(/[^\d.-]/g,'');
+                        if (bottomMargin != '') {bottomMargin = Number(bottomMargin);} else {bottomMargin = 0};
+                        if (topMargin != '') {topMargin = Number(topMargin);} else {topMargin = 0};
+                        return topMargin + bottomMargin;
+                    })();
+                };
+                if (isNodeOfType(e.nodeName,'#text') || isNodeOfType(e.nodeName,'BR')) {
+                    elementToPush.width = Math.round(window.innerWidth);
+                };
+                children.push(elementToPush);
+            });
+            return array = children
+        };
+        drillNodes = () => {
+            newArr = [];
+            array.forEach((e, i) => {
+                hasAllowedChildren = (() => {
+                    if (e.nodeLength == 0) { return false };
+                    let nodesBr = Array.from(e.nodes).filter(e => e.nodeName == 'BR');
+                    if (nodesBr.length > 0) {
+                        if (nodesBr[0].nextSibling && nodesBr[0].previousSibling) {
+                            if (nodesBr[0].nextSibling.nodeName == 'BR' || nodesBr[0].previousSibling.nodeName == 'BR') {
+                                nodesBr = true
+                            }
+                        } 
+                    };
+                    let nodesP = Array.from(e.nodes).filter(e => e.nodeName == 'P');
+                    if (nodesP.length > 0) {
+                        nodesP = true
+                    };
+                    return nodesBr == true || nodesP == true;
+                })();
+                hasAllowedTags = (() => {
+                    allowed = ['SPAN', 'P', 'H2', 'H3', 'H4', 'H5', 'H6', 'EM', 'STRONG', 'B', 'DIV'];
+                    if (allowed.indexOf(e.type) > -1) { return true };
+                })();
+                if (hasAllowedChildren && hasAllowedTags) {
+                    childOfChild = queryAllElements(e.nodes);
+                    newArr.push(...childOfChild);
+                } else {
+                    newArr.push(e);
+                }
+            });
+            return array = newArr
+        };
+        isInsertableInText = () => {
+            array.forEach((e, i) => {
+                //se elemento for #text, nao pode/div|hr|span|ul|ins|h1|h2|h3|h4|h5|h6/
+                unallowed = ['#text', 'DIV', 'HR', 'SPAN', 'UL', 'INS', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6','STRONG','IMG'];
+                if (unallowed.indexOf(e.type) > -1) { e.canBeInserted = false; return };
+                unallowedChild = ['DIV', 'IFRAME', 'UL', 'INS', 'IMG', 'BLOCKQUOTE', 'HR', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6'];
+                if (e.nodeLength > 0 && unallowedChild.indexOf(e.element.firstChild.nodeName) > -1) { e.canBeInserted = false; return };
+                if (e.textLength == 0 || e.textLength == 1) { e.canBeInserted = false; return };
+                e.canBeInserted = true;
+            })
+        };
+        isInsertableInFeed = () => {
+            let lastBottomHeight = 0;
+            array.forEach((e, i) => {
+                if (lastBottomHeight > e.distanceToBottom) {
+                    e.canBeInserted = false;
+                    return
+                }          
+                lastBottomHeight = e.distanceToBottom;
+                e.canBeInserted = true;
+            })
+        };
+        filterPartialSizedElements = () => {
+            let lastBottomHeight = 0;
+            array.forEach((e) => {
+                let elementWidth = 0;
+                let parentWidth = e.element.parentNode.clientWidth;
+                let childDistToBottom = 0;
+                if (isNodeOfType(e.type,'#text')) {
+                    return
+                } else if (isNodeOfType(e.type,'DIV') && e.nodeLength > 0) {
+                    let divChildNodes = Array.from(e.nodes).filter(e => e.nodeName != '#text');
+                    if (divChildNodes.length == 0) {return};
+                    elementWidth = divChildNodes[0].clientWidth;
+                    childDistToBottom = divChildNodes[0].getBoundingClientRect().bottom;
+                } else {
+                    elementWidth = e.width;
+                };
+                if (parentWidth*0.8 > elementWidth) {
+                    e.partialWidth = true;
+                    e.canBeInserted = false;
+                    if (e.height == 0) {
+                        lastBottomHeight = childDistToBottom    
+                    } else {
+                        lastBottomHeight = e.distanceToBottom
+                    };                    
+                    return
+                };
+                if (lastBottomHeight > e.distanceToBottom) {
+                    e.canBeInserted = false;
+                }
+            })
+        };
+        selectorElements = document.querySelectorAll(c.selector) || undefined;
+        array = [];
+        if (selectorElements == undefined) {
+            throwDebug({ type: 'log', message: 'Não há elementos dentro do seletor. ' + c.name });
+            return;
+        };
+        queryAllElements(selectorElements);
+        if (c.type == 'intext') {
+            drillNodes();
+            isInsertableInText();
+            filterPartialSizedElements();
+        } else if (c.type == 'infeed') {
+            isInsertableInFeed();
+            //array.forEach(e => e.canBeInserted = true)
+        };
+        return array
+    };
+    function generateRandomId(length) {
+        let result = '';
+        let counter = 0;
+        const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        const charactersLength = characters.length;
+        while (counter < length) {
+            result += characters.charAt(Math.floor(Math.random() * charactersLength));
+            counter += 1;
+        };
+        return result
+    };
+    function setPublisherKeyValues() {
+        let keyvalues = [];
+        if (typeof _zep.customKeyValues == 'function') {
+            keyvalues = _zep.customKeyValues();
+            if (keyvalues == undefined) {keyvalues = []};
+        }
+        (() => {
+            let pathnameArray = [];
+            let pathnameString = window.location.pathname || undefined;
+            if (pathnameString != undefined) {
+                pathnameString = pathnameString.split('/');
+                pathnameString.forEach((e) => {
+                    if (e == '') { return };
+                    if (e.length > 40) {e = e.substring(0,40)};
+                    pathnameArray.push(e);
+                });
+            keyvalues.push(['category', pathnameArray]);
+            }
+        })();
+        if (keyvalues == undefined || keyvalues == []) { return };
+        keyvalues.forEach(e => setPageLevelTargeting(e[0], e[1]));
+    };
+    function retrieveAbConfig(abtype, cohort) {
+        let config = _zep.config.abSettings[abtype];
+        if (config == undefined) { return false };
+        if (config.status != true) { return false };
+        if (abtype == 'banner') { cohort = 'b' + cohort };
+        return config[cohort];
+    };
+    function buildQue(c) {
+        let e = {
+            slot: c.slot,
+            id: c.id,
+            config: c.config,
+            element: c.element || undefined,
+            pendingRefresh: false,
+            iterations: 1,
+            viewedTime: undefined,
+            requested: false,
+            refreshHandler: undefined,
+        };
+        _zep.session.enqueue.push(e);
+    };
+    function updateQue(c) {
+        const slotToUpdate = _zep.session.enqueue.findIndex(e => e.id == c.id);
+        if (c.pendingRefresh != undefined) {
+            _zep.session.enqueue[slotToUpdate].pendingRefresh = c.pendingRefresh
+        };
+        if (c.iterations != undefined) {
+            _zep.session.enqueue[slotToUpdate].iterations++
+        };
+        if (c.viewedTime != undefined) {
+            _zep.session.enqueue[slotToUpdate].viewedTime = c.viewedTime
+        };
+        if (c.requested != undefined) {
+            _zep.session.enqueue[slotToUpdate].requested = c.requested
+        };
+        if (c.refreshHandler != undefined) {
+            _zep.session.enqueue[slotToUpdate].refreshHandler = c.refreshHandler
+        }
+    };
+    function setInitialConfig() {
+        window._zep.placements = window._zep.placements || [];
+        window._zep.session = window._zep.session || {};
+        window._zep.session.enqueue = [];
+        window._zep.session.device = setDevice(window._zep.config.pubSettings);
+        window._zep.session.section = window._zep.publisherSections();
+        setGamAdUnit(window._zep.config.gamSettings);
+    };
+    function checkBlocklist () {
+        const list = "*conteudo adulto* *odio* *violencia* *pirataria* *musica online* *filmes online* *doencas* *doenca* *guerra* *desastre* *desastres* *terrorismo* *abuso* *evangelico* *presidente banco do brasil* *exibe corpo* *presidente caixa economica* *sexual* *fabio wajngarten* *presidente da camara* *acidente* *fabricio queiroz* *presidente da republica* *fake news* *presidente do banco do brasil* *acidentes* *presidente do brasil* *agredida* *bolsonaro* *presidente do congresso* *agredido* *fnde* *presidente do senado* *agressao* *fotos picantes* *psl* *ai * *fraga* *pt* *alan de oliveira lopes* *glen* *queimada viva* *alckmin* *glen valente* *queimado vivo* *alexandre ramage* *governo federal* *queiroz* *amazonia* *hamilton mourao* *ramage* *andre viana andrade* *hidroxicloroquina* *regina duarte* *aras* *impeachment* *remedio experimental* *assassinada * *investigacao* *renuncia* *assassinado * *rodrigo fayad* *assassinato * *rolando de souza* *barroso* *itamaraty* *rosseti* *bolsogado* *jair* *rubem de freitas novaes* *bolsominion* *joao doria* *samy liberman* *bolsominions* *jogo de azar* *sara winter* *bolsomito* *jogo do bicho* *sbt* *bolsonaristas* *jogos de azar* *secom* *jorge oliveira* *secretaria de comunicacao* *bondage* *jose serra* *seios* *braga* *kamasutra* *senado federal* *braga netto* *kiko nunes* *senador* *brumadinho* *lava jato* *sensualiza* *bruno covas* *lava toga* *sergio moro* *brutalidade* *lewandowski* *serra* *bumbum* *luiz eduardo ramos* *sexo * *campos de concentracao* *maia* *silvio santos* *carlos alberto decotelli da silva* *mandetta* *stf* *manifestacao* *suicidio* *carlos ghosn* *marcelo lopes da ponte* *supremo tribunal federal* *carlos henrique oliveira* *mariana* *sus* *cartao corporativo* *marielle* *tcu* *cecilia silva franco* *mario frias* *tercio arnaud tomaz* *cenas de sexo * *matador de aluguel * *toffolli* *chico rodrigues* *matou* *tribunal de contas da uniao* *ciro* *mauricio valeixo* *vereador* *ciro gomes* *mdb* *vice presidente* *ciro nogueira* *mendonca* *violencia* *cloroquina* *wilson witzel* *coaf* *micro biquini* *witzel* *cocaina * *ministerio* *zambelli* *conar* *ministro da justica* *zema* *congresso nacional* *moro* *aglomeracao* *corpao* *morta* *aglomeracoes* *covas* *morte* *assassino* *crime* *mortes* *assedio* *crimes* *sexuais* *nazismo* *china* *cueca* *nazista* *covid* *damares* *nelson teich* *culposo* *davi* *nua* *doloso* *davi alcolumbre* *nudes* *fila* *deltan* *orgia* *foragido* *deltan dallagnol* *osmar terra* *lockdown* *demissao* *paulo guedes* *lula* *dilma* *pcc* *luis inacio* *doria* *pf* *pandemia* *droga* *pgr* *pornografia* *drogas* *pib* *prostituta* *policia federal* *prostituicao* *estuprada* *porno * *queimada* *estuprar * *posa de biquini * *saque* *estupro* *prefeito* *caixa economica* *estupro de crianca* *presidente* *fora do ar* *caixa* *cef* *felipe neto* *pazuello* *caixa tem fora* *ministro da saude* *app fora do ar* *oxigenio* *edson leal pujol* *almirante flavio rocha* *centrao* *exercito * *marcelo queiroga* *fernando azevedo e silva* *ditadura* *ilques barbosa* *antonio carlos bermudes* *leo dias* *marinha* *aeronautica* *lilian tahan* *ditadura militar* *golpe* *pedro guimaraes* *eleicoes* *racismo* *bruno pereira* *presidencial* *racista* *dom philips* *aborto* *petrobras* *indios* *assedio moral* *aborto* *atalaia do norte* *daniella marques consentino* *pedofilia* *funai* *celso daniel* *pedofilo* *piquet* *presidenta* *intimas* *nelson piquet* *antonio carlos ferreira* *casa abandonada* *escravocrata* *celso leonardo barbosa* *escravidao* *fbi* *misoginia* *foragido* *barao de bocaina* *cativeiro* *francisco de paula vicente de azevedo* *instituto luisa mell* *hilda* *carcere privado*".split("*").map((function(e) { return e.trim() })).filter(Boolean);
+        let path = decodeURIComponent(window.location.href).replace(/[~:,\-*|?^#@!$%&()+_=/]/gi, " ").toLowerCase();
+        for (let i = 0; i<list.length; i++) {
+            if (path.indexOf(list[i]) != -1) {
+                setPageLevelTargeting('block', 'true');
+                return;
+            }
+        }
+    };
+    function setDevice(v) {
+        const sw = window.top.innerWidth;
+        if (sw > 767 && sw < 1023 && v.tabletSetting) {return 'tablet'};
+        if (sw < 1023) {return 'mobile'};
+        if (sw >= 1024) {return 'desktop'};
+    };
+    function setGamAdUnit(v) {
+        if (v.networkId == undefined) {
+            throwDebug({
+                type: 'error',
+                message: 'GAM Network ID não foi setado. Impossível continuar.'
+            });
+            return
+        };
+        let path = '/' + v.networkId + '/';
+        if (v.sharedAccount == 1) {
+            path += v.sharedAccountIdentifier + '/';
+        };
+        v.path = path;
+        return
+    };
+    function setPartnerNavegg() {
+        (function(n,v,g){o='Navegg';if(!n[o]){
+            naveggScript = v.createElement('script');
+            naveggScript.src = g;
+            naveggLocation = document.getElementsByTagName('script')[0];
+            naveggLocation.parentNode.insertBefore(naveggScript,naveggLocation);
+            n[o] = n[o] || function(parms){
+                n[o].q=n[o].q||[];n[o].q.push([this, parms])
+            };
+        }})(window, document, 'https://tag.navdmp.com/universal.min.js');
+        window.naveggReady = window.naveggReady||[];
+        nvg89942 = new Navegg({
+            acc: 89942
+        });
+    };
+    function setPartnerChoices() {
+        if (typeof window.busca_keyvalue == 'undefined') { return };
+        let kvpair = window.busca_keyvalue();
+        window.choices(kvpair);
+        setPageLevelTargeting('MyChoices', kvpair);
+    };
+    function setGPT(g) {
+        if (g != undefined && g._loadStarted_ != undefined) {
+            _zep.session.isGptSet = true;
+        } else {
+            const h = document.head || document.getElementsByTagName('head')[0];
+            let gpt = assembleElement({
+                type: 'script',
+                src: '//securepubads.g.doubleclick.net/tag/js/gpt.js',
+                attributes: {
+                    'data-cfasync': 'false',
+                }
+            });
+            h.appendChild(gpt);
+        };
+        window.googletag = window.googletag || {};
+        window.googletag.cmd = window.googletag.cmd || [];
+        googletag.cmd.push(function () {
+            googletag.pubads().disableInitialLoad();
+        });
+    };
+    function setStyles() {
+        const h = document.head || document.getElementsByTagName('head')[0];
+        const isLoaded = document.getElementById('autozep-style');
+        if (isLoaded != undefined) { return };
+        let backgroundColor = (() => {
+            if (_zep.config.pubSettings.backgroundColor != undefined) {
+                return _zep.config.pubSettings.backgroundColor
+            } else {
+                return '#fefefe'
+            }
+        })();
+        let displayMode = (() => {
+            if (_zep.config.pubSettings.displayMode == 'inline') {
+                return 'inline-block'
+            } else {
+                return 'flex'
+            }
+        })();
+        let mainStyle = `.autozep-outer{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;width:100%}.autozep-outer>span{font-size: 12px;line-height: 1.5;letter-spacing: -0.03em;color: #585858;font-family: Helvetica, Arial, sans-serif}.autozep-div {align-items: center;display:` + displayMode + `;justify-content: center; background-color:` + backgroundColor + `}`;
+        let animationStyle = `.autozep-div:empty::before {color: lightgrey;content: '';font: 12px sans-serif;padding: 13px;text-align: center;width: 30px;height:30px;border: solid 5px dimgrey;border-radius: 50%;border-right-color: transparent;border-bottom-color: transparent;webkit-transition: all 0.5s ease-in;-webkit-animation-name: rotate;-webkit-animation-duration: 1.0s;-webkit-animation-iteration-count: infinite;-webkit-animation-timing-function: linear;transition: all 0.5s ease-in;animation-name: rotate;animation-duration: 1.0s;animation-iteration-count: infinite;animation-timing-function: linear;}@keyframes rotate {from {transform: rotate(0deg);}to{transform: rotate(360deg);}}@-webkit-keyframes rotate {from {-webkit-transform: rotate(0deg);}to { -webkit-transform: rotate(360deg);}}`;
+        if (displayMode == 'flex') { mainStyle += animationStyle };
+        let styles = assembleElement({
+            type: 'style',
+            id: 'autozep-style',
+            innerHtml: mainStyle,
+        });
+        h.appendChild(styles);
+    };
+    function setPrebid(s) {
+        if (s != true) { return };
+        if (typeof window.azpbjs != "undefined") {
+            throwDebug({ type: 'log', message: 'Prebid já foi chamado antes.' });
+            return
+        };
+        const h = document.head || document.getElementsByTagName('head')[0];
+        let hb = assembleElement({
+            type: 'script',
+            src: '//autozep.adzep.com.br/prebid-latest.js',
+            attributes: {
+                'data-cfasync': 'false',
+            }
+        });
+        h.appendChild(hb);
+        window.azpbjs = window.azpbjs || {};
+        window.azpbjs.que = window.azpbjs.que || [];
+    };
+    function setUAM(uam) {
+        if (uam != true) { return };
+        const pubID = _zep.config.hbSettings.amazon != undefined ? _zep.config.hbSettings.amazon['identifier'] : 'ce98fdb7-c9a2-4d7b-aafb-a349464de44e';
+        const adserver = 'googletag';
+        if (typeof window.apstag != 'undefined') {
+            if (window._zep.session.listeners != true) {
+                window._zep.config.pubSettings.uamStatus = false;
+                throwDebug({ type: 'log', message: 'APSTAG setada por outro parceiro. Prosseguindo sem.' });
+            } else {
+                throwDebug({ type: 'log', message: 'APSTAG já foi chamada antes.' });
+            };
+            return
+        };
+        !function (a9, a, p, s, t, A, g) {
+            if (a[a9]) return;
+            function q(c, r) { a[a9]._Q.push([c, r]) };
+            a[a9] = {
+                init: function () {
+                    q("i", arguments)
+                },
+                fetchBids: function () {
+                    q("f", arguments)
+                },
+                setDisplayBids: function () { },
+                targetingKeys: function () { return [] },
+                _Q: []
+            };
+            A = p.createElement(s);
+            A.async = !0;
+            A.src = t;
+            g = p.getElementsByTagName(s)[0];
+            g.parentNode.insertBefore(A, g)
+        }("apstag", window, document, "script", "//c.amazon-adsystem.com/aax2/apstag.js");
+        apstag.init({
+            pubID: pubID,
+            adServer: adserver,
+        });
+        throwDebug({ type: 'log', message: 'APSTAG ON.' })
+    };
+    function setGamMeasurements() {
+        let l = JSON.parse(localStorage.getItem('autozep_session')) || [];
+        let s = JSON.parse(sessionStorage.getItem('autozep_session')) || {};
+        let measurements = _zep.config.pubSettings.measurements || 'on';
+        const currentTime = Date.now();
+        const sessionLimit = (() => {
+            let d = new Date(new Date().setDate(new Date(currentTime).getDate() - 30));
+            d = new Date(d.setHours(0));
+            d = new Date(d.setMinutes(0));
+            d = new Date(d.setSeconds(0));
+            d = d.setMilliseconds(0);
+            return d
+        })();
+        l.forEach((element, index) => {
+            if (element < sessionLimit) {
+                l.splice(index, 1);
+            }
+        });
+        if (s.expires < currentTime || s.expires == undefined) {
+            l.push(currentTime);
+            s.pages = 0;
+        };
+        if (s.referrer == undefined) {
+            s.referrer = setReferrer();
+            _zep.session.referrer = s.referrer;
+        };
+        let userLoyalty = (l.length >= 15) ? 'loyal' : (l.length >= 2) ? "returning" : "new";
+        s.expires = currentTime + (1800 * 1e3);
+        s.pages++;
+        if (measurements == 'on') {
+            let capsule = assembleElement({
+                type: 'div',
+                attributes: {
+                    'class': 'autozep-measure',
+                }
+            });
+            let pageview = assembleElement({
+                type: 'div',
+                id: 'pageview-track',
+                attributes: {
+                    'style': 'display:block;position:absolute;width:0px;height:0px;',
+                }
+            });
+            setGptSlot({
+                type: 'measure',
+                sizes: [1, 1],
+                id: 'pageview-track',
+                targeting: [
+                    ['p', s.pages],
+                ]
+            });
+            capsule.appendChild(pageview);
+            if (s.pages == 1) {
+                let session = assembleElement({
+                    type: 'div',
+                    id: 'session-track',
+                    attributes: {
+                        'style': 'display:block;position:absolute;width:0px;height:0px;',
+                    }
+                });
+                capsule.appendChild(session);
+                setGptSlot({
+                    type: 'measure',
+                    sizes: [1, 1],
+                    id: 'session-track',
+                });
+            };
+            document.body.insertAdjacentElement('afterbegin', capsule);
+        };
+        setPageLevelTargeting('ul', userLoyalty);
+        setPageLevelTargeting('r', s.referrer);
+        _zep.session.pageviewCohort = setCohort(_zep.config.pubSettings.cohort.global, 'p');
+        setPageLevelTargeting('ab', _zep.session.pageviewCohort);
+        localStorage.setItem('autozep_session', JSON.stringify(l));
+        sessionStorage.setItem('autozep_session', JSON.stringify(s));
+    };
+    function setReferrer() {
+        const referrer = document.referrer || '';
+        const queryString = window.location.search.substring(1) || '';
+        const utm = decodeUTMs(queryString);
+        const landingPage = window.location.pathname;
+        if (queryString.length > 0) {
+            if (/criteo|paid|cpc|cpa|ppc|display|search|cpm|cpl|conversion|performance|branding/i.test(utm) == !0 || /googlesyndication.com|doubleclick.net|imasdk.googleapis.com|googleadservices.com|criteo.com/i.test(referrer) == !0 || /gclid|dclid/i.test(queryString) == !0) {
+                return 'paid'
+            } else if ((/organic|organico|social|fb|facebook|linkedin|youtube|reddit|twitter|pinterest|vk|blogger|wordpress/i.test(utm) == !0 && /facebook.com|twitter.com|instagram.com|youtube.com|linkedin.com|reddit.com|t.co|lnkd.in|pinterest.com|vk.com|blogger.com|wordpress.com/i.test(referrer) == !0)) {
+                return 'social'
+            } else if ((/referral|link|referencia/i.test(utm) == !0 && referrer.length > 0)) {
+                return 'referral'
+            }
+        } if (referrer.length > 0) {
+            if (/news.google|squidapp.co|beloud.com/i.test(referrer) == !0) {
+                return 'aggregator'
+            } else if (/facebook.com|twitter.com|instagram.com|youtube.com|linkedin.com|reddit.com|t.co|lnkd.in|pinterest.com|vk.com|blogger.com|wordpress.com/i.test(referrer) == !0) {
+                return 'social'
+            } else if (/ampproject.org|.google.|bing.com|yandex.com|duckduckgo.com|search.yahoo.com/i.test(referrer) == !0) {
+                return 'search'
+            } else {
+                return 'referral'
+            }
+        } else if (referrer.length == 0) {
+            if (landingPage != "/") {
+                return "dark"
+            } else if (landingPage == '/') {
+                return "direct"
+            }
+        };
+        return "other"
+    };
+    function setGptSlot(c) {
+        googletag.cmd.push(() => {
+            let slot;
+            let queue = {};
+            if (c.type == 'measure') {
+                c.sizes = [1, 1];
+                c.path = _zep.config.gamSettings.path + c.id;
+                slot = googletag.defineSlot(c.path, c.sizes, c.id);
+            } else {
+                let gamSettings = _zep.config.gamSettings;
+                if (gamSettings.mode == 'multi-block') {
+                    c.path = gamSettings.path + c.name;
+                } else if (gamSettings.mode == 'single-block') {
+                    c.path = gamSettings.path + gamSettings.masterAdUnitName;
+                };
+                if (c.type != 'intext' && c.type != 'infeed' && c.type != 'interstitial') {
+                    c.divID = c.name;
+                };
+                if (c.type == 'interstitial') {
+                    slot = googletag.defineOutOfPageSlot(c.path, googletag.enums.OutOfPageFormat.INTERSTITIAL);
+                    if (!slot) { return };
+                    c.id = slot.getSlotElementId();
+                };
+                if (c.type == 'anchor') {
+                    c.sizes.push([2,1]);
+                };
+                if (c.type == 'static' || c.type == 'intext' || c.type == 'infeed' || c.type == 'anchor') {
+                    slot = googletag.defineSlot(c.path, c.sizes, c.divID);
+                };
+                if (c.targeting != undefined) {
+                    c.targeting.forEach((e) => {
+                        slot.setTargeting(e[0], e[1]);
+                    });
+                };
+                if (gamSettings.mode == 'single-block') {
+                    slot.setTargeting('adunit', c.name);
+                };
+                if (c.cohort != undefined) {
+                    cohort = setCohort(c.cohort.allocation, c.cohort.prepend);
+                    slot.setTargeting('ab', cohort);
+                    let slotAb = retrieveAbConfig(c.abtype, cohort);
+                    if (slotAb != undefined || slotAb != false) {
+                        slot.setTargeting('pr', slotAb);
+                    }
+                };
+                queue.element = document.getElementById(c.divID);
+            };
+            slot.addService(googletag.pubads());
+            queue.slot = slot; queue.config = c; queue.id = c.divID || c.id;
+            buildQue(queue);
+        });
+    };
+    function setPrebidSlot(c) {
+        if (_zep.config.pubSettings.pbStatus != true) { return };
+        _zep.session._pb = _zep.session._pb || [];
+        let bids = [];
+        let bidderObject = _zep.config.hbSettings;
+        let bidderList = Object.keys(bidderObject);
+        if (_zep.session._gstib == undefined && bidderObject.seedtag) {
+            if (bidderObject.seedtag.inBanner) {
+                _zep.session._gstib = bidderObject.seedtag.inBanner
+            }
+        };
+        if (_zep.session._gstia == undefined && bidderObject.seedtag) {
+            if (bidderObject.seedtag.inArticle) {
+                _zep.session._gstia = bidderObject.seedtag.inArticle
+            }
+        };
+        bidderList.forEach((bidder) => {
+            let bidToPush = {};
+            if (bidder == 'seedtag') {
+                if (c.type == 'anchor') {
+                    if (bidderObject[bidder].inScreen == undefined) {return};
+                    bidToPush.bidder = 'seedtag';
+                    bidToPush.params = { 'publisherId': bidderObject[bidder].identifier, 'placement': 'inScreen', 'adUnitId': bidderObject[bidder].inScreen };
+                } else if (c.name.indexOf('intext') > -1) {
+                    if (bidderObject[bidder].inArticle == undefined) {return};
+                    iaIdToPush = _zep.session._gstia[0];
+                    if (iaIdToPush == undefined) {return};
+                    _zep.session._gstia.shift();
+                    bidToPush.bidder = 'seedtag';
+                    bidToPush.params = { 'publisherId': bidderObject[bidder].identifier, 'placement': 'inArticle', 'adUnitId': iaIdToPush };
+                } else {
+                    if (bidderObject[bidder].inBanner == undefined) {return};
+                    ibIdToPush = _zep.session._gstib[0];
+                    if (ibIdToPush == undefined) {return};
+                    _zep.session._gstib.shift();
+                    bidToPush.bidder = 'seedtag';
+                    bidToPush.params = { 'publisherId': bidderObject[bidder].identifier, 'placement': 'inBanner', 'adUnitId': ibIdToPush };
+                }
+            };
+            if (bidder == 'onetag') {
+                bidToPush.bidder = 'onetag';
+                bidToPush.params = { 'pubId': bidderObject[bidder].identifier }
+            };
+            if (bidder == 'richaudience') {
+                bidToPush.bidder = 'richaudience';
+                bidToPush.params = { 'pid': bidderObject[bidder].identifier, 'supplyType': 'site' }
+            };
+            if (bidder == 'projectagora') {
+                bidToPush.bidder = 'projectagora';
+                bidToPush.params = { 'placementId': bidderObject[bidder].identifier }
+            };
+            if (bidder == 'uol') {
+                bidToPush.bidder = 'uol';
+                bidToPush.params = { 'placementId': bidderObject[bidder].identifier }
+            };
+            if (bidder == 'yandex') {
+                if (bidderObject[bidder].identifier.indexOf('-') > -1) {
+                    yandexId = bidderObject[bidder].identifier.split('-');
+                } else {
+                    yandexId = [bidderObject[bidder].identifier,'1']
+                };
+                bidToPush.bidder = 'yandex';
+                bidToPush.params = { 'pageId': yandexId[0], 'impId': yandexId[1], cur: 'USD'}    
+            };
+            if (bidder == 'eplanning') {
+                bidToPush.bidder = 'eplanning';
+                bidToPush.params = { 'ci': bidderObject[bidder].identifier }
+            };
+            if (bidder == 'medianet') {
+                bidToPush.bidder = 'medianet';
+                bidToPush.params = { 'cid': '8CUJT7JJ2','ci': bidderObject[bidder].identifier }
+            };
+            if (bidder == 'rubicon') {
+                bidToPush.bidder = 'rubicon';
+                bidToPush.params = { 'accountId': '26246','siteId': bidderObject[bidder].siteId,'zoneId': bidderObject[bidder].zoneId }
+            };
+            if (Object.keys(bidToPush).length == 0) { return };
+            bids.push(bidToPush);
+        });
+        if (bids.length == 0) {
+            throwDebug({ type: 'log', message: 'Nenhum bidder elegível para o placement ' + c.name });
+            return
+        };
+        let adunit = {
+            code: c.name,
+            mediaTypes: {
+                banner: {
+                    sizes: c.sizes
+                }
+            },
+            bids: bids
+        };
+        _zep.session._pb.push(adunit);
+    };
+    function setUAMSlot(c) {
+        if (_zep.config.pubSettings.uamStatus != true) { return };
+        _zep.session._aps = _zep.session._aps || [];
+        if (c.type != 'intext' && c.type != 'infeed') {
+            c.divID = c.name;
+        };
+        adunit = {
+            slotID: c.divID,
+            slotName: c.name,
+            sizes: c.sizes
+        };
+        _zep.session._aps.push(adunit);
+    };
+    function setPageLevelTargeting(k, v) {
+        googletag.cmd.push(() => {
+            googletag.pubads().setTargeting(k, v);
+        });
+    };
+    function setupPlacements(p) {
+        if (p.type == 'interstitial') {
+            setGptSlot({
+                type: p.type,
+                name: p.name,
+                cohort: {
+                    allocation: _zep.config.pubSettings.cohort.interstitial,
+                    prepend: 'i',
+                },
+                abtype: 'interstitial',
+                refreshable: p.refreshable
+            })
+        } else if (p.type == 'anchor') {
+            if (p.name == undefined) { p.name = p.type };
+            // check if anchor is delayed
+            if (injectPlacement(p) == true) {
+                setPrebidSlot(p);
+                setUAMSlot(p);
+                setGptSlot({
+                    type: p.type,
+                    name: p.name,
+                    sizes: p.sizes,
+                    cohort: {
+                        allocation: _zep.config.pubSettings.cohort.anchor,
+                        prepend: 'a',
+                    },
+                    abtype: 'anchor',
+                    refreshable: p.refreshable
+                });
+            };
+        } else if (p.type == 'intext' || p.type == 'infeed') {
+            setupAutoAds(p);
+        } else if (p.type = 'static') {
+            if (checkOverrider(p) == true) { return };
+            if (injectPlacement(p) == true) {
+                setPrebidSlot(p);
+                setUAMSlot(p);
+                setGptSlot({
+                    type: p.type,
+                    name: p.name,
+                    sizes: p.sizes,
+                    cohort: {
+                        allocation: _zep.config.pubSettings.cohort.global
+                    },
+                    abtype: 'banner',
+                    refreshable: p.refreshable
+                });
+            };
+        }
+    };
+    function injectPlacement(c) {
+        let capsule = { type: 'div', attributes: { 'class': 'autozep-outer', style: '' } };
+        let ad = { type: 'div', id: c.name, attributes: { 'class': 'autozep-div', style: '' } };
+        if (c.type == 'anchor') {
+            let zIndex = _zep.config.pubSettings.anchorZIndex || '2147483645';
+            capsule.attributes.style = 'width:100%!important;bottom: -150px;clear: none !important;float: none !important;left: 0px;margin: 0px !important;max-height: none !important;max-width: none !important;opacity: 1;overflow: visible !important;padding: 0px !important;position: fixed;right: auto !important;top: auto !important;vertical-align: baseline !important;visibility: visible !important;z-index:' + zIndex + ';background: rgb(250, 250, 250) !important;transition: bottom 0.6s ease-in-out';
+            capsule.id = 'autozep-anchor';
+            ad.attributes.style += 'border: 0pt none !important;inset: auto !important;margin: 0px !important;max-height: none !important;max-width: none !important;opacity: 1 !important;overflow: visible !important;padding: 0px !important;position: static !important;vertical-align: baseline !important;visibility: visible !important;z-index: auto !important;';
+        };
+        if (c.type == 'static' || c.type == 'intext' || c.type == 'infeed') {
+            let maxWidth = getMaxSize('max-width', c.sizes)+'px';
+            let maxHeight = getMaxSize('max-height', c.sizes)+'px';
+            ad.attributes.style += 'width:' + maxWidth + ';min-height:' + maxHeight + ';';
+            if (c.rat != true) { capsule.attributes.style += "margin:1em 0;"; };
+            if (window._zep.config.pubSettings.displayMode == 'inline') { ad.attributes.style += "display:block;"; }
+        };
+        if (c.type == 'static') {
+            ad.attributes.style += 'max-width:' + _zep.config.pubSettings.desktopContainer + ';';
+        };
+        capsule = assembleElement(capsule);
+        ad = assembleElement(ad);
+        if (c.type == 'anchor') {
+            let button = assembleElement({ type: 'ins', innerHtml: `<span style="display: block !important; width: 80px !important; height: 45px !important; bottom: 0px !important; left: 0% !important; pointer-events: none !important;"><svg style="margin: 0px !important; position: absolute !important; bottom: 0px !important; left: 0% !important; display: block !important; width: 80px !important; height: 30px !important; transform: none !important; pointer-events: initial !important;"> <defs> <filter id="dropShadowTop" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"> <feComponentTransfer in="SourceAlpha" result="TransferredAlpha"> <feFuncR type="discrete" tableValues="0.5"></feFuncR> <feFuncG type="discrete" tableValues="0.5"></feFuncG> <feFuncB type="discrete" tableValues="0.5"></feFuncB> </feComponentTransfer> <feGaussianBlur in="TransferredAlpha" stdDeviation="2"></feGaussianBlur> <feOffset dx="0" dy="0" result="offsetblur"></feOffset> <feMerge> <feMergeNode></feMergeNode> <feMergeNode in="SourceGraphic"></feMergeNode> </feMerge> </filter> </defs> <path d="M0,26 L0,6 A6,6 0 0,1 6,1 L50,1 A6,6 0 0,1 56,6 L56,20 A6,6 0 0,0 62,26 Z" stroke="#FAFAFA" stroke-width="1" fill="#FAFAFA" style="filter: url(&quot;#dropShadowTop&quot;);"></path> <rect x="0" y="25" width="80" height="5" style="fill: rgb(250, 250, 250);"></rect> <g class="down" stroke="#616161" stroke-width="2px" stroke-linecap="square"> <line x1="22" y1="12" x2="28" y2="18"></line> <line x1="28" y1="18" x2="34" y2="12"></line> </g> </svg></span>`, attributes: { 'class': 'ee', style: 'inset: auto !important; height: 5px !important; width: 100%!important; align-self: flex-start; margin: 0px !important; max-height: none !important; opacity: 1 !important; overflow: visible !important; padding: 0px !important; position: relative !important; vertical-align: baseline !important; visibility: visible !important; z-index: 0 !important; background-color: rgb(250, 250, 250) !important; box-shadow: rgb(0 0 0 / 20%) 0px -1px 5px -1px, rgb(0 0 0 / 10%) 0px 1px 2px -1px !important;' } });
+            capsule.appendChild(button);
+        };
+        if (window._zep.config.pubSettings.adLabel != '') {
+            if (c.type == 'static' || c.type == 'intext' || c.type == 'infeed') {
+                labelText = window._zep.config.pubSettings.adLabel || 'PUBLICIDADE';
+                let label = assembleElement({ type: 'span', innerHtml: labelText });
+                capsule.appendChild(label);
+            }
+        };
+        capsule.appendChild(ad);
+        if (c.type == 'anchor') { c.selector = 'body' };
+        c.rat == true ? position = 'afterbegin' : position = 'afterend';
+        if (c.where != undefined) { position = c.where };
+        c.element != undefined ? selector = c.element : selector = document.querySelector(c.selector);
+        if (selector == undefined) {
+            throwDebug({ type: 'log', message: 'Não foi possível inserir o placement ' + c.name });
+            return false
+        } else {
+            selector.insertAdjacentElement(position, capsule);
+            return true
+        }
+    };
+    function checkOverrider(p) {
+        if (_zep.overrider == undefined) { return false };
+        let overriderItems = _zep.overrider;
+        let status = false;
+        overriderItems.forEach(function (e) {
+            if (e.target.indexOf(p.name) == -1) { return false };
+            if (e.device == undefined || e.device == '') { e.device = 'all' };
+            if (e.device != undefined || e.device != '') {
+                if (e.device != _zep.session.device && e.device != 'all') { return false };
+            };
+            if (p.type == 'intext' || p.type == 'infeed') {
+                if (e.position.indexOf(p.position) == -1) { return false }
+            };
+            let capsule = assembleElement({ type: 'div', attributes: { class: 'autozep-ov', style: 'margin:1em 0;' } });
+            if (e.config.url != undefined) {
+                let script = assembleElement({ type: 'script', src: e.config.url, attributes: { 'data-cfasync': 'false' } });
+                capsule.appendChild(script);
+            };
+            if (e.config.divID != undefined || e.config.divClass != undefined) {
+                elementToCreate = { type:'div' };
+                if (e.config.divID) {elementToCreate.id = e.config.divID};
+                if (e.config.divClass) {elementToCreate.attributes = {'class': e.config.divClass}};
+                let div = assembleElement(elementToCreate);
+                capsule.appendChild(div);
+            };
+            p.element = p.element || document.querySelector(p.selector);
+            if (p.element == undefined) {
+                throwDebug({ type: 'log', message: 'Não foi possível override o placement ' + p.name });
+                return false;
+            } else {
+                p.element.insertAdjacentElement('afterend', capsule);
+            };
+            if (e.config.customJS != undefined) {
+                let scriptToExecute = e.config.customJS;
+                Function(scriptToExecute)();
+            };
+            return status = true
+        });
+        return status
+    };
+    function setupAutoAds(c) {
+        elements = refineSelector(c);
+        if (elements.length == 0) {return};
+        let insertIndex = 1;
+        if (c.autoads.mode == 'fixed') {
+            if (c.autoads.position == undefined) {
+                throwDebug({ type: 'log', message: 'Não há posição definida para inserir ' + c.name });
+                return
+            };
+            insertableElements = elements.filter(element => element.canBeInserted == true);
+            c.autoads.position.forEach((e) => {
+                whereToInsert = insertableElements[e - 1];
+                if (whereToInsert != undefined) {
+                    injectAutoPlacement(c, whereToInsert.element, insertIndex);
+                    insertIndex >= 15 ? insertIndex = 15 : insertIndex++;
+                }
+            })
+        };
+        if (c.autoads.mode == 'viewport') {
+            c.autoads.multiplier = c.autoads.multiplier || 1;
+            c.autoads.offset = c.autoads.offset || 0.5;
+            c.autoads.limit = c.autoads.limit || 9999;
+            const viewportHeight = window.innerHeight * c.autoads.multiplier;
+            const viewportWidth = document.querySelector(c.selector).parentElement.clientWidth * 0.85;
+            let compiledHeight = 0;
+            let compiledWidth = 0;
+            let lastElementHeight = 0;
+            elements.forEach((e) => {
+                if (e.partialWidth == true) { return };
+                if (lastElementHeight != e.distanceFromTop) {
+                    if (e.type == 'BR') {
+                        compiledHeight += (e.distanceFromTop - lastElementHeight)
+                    } else {
+                        compiledHeight += e.height + e.margins
+                    };
+                    compiledWidth = 0
+                };
+                if (e.distanceFromTop != null) {
+                    lastElementHeight = e.distanceFromTop;
+                };
+                compiledWidth += e.width;
+                //se ainda nao atingiu 0.9 largura do viewport, retorna pq nao dá pra inserir
+                if (compiledWidth < viewportWidth) {
+                    return
+                };
+                //se for o primeiro placement,
+                if (insertIndex == 1) {
+                    //se altura ainda nao atingiu minimo para inserção, retorna pq nao da pra inserir
+                    if (compiledHeight < window.innerHeight * c.autoads.offset) {
+                        return
+                    }
+                } else if (insertIndex > 1) {
+                    //se altura ainda nao atingiu minimo para inserção, retorna pq nao da pra inserir
+                    if (compiledHeight < viewportHeight) {
+                        return
+                    }
+                };
+                //se for intext e elemento nao inserivel. retorna pq nao dá pra inserir
+                if (e.canBeInserted == false) {
+                    return
+                };
+                if (insertIndex > c.autoads.limit) {
+                    return
+                };
+                injectAutoPlacement(c, e.element, insertIndex);
+                insertIndex >= 15 ? insertIndex = 15 : insertIndex++;
+                compiledHeight = 0;
+                compiledWidth = 0
+            })
+        }
+    };
+    function injectAutoPlacement(c, e, i) {
+        if (checkOverrider({ type: c.type, name: c.name, position: i, selector: c.selector, element: e }) == true) { return };
+        let autoAdName = c.name + i.toString().padStart(2, "0");
+        let autoAdId = autoAdName + "_" + generateRandomId(8);
+        if (injectPlacement({
+            type: c.type,
+            name: autoAdId,
+            sizes: c.sizes,
+            element: e,
+        }) == true) {
+            setPrebidSlot({
+                type: c.type,
+                name: autoAdId,
+                divID: autoAdId,
+                sizes: c.sizes
+            });
+            setUAMSlot({
+                type: c.type,
+                name: autoAdId,
+                divID: autoAdId,
+                sizes: c.sizes
+            });
+            setGptSlot({
+                type: c.type,
+                name: autoAdName,
+                divID: autoAdId,
+                sizes: c.sizes,
+                cohort: {
+                    allocation: _zep.config.pubSettings.cohort.global
+                },
+                abtype: 'banner',
+            });
+        }
+    };
+    function setLazyLoading(l) {
+        if (l.status != true) { return };
+        let config = {};
+        let abConfig = retrieveAbConfig('lazy', _zep.session.pageviewCohort);
+        if (abConfig != undefined && abConfig != false) {
+            config.fetch = abConfig[0];
+            config.render = abConfig[1];
+            config.mobile = abConfig[2];
+        } else {
+            config.fetch = l.fetch || 200;
+            config.render = l.render || 100;
+            config.mobile = l.mobile || 1.5;
+        };
+        googletag.cmd.push(function () {
+            googletag.pubads().enableLazyLoad({
+                fetchMarginPercent: config.fetch,
+                renderMarginPercent: config.render,
+                mobileScaling: config.mobile,
+            });
+            throwDebug({ type: 'log', message: 'lazy loading set with following configs: ' + config.fetch + config.render + config.mobile })
+        });
+    };
+    function setEventListeners() {
+        if (_zep.session.listeners == true) { return };
+        googletag.cmd.push(function () {
+            googletag.pubads().addEventListener('slotRenderEnded', function (event) {
+                handleRenderEnded(event);
+            });
+            googletag.pubads().addEventListener('impressionViewable', function (event) {
+                handleViewableEvents(event, 'ImpressionViewable');
+            });
+            googletag.pubads().addEventListener('slotVisibilityChanged', function (event) {
+                handleViewableEvents(event, 'SlotVisibilityChanged');
+            });
+        });
+    };
+    function handleRenderEnded(event) {
+        const isEmpty = event.isEmpty;
+        const id = event.slot.getSlotElementId();
+        if (_zep.session.enqueue.some(e => e.id == id) == false) { return };
+        const slotConfig = _zep.session.enqueue.filter(e => e.id == id)[0];
+        const type = slotConfig.config.type;
+        const refreshed = slotConfig.slot.getTargeting('rf');
+        const sizes = (() => {
+            let width; let height; let array;
+            if (event.size != null) {
+                width = event.size[0];
+                height = event.size[1];
+                array = event.size;
+            };
+            return {
+                width: width,
+                height: height,
+                array: array,
+            }
+        })();
+        if (type == 'measure' || type == 'interstitial') { return };
+        if (type == 'anchor') {
+            handleAnchor({
+                slot: slotConfig.slot,
+                empty: isEmpty,
+                divID: id,
+                sizes: sizes
+            });
+            return
+        };
+        if (_zep.session.device == 'mobile' && getMaxSize('max-height',slotConfig.config.sizes)<=120 && !isEmpty) {
+            if (_zep.config.pubSettings.viewEnhancerTop != 'off') {
+                handleAboveFold(slotConfig);
+            }
+        };
+        // if (sizes.width==2 && sizes.height==1) {return};
+        if (isEmpty == true) {
+            refreshTasks.timeout(slotConfig);
+        };
+    };
+    function handleAnchor(c) {
+        const container = document.querySelector('#autozep-anchor');
+        const arrowLeft = document.querySelector('#autozep-anchor.autozep-outer svg g line:first-of-type');
+        const arrowRight = document.querySelector('#autozep-anchor.autozep-outer svg g line:last-of-type');
+        const button = document.querySelector('#autozep-anchor .ee');
+        const isTwoByOne = (() => { return c.sizes.width == 2 && c.sizes.height == 1 ? true : false })();
+        const slotConfig = _zep.session.enqueue.filter(e => e.id == c.divID)[0];
+        const heightOverride = _zep.config.pubSettings.anchorHeightOverride != undefined ? _zep.config.pubSettings.anchorHeightOverride[_zep.session.device] : '0px';
+        refreshTasks.timeout(slotConfig);
+        button.onclick = function () {
+            bottomState = window.getComputedStyle(container).bottom;
+            arrowUp = { arrowLeft: { x1: 22, y1: 18, x2: 28, y2: 12 }, arrowRight: { x1: 28, y1: 12, x2: 34, y2: 18 } };
+            arrowDown = { arrowLeft: { x1: 22, y1: 12, x2: 28, y2: 18 }, arrowRight: { x1: 28, y1: 18, x2: 34, y2: 12 } };
+            if (bottomState == '0px' || bottomState == heightOverride) {
+                refreshTasks.rmTimeout(slotConfig);
+                left = Object.keys(arrowUp.arrowLeft);
+                right = Object.keys(arrowUp.arrowRight);
+                left.forEach((key) => { arrowLeft.setAttribute(key, arrowUp.arrowLeft[key]) });
+                right.forEach((key) => { arrowRight.setAttribute(key, arrowUp.arrowRight[key]) });
+                if (_zep.session.device == "desktop" || _zep.session.device == "tablet") {
+                    container.style.bottom = "calc(" + heightOverride + " - 90px)";
+                } else {
+                    actualHeight = document.querySelector('#autozep-anchor > .autozep-div > div').clientHeight;
+                    container.style.bottom = "calc(" + heightOverride + " - " + actualHeight + 'px';
+                }
+            } else {
+                refreshTasks.handler(slotConfig);
+                left = Object.keys(arrowDown.arrowLeft);
+                right = Object.keys(arrowDown.arrowRight);
+                left.forEach((key) => { arrowLeft.setAttribute(key, arrowDown.arrowLeft[key]) });
+                right.forEach((key) => { arrowRight.setAttribute(key, arrowDown.arrowRight[key]) });
+                container.style.bottom = "calc(" + heightOverride + " - 0px)";
+            }
+        };
+        if (slotConfig.iterations == 1) {
+            (c.empty == true || isTwoByOne == true) ? container.style.bottom = "-150px" : container.style.bottom = "calc(" + heightOverride + " - 0px)";
+        } else {
+            isTwoByOne == true ? container.style.bottom = "-150px" : c.empty == false ? container.style.bottom = "calc(" + heightOverride + " - 0px)" : '';
+        }
+    };
+    function handleAboveFold(c) {
+        isFirstViewport = () => {
+            return window.innerHeight > c.element.getBoundingClientRect().top + window.scrollY
+        };
+        if (isFirstViewport() == false) { return };
+        if (window._zep.session._hAF != undefined) {return};
+        window._zep.session._hAF = true;
+        let e = c.element;
+        let animId;
+        let scrollDirection = '';
+        let scrollHeight = window.scrollY;
+        let pending = false;
+        let showing = false;
+        let i = 0;
+        let parent = e.parentElement;
+        let css = e.style;
+        scrollEventListener = () => {
+            scrollDirection = scrollHeight < window.scrollY ? 'down' : 'up';
+            scrollHeight = window.scrollY;
+            window.scrollY == 0 ? pending = true : undefined;
+        };
+        isTopInViewport = () => {
+            return e.getBoundingClientRect().top < window.innerHeight && e.getBoundingClientRect().top > 0
+        };
+        isBottomInViewport = () => {
+            return e.getBoundingClientRect().bottom >= 0
+        };
+        isInViewport = () => {
+            return isTopInViewport() && isBottomInViewport()
+        };
+        isFirstViewport = () => {
+            return window.innerHeight > e.getBoundingClientRect().top + window.scrollY
+        };
+        showAd = () => {
+            topHeight = _zep.config.pubSettings.viewEnhancerTop || '0px';
+            pending = false;
+            showing = true;
+            parent.style.height = parent.clientHeight + "px";
+            css.top = topHeight;
+            css.backgroundColor = '#fdfdfd';
+            css.zIndex = '21381203124';
+            css.transition = 'top 0.3s ease-in';
+            css.position = 'fixed';
+            setTimeout(closeAd, 2000);
+        };
+        closeAd = () => {
+            showing = false;
+            css.top = "-100px";
+            setTimeout(() => {
+                css.zIndex = "";
+                css.position = "";
+                css.removeProperty('top');
+                css.removeProperty('backgroundColor');
+            }, 300)
+        };
+        smoothAnimation = () => {
+            i++;
+            let d = scrollDirection;
+            if (i == 1) { // acabou de carregar
+                if (!isTopInViewport() && isBottomInViewport()) {
+                    showAd()
+                } else {
+                    pending = true
+                }
+            } else {
+                if (d == 'down' && isTopInViewport() == false && pending == true) {
+                    showAd()
+                } else if (d == 'up' && showing == true) {
+                    closeAd()
+                } else if (d == 'up' && isInViewport() == true && pending == false) {
+                    i = 0
+                }
+            };
+            animId = requestAnimationFrame(smoothAnimation);
+        };
+        document.addEventListener('scroll', scrollEventListener, { passive: true });
+        animId = requestAnimationFrame(smoothAnimation);
+    };
+    function handleViewableEvents(event, eventType) {
+        const slot = event.slot;
+        const divID = slot.getSlotElementId();
+        if (_zep.session.enqueue.some(e => e.id == divID) == false) { return };
+        const slotConfig = _zep.session.enqueue.filter(e => e.id == divID)[0];
+        const type = slotConfig.config.type;
+        if (type == 'measure' || type == 'anchor' || type == 'anchor') { return };
+        const refresh = refreshTasks.frequency(slotConfig);
+        if (eventType == 'ImpressionViewable') {
+            refreshTasks.timeout(slotConfig);
+        } else if (eventType == 'SlotVisibilityChanged') {
+            if (slotConfig.pendingRefresh == false) { return };
+            if (slotConfig.viewedTime + refresh > Date.now()) { return };
+            refreshTasks.handler(slotConfig);
+        }
+    };
+    const refreshTasks = {
+        timeout: (c) => {
+            const refresh = refreshTasks.frequency(c);
+            if (c.config.refreshable == false) {
+                return
+            };
+            updateQue({
+                slot: c.slot,
+                id: c.id,
+                viewedTime: Date.now(),
+                pendingRefresh: true,
+                refreshHandler: setTimeout(refreshTasks.handler, refresh, c),
+            });
+        },
+        handler: (c) => {
+            if (refreshTasks.isVisible(c) == false) { return };
+            updateQue({
+                slot: c.slot,
+                id: c.id,
+                viewedTime: 0,
+                pendingRefresh: false,
+                iterations: 1,
+                requested: true,
+            });
+            newCohort = setCohort(c.config.cohort.allocation, c.config.cohort.prepend);
+            googletag.cmd.push(function () {
+                if (c.iterations > 1) {
+                    c.slot.setTargeting('rf', 'true');
+                };
+                c.slot.setTargeting('ab', newCohort);
+                c.slot.updateTargetingFromMap({
+                    'hb_adid': null,
+                    'hb_bidder': null,
+                    'hb_format': null,
+                    'hb_pb': null,
+                    'hb_size': null,
+                    'amznbid': null,
+                    'amznp': null,
+                    'amzniid': null,
+                    'amznsz': null,
+                });
+                googletag.pubads().refresh([c.slot]);
+            });
+        },
+        isVisible: (c) => {
+            if (c.config.type == 'anchor') { return true };
+            if (c.element == undefined) { return false };
+            let location = c.element.getBoundingClientRect();
+            return location.top < window.innerHeight && location.bottom >= 0
+        },
+        frequency: (c) => {
+            if (c.config.type == 'anchor') {
+                return _zep.config.pubSettings.refresh.anchor * 1e3
+            } else {
+                return _zep.config.pubSettings.refresh.global * 1e3
+            }
+        },
+        rmTimeout: (c) => {
+            updateQue({
+                slot: c.slot,
+                id: c.id,
+                viewedTime: 0,
+                pendingRefresh: false,
+                requested: true,
+            });
+            clearTimeout(c.refreshHandler);
+        },
+    };
+    const auctionTasks = {
+        startAuction:(timeout)=>{
+            auctionTasks.auctionStatus = { gpt: false };
+            auctionTasks.timeout = timeout;
+            if (window._zep.session._pb != undefined) { auctionTasks.auctionStatus.prebid = false };
+            if (window._zep.session._aps != undefined) { auctionTasks.auctionStatus.aps = false };
+            auctionTasks.checkLibsLoaded();
+        },
+        checkLibsLoaded:()=>{
+            let g = typeof window.googletag._loaded_ != 'undefined';
+            let p = (() => {
+                if (typeof auctionTasks.auctionStatus.prebid == 'undefined') { return true }
+                if (window.azpbjs && typeof window.azpbjs.libLoaded != 'undefined') { return true } 
+                return false
+            })();
+            let a = (() => {
+                if (typeof auctionTasks.auctionStatus.aps == 'undefined') { return true }
+                if (window.apstag && window.apstagLOADED) { return true } 
+                return false
+            })();
+            if (g && p && a) {
+                auctionTasks.fetchDemandSources();
+                return
+            };
+            setTimeout(auctionTasks.checkLibsLoaded, 200);
+        },
+        fetchDemandSources:()=>{
+            if (auctionTasks.auctionStatus.prebid == undefined && auctionTasks.auctionStatus.aps == undefined) {
+                googletag.cmd.push(function () {
+                    auctionTasks.fetchGam()
+                });
+                return
+            };
+            if (auctionTasks.auctionStatus.prebid == false) {
+                auctionTasks.fetchPrebid()
+            };
+            if (auctionTasks.auctionStatus.aps == false) {
+                auctionTasks.fetchAps()
+            };
+            throwDebug({ type: 'log', message: 'Counting timeout from now' });
+            setTimeout(function () {
+                throwDebug({ type: 'log', message: 'Timeout reached! Calling Google' });
+                auctionTasks.fetchGam()
+            },auctionTasks.timeout);
+        },
+        fetchPrebid:()=>{
+            if (typeof auctionTasks.auctionStatus.prebid == 'undefined') { return false };
+            auctionTasks.prebidGlobalConfig(window.azpbjs,window._zep.config);
+            /*auctionTasks.initAuctionMeasurement();*/
+            azpbjs.que.push(function () {
+                azpbjs.addAdUnits(window._zep.session._pb);
+            });
+            azpbjs.que.push(function () {
+                azpbjs.requestBids({
+                    bidsBackHandler: function () {
+                        googletag.cmd.push(function () {
+                            azpbjs.setTargetingForGPTAsync();
+                            auctionTasks.auctionStatus.prebid = true;
+                            auctionTasks.bidderFinished();
+                        })
+                    }
+                })
+            })
+            return true
+        },
+        fetchAps:()=>{
+            if (typeof auctionTasks.auctionStatus.aps == 'undefined') { return false };
+            if (window.assertive && window.assertive.addAmazonFloors) {
+                window._zep.session._aps = assertive.addAmazonFloors(window._zep.session._aps);
+            }
+            apstag.fetchBids({ slots: window._zep.session._aps },
+                function (bids) {
+                    googletag.cmd.push(function () {
+                        apstag.setDisplayBids();
+                        auctionTasks.auctionStatus.aps = true;
+                        auctionTasks.bidderFinished();
+                    });
+                }
+            );
+            return true
+        },
+        bidderFinished:()=>{
+            if (auctionTasks.auctionStatus.aps == false) { return };
+            if (auctionTasks.auctionStatus.prebid == false) { return };
+            throwDebug({ type: 'log', message: 'Everybody finished! Calling Google' });
+            auctionTasks.fetchGam();
+        },
+        fetchGam:()=>{
+            if (auctionTasks.auctionStatus.gpt == true) { return };
+            auctionTasks.auctionStatus.gpt = true;
+            /*auctionTasks.setAuctionMeasurement(window._zep.session);*/
+            googletag.pubads().enableSingleRequest();
+            if (window.googletag.pubadsReady != true) {
+                googletag.enableServices();
+            };
+            request = [];
+            _zep.session.enqueue.forEach(e => {
+                googletag.display(e.slot);
+                request.push(e.slot);
+            });
+            googletag.pubads().refresh(request);
+            if (window._zep.config.pubSettings.hasThirdPartyConflict) {
+                auctionTasks.fetchThirdParty();
+            }
+            auctionTasks.clearQueues(window._zep.session);
+        },
+        fetchThirdParty:()=>{
+            gamIds = [7542,21799500428,194553192];
+            pageSlots = googletag.pubads() && googletag.pubads().getSlots();
+            slotsToRefresh = [];
+            gamIds.forEach(id => {
+                id = "/" + id;
+                foundSlots = pageSlots.filter(slot => slot.getAdUnitPath().indexOf(id) > -1);
+                foundSlots.length > 0 && slotsToRefresh.push(...foundSlots)
+            });
+            if (slotsToRefresh.length > 0){
+                googletag.pubads().refresh(slotsToRefresh);
+                return
+            } else {
+                setTimeout(auctionTasks.fetchThirdParty,2000);
+            } 
+        },
+        prebidGlobalConfig:(_a,_z)=>{
+            _a.aliasBidder('appnexus', 'projectagora', { gvlid: 1032 });
+            _a.setConfig({
+                enableSendAllBids: false,
+                priceGranularity: {buckets:[{precision:2,max:3,increment:0.01},{max:8,increment:0.05},{max:20,increment:0.25}]},
+                userSync: {filterSettings: {iframe: {bidders: '*',filter: 'include'}}},
+                currency: {adServerCurrency: "BRL",granularityMultiplier: 5},
+                floors: {}
+            });
+            auctionTasks.prebidSupplyChain(_a,_z);
+            auctionTasks.prebidBidderConfig(_a,_z);            
+        },
+        prebidSupplyChain:(_a,_z)=>{
+            if (_z.pubSettings.supplyChainId == undefined) {return};
+            supplyChainId = _z.pubSettings.supplyChainId;
+            if (_z.hbSettings.projectagora != undefined) {
+                _a.setBidderConfig({
+                    'bidders':['projectagora'],'config':{'schain':{'validation':'strict','config':{'ver':'1.0','complete':1,'nodes':[
+                        {'asi':'adzep.com.br','sid':supplyChainId,'hp':1},
+                        {'asi':'projectagora.com','sid':'109603','hp':1}
+                    ]}}}
+                });
+            }
+        },
+        prebidBidderConfig:(_a,_z)=>{
+            _a.bidderSettings = _a.bidderSettings || {};
+            if (_z.hbSettings.onetag != undefined) {
+                _a.bidderSettings['onetag'] = { storageAllowed: true }
+            };
+            if (_z.hbSettings.projectagora != undefined) {
+                _a.bidderSettings['projectagora'] = { storageAllowed: true, bidCpmAdjustment: function (bidCpm) { return bidCpm * 0.75 } }
+            };
+            if (_z.hbSettings.uol != undefined) {
+                _a.bidderSettings['uol'] = { storageAllowed: true, bidCpmAdjustment: function (bidCpm) { return bidCpm * 0.70 } }
+            };
+        },
+        initAuctionMeasurement:()=>{
+            window._zep.session.measurements = {};
+            window.azpbjs.onEvent('auctionInit', function (d) { window._zep.session.measurements.auctionInit = Date.now() });
+            window.azpbjs.onEvent('auctionEnd', function (d) { window._zep.session.measurements.auctionEnd = Date.now() });
+        },
+        setAuctionMeasurement:(_s)=>{
+            if (_s.measurements == undefined) { return }
+            if (_s.measurements.auctionEnd == undefined) { return }
+            slotToSetMeasurement = window._zep.session.enqueue.filter(e => e.id == 'pageview-track')[0].slot;
+            timestampToSend = Math.floor((window._zep.session.measurements.auctionEnd - window._zep.session.measurements.auctionInit) / 10) * 10;
+            slotToSetMeasurement.setTargeting('hb_at', timestampToSend);
+        },
+        clearQueues:(_s)=>{
+            _s._pb = [];
+            _s._aps = [];
+        }
+    }; 
+    return {
+        init: init,
+        clear: clear,
+        check: check
+    }
+}();
+(()=>{
+    if (window._zep.config.pubSettings.disableAutoInit == !0) { return };
+    autozep.check()
+})();
+</script>
+
+</body>
+</html>

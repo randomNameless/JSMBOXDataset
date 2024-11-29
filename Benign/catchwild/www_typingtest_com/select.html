@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>select.html</title>
+</head>
+<body>
+
+<script>
+// Classes for the link and the visible dropdown
+var ts_selectclass = 'turnintodropdown'; 	// class to identify selects
+var ts_listclass = 'turnintoselect';		// class to identify ULs
+var ts_boxclass = 'dropcontainer'; 		// parent element
+var ts_triggeron = 'activetrigger'; 		// class for the active trigger link
+var ts_triggeroff = 'trigger';			// class for the inactive trigger link
+var ts_dropdownclosed = 'dropdownhidden'; // closed dropdown
+var ts_dropdownopen = 'dropdownvisible';	// open dropdown
+var ts_dropcontclosed = 'dropconthidden'; // closed dropdown
+var ts_dropcontopen = 'dropcontvisible';	// open dropdown
+var ts_arrow = 'trigger-arrow'; 		//trigger arrow class
+var ts_arrow_active = 'trigger-arrow-active'; 		//trigger arrow active
+var ts_arrow_normal = 'trigger-arrow-normal'; //trigger arrow normal
+var ts_item_selected = 'selected';  //item selected
+var ts_line = 'line';  //horizontal line
+
+const selectsFileNames = {
+	"easyText.txt": [],
+	"mediumText.txt": [],
+	"difficultText.txt": [],
+	"mediumText.txt": [],
+	"benchmark.txt": [],
+	"certificate.txt": [],
+	"mediumText.txt": [],
+	"tricky.txt": [],
+	"blindText.txt": [],
+	"story.txt": [
+		"aesop.txt",
+		"baseball.txt",
+		"astronauts.txt",
+		"tiger.txt",
+		"oz.txt",
+		"zebra.txt",
+		"enchanted.txt",
+	],
+	"themed.txt": [
+		"culture.txt",
+		"sport.txt",
+		"nature.txt",
+		"Technology.txt",
+		"traveling.txt",
+		"themed.txt",
+	],
+	"mediumText.txt": [],
+	"professional.txt": [
+		"legal.txt",
+		"medical.txt",
+		"business.txt",
+		"coding.txt",
+	],
+}
+
+function findSelectFileName(txt) {
+	let parent = "";
+	let child = "";
+	let childIndex = null;
+	const fileNames = Object.keys(selectsFileNames);
+	for (let i = 0; i < fileNames.length; i++) {
+		const fileName = fileNames[i];
+		if (fileName === txt) {
+			parent = fileName;
+			break;
+		} else {
+			const childFileNameIndex = selectsFileNames[fileName].indexOf(txt);
+			if (childFileNameIndex !== -1) {
+				child = selectsFileNames[fileName][childFileNameIndex];
+				childIndex = childFileNameIndex;
+				parent = fileName;
+				break;
+			}
+		}
+	}
+
+	return { parent, child, childIndex };
+}
+
+
+function MobileDetection() {
+    var isMobileUser = (
+        navigator.userAgent.match(/Android/i) ||
+        navigator.userAgent.match(/webOS/i) ||
+        navigator.userAgent.match(/iPhone/i) ||
+        navigator.userAgent.match(/iPad/i) ||
+        navigator.userAgent.match(/iPod/i) ||
+        navigator.userAgent.match(/BlackBerry/i) ||
+        navigator.userAgent.match(/Windows Phone/i)
+    );
+   
+// move all mobile users and 10 of others to beta now
+    if (isMobileUser ) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+function tamingselect(storeTime, storeText) {
+	const DEFAULT_TIME_INDEX = 1;
+
+	if (!document.getElementById && !document.createTextNode) { return; }
+	/*
+		Turn all selects into DOM dropdowns
+	*/
+	var count = 0;
+	var toreplace = new Array();
+	var sels = document.getElementsByTagName('select');
+	const { parent, child, childIndex } = findSelectFileName(storeText);
+
+	for (var i = 0; i < sels.length; i++) {
+		if (ts_check(sels[i], ts_selectclass)) {
+
+			let defaultIndex = 0;
+
+			if ((sels[i].id === 'minutes')) {
+				defaultIndex = DEFAULT_TIME_INDEX;
+			}
+
+			let txt = sels[i].options[defaultIndex].text;
+
+			if ((sels[i].id === 'textFile_sel') && storeText){
+				txt = getOptionsVal(sels[i], parent);
+			}
+			if ((sels[i].id === 'addProf_sel' || sels[i].id === 'addStory_sel' || sels[i].id === 'addThemed_sel') && storeText) {
+				if (child) {
+					txt = getOptionsVal(sels[i], child);
+				}
+			}
+			if ((sels[i].id === 'minutes') && storeTime){
+				txt = getOptionsVal(sels[i],storeTime);
+			}
+			if (txt == ""){
+				txt = sels[i].options[0].text;
+			}
+
+			//define medium text on initial load
+			if (!storeText && !storeTime && sels[i].id === 'textFile_sel'){
+				
+				if (MobileDetection()) {
+					txt = sels[i].options[0].text;
+				} else{
+					txt = sels[i].options[1].text;	
+				}
+				
+				
+			}
+
+			var hiddenfield = document.createElement('input');
+			hiddenfield.name = sels[i].name;
+			hiddenfield.type = 'hidden';
+			hiddenfield.id = sels[i].id;
+			if (sels[i].id === 'addProf_sel' || sels[i].id === 'addStory_sel' || sels[i].id === 'addThemed_sel') {
+				hiddenfield.value = sels[i].options[childIndex || 0].value;
+			} else {
+				hiddenfield.value = sels[i].options[0].value;
+			}
+			sels[i].parentNode.insertBefore(hiddenfield, sels[i])
+			var trigger = document.createElement('a');
+			trigger.name = hiddenfield.name + '_t';
+			trigger.id = hiddenfield.id + '_t';
+			if (ts_check(sels[i], 'anim')){
+				ts_addclass(trigger, 'anim');
+				ts_addclass(trigger, 'hidden-select');
+			}
+
+			ts_addclass(trigger, ts_triggeroff);
+			trigger.href = '#';
+			trigger.onclick = function (event) {
+				if (ts_check(this.parentNode.getElementsByTagName('ul')[0], ts_dropdownclosed)) {
+					closeAllSelect(null);
+					ts_swapclass(this.getElementsByClassName(ts_arrow)[0], ts_arrow_active, ts_arrow_normal);
+					//ts_swapclass(this, ts_triggeroff, ts_triggeron)
+					ts_swapclass(this.parentNode.getElementsByTagName('ul')[0], ts_dropdownclosed, ts_dropdownopen);
+					ts_swapclass(this.parentNode.getElementsByClassName(ts_dropcontclosed)[0], ts_dropcontclosed, ts_dropcontopen);
+					event.stopPropagation();
+				}
+				return false;
+			}
+
+			let val = 
+
+			trigger.appendChild(document.createTextNode(txt));
+
+			var arrow = document.createElement('span');
+			ts_addclass(arrow, ts_arrow);
+			ts_addclass(arrow, ts_arrow_normal);
+			trigger.appendChild(arrow);
+
+			sels[i].parentNode.insertBefore(trigger, sels[i]);
+			var replaceUL = document.createElement('ul');
+
+			for (var j = 0; j < sels[i].getElementsByTagName('option').length; j++) {
+				var newli = document.createElement('li');
+				var newa = document.createElement('a');
+				newli.v = sels[i].getElementsByTagName('option')[j].value;
+
+				//select item if need
+				/*
+				if (newli.v === hiddenfield.value){
+					ts_addclass(newli, ts_item_selected);
+				}
+				*/
+
+				newli.elm = hiddenfield;
+				newli.istrigger = trigger;
+				newa.href = '#';
+				newa.appendChild(document.createTextNode(
+					sels[i].getElementsByTagName('option')[j].text));
+
+				//add line
+				if (sels[i].getElementsByTagName('option')[j].text === ""){
+				ts_addclass(newa, ts_line)
+				}
+
+				newli.onclick = function (event) {
+					this.elm.value = this.v;
+					if (this.elm.id === 'textFile_sel'){
+						onTextSelChange(this.v);
+					}
+					if (this.elm.id === 'minutes'){
+						onTimeSelChange(this.v);
+					}
+					//ts_swapclass(this.istrigger, ts_triggeron, ts_triggeroff);
+					ts_swapclass(this.istrigger.getElementsByClassName(ts_arrow)[0], ts_arrow_active, ts_arrow_normal);
+					ts_swapclass(this.parentNode, ts_dropdownopen, ts_dropdownclosed);
+					ts_swapclass(this.parentNode.parentNode, ts_dropcontopen, ts_dropcontclosed);
+					this.istrigger.firstChild.nodeValue = this.firstChild.firstChild.nodeValue;
+
+					//clear selected
+					var items = this.parentNode.getElementsByClassName(ts_item_selected);
+
+					for (var j = 0; j < items.length; j ++){
+						ts_swapclass(items[j], ts_item_selected, "normal")
+					}
+
+					//ts_addclass(this, ts_item_selected);
+
+
+					return false;
+				}
+				newli.appendChild(newa);
+				replaceUL.appendChild(newli);
+			}
+			ts_addclass(replaceUL, ts_dropdownclosed);
+			var div = document.createElement('div');
+			div.appendChild(replaceUL);
+			ts_addclass(div, ts_boxclass);
+			ts_addclass(div, ts_dropcontclosed);
+			sels[i].parentNode.insertBefore(div, sels[i])
+			toreplace[count] = sels[i];
+			count++;
+		}
+	}
+
+	/*
+		Turn all ULs with the class defined above into dropdown navigations
+	*/
+
+	var uls = document.getElementsByTagName('ul');
+	for (var i = 0; i < uls.length; i++) {
+		if (ts_check(uls[i], ts_listclass)) {
+			var newform = document.createElement('form');
+			var newselect = document.createElement('select');
+			for (j = 0; j < uls[i].getElement+sByTagName('a').length; j++) {
+				var newopt = document.createElement('option');
+				newopt.value = uls[i].getElementsByTagName('a')[j].href;
+				newopt.appendChild(document.createTextNode(uls[i].getElementsByTagName('a')[j].innerHTML));
+				newselect.appendChild(newopt);
+			}
+			newselect.onchange = function () {
+				window.location = this.options[this.selectedIndex].value;
+			}
+			newform.appendChild(newselect);
+			uls[i].parentNode.insertBefore(newform, uls[i]);
+			toreplace[count] = uls[i];
+			count++;
+		}
+	}
+	for (i = 0; i < count; i++) {
+		toreplace[i].parentNode.removeChild(toreplace[i]);
+	}
+	function ts_addclass(o, c) {
+		if (!ts_check(o, c)) { o.className += o.className == '' ? c : ' ' + c; }
+	}
+
+	function getOptionsVal(item, txt){
+		for (var j = 0; j < item.getElementsByTagName('option').length; j++){
+			if (txt === item.getElementsByTagName('option')[j].value){
+				return item.getElementsByTagName('option')[j].text;
+			}
+		}
+		return "";
+	}
+}
+
+function ts_swapclass(o, c1, c2) {
+	var cn = o.className
+	o.className = !ts_check(o, c1) ? cn.replace(c2, c1) : cn.replace(c1, c2);
+}
+
+function ts_check(o, c) {
+	return new RegExp('\\b' + c + '\\b').test(o.className);
+}
+
+//hide dropdown on outside click
+function closeAllSelect(elmnt) {
+	/* A function that will close all select boxes in the document,
+	except the current select box: */
+	var x, y, i, xl, yl, arrNo = [];
+	var sels = document.getElementsByClassName(ts_dropdownopen);
+	for (var i = 0; i < sels.length; i++) {
+		let arrows = sels[i].parentNode.parentNode.getElementsByClassName(ts_arrow_active);
+		if (arrows.length >= 0){
+			ts_swapclass(arrows[0], ts_arrow_active, ts_arrow_normal);
+		}
+		ts_swapclass(sels[i].parentNode, ts_dropcontopen, ts_dropcontclosed);
+		ts_swapclass(sels[i], ts_dropdownopen, ts_dropdownclosed);
+	}
+}
+</script>
+
+</body>
+</html>

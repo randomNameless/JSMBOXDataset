@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>jdMenuGen.html</title>
+</head>
+<body>
+
+<script>
+
+(function(jQuery) {
+    String.prototype.len = function() {//count byte length
+        return this.replace(/[^\x00-\xff]/g, "rr").length;
+    }
+    function getData(menuAry, data) {
+        jQuery('channel', data).find('menu').each(function(i, n) {
+            var name = jQuery(n).find('name').text();
+            var itemAry = new Array();
+            jQuery(n).find('item').each(function(j, n2) {
+                var title = jQuery(n2).find('title').text();
+                var link = jQuery(n2).find('link').text();
+                //alert(title);//trace
+                var subAry = new Array();
+                jQuery(n2).find('subitem').each(function(k, n3) {
+                    var subtitle = jQuery(n3).find('subtitle').text();
+                    var sublink = jQuery(n3).find('sublink').text();
+                    //alert(title+","+subtitle);//trace
+                    var obj3 = { SubTitle: subtitle, SubLink: sublink };
+                    subAry[k] = obj3;
+                });
+                var obj2 = { Title: title, Link: link, SubItem: subAry };
+                itemAry[j] = obj2;
+            });
+            var obj = { Name: name, Item: itemAry };
+            menuAry[i] = obj;
+        });
+
+        return menuAry;
+    }
+    function TreeBuilding($menu, menuAry, s) {
+        var xxx = "";
+        for (var i = 0; i < menuAry.length; i++) {
+            xxx += "<li>" + menuAry[i].Name + "<img style=\"vertical-align:middle;\" border=\"0\" src=\"" + s.arrow_down + "\"></li>"; //add Arrow_Down
+        }
+        $menu.get(0).innerHTML += xxx;
+    }
+    function ItemBuilding($item, s, itemAry) {
+        var xxx = "<ul>";
+        for (var i = 0; i < itemAry.length; i++) {
+            if (itemAry[i].Link == "invalid" || itemAry[i].Link.length == 0) {
+                xxx += "<li>" + itemAry[i].Title + "</li>";
+            }
+            else {
+                xxx += "<li><a class=\"" + s.link + itemAry[i].Link + "\" target=\"" + s.target + "\">" + jQuery.trim(itemAry[i].Title) + "</a></li>";
+            }
+        }
+        xxx += "</ul>";
+
+        $item.get(0).innerHTML += xxx;
+    }
+    function SubItemBuilding($item, s, itemAry) {
+        var xxx = "<ul>";
+        for (var i = 0; i < itemAry.length; i++) {
+            if (itemAry[i].SubLink == "invalid" || itemAry[i].SubLink.length == 0) {
+                xxx += "<li>" + itemAry[i].SubTitle + "</li>";
+            }
+            else {
+                xxx += "<li><a class=\"" + s.link + itemAry[i].SubLink + "\" target=\"" + s.target + "\">" + jQuery.trim(itemAry[i].SubTitle) + "</a></li>";
+            }
+        }
+        xxx += "</ul>";
+
+        $item.get(0).innerHTML += xxx;
+    }
+    function MenuBind($menu, menuAry, s, widthAry) {
+        var subwidth = s.item_width;
+        TreeBuilding($menu, menuAry, s); //Menu Building
+
+        $menu.find('li').each(function(i, n)//Item Building
+        {
+            jQuery(n).get(0).style.cssText += ";width:" + widthAry[i] + ";"; //Level 0 LI Style Modify                        
+        });
+
+
+    }
+    function MenuBindContent($menu, menuAry, s) {
+        $menu.find('ul').each(function(i, n)//clear Item
+        {
+            jQuery(n).remove();
+        });
+        $menu.find('li').each(function(i, n)//Item Building
+        {
+            ItemBuilding(jQuery(n), s, menuAry[i].Item); //Item Building
+
+            var item_width = 0; jQuery(n).find('li').each(function(j, n2) {//set Item Width                                      
+                var len = (jQuery.trim(menuAry[i].Item[j].Title).len() + 3) * 7.5; //image(arrow_right) width:3 byte length
+                if (len > item_width) { item_width = len; }
+            }); item_width += "px";
+
+            jQuery(n).find('li').each(function(j, n2)//SubItem Building
+            {
+                jQuery(n2).get(0).style.cssText += ";width:" + item_width + ";"; //Level 1 LI Style Modify
+
+                if (menuAry[i].Item[j].SubItem.length > 0) {
+                    SubItemBuilding(jQuery(n2), s, menuAry[i].Item[j].SubItem); //Sub Item Building
+
+                    var subitem_width = 0; jQuery(n2).find('li').each(function(k, n3) {//set SubItem Width   
+                        var len = (jQuery.trim(menuAry[i].Item[j].SubItem[k].SubTitle).len()) * 7.5;
+                        if (len > subitem_width) { subitem_width = len; }
+                    }); subitem_width += "px";
+
+                    jQuery(n2).find('li').each(function() {
+                        jQuery(this).get(0).style.cssText += ";width:" + subitem_width + ";"; //Level 2 LI Style Modify
+                    });
+                    jQuery(n2).get(0).innerHTML += "<img style=\"vertical-align:middle;\" border=\"0\" src=\"" + s.arrow_right + "\">"; //add Arrow_Right
+                }
+            });
+
+        });
+
+        $menu.find('a').each(function(i, n) {
+            jQuery(n).get(0).href = jQuery(n).get(0).className;
+            jQuery(n).get(0).className = "";
+        });
+
+    }
+    //table detect li width
+    function MenuWidth($menu, menuAry, s) {
+        var total = 0;
+        for (var i = 0; i < menuAry.length; i++) {
+            total += menuAry[i].Name.len() + 2; //image(arrow_down) width:2 byte length
+        }
+        var unit = s.menu_width / total;
+        var widthAry = new Array();
+        var last = s.menu_width;
+        for (var i = 0; i < menuAry.length - 1; i++) {
+            var len = unit * (menuAry[i].Name.len() + 2);
+            widthAry[i] = len.toFixed(0) + "px";
+            last -= len.toFixed(0);
+            //alert(widthAry[i]);
+        }
+        widthAry[menuAry.length - 1] = last + "px";
+        //alert(widthAry[menuAry.length-1]);
+        return widthAry;
+    }
+    function MenuWidth_mozilla($menu, menuAry, s) {
+        s.menu_width = 100 - (menuAry.length * 2 + 2);
+        var total = 0;
+        for (var i = 0; i < menuAry.length; i++) {
+            total += menuAry[i].Name.len() + 2; //image(arrow_down) width:2 byte length
+        }
+        var unit = s.menu_width / total;
+        var widthAry = new Array();
+        var last = s.menu_width;
+        for (var i = 0; i < menuAry.length - 1; i++) {
+            var len = unit * (menuAry[i].Name.len() + 2);
+            widthAry[i] = len.toFixed(0) + "%";
+            last -= len.toFixed(0);
+        }
+        widthAry[menuAry.length - 1] = last + "%";
+        return widthAry;
+    }
+
+    //Public Methods
+    jQuery.fn.jdMenuGen = function(setting) {
+        var setting = jQuery.extend({
+            URL: ""
+            , menu_width: "721"
+            , target: "_top"
+            , type: "xml"
+            , arrow_down: "/funddj/images/Arrow_Down.gif"
+            , arrow_right: "/funddj/images/Arrow_Right.gif"
+            , link: "/KMDJ/News/NewsViewer.aspx?a="
+            , flag: 0
+        }, setting);
+        var onSuccess = function(data) {
+            if (typeof data == 'string') data = eval(data);
+            var menuAry = new Array();
+            if (setting.type == "json") {
+                menuAry = data; //get json into Array
+            }
+            else if (setting.type == "xml") {
+                menuAry = getData(menuAry, data); //get xml into Array              	
+            }
+            if (jQuery.browser.mozilla) {
+                var widthAry = MenuWidth_mozilla($menu, menuAry, setting);
+            }
+            else {
+                var widthAry = MenuWidth($menu, menuAry, setting);
+            }
+            if (setting.flag == 0) {
+                MenuBind($menu, menuAry, setting, widthAry); //Title structure Building and Style Modify
+                MenuBindContent($menu, menuAry, setting); //Content structure Building and Style Modify                    
+                $menu.addClass("jd_menu"); //add jdMenu.css style                
+                $menu.jdMenu(); //plugin jquery.jdMenu.js
+            }
+            else if (setting.flag == 1) {
+                MenuBind($menu, menuAry, setting, widthAry); //Title structure Building and Style Modify
+                $menu.addClass("jd_menu"); //add jdMenu.css style  
+
+            }
+            else if (setting.flag == 2) {
+                MenuBindContent($menu, menuAry, setting); //Content structure Building and Style Modify                                           
+                $menu.jdMenu(); //plugin jquery.jdMenu.js    
+            }
+        }
+        var $menu = jQuery(this);
+
+        var a = (parseFloat(jQuery().jquery) > 1.3) ? 'application/' : '';
+        jQuery.ajax(
+        {
+            type: "get"
+            , dataType: a + setting.type
+            , url: setting.URL
+            , success: onSuccess
+            , error: function() { //alert('fail');
+			}
+        });
+
+    };
+})(jQuery);
+</script>
+
+</body>
+</html>

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>play_time.html</title>
+</head>
+<body>
+
+<script>
+$(window).unload(function() {
+	if(source != 'live') {
+		setPlayTime();
+	}
+});
+
+window.onbeforeunload = function(){
+	if(completeFlag == true) {
+		smradCount = completeCount;
+	}
+	// 2019-11-14 플레이 안하고 페이지 이동시 재생시간 0
+	if(PlayYn == false) {
+		watchingTime = 0;
+	}
+	else {
+		var d = new Date();
+		var lastTime = d.getTime();
+		var totalTime = (lastTime - firstTime) / 1000;
+		console.log('out totalTime : ', totalTime);
+
+		// 2019-12-11 24시간이 넘어가버리면 일괄적으로 본 시간의 30초만 증가시켜서 정리한다.
+		if(totalTime < 86400) {
+			watchingTime = totalTime;
+		}
+		else {
+			watchingTime = watchingTime + 30;
+		}
+		console.log('out watchingTime : ', watchingTime);
+
+		// 2018-11-20 SMR 로그의 경우 contents_id 추가
+		if (source == 'smr' || source == 'scf') {
+			// 2018-11-08 LIVE/VOD/CLIP/AOD 등 컨텐츠 재생 직후(자동재생 포함) 로그 전송 추가
+			if (typeof window._add_rte == "function" || typeof window._add_rte == "object") {
+				window._add_rte('watch', vodType, program_code, Math.ceil(jwplayer().getPosition()), reqMap.contents_id, '', watchingTime, 'Y', smradCount, program_id, '', parent_code);
+			}
+			// 2018-06-04 VOD 시청 로그 수집
+		}
+		else {
+			// 2018-11-08 LIVE/VOD/CLIP/AOD 등 컨텐츠 재생 직후(자동재생 포함) 로그 전송 추가
+			if (typeof window._add_rte == "function" || typeof window._add_rte == "object") {
+				window._add_rte('watch', vodType, program_code, Math.ceil(jwplayer('kbs-social-player').getPosition()), program_id, '', watchingTime, 'Y', smradCount, program_id, '', parent_code);
+			}
+		}
+		//2018-08-16 재생종료후 인터벌 중지
+		clearInterval(playIntervalId);
+	}
+
+}
+
+function setPlayTime() {
+
+var play_positon = parseInt(jwplayer().getPosition());
+
+var params= "source="+reqMap.source;
+
+var filter = "win16|win32|win64|mac|macintel";
+if ( navigator.platform ) {
+	if ( filter.indexOf( navigator.platform.toLowerCase() ) < 0 ) {
+		params += '&device_type=Mobile'; //모바일
+	}else{
+		params += '&device_type=PC';//pc
+	}
+}
+
+if('episode'==reqMap.source){
+	params+='&program_id=';
+  params+=reqMap.program_id;
+	if(null!=reqMap.segment_id && undefined != reqMap.segment_id){
+		params += '&segment_id=';
+    params += reqMap.segment_id;
+	}
+	params += '&division=';
+	params += division;
+}else{
+	params += '&contents_id=';
+  params += reqMap.contents_id;
+}
+
+//어쩌지
+//var play_positon = changePlayTime(kbs_landing.vodPlayer.get_time());
+
+params += '&play_position=';
+params += play_positon;
+params += '&play_time=';
+params += watch_play_time;
+
+var url = api_url.landing + '/vod/setPlayTime';
+
+$.ajax({
+		url : url,
+		data : params,
+    async : false,
+		type: 'GET',
+		xhrFields: {
+          withCredentials: true
+    },
+		success : function(result){
+				console.log(result);
+		},
+		error : function(xhr){
+		}
+	});
+}
+
+</script>
+
+</body>
+</html>

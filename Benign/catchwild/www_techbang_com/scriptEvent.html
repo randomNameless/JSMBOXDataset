@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>scriptEvent.html</title>
+</head>
+<body>
+
+<script>
+import { reactive } from 'https://unpkg.com/petite-vue?module';
+import {playerScript} from '/scripts/scriptPlayer.js';
+import {vastScript} from '/scripts/scriptVast.js';
+import {stitchingScript} from '/scripts/scriptStitching.js';
+import { $storeVast } from '/scripts/storeVast.js';
+import {$store} from '/scripts/store.js';
+export const eventScript = reactive({
+  clickPlayPauseButton(i){
+    if($storeVast.ad[i].isAdPlaying){
+      vastScript.onAdChangePlayingStatus(i);
+      return;
+    }
+    if(this.conditionUseVastPodcast(i) &&  !$store.state[i].is_playing && !$store.state[i].paused){
+      console.log("init "+i);
+      stitchingScript.onStitchingInit(i);
+    }
+    playerScript.clickPlay(i);
+  },
+  onEnded(i){
+    if(this.conditionUseVastPodcast(i) && !$storeVast.ad[i].isAdPlaying){
+      vastScript.contentEndedAdsLoader(i);
+      return;
+    }
+    playerScript.onEnded(i);
+  },
+  onTimeUpdate(i){
+    playerScript.onTimeUpdate(i);
+    if(this.conditionUseVastPodcast(i)){
+      stitchingScript.onTimeUpdate(i);
+    }
+  },
+  onSeeked(i){
+    playerScript.onSeeked(i);
+    if(this.conditionUseVastPodcast(i)){
+      stitchingScript.onTimeUpdate(i);
+    }
+  },
+  conditionUseVastPodcast(i){
+    return $store.useVast && !radio && "READY_TO_RECORD" !== listPodcasts[i].processingStatus;
+  }
+})
+</script>
+
+</body>
+</html>

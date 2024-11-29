@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>index.html</title>
+</head>
+<body>
+
+<script>
+/****
+ * 东奥首页index.js
+ * 修正日期  2017-9-13
+ *	修改日期  2018-6-15 登录后的用户名*
+ */
+
+
+
+
+$(function() {
+	dongaoView.init();
+})
+var __HOSTSTR = 'dongao';
+if(location.hostname.indexOf('.com') != -1 && location.hostname.indexOf('dongao')  != -1){
+	var ___HOSTNAME = location.hostname.split('.'),__HOSTSTR = ___HOSTNAME[___HOSTNAME.length -2];
+ }
+var dongaoView = {
+	option: {
+		bookList_url: '//list.'+__HOSTSTR +'.com/shopApi/getShopGoodsListByShopIdAndGoodsId', //图书接口
+		shopGoodsImg_url: '//webuploadadmin.'+__HOSTSTR +'.com/ec/shop/', //图书图片路径
+		bookInfo_url: '//list.'+__HOSTSTR +'.com/shop/goodsInfo', //图书详情页路径
+		student_flag: [false, false, false, false, false, false, false, false, false, false], //对应各考种切换的状态 true为激活状态
+		student_id: [1004, 1001, 1002, 1003, 1005, false, false, false, false, false] //学员心声各考种id值
+	},
+	// 初始化飘窗
+	initPcFun:function(){
+		$(window).resize(function() {
+			          if($(window).width() <1440){
+			            $(".zj_pc").css("left","0px");　　　　　　　　　　　　
+					}else{
+			              $(".zj_pc").css("left","");
+			            }
+			        }).trigger('resize');
+
+		$('.zj_pc').append(`<span class="close_left_ggt" onclick="$('.zj_pc').remove();return false;"></span>`)
+	},
+	// 初始化轮播图
+	initBannerSlider:function(){
+		$(".banner").slide({ //初始化banner
+			titCell: ".num",
+			mainCell: ".banner_ul",
+			
+			effect: "fold",
+			autoPlay: true,
+			delayTime: 1000,
+			interTime: 4000,
+			autoPage: "<span></span>",
+			controlTimer: "stop-time"
+		});
+	},
+	init: function() {
+		//图书容器初始化
+		// dongaoView.tool.createBookContainer();
+		//初始化cookies
+		dongaoView.tool.initCookies();
+		//初始化banner 课程、图书、名师 轮播
+		dongaoView.tool.initBanners();
+		//绑定事件
+		dongaoView.onFun();
+		//初始化吸顶效果
+		dongaoView.tool.navCeiling();
+		//随屏位置计算
+		dongaoView.tool.calBackTop();
+	},
+	onFun: function() {
+		var nowTime = new Date().getTime();
+		$('.videoclass_slider ul li').each(function() {
+			var _this = $(this),
+				_thisStartTime = new Date(_this.attr('data-start')).getTime(),
+				_thisEndTime = new Date(_this.attr('data-end')).getTime();
+			if (_thisStartTime < nowTime && new Date(_this.attr('data-end')).getTime() > nowTime) {
+				_this.addClass('zhibo');
+			} else if (_thisEndTime < nowTime && !_this.hasClass('huigu')) {
+				_this.remove();
+			}
+		})
+		var haveNum = $('.videoclass_slider ul li').length;
+		if ($('.videoclass_slider ul li').length >= 3) {
+			$('.videoclass_slider').slide({
+				mainCell: ".videoclass_ul",
+				effect: "leftLoop",
+				vis: 3,
+				autoPage: true,
+				prevCell: ".videoclass_pre",
+				nextCell: ".videoclass_next"
+			});
+		} else {
+			$('.videoclass_slider > span').remove();
+		};
+		//根据直播数量决定是否显示分割线
+		var zb_length = $(".shouye_zbtip").length;
+		if (zb_length < 2) {
+			$(".dec_line").hide();
+		}
+		$(".teacher_pre").hover(function() {
+			$(this).addClass("teacher_pre_ex");
+		}, function() {
+			$(this).removeClass("teacher_pre_ex");
+		});
+		// 名师滚动按钮滑过next
+		$(".teacher_next").hover(function() {
+			$(this).addClass("teacher_next_ex");
+		}, function() {
+			$(this).removeClass("teacher_next_ex");
+		});
+		// 新人专区免费资料免费题库nav切换
+		$('body').on('click',".wrap_top_main .main_nav li",function(){
+				$(this).addClass('on').siblings().removeClass('on');
+				$(".wrap_top_main .main_all").eq($(this).index()).show().siblings().hide();
+			
+		});
+		//窗口变化随屏位置
+		$(window).resize(function() {
+			dongaoView.tool.calBackTop();
+		});
+		//滚动变化随屏回到顶部按钮显示
+		$(window).scroll(function() {
+			var banner_hd = $(window).height();
+			var w_scroll = $(window).scrollTop();
+			if (w_scroll > banner_hd) {
+				$(".fixed_menu .a_back").show(500);
+			} else {
+				$(".fixed_menu .a_back").hide();
+			}
+		});
+		// 科目切换 始
+		$(".kemu_tab a").click(function(e) {
+			e.preventDefault();
+			var kemu_index = $(this).index(".kemu_tab a");
+			var kemu_name_x = "kemu_" + kemu_index;
+			$(this).addClass("sp_ex").siblings(".kemu_tab a").removeClass("sp_ex");
+			
+			$(".kemu_cent").eq(kemu_index).show().siblings(".kemu_cent").hide();
+			
+			var scrollTok = $('.kemu_tab');
+			if (scrollTok.hasClass('zc_kemu_tab')) {
+				$('html, body').animate({
+					scrollTop: 610
+				});
+			}
+			return false;
+		})
+	},
+	//调取图书 yk add
+	getBookListGeneral: function(_this, obj, index) {
+		var book_html = '',
+			_n = index || 0,
+			bookUrl = obj.linkUrl[_n] || obj.linkUrl[0],
+			autoPlay = true;
+		//点击的是哪个  默认是第一个数组
+		dongaoView.bookparam.goodsIds = obj.list[_n].join(',');
+		var ul_container = _this.parents('.tit1').siblings('.rx_scro').eq(_this.parents('.tit1').children('.rxts a.zk_type')
+			.index(_this));
+		var book_html = '<ul class="rxts_ul">';
+		$.getJSON(dongaoView.option.bookList_url + '?callback=?', dongaoView.bookparam, function(resultData) {
+			var goods_result = resultData.result;
+			
+			for (var i = 0; i < goods_result.length; i++) {
+				var _data = goods_result[i],
+					base_data = _data.goodsDetail.goodsBase;
+				var book_name = base_data.goodsName,
+					book_original = base_data.originalPrice,
+					/*建议价格*/
+					book_sale = _data.salePrice,
+					/*打折价格*/
+					img_url = dongaoView.option.shopGoodsImg_url + base_data.mainPicUrlOfPc; /* 图片路径 */
+
+				book_html +=
+					'<li class="clone">\n' +
+					'                        <a class="book_all" href="' + bookUrl + '" target="_blank">\n' +
+					'                            <img class="book_pic" src="' + img_url + '" >\n' + '</a>' +
+					'                        <p class="book_tit rxts_p1"><a href="' + bookUrl + '" target="_blank">\n' + book_name +
+					'</a></p>\n' +
+					'                        <p class="book_p2 clearfix rxts_sp1"><b>¥' + book_sale + '</b> <s>¥' + book_original +
+					'</s></p>\n' +
+					'                        </a>\n' +
+					'                        </li>';
+			};
+			book_html +=
+				'</ul><a class="sider_pre book_pre" href="javascript:void(0)"></a><a class="sider_next book_next" href="javascript:void(0)"></a>';
+			ul_container.html(book_html);
+			ul_container.slide({
+				mainCell: ".rxts_ul",
+				effect: "left",
+				vis: 4,
+				autoPage: true,
+				autoPlay: false,
+				easing: "swing",
+				pnLoop: false,
+				switchLoad: "_src",
+				prevCell: ".book_pre",
+				nextCell: ".book_next"
+			});
+		})
+	},
+	tool: {
+		//初始化轮播图
+		initBanners: function() {
+			
+			$('.teacher_list').slide({ //初始化名师
+				mainCell: ".teacher_ul",
+				effect: "leftLoop",
+				vis: 5,
+				switchLoad: "_src",
+				autoPlay: true,
+				autoPage: true,
+				prevCell: ".teacher_pre",
+				nextCell: ".teacher_next"
+			});
+			$('.teacher_ul li').removeClass('pic_hide');
+			$('.teacher_ul li.last_li').removeClass('last_li');
+			//初始化底部app
+			$('.app').slide({
+				mainCell: ".app_ul",
+				effect: "left",
+				vis: 4,
+				autoPage: true,
+				autoPlay: false,
+				easing: "swing",
+				pnLoop: false,
+				switchLoad: "_src",
+				prevCell: ".app_pre",
+				nextCell: ".app_next"
+			});
+		},
+		//根据选项个数拼图书容器div
+		createBookContainer: function() {
+			$('.rxts').each(function() {
+				var _len = $(this).find('a.zk_type').length;
+				var book_ul_class = '';
+				for (var i = 0; i < _len; i++) {
+					book_ul_class = (i == 0 ? 'rx_scro first_b' : 'rx_scro');
+					$('<div>', {
+						'class': book_ul_class
+					}).appendTo($(this));
+				}
+			});
+		},
+		//初始化cookies 考种切换的部分默认选中用户经常看的考种
+		initCookies: function() {
+			var y = 0,
+				kemu_namei = "",
+				kemu_namey = "";
+			for (var i = 0; i < 11; i++) {
+				kemu_namei = "kemu_" + i;
+				kemu_namey = "kemu_" + y;
+				if ($.cookie(kemu_namei) == null) {
+					$.cookie(kemu_namei, "0");
+				}
+				if (parseInt($.cookie(kemu_namei)) > parseInt($.cookie(kemu_namey))) {
+					y = i;
+				}
+			}
+			//y=0;
+			y = Number($('#kemu_tab_fixed').attr('data-index')); // 通过获取#kemu_tab_fixed的data-index属性值 来控制默认显示哪个考种内容
+			$(".kemu_cent").eq(y).show().siblings(".kemu_cent").hide();
+			
+			$(".kemu_tab a").eq(y).addClass("sp_ex").siblings(".kemu_tab a").removeClass("sp_ex");
+		},
+		//学员心声
+		student_voice: function(ele1, ele2, s_id) {
+			if (s_id) {
+				$.ling({
+					id: s_id,
+					type: "1",
+					div: ele1,
+					pageSize: "10",
+					div2: ele2,
+					callback2: dongaoView.tool.voiceBack
+				});
+			}
+		},
+		//学员心声回调
+		voiceBack: function(ele2) {
+			$(ele2).kxbdMarquee({
+				direction: "up",
+				isEqual: false,
+				scrollDelay: 100
+			});
+		},
+		//随屏位置计算
+		calBackTop: function() {
+			var bt_left = $(window).width() - 64;
+			if (bt_left > 1265) {
+				bt_left = $('.wrap_main').offset().left + 1188;
+				$('.fixed_menu').css("left", bt_left + 'px');
+			}
+
+		},
+
+		//考种切换导航吸顶效果
+		navCeiling: function() {
+			var topPos = $("#kemu_tab_fixed").offset().top;
+			var topPosHeight = topPos + $(".cont_kemu").outerHeight() - 112;
+			var isIE6 = !!window.ActiveXObject && !window.XMLHttpRequest; //ie6下Fixed
+			var rFloat = function() {
+				var st = $(document).scrollTop();
+				if (st >= topPos && st < topPosHeight) {
+					$("#kemu_tab_fixed").addClass("zc_kemu_tab");
+				} else {
+					$("#kemu_tab_fixed").removeClass("zc_kemu_tab");
+				}
+			};
+			$(window).bind("scroll", rFloat);
+			$(window).bind("resize", rFloat);
+			$(window).bind("onresize", rFloat);
+			$(window).bind("load", rFloat);
+		}
+	}
+}
+
+</script>
+
+</body>
+</html>

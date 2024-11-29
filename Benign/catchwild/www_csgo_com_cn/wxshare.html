@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>wxshare.html</title>
+</head>
+<body>
+
+<script>
+// dota2异步获取
+var PW_wxShare = function (options, callback) {
+  let shareTitle = options.shareTitle
+  let shareInfo = options.shareInfo
+  let shareUrl = options.shareUrl
+  let jurl = '/weixinShare?url=' + encodeURIComponent(location.href)
+  let mxhr = new XMLHttpRequest()
+  mxhr.onreadystatechange = function () {
+    if (mxhr.readyState == 4 && mxhr.status == 200) {
+      mkWxShare(JSON.parse(mxhr.responseText))
+    }
+  }
+  mxhr.open('GET', jurl, true)
+  mxhr.send()
+  let wx = window.wx
+  // console.log(shareTitle, shareInfo, options.link || location.href, shareUrl)
+  function wxready() {
+    wx.ready(function () {
+      //分享给朋友
+      wx.onMenuShareAppMessage({
+        title: shareTitle, // 分享标题
+        desc: shareInfo, // 分享描述
+        link: options.link || location.href, // 分享链接
+        imgUrl: shareUrl, // 分享图标
+        type: '', // 分享类型,music、video或link，不填默认为link
+        success: function () {
+          // 用户确认分享后执行的回调函数
+          callback()
+        },
+        fail: function () {},
+        cancel: function () {},
+      })
+
+      //分享到朋友圈
+      wx.onMenuShareTimeline({
+        title: shareTitle, // 分享标题
+        link: options.link || location.href, // 分享链接
+        imgUrl: shareUrl, // 分享图标
+        success: function () {
+          // 用户确认分享后执行的回调函数
+          callback()
+        },
+        fail: function () {},
+        cancel: function () {},
+      })
+
+      //分享到QQ
+      wx.onMenuShareQQ({
+        title: shareTitle, // 分享标题
+        desc: shareInfo, // 分享描述
+        link: options.link || location.href, // 分享链接
+        imgUrl: shareUrl, // 分享图标
+        success: function () {
+          // 用户确认分享后执行的回调函数
+          callback()
+        },
+        fail: function () {},
+        cancel: function () {
+          // 用户取消分享后执行的回调函数
+        },
+      })
+    })
+  }
+
+  function mkWxShare(cbObj) {
+    if (cbObj.status == 'failed') {
+      return
+    }
+    let data = cbObj.data
+    wx.config({
+      debug: false,
+      appId: data.appId,
+      timestamp: data.timestamp,
+      nonceStr: data.nonceStr,
+      signature: data.signature,
+      jsApiList: [
+        'onMenuShareTimeline',
+        'onMenuShareAppMessage',
+        'onMenuShareQQ',
+      ],
+    })
+    wxready()
+  }
+}
+
+</script>
+
+</body>
+</html>

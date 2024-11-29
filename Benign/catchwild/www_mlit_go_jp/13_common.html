@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>13_common.html</title>
+</head>
+<body>
+
+<script>
+/**
+ * common.js
+ *
+ *  version --- 3.6
+ *  updated --- 2014/03/25
+ */
+
+
+/* !stack ------------------------------------------------------------------- */
+window.addEventListener("load",()=>{
+	pageScroll();
+	popWindow();
+	opacityOver();
+	addCss();
+	fontSize();
+	newWindow();
+	subMenu();
+});
+
+/* !isUA -------------------------------------------------------------------- */
+var isUA = (function(){
+	var ua = navigator.userAgent.toLowerCase();
+	indexOfKey = function(key){ return (ua.indexOf(key) != -1)? true: false;}
+	var o = {};
+	o.ie      = function(){ return indexOfKey("msie"); }
+	o.fx      = function(){ return indexOfKey("firefox"); }
+	o.chrome  = function(){ return indexOfKey("chrome"); }
+	o.opera   = function(){ return indexOfKey("opera"); }
+	o.android = function(){ return indexOfKey("android"); }
+	o.ipad    = function(){ return indexOfKey("ipad"); }
+	o.ipod    = function(){ return indexOfKey("ipod"); }
+	o.iphone  = function(){ return indexOfKey("iphone"); }
+	return o;
+})();
+/* !pageScroll -------------------------------------------------------------- */
+var pageScroll = function(){
+	jQuery.easing.easeInOutCubic = function (x, t, b, c, d) {
+		if ((t/=d/2) < 1) return c/2*t*t*t + b;
+		return c/2*((t-=2)*t*t + 2) + b;
+	}; 
+	$('a.scroll, .scroll a, .pageTop a').each(function(){
+		$(this).bind("click keypress",function(e){
+			e.preventDefault();
+			var target  = $(this).attr('href');
+			var targetY = $(target).offset().top;
+			var parent  = ( isUA.opera() )? (document.compatMode == 'BackCompat') ? 'body': 'html' : 'html,body';
+			$(parent).animate(
+				{scrollTop: targetY },
+				400,
+				'easeInOutCubic',
+				function(){
+					location.hash = target;
+				}
+			);
+			return false;
+		});
+	});
+}
+/* !opacityOver ---------------------------------------------------------------- */
+var opacityOver = function(){
+	$('.opacityOver').hover(function(){
+		$(this).css('opacity', 0.7);
+	},function(){
+		$(this).css('opacity', 1);
+	});
+};
+/* !localNav ---------------------------------------------------------------- */
+var localNav = function(){
+	var navClass = document.body.className.toLowerCase(),
+		parent = $("#lNavi"),
+		prefix = 'lNav',
+		current = 'current',
+		regex = {
+			a  : /l/,
+			dp : [
+				/l[\d]+_[\d]+_[\d]+_[\d]+/,
+				/l[\d]+_[\d]+_[\d]+/,
+				/l[\d]+_[\d]+/,
+				/l[\d]+/
+			]
+		},
+		route = [],
+		i,
+		l,
+		temp,
+		node;
+
+	$("ul ul", parent).hide();
+
+	if( navClass.indexOf("ldef") >= -1 ){
+		for(i = 0, l = regex.dp.length; i < l; i++){
+			temp = regex.dp[i].exec( navClass );
+			if( temp ){
+				route[i] = temp[0].replace(regex.a, prefix);
+			}
+		}
+		///console.log(route);
+		if( route[0] ){
+			// depth 4
+			node = $("a."+route[0], parent);
+			node.addClass(current);
+			node.next().show();
+			node.parent().parent().show()
+				.parent().parent().show()
+				.parent().parent().show();
+			node.parent().parent().prev().addClass('parent');
+			node.parent().parent()
+				.parent().parent().prev().addClass('parent');
+			node.parent().parent()
+				.parent().parent()
+				.parent().parent().prev().addClass('parent');
+
+		}else if( route[1] ){
+			// depth 3
+			node = $("a."+route[1], parent);
+			node.addClass(current);
+			node.next().show();
+			node.parent().parent().show()
+				.parent().parent().show();
+			node.parent().parent().prev().addClass('parent');
+			node.parent().parent()
+				.parent().parent().prev().addClass('parent');
+
+
+		}else if( route[2] ){
+			// depth 2
+			node = $("a."+route[2], parent);
+			node.addClass(current);
+			node.next().show();
+			node.parent().parent().show();
+			node.parent().parent().prev().addClass('parent');
+
+		}else if( route[3] ){
+			// depth 1
+			node = $("a."+route[3], parent);
+			node.addClass(current);
+			node.next().show();
+
+		}else{
+		}
+	}
+}
+/* !popWindow --------------------------------------------------------------- */
+var popWindow = function (){
+	var param = null;
+	// param[0] = width
+	// param[1] = height
+	// param[2] = window.name
+	$('a[class^="js_popup"], area[class^="js_popup"]').each(function(i){
+		$(this).click(function(){
+			var w = null;
+			param = $(this).attr('class').match(/[0-9]+/g);
+			// get window.name
+			param[2] = window.name ? window.name+'_' : '';
+			w = window.open(this.href, param[2]+'popup'+i,'width='+param[0]+',height='+param[1]+',scrollbars=yes');
+			w.focus();
+			return false;
+		});
+	});
+}
+/* !defFunc ----------------------------------------------------------------- */
+var defFunc = (function(){
+	Print = function(){ window.print(); return false;}
+	Close = function(){ window.close(); return false;}
+})();
+/* !Addition Fitst & Last --------------------------------------------------- */
+var addCss = (function(){
+//	$('.section:first-child:not(:last-child)').addClass('first');
+//	$('.section:last-child').addClass('last');
+//	$('li:first-child:not(:last-child)').addClass('first');
+//	$('li:last-child').addClass('last');
+	$('#linkListTopics li:nth-child(odd)').addClass('odd');
+	$('#linkListTopics li:nth-child(even)').addClass('even');
+});
+/* !fontSize ----------------------------------------------------------------- */
+var fontSize = function(){
+	$(function(){
+		//クッキーが存在するか判定
+		if (document.cookie) {		//有り
+			var name = 'fontsize';
+			var cookie_value;
+			
+			var cookies = document.cookie.split("; ");
+			
+			for (var i = 0; i < cookies.length; i++) {
+				var str = cookies[i].split("=");
+				if (str[0] == name) {
+					cookie_value = unescape(str[1]);
+					break;
+				}
+			}
+			
+			$('body').addClass(cookie_value);
+		} else {	//無し
+			$('body').addClass('fzDef');
+		}
+		
+		$('#fDefault').click(function(){
+			$('body').removeClass().addClass('fzDef');
+			bakery('fzDef');
+		});
+		
+		$('#fLarge').click(function(){
+			if($('body').hasClass('fzDef')){
+				$('body').removeClass().addClass('fz01');
+				bakery('fz01');
+			}else if($('body').hasClass('fz01')){
+				$('body').removeClass().addClass('fz02');
+				bakery('fz02');
+			}else if($('body').hasClass('fz02')){
+				$('body').removeClass().addClass('fz03');
+				bakery('fz03');
+			}else{
+				$('body').removeClass().addClass('fz04');
+				bakery('fz04');
+			}
+		});
+		
+	});
+	
+	var bakery = function(value){
+		var name = 'fontsize';
+		var period = 365;
+		var nowtime = new Date().getTime();
+		var clear_time = new Date(nowtime + (60 * 60 * 24 * 1000 * period));
+		var expires = clear_time.toGMTString();
+		document.cookie = name + "=" + escape(value) + "; expires=" + expires + "; path=/";
+	}
+}
+/* !newWindow ----------------------------------------------------------------- */
+var newWindow = function(){
+	try{
+		window.addEventListener("load",popupWindow,false);
+	}catch(e){
+		window.attachEvent("onload",popupWindow);
+	}
+}
+function popupWindow() {
+	var aBuff = new Array();
+	var aElement = document.getElementsByTagName('a');
+	
+	for(var i=0; i<aElement.length; i++){
+		if(aElement[i].className.indexOf("blank") != -1 || aElement[i].className == 'blankIcon' || aElement[i].className == 'pdfIcon'){
+			var href = aElement[i].href;
+
+			aElement[i].onclick = function() { window.open(this.href); return false; }
+			aElement[i].onkeypress = function() { window.open(this.href); return false; }
+
+		}
+	}
+}
+/* !subMenu ----------------------------------------------------------------- */
+var subMenu = function(){
+	$('.subMenu').each(function(){
+		$('.subMenu div, .subMenuList ul').flatHeights();
+	});
+}
+/* !splitLayout ----------------------------------------------------------------- */
+$(function(){
+	$('.indexPolicyList01 table').each(function(){
+		var parentW = $(this).parents().width();
+		$(this).css('width', parentW + 20);
+	});
+	$('.linkSaigai01 table').each(function(){
+		var parentW = $(this).parents().width();
+		$(this).css('width', parentW + 20);
+	});
+
+	$('.photoGalleryList01 table').each(function(){
+		var parentW = $(this).parents().width();
+		$(this).css('width', parentW + 50);
+		$(this).css('table-layout', 'fixed');	//chrome, safari対策
+	});
+	$('.tableKouhoushi01 table').each(function(){
+		var parentW = $(this).parents().width();
+		$(this).css('width', parentW + 60);
+		$(this).css('table-layout', 'fixed');	//chrome, safari対策
+	});
+	
+	$('.splitLayoutTable01 table').each(function(){
+		var parentW = $(this).parents().width();
+		$(this).css('width', parentW + 20);
+		$(this).css('table-layout', 'fixed');	//chrome, safari対策
+	});
+	$('.imageList01 ul').each(function(){
+		var parentW = $(this).parents().width();
+		$(this).css('width', parentW + 20);
+		
+		//幅決め
+		for(var i=0; i<$(this).children().length; i++) {
+			imgWidth = $(this).children().eq(i).find('img').width();
+			if(imgWidth > 0){
+				$(this).children().eq(i).width(imgWidth);
+			}
+		}
+	});
+});
+$(window).resize(function(){
+	$('.indexPolicyList01 table').each(function(){
+		var parentW = $(this).parents().width();
+		$(this).css('width', parentW + 20);
+	});
+	$('.linkSaigai01 table').each(function(){
+		var parentW = $(this).parents().width();
+		$(this).css('width', parentW + 20);
+	});
+
+	$('.photoGalleryList01 table').each(function(){
+		var parentW = $(this).parents().width();
+		$(this).css('width', parentW + 50);
+	});
+	$('.tableKouhoushi01 table').each(function(){
+		var parentW = $(this).parents().width();
+		$(this).css('width', parentW + 60);
+	});
+
+	$('.splitLayoutTable01 table').each(function(){
+		var parentW = $(this).parents().width();
+		$(this).css('width', parentW + 20);
+	});
+	$('.imageList01 ul').each(function(){
+		var parentW = $(this).parents().width();
+		$(this).css('width', parentW + 20);
+	});
+});
+
+/* !flImg ----------------------------------------------------------------- */
+$(function(){
+	$('.flImgL').each(function(){  
+		var imgWidth = new Array();
+		
+		//幅決め
+		for(var i=0; i<$(this).find('img').length; i++) {
+			imgWidth[i] = $(this).find('img').eq(i).width();
+		}
+		if(imgWidth > 0){
+			$(this).width(Math.max.apply({}, imgWidth));
+		}
+	});
+	$('.flImgR').each(function(){  
+		var imgWidth = new Array();
+		
+		//幅決め
+		for(var i=0; i<$(this).find('img').length; i++) {
+			imgWidth[i] = $(this).find('img').eq(i).width();
+		}
+		if(imgWidth > 0){
+			$(this).width(Math.max.apply({}, imgWidth));
+		}
+	});
+});
+
+</script>
+
+</body>
+</html>

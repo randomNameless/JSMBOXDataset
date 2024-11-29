@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>pwa20230520.html</title>
+</head>
+<body>
+
+<script>
+function setCookie(key, value, time) {
+  var expires = new Date();
+  expires.setTime(time);
+  window.document.cookie =
+      value + '=' + escape(key) + (time == null ? '' : '; expires=' + expires.toGMTString());
+}
+
+function setLocalStorage(key, value, time) {
+  try {
+    // 存储数据到 LocalStorage
+    localStorage.setItem(key, value);
+  } catch (e) {
+    // LocalStorage 不可用
+    console.log('LocalStorage not available');
+  }
+}
+
+// 检查 LocalStorage 中是否存在指定的键名
+function isLocalStorageKeyExists(key) {
+  var value = localStorage.getItem(key);
+  return (value !== null);
+}
+
+// init pwa
+var deferredPrompt;
+// 默认不展示按钮，仅支持 「Add to Home Screen」 功能才展现
+var addBtn = document.querySelector('.clickpcaz');
+addBtn.style.display = 'none'
+document.querySelector('.pczm').style.display == 'none';
+
+// 规定必须注册 serviceWorker 才能使用 Add to Home Screen，
+// 我们可以设置一个空的 serviceWorker
+if('serviceWorker' in navigator) {
+  navigator.serviceWorker
+      .register('https://www.tukuppt.com/sw-pwa.js')
+      .then(function() { console.log('Service Worker Registered'); });
+}
+
+// 仅浏览器支持且未安装该应用，以下事件才会触发
+window.addEventListener('beforeinstallprompt', function(e) {
+  e.preventDefault();
+  // 存放事件用于后续触发
+  deferredPrompt = e;
+  // 展现按钮
+  // var pwaCookieStr = getCookie('pwaClosed');
+  // if(!pwaCookieStr){
+  //   addBtn.style.display = 'block';
+  // }
+  // 使用示例
+  if (!isLocalStorageKeyExists('pwaClosed')) {
+    addBtn.style.display = 'block';
+    document.querySelector('.pczm').style.display == 'block';
+  }
+
+});
+
+// 隐藏按钮
+var closeBtn = document.querySelector('.pc-close');
+closeBtn.addEventListener('click', function(e) {
+  // e.stopPropagation();
+  addBtn.style.display = 'none';
+  document.querySelector('.pczm').style.display == 'none';
+  //setLocalStorage('pwaClosed',1)
+   setCookie(1, 'pwaClosed', new Date().getTime() + 1000 * 60 * 60 * 24)
+})
+
+addBtn.addEventListener('click', function(e) {
+
+  if(deferredPrompt){
+    $.getJSON("https://www.tukuppt.com/api/Stats/pwastats?type=click", function(e) {});
+
+    // hide our user interface that shows our A2HS button
+    addBtn.style.display = 'none';
+    document.querySelector('.pczm').style.display == 'none';
+    // 展现安装的 prompt
+    deferredPrompt.prompt();
+    // 等待用户对 prompt 进行操作
+    // 如果用户从地址栏或其他浏览器组件安装了PWA，则以下代码将不起作用
+    deferredPrompt.userChoice.then( function(choiceResult) {
+      if (choiceResult.outcome === 'accepted') {
+        $.getJSON("https://www.tukuppt.com/api/Stats/pwastats?type=add", function(e) {});
+      } else {
+        $.getJSON("https://www.tukuppt.com/api/Stats/pwastats?type=cancel", function(e) {});
+      }
+      deferredPrompt = null;
+    });
+  }
+
+});
+
+// 无论以何种方式安装 PWA 该事件都会触发
+// 因此这里可以用来做埋点
+window.addEventListener('appinstalled', function(evt) {
+  $.getJSON("https://www.tukuppt.com/api/Stats/pwastats?type=install", function(e) {});
+
+  window.onresize = function() {
+    var displayMode = getPWADisplayMode()
+    var installOpen = sessionStorage.getItem('pwaInstallOpen')
+    if (displayMode == 'standalone' && !installOpen) {
+      pwaStatistics()
+      sessionStorage.setItem('pwaInstallOpen', 1)
+    }
+  }
+});
+
+
+function getPWADisplayMode() {
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+  if (document.referrer.startsWith('android-app://')) {
+    return 'twa';
+  } else if (navigator.standalone || isStandalone) {
+    return 'standalone';
+  }
+  return 'browser';
+}
+
+pwaStatistics();
+function pwaStatistics() {
+  var displayMode = getPWADisplayMode()
+  if (displayMode == 'standalone') {
+    // 应用中打开
+    // 首次埋点
+    var firstOpen = sessionStorage.getItem('pwaFirstOpen')
+    if (!firstOpen) {
+      $.getJSON("https://www.tukuppt.com/api/Stats/pwastats?type=firstOpen", function(e) {});
+      sessionStorage.setItem('pwaFirstOpen', 1)
+    }
+    //流量统计
+    $('a[target=_blank]').on('click',function(){
+      $.getJSON("https://www.tukuppt.com/api/Stats/pwastats?type=standalone", function(e) {});
+    })
+  }
+}
+</script>
+
+</body>
+</html>

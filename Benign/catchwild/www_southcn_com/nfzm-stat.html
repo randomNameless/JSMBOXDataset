@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>nfzm-stat.html</title>
+</head>
+<body>
+
+<script>
+var statisticsArticleId = '';
+// todo
+if (
+    (!['cms-site1-nf.southcn.com', 'cms-site2-nf.southcn.com', 'cms-site3-nf.southcn.com'].includes(location.origin)) 
+    && /.*\.southcn.com/.test(location.origin) 
+    && location.pathname.endsWith('.shtml')
+  ) {
+  ZMYDataCollection.init({
+    tenant_code: '2020becf68ea443fbd4787cf3c691092',
+    key: location.origin == 'https://xapp.southcn.com'
+      ? 'uNHqtYg3WMqdKu0oK7rO1hWcrcFbU9fD'
+      : 'ECJA5PJ3IOZKlDVQQmCBDpOHDaUo2buc',
+    domain: 'rmapi.nfzmy.com',
+  });
+  var key = location.pathname.match('/([^/]*).shtml')[1];
+  fetch('/api/nodePost/getOne?key=' + key)
+    .then(function (response) {
+      if (!response.ok) {
+        throw response;
+      }
+      return response.json();
+    })
+    .then(function (data) {
+      statisticsArticleId = data.data.id;
+      handleOpenArticle(data.data.id);
+
+    })
+    .catch(function (err) {
+      console.error('接入统计代码失败');
+    });
+}
+$('.m-share .sqqzone').on('click', function (event) {
+  event.preventDefault();
+  handleAddShareStatistics(statisticsArticleId, 'ChannelQQ');
+
+
+  setTimeout(function () {
+    window.location.href = event.target.href;
+  }, 500);
+});
+$('.m-share .sweibo').on('click', function (event) {
+  event.preventDefault();
+  handleAddShareStatistics(statisticsArticleId, 'ChannelSina');
+  setTimeout(function () {
+    window.location.href = event.target.href; // 正式环境
+  }, 500);
+});
+let handleAddShareStatistics = function (id, channel) {
+  if (id) {
+    ZMYDataCollection.shareArticle({
+      article_id: id,
+      share_channel: channel,
+      platform: ['Android', 'webOS', 'iPhone', 'iPad', 'iPod', 'BlackBerry', 'Windows Phone'].some(function (
+        userAgent
+      ) {
+        return navigator.userAgent.includes(userAgent);
+      })
+        ? 'Mobile'
+        : 'PC',
+    });
+  }
+};
+
+function handleOpenArticle(id) {
+  ZMYDataCollection.openArticle({
+    article_id: id,
+    platform: ['Android', 'webOS', 'iPhone', 'iPad', 'iPod', 'BlackBerry', 'Windows Phone'].some(function (userAgent) {
+      return navigator.userAgent.includes(userAgent);
+    })
+      ? 'Mobile'
+      : 'PC',
+  });
+}
+
+
+</script>
+
+</body>
+</html>

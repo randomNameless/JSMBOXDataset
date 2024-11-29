@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>infinite-scroll-1-1-26.html</title>
+</head>
+<body>
+
+<script>
+window.PPInfiniteScroll = {};
+!function () {
+
+    var abTest;
+    var currentScreenIndex = 0;
+    var loadedScreen = [];
+    var displayedSlots = {};
+    var RR_AD_REFRESH_RATE = 30000; //Time to Refresh RR for Tablet and Desktop
+    var STICKY_AD_REFRESH_RATE = 3000000; //Time to Refresh Anchor for Mobile and Tablet
+    var rrAdLoaded = false;
+    var rrStickyLowAdLoaded = false;
+    var introLoaded = false;
+    var stickyAdLoaded = false;
+    var videoAdLoaded = false;
+    var outOfPageAdLoaded = false;
+    var generatedAbTest = false;
+    var vidazoPixelLoaded = false;
+    var windowScreenWidth = window.outerWidth;
+    var currentPageId = null;
+    var totalMediaDFPRequest = false;
+    var adPlacements = null;
+    var eoaWidgetLoaded = false;
+    var isTaboolaLoaderExist = false;
+    var stickyAdRef = {};
+
+    window.PPInfiniteScroll.addLazyLoadingAds = addLazyLoadingAds;
+
+    function addLazyLoadingAds() {
+        adPlacements = createPlacements();
+
+        if (infinite_scroll_layout_settings.introAd && !introLoaded) {
+            googletag.cmd.push(function () {
+                addRRIntroAd([infinite_scroll_device_constants.RightRailIntro]);
+            });
+            introLoaded = true;
+        }
+
+        if (infinite_scroll_layout_settings.video && typeof(infinite_scroll_layout_settings.video.startsFrom) !== 'undefined') {
+            var videoPlaceholder = document.createElement('div');
+            videoPlaceholder.id = device + '-is-video-placeholder';
+            appendIntoAll(document.getElementById('screen-' + infinite_scroll_layout_settings.video.startsFrom), videoPlaceholder);
+        }
+
+        if(isTabletWithPerItemRR()){
+            defineTabletRRLayout()
+        }
+
+        if (typeof IntersectionObserver === 'function') {
+            setTimeout(function () {
+                addObservingActions();
+            }, 0);
+
+        } else {
+            document.addEventListener("DOMContentLoaded", function(event) { 
+                onChangeUserPosition();
+            });
+        }
+    }
+
+    function isTabletWithPerItemRR(){
+        return device === 'tablet' && infinite_scroll_layout_settings.rightRail &&  infinite_scroll_layout_settings.rightRail.type === 'Per_item';
+    }
+
+    function refreshStickyAdOnMobileAndTablet() {
+      if (['mobile', 'tablet'].includes(device)) {
+        console.log(`refresh sticky ad for ${device}`);
+        let apstagSlots = [];
+        let filteredAdUnits = [];
+        let adUnitIds = [];
+        let slots = [];
+
+        let slotsObject = getObjectValues(stickyAdRef.slots);
+        sectionId = stickyAdRef.sectionId;
+        let adUnitsObject = getObjectValues(stickyAdRef.filteredAdUnits);
+        let apstagSlotsObject = getObjectValues(stickyAdRef.apstagSlots);
+        arrayPushFromObject(slots, slotsObject);
+        arrayPushFromObject(filteredAdUnits, adUnitsObject);
+        arrayPushFromObject(apstagSlots, apstagSlotsObject);
+        
+        for (let slot in slots) {
+          let slot_id = slots[slot].getSlotElementId();
+          adUnitIds.push(slot_id);
+        }
+
+        refreshAmazonBid(apstagSlots);
+        refreshPrebidBid(filteredAdUnits, adUnitIds, slots);
+      }
+    }
+
+    function addObservingActions() {
+        const elements = document.querySelectorAll('[id^="screen-"] .page-title');
+        let amountOfAdsToLoad = 3;
+        let screensToLoadAdsQue = [];
+        let loadedWithAdsScreens = [];
+
+        if (isInViewport(document.querySelector('[id^="screen-' + currentScreenIndex + '"]')) || isInViewport(document.getElementById('intro-screen'))) {
+            try {
+                addContentAd(currentScreenIndex);
+                addContentAd(currentScreenIndex + 1);
+                loadedWithAdsScreens.push(currentScreenIndex);
+                loadedWithAdsScreens.push(currentScreenIndex + 1);
+            } catch (e) {
+                console.log(e);
+            }
+
+        }
+
+        let io = new IntersectionObserver(
+            entries => {
+                for (let entry of entries) {
+                    if (entry.intersectionRatio > 0) {
+                        let screen = entry.target.parentElement;
+                        currentScreenIndex = Number(screen.id.match(/\d+/)[0]);
+                        let pageIdAttributeValue = screen.getAttribute('page-id');
+                        let regexResult = pageIdAttributeValue.match('page_id-([A-Za-z_0-9]+)');
+                        var pageId = null;
+                        if (regexResult) {
+                            pageId = regexResult[1];
+                        }
+                        sendPPTrackerPageView(currentScreenIndex, infinite_scroll_server_settings.max_screen_index, pageId);
+                        sendGaScreenEvent(currentScreenIndex);
+                        
+                        if (infinite_scroll_server_settings.additional_post_url) {
+                          sendPPTrackerAdditionalPost(infinite_scroll_server_settings.first_article_max_page_num, infinite_scroll_server_settings.additional_post_url);
+                        }
+
+                        try {
+                          addAdditionalAds(currentScreenIndex);
+                          refreshStickyAdOnMobileAndTablet();
+                        } catch (e) {
+                          console.log(e);
+                        }
+
+                        setTimeout(function () {
+                            if (isInViewport(document.querySelector('[id^="screen-' + currentScreenIndex + '"]'))) {
+                                if (Object.keys(displayedSlots).length > amountOfAdsToLoad) {
+                                    var indexOfSlotToRemove = Number(Object.keys(displayedSlots)[0]);
+                                    if (indexOfSlotToRemove !== currentScreenIndex) {
+                                        destroyAds(displayedSlots[indexOfSlotToRemove]);
+                                        delete displayedSlots[indexOfSlotToRemove];
+                                    }
+                                }
+
+                                for (let i = 0; i < amountOfAdsToLoad; i++) {
+                                    screensToLoadAdsQue.push(currentScreenIndex + i);
+                                }
+
+                                for (let i of screensToLoadAdsQue) {
+                                    if (i < infinite_scroll_server_settings.max_screen_index && loadedWithAdsScreens.indexOf(i) === -1) {
+                                        try {
+                                            setParameterByName('pb_current_page_num', currentScreenIndex);
+                                            addContentAd(i);
+                                        } catch (e) {
+                                            console.log(e);
+                                        }
+                                        loadedWithAdsScreens.push(i);
+                                    }
+                                }
+                                screensToLoadAdsQue = [];
+                            }
+                        }, 1000);
+
+                        if (currentScreenIndex >= 5 && !eoaWidgetLoaded) {
+                            addTaboolaEOA();
+                            eoaWidgetLoaded = true;
+                        }
+                        io.unobserve(entry.target);
+                    }
+                }
+            }
+        );
+
+        elements.forEach(el => io.observe(el));
+    }
+
+    function onChangeUserPosition() {
+        var elements = [];
+        var maxScreenIndex = infinite_scroll_server_settings.max_screen_index;
+        for (var i = 0; i < maxScreenIndex; i++) {
+            elements.push(document.getElementById('screen-' + i));
+        }
+
+        setInterval(function () {
+            try {
+                currentScreenIndex = Number(getCurrentIndex(elements).match(/\d+/)[0]);
+                currentPageId = getCurrentPageId(elements);
+                console.log(loadedScreen);
+                console.log(currentPageId);
+                if (loadedScreen.indexOf(currentScreenIndex) === -1) {
+                    try {
+                        if (Object.keys(displayedSlots).length > 2) {
+                            var indexOfSlotToRemove = Number(Object.keys(displayedSlots)[0]);
+                            if (indexOfSlotToRemove != currentScreenIndex) {
+                                destroyAds(displayedSlots[indexOfSlotToRemove]);
+                                delete displayedSlots[indexOfSlotToRemove];
+                            }
+                        }
+                        sendGaScreenEvent(currentScreenIndex);
+                        sendPPTrackerPageView(currentScreenIndex, maxScreenIndex, currentPageId);
+                        refreshStickyAdOnMobileAndTablet();
+                        setParameterByName('pb_current_page_num', currentScreenIndex);
+                        addContentAd(currentScreenIndex);
+                        addAdditionalAds(currentScreenIndex);
+                        if (currentScreenIndex >= 10 && !eoaWidgetLoaded) {
+                            addTaboolaEOA();
+                            eoaWidgetLoaded = true;
+                        }
+                    } catch (error) {
+                        console.log(error);
+                    }
+                    for (let i = currentScreenIndex; i >= 0; i--) {
+                        loadedScreen.push(i);
+                    }
+                }
+            } catch (e) {
+
+            }
+
+        }, infinite_scroll_device_constants.AdsLazyLoadingDelay);
+    }
+
+     function getCurrentIndex(elements) {
+        var elementInView = null;
+
+        for (var i in elements) {
+            if (isInViewport(elements[i], 0.5)) {
+                elementInView = elements[i].id;
+                if(i == 0 && loadedScreen.indexOf(0) == -1 ){
+                    break
+                }
+            }
+        }
+
+        return elementInView;
+    }
+
+    function getCurrentPageId(elements) {
+        var pageId = null;
+
+        for (var i in elements) {
+            if (isInViewport(elements[i], 0.5)) {
+                var pageIdAttributeValue = elements[i].getAttribute('page-id');
+                if (pageIdAttributeValue) {
+                    var regexResult = pageIdAttributeValue.match("page_id-([A-Za-z_0-9]+)");
+                    if (regexResult) {
+                        pageId = regexResult[1];
+                    }
+                }
+
+                if(i == 0 && loadedScreen.indexOf(0) == -1 ){
+                    break
+                }
+            }
+        }
+
+        return pageId;
+    }
+
+    function isInViewport(el, aheadPercentage) {
+        if (!aheadPercentage || el.id === "screen-0") {
+            aheadPercentage = 0;
+        }
+        var rect = el.getBoundingClientRect();
+        return ((rect.top <= (window.innerHeight + window.innerHeight * aheadPercentage) && rect.bottom >= 0) && getComputedStyle(el).display !== "none");
+    }
+
+    function createPlacements() {
+        var placements = {
+            'top': {},
+            'bottom': {},
+            'right':{},
+            'taboolaPerScreen':{},
+            'right_low':{}
+        };
+
+        if (infinite_scroll_layout_settings.topAd) {
+            for (var i = infinite_scroll_layout_settings.topAd.startsFrom; i < infinite_scroll_server_settings.max_screen_index; i++) {
+                placements['top'][i] = createPlacement('top', infinite_scroll_layout_settings.topAd, i);
+            }
+        }
+
+        if (infinite_scroll_layout_settings.bottomAd) {
+            for (var i = infinite_scroll_layout_settings.bottomAd.startsFrom; i < infinite_scroll_server_settings.max_screen_index; i++) {
+                placements['bottom'][i] = createPlacement('bottom', infinite_scroll_layout_settings.bottomAd, i, false);
+            }
+        }
+
+        if (infinite_scroll_layout_settings.taboolaPerScreen) {
+            var taboolaPerScreenSettings = infinite_scroll_layout_settings.taboolaPerScreen;
+            for (var i = taboolaPerScreenSettings.startsFrom; i < infinite_scroll_server_settings.max_screen_index; i += taboolaPerScreenSettings.onceOnHowManyItems) {
+                placements['taboolaPerScreen'][i] = createPlacement('taboolaPerScreen', infinite_scroll_layout_settings.taboolaPerScreen, i, true);
+            }
+        }
+
+        if(infinite_scroll_layout_settings.rightRail &&  infinite_scroll_layout_settings.rightRail.type === 'Per_item'){
+            var rightRailSetting = infinite_scroll_layout_settings.rightRail;
+            var rrPosition =  {element:' figure', position: 'append'};
+            for (var i = rightRailSetting.startsFrom; i < infinite_scroll_server_settings.max_screen_index; i += rightRailSetting.onceOnHowManyItems) {
+                var parentElem = document.querySelector('#screen-' + i + ' ' + chooseMediaElement(' figure', i));
+                if(parentElem){
+                    placements['right'][i] = createPlacement('right', rrPosition, i, true);
+                    parentElem.className += ' pos-relative';
+                }
+            }
+        }
+
+        if(infinite_scroll_layout_settings.rrStickyLow &&  infinite_scroll_layout_settings.rrStickyLow.type === 'Per_item'){
+            var rrStickyLowSetting = infinite_scroll_layout_settings.rrStickyLow;
+            var rrStickyLowPosition = {element:' figure', position: 'append'};
+            for (var i = rrStickyLowSetting.startsFrom; i < infinite_scroll_server_settings.max_screen_index; i += rrStickyLowSetting.onceOnHowManyItems) {
+                var parentElem = document.querySelector('#screen-' + i + ' ' + chooseMediaElement(' figure', i));
+                if(parentElem){
+                    placements['right_low'][i] = createPlacement('right_low', rrStickyLowPosition, i, true);
+                    parentElem.className += ' pos-relative';
+                }
+            }
+        }
+        return placements;
+    }
+
+    function addContentAd(sectionId) {
+        googletag.cmd.push(function () {
+            let abTestPercantage = infinite_scroll_device_constants.AbTestPercentage;
+            var topAdUnits = [infinite_scroll_device_constants.TopAdUnit];
+            var bottomAdUnits = [];
+            var rightAdUnits = [infinite_scroll_device_constants.RightRail1];
+            var rrStickyLowAdUnits = [infinite_scroll_device_constants.RrStickyLow];
+            var topAd = null;
+            var bottomAd = null;
+            var rightAd = null;
+            var rrStickyLowAd = null;
+            
+            bottomAdUnits = [infinite_scroll_device_constants.BottomAdUnit];
+
+            if (device !== 'mobile') {
+                if(isTabletWithPerItemRR()){
+                    bottomAdUnits = [infinite_scroll_device_constants.LeftBottomAdUnit];
+                } else if (device !== 'desktop') {
+                    bottomAdUnits = [infinite_scroll_device_constants.LeftBottomAdUnit, infinite_scroll_device_constants.RightBottomAdUnit];
+                } else {
+                    bottomAdUnits = [infinite_scroll_device_constants.LeftBottomAdUnit];
+                }
+            }
+
+            if (typeof abTestPercantage != 'undefined' && !generatedAbTest) {
+                abTest = (Math.round((Math.random() * 100)) > abTestPercantage) ? 'a' : 'b';
+                generatedAbTest = true;
+            }
+
+            if (infinite_scroll_layout_settings.topAd && sectionId >= infinite_scroll_layout_settings.topAd.startsFrom) {
+                let placement = adPlacements['top'][sectionId];
+                topAd = defineAd(topAdUnits, placement, sectionId);
+            }
+
+            if (infinite_scroll_layout_settings.bottomAd && sectionId >= infinite_scroll_layout_settings.bottomAd.startsFrom) {
+                let placement = adPlacements['bottom'][sectionId];
+                bottomAd = defineAd(bottomAdUnits, placement, sectionId);
+            }
+
+            if ( infinite_scroll_layout_settings.rightRail && infinite_scroll_layout_settings.rightRail.type === 'Per_item'
+                && sectionId >= infinite_scroll_layout_settings.rightRail.startsFrom && adPlacements['right'][sectionId] ) {
+                let placement = adPlacements['right'][sectionId];
+                rightAd = defineAd(rightAdUnits, placement, sectionId);
+            }
+
+            if ( infinite_scroll_layout_settings.rrStickyLow && infinite_scroll_layout_settings.rrStickyLow.type === 'Per_item'
+            && sectionId >= infinite_scroll_layout_settings.rrStickyLow.startsFrom && adPlacements['right_low'][sectionId] ) {
+                let placement = adPlacements['right_low'][sectionId];
+                rrStickyLowAd = defineAd(rrStickyLowAdUnits, placement, sectionId);
+            }
+            displayAd([topAd, bottomAd, rightAd, rrStickyLowAd]);
+        });
+    }
+
+    function addAdditionalAds(sectionId) {
+
+        if (typeof abTestPercantage != 'undefined' && !generatedAbTest) {
+            abTest = (Math.round((Math.random() * 100)) > abTestPercantage) ? 'a' : 'b';
+            generatedAbTest = true;
+        }
+
+        if(infinite_scroll_layout_settings.nativo && infinite_scroll_device_constants.NativoDivPath) {
+            addNativo(infinite_scroll_layout_settings.nativo.element, pickInjectionFunction(infinite_scroll_layout_settings.nativo.position), infinite_scroll_device_constants.NativoDivPath);
+        }
+
+        if (infinite_scroll_layout_settings.sticky && !stickyAdLoaded && sectionId >= infinite_scroll_layout_settings.sticky.startsFrom) {
+            googletag.cmd.push(function () {
+              addStickyAd([infinite_scroll_device_constants.StickyAdUnit]);
+            });
+            stickyAdLoaded = true;
+        }
+
+        if (infinite_scroll_layout_settings.rightRail && infinite_scroll_layout_settings.rightRail.type != 'Per_item' && !rrAdLoaded && sectionId >= infinite_scroll_layout_settings.rightRail.startsFrom) {
+            googletag.cmd.push(function () {
+                addStickyRightRail([infinite_scroll_device_constants.RightRail1]);
+            });
+            rrAdLoaded = true;
+        }
+
+        if (infinite_scroll_layout_settings.rrStickyLow && infinite_scroll_layout_settings.rrStickyLow.type != 'Per_item' && !rrStickyLowAdLoaded && sectionId >= infinite_scroll_layout_settings.rrStickyLow.startsFrom) {
+            googletag.cmd.push(function () {
+                addRrStickyLow([infinite_scroll_device_constants.RrStickyLow]);
+            });
+            rrStickyLowAdLoaded = true;
+        }
+
+        if (!videoAdLoaded && infinite_scroll_layout_settings.video && sectionId >= Number(infinite_scroll_layout_settings.video.startsFrom)) {
+            videoAdLoaded = true;
+            window.__tcfapi('addEventListener', 2, function (tcData, listenerSuccess) {
+                if (listenerSuccess && (tcData.eventStatus === 'useractioncomplete' || tcData.eventStatus === 'tcloaded')) {
+                    eval('add' + infinite_scroll_layout_settings.video.provider + 'Video()');
+
+                }
+            });
+        }
+
+        if (!outOfPageAdLoaded && infinite_scroll_layout_settings.outOfPage && sectionId >= Number(infinite_scroll_layout_settings.outOfPage.startsFrom)) {
+            eval('add' + infinite_scroll_layout_settings.outOfPage.provider + 'Ad()');
+            outOfPageAdLoaded = true;
+        }
+
+        if (!vidazoPixelLoaded && infinite_scroll_device_constants.VidazooPixelId &&
+            typeof infinite_scroll_layout_settings.layoutSettings.vidazooPixelStartPage === 'number' &&
+            sectionId >= infinite_scroll_layout_settings.layoutSettings.vidazooPixelStartPage) {
+            addVidazooPixel(infinite_scroll_device_constants.VidazooPixelId);
+            vidazoPixelLoaded = true;
+        }
+
+        if(!totalMediaDFPRequest){
+            addTotalMediaDFPRequest(infinite_scroll_server_settings.total_media_id);
+            totalMediaDFPRequest = true;
+        }
+
+
+        if(adPlacements['taboolaPerScreen'] && adPlacements['taboolaPerScreen'][sectionId]){
+            addTaboolaInScreen(adPlacements['taboolaPerScreen'][sectionId], sectionId);
+        }
+    }
+
+    function addNativo(placement, injectionFunction, path) {
+        var nativoContainer = document.createElement('div');
+        nativoContainer.className = 'nativo-container';
+        var nativo = document.createElement('div');
+        nativo.id = path + currentScreenIndex;
+        appendIntoAll(nativoContainer, nativo);
+        var lastAsset = [...document.querySelectorAll('#screen-' + currentScreenIndex + " " + chooseMediaElement(placement, currentScreenIndex))].pop()
+        injectionFunction(lastAsset, nativoContainer);
+    }
+
+    function addStickyAd(stickyAdUnits) {
+        var stickyAd = null;
+        let placement = document.getElementById('ad_pos-' + device + '-anchor');
+        placement.className = 'sticky_displayed';
+        placement.style.width = windowScreenWidth.toString() + 'px';
+        stickyAd = defineAd(stickyAdUnits, placement, '');
+        displayAd([stickyAd], STICKY_AD_REFRESH_RATE);
+        stickyAdRef = stickyAd;
+    }
+
+    function addRRIntroAd(RRintroAdUnit) {
+        const introPosition =  {element:' figure', position: 'append'};
+        const parentElem = document.querySelector('#intro-screen' + introPosition.element);
+
+        if(parentElem){
+            const placement = document.createElement('div');
+            placement.className = 'right_intro' + '_' + device + '_placeholder';
+            let inject = pickInjectionFunction(introPosition.position);
+            inject(parentElem, placement);
+            IntroAd = defineAd(RRintroAdUnit, placement, '');
+            displayAd([IntroAd]);
+            parentElem.className += ' pos-relative';
+        }
+    }
+    
+    function addStickyRightRail(rightRailAdUnits) {
+        var rightRailAd = null;
+        let placement = document.getElementById('is_rr');
+        rightRailAd = defineAd(rightRailAdUnits, placement, '');
+        displayAd([rightRailAd], RR_AD_REFRESH_RATE);
+    }
+
+    function addRrStickyLow(rrStickyLowAdUnits) {
+        var rrStickyLowAd = null;
+        let placement = document.getElementById('is_rr');
+        rrStickyLowAd = defineAd(rrStickyLowAdUnits, placement, '');
+        displayAd([rrStickyLowAd], RR_AD_REFRESH_RATE);
+    }
+
+    function createPlacement(place, position, sectionId, noDivider) {
+        let placement = document.createElement('div');
+        placement.className = place + '_' + device + '_placeholder';
+
+        let element = document.querySelector('#screen-' + sectionId + ' ' + chooseMediaElement(position.element, sectionId));
+        let inject = pickInjectionFunction(position.position);
+        inject(element, placement);
+
+        if(!noDivider){
+            createDivider(placement)
+        }
+        return placement;
+    }
+
+    function createDivider(placement){
+        let span = document.createElement('span');
+        span.innerHTML = typeof advertisementDisclaimer !== "undefined" ? advertisementDisclaimer : 'ADVERTISEMENT';
+        if (device !== 'mobile') {
+            let divider = document.createElement('div');
+            divider.className = 'divider';
+            appendIntoAll(divider, span);
+            addBefore(placement, divider);
+        }
+        else {
+            span.className = 'advertisement-disclaimer'
+            addBefore(placement, span);
+            placement.style.width = '100vw';
+        }
+    }
+
+    function defineAd(adUnit, position, sectionId) {
+        let slot = {};
+        let filteredAdUnits = [];
+        let apstagSlots = [];
+
+        for (let i = 0; i < adUnit.length; i++) {
+            adUnit[i].ad = document.createElement('div');
+            adUnit[i].ad.id = adUnit[i].placeholder + sectionId;
+            adUnit[i].ad.style.textAlign = '-webkit-center';
+
+            appendIntoAll(position, adUnit[i].ad);
+
+            slot[i] = googletag.defineSlot(adUnit[i].Path, JSON.parse(adUnit[i].SlotSizes), adUnit[i].ad.id).addService(googletag.pubads());
+            if (sectionId !== '') {
+                slot[i].setTargeting('placeholder', adUnit[i].ad.id.match(/(\d+)/)[0]);
+            }
+            (typeof (abTest) !== 'undefined') ? slot[i].setTargeting('abTest', abTest) : slot[i].setTargeting('abTest', 'a');
+            googletag.pubads().enableSingleRequest();
+            googletag.enableServices();
+
+
+            adUnits.forEach(function (item) {
+                if (item['code'] === adUnit[i].Template) {
+                    var newObject = {...item};
+                    delete newObject['transactionId'];
+                    newObject['code'] = adUnit[i].Path;
+                    filteredAdUnits.push(newObject);
+                }
+            });
+
+            apstagSlots.push({
+                slotName: adUnit[i].Path,
+                sizes: JSON.parse(adUnit[i].SlotSizes),
+                slotID: adUnit[i].ad.id
+            });
+        }
+
+        return {
+            slots: slot,
+            filteredAdUnits: filteredAdUnits,
+            apstagSlots: apstagSlots,
+            sectionId: sectionId
+        };
+    }
+
+    function displayAd(adsToDisplay, intervalToRefresh) {
+        let slots = [];
+        let filteredAdUnits = [];
+        let apstagSlots = [];
+        let adUnitIds = [];
+        var countOfUnfocusRefreshes = 0;
+        var sectionId = null;
+
+        for (let i = 0; i < adsToDisplay.length; i++) {
+            if (adsToDisplay[i] !== null) {
+                let slotsObject = getObjectValues(adsToDisplay[i].slots);
+                sectionId = adsToDisplay[i].sectionId;
+                let adUnitsObject = getObjectValues(adsToDisplay[i].filteredAdUnits);
+                let apstagSlotsObject = getObjectValues(adsToDisplay[i].apstagSlots);
+                arrayPushFromObject(slots, slotsObject);
+                arrayPushFromObject(filteredAdUnits, adUnitsObject);
+                arrayPushFromObject(apstagSlots, apstagSlotsObject);
+            }
+        }
+        if(slots.length === 0) {
+            return
+        }
+
+        window.__tcfapi('addEventListener', 2, function (tcData, listenerSuccess) {
+            if (listenerSuccess) {
+                if (tcData.eventStatus === 'useractioncomplete' || tcData.eventStatus === 'tcloaded') {
+                    refreshAmazonBid(apstagSlots);
+
+                    for (let slot in slots) {
+                        let slot_id = slots[slot].getSlotElementId();
+                        adUnitIds.push(slot_id);
+                        googletag.display(slot_id);
+                    }
+
+                    refreshPrebidBid(filteredAdUnits, adUnitIds, slots);
+
+                    if (typeof (intervalToRefresh) !== 'undefined') {
+                        setInterval(function () {
+                            if (document.hasFocus()) {
+                                countOfUnfocusRefreshes = 0;
+                                refreshAmazonBid(apstagSlots);
+                                refreshPrebidBid(filteredAdUnits, adUnitIds, slots);
+                            } else if (countOfUnfocusRefreshes < 3) {
+                                refreshAmazonBid(apstagSlots);
+                                refreshPrebidBid(filteredAdUnits, adUnitIds, slots);
+                                countOfUnfocusRefreshes++;
+                            }
+                        }, intervalToRefresh);
+                    } else {
+                        if (sectionId !== null) {
+                            displayedSlots[sectionId] = [];
+                            displayedSlots[sectionId].push(slots);
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function destroyAds(adsToDestroy) {
+        if(Array.isArray(adsToDestroy[0])){
+            for (var i = 0; i < adsToDestroy[0].length; i++) {
+                var slotDivId = adsToDestroy[0][i].getSlotElementId();
+                var slotElement = document.getElementById(slotDivId)
+                slotElement.parentElement.style.height = slotElement.getBoundingClientRect().height.toString() + 'px';
+            }
+        }
+
+        googletag.destroySlots(adsToDestroy[0]);
+    }
+
+    function refreshPrebidBid(filteredAdUnits, adUnitIds, slots) {
+        if(!blockingScreen) {
+            pbjs.que.push(function () {
+                var adUnitsToRequest = [];
+                for (var i = 0; i < filteredAdUnits.length; i++) {
+                    if (filteredAdUnits[i].code) {
+                        adUnitsToRequest.push(filteredAdUnits[i].code);
+                    }
+                }
+                pbjs.addAdUnits(filteredAdUnits);
+                pbjs.requestBids({
+                    timeout: PREBID_TIMEOUT,
+                    adUnitCodes: adUnitsToRequest,
+                    bidsBackHandler: function () {
+                        if (adUnitIds.length > 0) {
+                            pbjs.setTargetingForGPTAsync(adUnitsToRequest);
+                            googletag.pubads().refresh(slots);
+                        }
+                    },
+                    adUnits: filteredAdUnits
+                });
+            });
+        }
+    }
+
+    function refreshAmazonBid(apstagSlots) {
+        if (typeof (apstag) != "undefined" && apstagSlots.length > 0) {
+            apstag.fetchBids({
+                slots: apstagSlots,
+                timeout: 2e3
+            }, function (bids) {
+                googletag.cmd.push(function () {
+                    apstag.setDisplayBids();
+                });
+            });
+        }
+    }
+
+    function defineTabletRRLayout(){
+        var entryContentFigureImgs = document.querySelectorAll(".entry-content figure > img");
+        entryContentFigureImgs.forEach((entryContentFigureImg) => {
+            entryContentFigureImg.classList.add("img-align-left-tablet");
+        });
+
+        var articleMainSections = document.querySelectorAll(".article_main_section");
+        articleMainSections.forEach((articleMainSection) => {
+            articleMainSection.classList.add("main_section-tablet_align-left");
+        });
+    }
+
+    /***************************** IS core functions: *****************************************************/
+
+
+    function pickInjectionFunction(adPosition) {
+
+        if (!adPosition) {
+            return false;
+        }
+        switch (adPosition.toLowerCase()) {
+            case 'after':
+                return addAfter;
+            case 'before':
+                return addBefore;
+            case 'append':
+                return appendIntoAll;
+            default:
+                return appendIntoAll;
+        }
+    }
+
+    function chooseMediaElement(object, screenIndex) {
+
+        if (!object || typeof(screenIndex) === "undefined" || screenIndex === null) {
+            return false;
+        }
+
+        if (typeof (object) === 'string') {
+            var element = object;
+        } else {
+            var element = object.element.toLowerCase();
+        }
+
+        var element_length = document.querySelectorAll('#screen-' + screenIndex + element).length;
+
+        if(element === ' figure'){
+            element = ' .noo-before-after-slideshow-wrapper';
+            element_length = document.querySelectorAll('#screen-' + screenIndex + element).length;
+        }
+
+        if (element === ' .noo-before-after-slideshow-wrapper' && element_length === 0) {
+            element = ' figure';
+            element_length = document.querySelectorAll('#screen-' + screenIndex + element).length;
+        }
+
+        if (element === ' figure' && element_length === 0) {
+            element = ' img';
+            element_length = document.querySelectorAll('#screen-' + screenIndex + element).length;
+        }
+
+        if ((element === ' img') && element_length === 0) {
+            element = ' div.media_content';
+        }
+        return element;
+    }
+
+
+    function arrayPushFromObject(array, object) {
+        if (object.length > 0 && object.length <= 1) {
+            array.push(object[0]);
+        } else {
+            for (let j = 0; j < object.length; j++) {
+                array.push(object[j]);
+            }
+        }
+    }
+
+    function getObjectValues(object) {
+        var values = Object.keys(object).map(function(e) {
+            return object[e]
+        });
+        return values;
+    }
+
+    var addBefore = function (items, ad) {
+        if (items instanceof HTMLElement) {
+            items = [items];
+        }
+
+        if (items && items.length > 0) {
+            items[0].insertAdjacentElement('beforebegin', ad);
+        }
+    };
+
+    var addAfter = function (items, ad) {
+        if (items instanceof HTMLElement) {
+            items = [items];
+        }
+
+        if (items && items.length > 0) {
+            items[items.length - 1].insertAdjacentElement('afterend', ad);
+        }
+    };
+
+    var appendIntoAll = function (items, ad) {
+        if (items instanceof HTMLElement) {
+            items = [items];
+        }
+
+        if (items) {
+            for (var i = 0, len = items.length; i < len; i++) {
+                var item = items[i];
+                item.insertAdjacentElement('beforeend', ad);
+            }
+        }
+    };
+    
+    /*********************************** Analytics integration functions: *****************************************************/
+
+    function sendPPTrackerPageView(currentScreenIndex, maxScreenIndex, currentPageId) {
+        if (currentScreenIndex > 0 && typeof (PPTracker.push) === 'function') {
+            PPTracker.push('page_view', {
+                'currentPageNumber': currentScreenIndex,
+                'maxPageNumber': maxScreenIndex,
+                'pageId': currentPageId
+            });
+        }
+    }
+
+    function sendPPTrackerAdditionalPost(screenId, url){
+        if(!PPTracker.firstPostMaxPageNumber && !PPTracker.additionalPostURL){
+            PPTracker.firstPostMaxPageNumber = screenId;
+            PPTracker.additionalPostURL = url;
+        }
+    }
+
+    function sendGaScreenEvent(screenToSend) {
+        if (typeof (gtag) != "undefined") {
+            gtag("event", "PV" + screenToSend);
+        }
+    }
+
+    function sendAffiliateGAEvent() {
+        var amazon_affiliate = document.querySelectorAll(".amazon_affiliate");
+        for (var i = 0; i < amazon_affiliate.length; i++) { 
+            amazon_affiliate[i].onclick = function(event) {
+                if (typeof (gtag) != "undefined") {
+                    gtag('event', 'click', {
+                        'event_category': 'Affiliate',
+                        'event_label': document.querySelector('#screen-' + amazon_affiliate[i].index(event.currentTarget) + ' div.page-title').innerText
+                    });
+                }
+            } 
+        }
+    }
+
+    /***************************** Providers integration functions: *****************************************************/
+
+    // create self removing interval that removes itself once a condition is met
+    function createSelfRemovingInterval(conditionFcn, interval) {
+        var intervalId = setInterval(function () {
+            if (conditionFcn()) {
+                clearInterval(intervalId);
+            }
+        }, interval);
+        return intervalId;
+    }
+
+    // Try sendTrackingData. if does not exist on page return false else return true
+    function trySendTrackingData(data) {
+        if (typeof (PPTracker._sendTrackingData) === 'function') {
+            PPTracker._sendTrackingData(data);
+            return true;
+        }
+        return false;
+    }
+
+    function addPrimisVideo() {
+        var primisString = infinite_scroll_general_constants.PrimisString;
+        var primis = document.createElement('script');
+        primis.async = 'true';
+        primis.src = 'https://live.primis.tech/live/liveView.php?s=' + primisString;
+        primis.setAttribute('language', 'javascript');
+        appendIntoAll(document.getElementById(device + '-is-video-placeholder'), primis);
+    }
+
+    function addVidazooVideo() {
+        var id = infinite_scroll_general_constants.VidazooId;
+        var vidazoo = document.createElement('script');
+        vidazoo.type = 'text/javascript';
+        vidazoo.src = '//static.vidazoo.com/basev/vwpt.js';
+        vidazoo.async = 'true';
+        const queryData = new URLSearchParams(window.location.search);
+        vidazoo.setAttribute('language', 'javascript');
+        vidazoo.setAttribute('data-widget-id', id);
+        vidazoo.setAttribute('data-on-widget-load', 'onVidazooWidgetLoadCallback');
+        vidazoo.setAttribute('data-on-widget-ad-impression', 'onVidazooWidgetAdImpressionCallback');
+        vidazoo.setAttribute("data-ext-bi-utm_source", queryData.get('utm_source'));
+        vidazoo.setAttribute("data-ext-bi-utm_campaign", queryData.get('utm_campaign'));
+        vidazoo.setAttribute("data-ext-bi-utm_term", queryData.get('network_code'));
+        var vidazooDiv = document.createElement('div');
+        vidazooDiv.id = 'vidazoo-player-div';
+        appendIntoAll(vidazooDiv, vidazoo);
+        appendIntoAll(document.getElementById(device + '-is-video-placeholder'), vidazooDiv);
+        // send 'player_selected' action and the revenue provider as 'vidazoovideo'
+        createSelfRemovingInterval(()=> trySendTrackingData([{
+            'action': 'player_selected',
+            'revenue_provider': 'vidazoovideo',
+            'revenue_source_id': PPTracker.websiteDomain
+        }]), 1000);
+    }
+
+    
+    function addConnatixVideo() {
+        var connatix = document.createElement('script');
+        connatix.id = 'd5493b45642944d8aca1671ddba6767a'
+        connatix.type = 'text/javascript';
+        connatix.textContent = `
+        new Image().src = "https://capi.connatix.com/tr/si?token=1ff992d7-25ba-434f-b4f2-f5f355fc0169&cid=06394b83-8f3b-49fe-8bc9-3f43a459980f";
+        cnx.cmd.push(function () {
+            cnx({ playerId: "1ff992d7-25ba-434f-b4f2-f5f355fc0169" }).render(
+                "d5493b45642944d8aca1671ddba6767a",
+                (renderError, playerApi) => {
+                    if (renderError) {
+                        if (
+                            renderError.type == cnx.configEnums.ErrorTypesEnum.NoPlayer
+                        ) {
+                            console.error(
+                                "Connatix player was not served or id given is incorrect",
+                            );
+                        } else {
+                            console.error(
+                                "There was an error rendering Connatix player",
+                            );
+                        }
+                        return;
+                    }
+                    _connatixPlayer = playerApi;
+                    window.dispatchEvent(new Event("connatixRendered"));
+                }
+            );
+        });
+        `;
+        connatix.async = 'true';
+        appendIntoAll(document.getElementById(device + '-is-video-placeholder'), connatix);
+        // send 'player_selected' action and the revenue provider as 'connatixvideo'
+        createSelfRemovingInterval(()=> trySendTrackingData([{
+            'action': 'player_selected',
+            'revenue_provider': 'connatixvideo',
+            'revenue_source_id': PPTracker.websiteDomain
+        }]), 1000);
+    }
+
+    function addMinuteMediaVideo() {
+        var id = infinite_scroll_general_constants.MinuteMediaId;
+        var minuteMedia = document.createElement('script');
+        minuteMedia.type = 'text/javascript';
+        minuteMedia.src = 'https://players.voltaxservices.io/players/' + id + '/code';
+        minuteMedia.defer = true;
+        var minuteMediaDiv = document.createElement('div');
+        minuteMediaDiv.id = 'minute-media-player-div';
+        appendIntoAll(minuteMediaDiv, minuteMedia);
+        appendIntoAll(document.getElementById(device + '-is-video-placeholder'), minuteMediaDiv);
+        // send 'player_selected' action and the revenue provider as 'minutemediavideo'
+        createSelfRemovingInterval(()=> trySendTrackingData([{
+            'action': 'player_selected',
+            'revenue_provider': 'minutemediavideo',
+            'revenue_source_id': PPTracker.websiteDomain
+        }]), 1000);
+    }
+
+    function addTaboolaVideo() {
+        var taboolaVideoDiv = document.createElement('div');
+        taboolaVideoDiv.id = 'taboola-video';
+        var taboolaVideoScript = document.createElement('script');
+        taboolaVideoScript.innerHTML = "window._taboola = window._taboola || [];\n" +
+            "_taboola.push({\n" +
+            "mode: 'rbox-only-video',\n" +
+            "placement: 'Video New',\n" +
+            "container: 'taboola-video'\n" +
+            "});";
+        appendIntoAll(document.getElementById('screen-' + currentScreenIndex), taboolaVideoDiv);
+        appendIntoAll(document.getElementById('screen-' + currentScreenIndex), taboolaVideoScript);
+    }
+
+    function addTaboolaInScreen(containerElement, screenIndex){
+        if(!infinite_scroll_device_constants.TaboolPerScreenMode) return;
+        injectTaboolaLoader();
+        var platform = getTaboolaPlacementPlatform();
+        var mode = infinite_scroll_device_constants.TaboolPerScreenMode;
+        var settings = {
+            mode: mode,
+            container: 'taboola-article-' + mode,
+            placement: infinite_scroll_server_settings.site_initial.toUpperCase() + " " + platform + " screen_" + screenIndex + " " + infinite_scroll_server_settings.country_code,
+            target_type: 'mix',
+        };
+
+        var taboolaDiv = document.createElement('div');
+        var taboolaScript = document.createElement('script');
+        taboolaDiv.id = settings.container + "_" + screenIndex;
+
+        taboolaScript.innerHTML = "window._taboola = window._taboola || [];\n" +
+            "_taboola.push({\n" +
+            "mode: '" + settings.mode + "',\n" +
+            "container: '" + settings.container + "_" + screenIndex +"',\n" +
+            "placement: '" + settings.placement + "_" + screenIndex +"',\n" +
+            "target_type: '" + settings.target_type + "'\n" +
+            "});";
+        appendIntoAll(containerElement, taboolaDiv);
+        appendIntoAll(containerElement, taboolaScript);
+    }
+
+    function injectTaboolaLoader(){
+        if(isTaboolaLoaderExist) return;
+        var headerScript = document.createElement('script');
+        headerScript.innerHTML = 'window._taboola = window._taboola || []; \n' +
+            '_taboola.push({article: \'auto\', tracking_codes: {\'utm_hour\': PPCurrentTimeUTC, \'utm_campaign\':getUtmCampaign(), \'utm_source\':getUtmSource(), \'utm_medium\':getUtmMedium() }}); \n' +
+            '!function (e, f, u, i) { if (!document.getElementById(i)) { e.async = 1; e.src = u; e.id = i; f.parentNode.insertBefore(e, f); }}(document.createElement(\'script\'),document.getElementsByTagName(\'script\')[0],\'//cdn.taboola.com/libtrc/'+ infinite_scroll_general_constants.taboola_prefix +'/loader.js\',\'tb_loader_script\'); \n';
+        appendIntoAll(document.getElementsByTagName('head')[0], headerScript);
+        isTaboolaLoaderExist = true;
+    }
+
+    function getTaboolaPlacementPlatform(){
+        var platform;
+        switch (device) {
+            case 'Desktop':
+                platform = 'D';
+                break;
+            case 'Tablet':
+                platform = 'T';
+                break;
+            default:
+                platform = 'M';
+                break
+        }
+        return platform;
+    }
+
+    function addTaboolaEOA() {
+        injectTaboolaLoader();
+
+        var footerScript = document.createElement('script');
+        footerScript.innerHTML = 'window._taboola = window._taboola || []; \n' + '_taboola.push({flush: true});';
+
+        appendIntoAll(document.getElementsByTagName('body')[0], footerScript);
+
+        if(typeof infinite_scroll_general_constants.taboola_mode === 'undefined' && infinite_scroll_general_constants.taboola_mode === ''){
+            return;
+        }
+
+        var platform = getTaboolaPlacementPlatform();
+        var placement = infinite_scroll_server_settings.site_initial.toUpperCase() + " " + platform + " EOA " + infinite_scroll_server_settings.country_code;
+        var taboolaDiv = document.createElement('div');
+        taboolaDiv.id = 'taboola-end-of-gallery-thumbnails';
+        var taboolaScript = document.createElement('script');
+        taboolaScript.innerHTML = "window._taboola = window._taboola || [];\n" +
+            "_taboola.push({\n" +
+            "mode: '" + infinite_scroll_general_constants.taboola_mode + "',\n" +
+            "container: 'taboola-end-of-gallery-thumbnails',\n" +
+            "placement: '" + placement + "',\n" +
+            "target_type: 'mix'\n" +
+            "});";
+        appendIntoAll(document.getElementById('screen-' + (infinite_scroll_server_settings.max_screen_index - 1)), taboolaDiv);
+        appendIntoAll(document.getElementById('screen-' + (infinite_scroll_server_settings.max_screen_index - 1)), taboolaScript);
+    }
+
+    function addAvantisVideo() {
+        var id = infinite_scroll_general_constants.Avantis.Id;
+        var tagId = infinite_scroll_general_constants.Avantis.TagId;
+        var avantisScript = document.createElement('script');
+        avantisScript.src = "//cdn.avantisvideo.com/avm/js/video-loader.js?id=" + id + "&tagId=" + tagId + "&subId=&callback=avantisCallback";
+        avantisScript.async = true;
+        avantisScript.id = "avantisJS";
+        appendIntoAll(document.getElementsByTagName('head'), avantisScript);
+    }
+
+    function addRiseVideo() {
+
+        if(typeof infinite_scroll_general_constants.Rise === 'undefined' || !infinite_scroll_general_constants.Rise) return
+        var constants = infinite_scroll_general_constants.Rise;
+
+        var riseContainer = document.createElement('div');
+        riseContainer.id = 'rise-video-container';
+
+        var riseScript = document.createElement('script');
+        riseScript.src = 'https://sdk.streamrail.com/wrapper/hb.loader.js?wrapper_id='+constants.WrapperId + '&org=' + constants.Org + '&rate_callback=riseRateCallback';
+        riseScript.async = true;
+
+        appendIntoAll(document.getElementById(device + '-is-video-placeholder'), riseContainer);
+        appendIntoAll(document.getElementsByTagName('head'), riseScript);
+
+    }
+
+    function addUnderDogMediaAd() {
+        var id = infinite_scroll_device_constants.UdmId;
+        var underdog = document.createElement('script');
+        underdog.async = "true";
+        underdog.src = "//udmserve.net/udm/img.fetch?sid=" + id + ";tid=1;dt=6;";
+        underdog.setAttribute('language', "javascript");
+        underdog.setAttribute('data-cfasync', "false");
+        appendIntoAll(document.getElementsByTagName('head'), underdog);
+    }
+
+    function addAcross33Ad() {
+        var acc = document.createElement('script');
+        acc.innerHTML = "" +
+            "var Tynt=Tynt||[];Tynt.push('aXdC7e4F0r6jm-aKlId8sQ');" +
+            "Tynt.cmd=Tynt.cmd||[];Tynt.cmd.push(function(){" +
+            "    Tynt.ads.display('','','inview');});" +
+            "(function(){var h,s=document.createElement('script');" +
+            "    s.src=(window.location.protocol==='https:'?" +
+            "        'https':'http')+'://cdn.tynt.com/rciv.js';" +
+            "    h=document.getElementsByTagName('script')[0];" +
+            "    h.parentNode.insertBefore(s,h);})();";
+        document.getElementsByTagName('head')[0].appendChild(acc);
+    }
+
+    function addVidazooPixel(pixelId) {
+        if(pixelId === ''){
+            return;
+        }
+        var script = document.createElement('script');
+        script.src = "//static.vidazoo.com/basev/vwpt.js";
+        script.setAttribute('data-widget-id', pixelId);
+        script.async = true;
+        appendIntoAll(document.getElementsByTagName('head')[0], script);
+    }
+
+    function addTotalMediaDFPRequest(id){
+        if(id ==='' || typeof id == "undefined" || !id){
+            return
+        }
+        var div = document.createElement('div');
+        div.id = 'gpt-passback';
+
+        appendIntoAll(document.getElementsByTagName('body')[0], div);
+        googletag.cmd.push(function () {
+            var gpt = googletag.defineSlot('/' + id + '/TOTAL_TAS/Brainye', [1, 1], 'gpt-passback').addService(googletag.pubads()).setTargeting('tmPtS', ['INSERT_UTM_SOURCE_HERE']).setTargeting('tmPtM', ['INSERT_UTM_MEDIUM_HERE']).setTargeting('tmDmn', window.location.host).setTargeting('tmClnt', ['Brainye']);
+            googletag.enableServices();
+            googletag.display('gpt-passback');googletag.pubads().refresh([gpt]);});
+
+    }
+
+    /*************************************** Providers integration functions end *****************************************************/
+}();
+
+</script>
+
+</body>
+</html>

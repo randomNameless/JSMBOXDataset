@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>analyze.html</title>
+</head>
+<body>
+
+<script>
+/**
+ * コンストラクタの生成
+ *
+ * */
+if (typeof BlzRankAnalyzeC == 'undefined') {
+
+    /**
+     * コンストラクタ
+     * @param  user      ユーザーID
+     * @param  template  テンプレートID
+     * @param  parts     ツール名
+     * @return this
+     * */
+    var BlzRankAnalyzeC = function(user, template, parts) {
+        this.user     = user;       // ユーザーID
+        this.tmp      = template;   // テンプレートID
+        this.parts    = parts;      // ツール名
+        return this;
+    };
+
+    BlzRankAnalyzeC.CONST = {
+        baseUrl  : '//blozoo.com/',       // アプリURL
+        rankUrl  : '//rank.blozoo.com/',  // 逆アクセスランキングトラッキングサーバーURL
+        BLOG     : [
+                    'blog.livedoor.jp',
+                    'ameblo.jp',
+                    'blog.goo.ne.jp',
+                    'yaplog.jp',
+                    'ap.teacup.com',
+                    'blog.oricon.co.jp',
+                    'blog.3016.jp',
+                    'maruta.be',
+                    'gameinn.jp'
+                    ]
+    };
+
+    /**
+     * URLからドメインを取得する(ブログによってはディレクトリまで)
+     */
+    BlzRankAnalyzeC.prototype.getDomainUrl = function(url) {
+        // URLが存在しない
+        if (!url) return url;
+
+        // URLをパースする
+        var parser   = document.createElement('a');
+        parser.href  = url;
+        var protocol   = parser.protocol,
+            hostname   = parser.hostname,
+            pathname   = parser.pathname;
+
+        pathname = pathname.indexOf('/') == 0 ? pathname : '/' + pathname;
+
+        var ret_url = protocol + '//' + hostname + '/';
+
+        // サブディレクトリブログ
+        var targetBlogs = BlzRankAnalyzeC.CONST.BLOG;
+        for (var i = 0; i < targetBlogs.length; ++i) {
+            if (targetBlogs[i] === hostname) {
+                var path = pathname.split('/');
+                if(path[1].length > 0){
+                  ret_url += path[1] + '/';
+                }
+            }
+        }
+        return ret_url;
+    };
+
+    /**
+     * インを計測
+     * */
+    BlzRankAnalyzeC.prototype.rankIn = function(parts, user, tmp){
+        // インを計測
+        if (BlzRankAnalyzeC.prototype.getDomainUrl(document.referrer)) {
+            var inImg = document.createElement('img');
+            // rank.blozoo.com/rank.html?p= !in! [テンプレートID] ! [掲載元ドメインURL(URLエンコード)] ! [リファラドメインURL(URLエンコード)] ! [リファラフルURL(URLエンコード)] !
+            var _in = BlzRankAnalyzeC.CONST.rankUrl + 'rank.html?p=' + '!in!' + tmp + '!' + encodeURIComponent(BlzRankAnalyzeC.prototype.getDomainUrl(location.href)) + '!' + encodeURIComponent(BlzRankAnalyzeC.prototype.getDomainUrl(document.referrer)) + '!' + encodeURIComponent(BlzRankAnalyzeC.prototype.getDomainUrl(document.referrer)) + '!';
+            inImg.src = _in;
+            inImg.style.width   = '0px';
+            inImg.style.height  = '0px';
+            inImg.style.display = 'none';
+            // 削除用IDを付加
+            inImg.id = 'in' + '_' + parts + '_' + tmp + '_' + user;
+            // bodyに追加してトラッキングサーバーにリクエスト
+            document.getElementsByTagName('body')[0].appendChild(inImg);
+            // <img>タグを削除
+            document.getElementById(inImg.id).parentNode.removeChild(document.getElementById(inImg.id));
+        }
+    };
+
+    /**
+     * アウトを計測
+     * */
+    BlzRankAnalyzeC.prototype.outClick = function(target, tmp) {
+        while (target) {
+            if (target.href && !target.src) {
+                if (BlzRankAnalyzeC.prototype.getDomainUrl(target.href)) {
+                    // rank.blozoo.com/rank.html?p= !out! [テンプレートID] ! [掲載元ドメインURL(URLエンコード)] ! [OUTドメインURL(URLエンコード)] ! [OUTURL(URLエンコード)] !
+                    var _imp = BlzRankAnalyzeC.CONST.rankUrl + 'rank.html?p=' + '!out!' + tmp + '!' + encodeURIComponent(BlzRankAnalyzeC.prototype.getDomainUrl(location.href)) + '!' + encodeURIComponent(BlzRankAnalyzeC.prototype.getDomainUrl(target.href)) + '!' + encodeURIComponent(BlzRankAnalyzeC.prototype.getDomainUrl(target.href)) + '!' + '?_' + (new Date).getTime();
+                    document.getElementById('blzRankOutClick').src = _imp;
+                    break;
+                }
+            }
+            target = target.parentNode ? target.parentNode : null;
+        }
+    };
+};
+
+/**
+ * 即時関数
+ *
+ * */
+(function() {
+
+    // アウト用の<img>タグを生成する
+    var setOutImage = function() {
+        if (!document.getElementById('blzRankOutClick')) {
+            var img = document.createElement('img');
+            img.id = 'blzRankOutClick';
+            img.style.width   = '0px';
+            img.style.height  = '0px';
+            img.style.display = 'none';
+            // bodyに追加してトラッキングサーバーにリクエスト
+            document.getElementsByTagName('body')[0].appendChild(img);
+        }
+    }
+
+    var user  = blzUa,
+        tmp   = blzTa,
+        parts = blzPa;
+
+    // インを計測
+    // ウィンドウ読み込み後に実行
+    if (window.addEventListener) {
+        window.addEventListener('load', function(){
+            BlzRankAnalyzeC.prototype.rankIn(parts, user, tmp);
+            setOutImage();
+        }, false);
+    } else {
+        window.attachEvent('onload', function(){
+            BlzRankAnalyzeC.prototype.rankIn(parts, user, tmp);
+            setOutImage();
+        });
+    }
+
+    // アウトを計測
+    if (window.addEventListener) {
+        window.addEventListener('click', function(event) {
+            BlzRankAnalyzeC.prototype.outClick(event.target, tmp);
+        }, false);
+    } else {
+        document.attachEvent('onclick', function(event) {
+            BlzRankAnalyzeC.prototype.outClick(event.srcElement, tmp);
+        });
+    }
+
+    // 各値を初期化
+    blzUa = blzTa = blzPa = undefined;
+
+})();
+
+</script>
+
+</body>
+</html>

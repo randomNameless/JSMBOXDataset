@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>analytics-8d9ddb7ec477c3f4af4f80b8ef1911af.html</title>
+</head>
+<body>
+
+<script>
+// ANALYTICS TRACKING FUNCTIONS
+(function() {
+  // track page navigation
+  // analyticsPageProperties comes from window
+  var pageCategory = analyticsPageProperties.pageCategory || 'unknown';
+  var pageName     = analyticsPageProperties.pageName     || 'default';
+  var pageProps    = analyticsPageProperties.pageProps    || {};
+
+  // grabbing referrer from optimizely, if it exists
+  var optimizelyReferrer = sessionStorage.optimizelyReferrer;
+  sessionStorage.removeItem('optimizelyReferrer');
+
+  if (optimizelyReferrer) {
+    pageProps['referrer'] = optimizelyReferrer;
+  }
+
+  // Collect click IDs from query params
+  var gclid = getQueryParam('gclid');
+  var fbclid = getQueryParam('fbclid');
+  var msclkid = getQueryParam('msclkid');
+  var userTraits = {};
+  if (gclid) {
+    userTraits['gclid'] = gclid;
+  }
+  if (fbclid) {
+    userTraits['fbclid'] = fbclid;
+  }
+  if (msclkid) {
+    userTraits['msclkid'] = msclkid;
+  }
+
+  if (window.analytics && Object.keys(userTraits).length > 0) {
+    // Use our user ID from /api/v1/me call if present. Otherwise Segment will
+    // use its auto-generated anonymous user ID.
+    var userId = sessionStorage.getItem("analytics_id");
+    // Call identify to set the userTraits as user properties
+    analytics.identify(userId, userTraits, { integrations: { Amplitude: { session_id: generateSessionId() } } });
+  }
+
+  // if the current url has anchor elements in it like /resources/#ebooks, override
+  // the default url that we are tracking with the one that includes the anchor
+  var href = window.location.href;
+  if (href.includes('#')) {
+    pageProps['url'] = href;
+  }
+
+  if (!window.analyticsPageProperties.singleEvent) {
+    window.analytics && analytics.page(pageCategory, pageName, pageProps, { integrations: { Amplitude: { session_id: generateSessionId() } } }, function() {
+      window.dispatchEvent(new CustomEvent('page-view-tracked'));
+    });
+  } else {
+    // Both "Track Named […]" and "Track Categorized Pages to Amplitude" settings are enabled in
+    // Segment, so the category value is left unset here to prevent duplicate events. And the
+    // `name` value is set to `singleEvent` resulting in a 'Viewed [singleEvent] Page' event across
+    // pages with the `analytics_single_event` property set.
+    // `category` and other data is passed along in the `pageProps` object, including what used to
+    // be called `name` as `page`
+
+    pageProps['category'] = pageCategory;
+    pageProps['page']     = pageName;
+    window.analytics && analytics.page(window.analyticsPageProperties.singleEvent, pageProps, { integrations: { Amplitude: { session_id: generateSessionId() } } }, function() {
+      window.dispatchEvent(new CustomEvent('page-view-tracked'));
+    });
+  }
+}());
+
+</script>
+
+</body>
+</html>

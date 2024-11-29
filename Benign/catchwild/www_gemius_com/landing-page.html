@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>landing-page.html</title>
+</head>
+<body>
+
+<script>
+$(document).ready(function () {
+    AOS.init({
+        startEvent: 'DOMContentLoaded',
+        duration: 3000,
+    });
+});
+
+$(document).ready(function () {
+    let currentQuestion = 0;
+    let score = 0;
+    var lang = window.location.pathname.includes('/en') ? 'en' : 'pl';
+    console.log("land", lang)
+
+    var texts = {
+        pl: {
+            question1: "W ilu krajach Gemius ma biura lokalne?",
+            question2: "Jaką nazwę nosi w innych krajach badanie widowni internetowej, w Polsce realizowane jako Mediapanel?",
+            question3: "Ile osób w Polsce korzysta średnio dziennie z internetu?",
+            question4: "Które narzędzie Gemius służy do monitorowania kampanii online w czasie rzeczywistym?",
+            question5: "W ramach swoich badań Gemius realizuje pomiar:",
+            resultText0: "Ooo widać, że mało o Nas wiesz 😔 Nic straconego, możesz zawsze dowiedzieć się więcej, <span class='fw-bold'>kontaktując się z nami:</span> contact@gemius.com",
+            resultText3: "Masz pewną wiedzę o Gemiusie, ale stać Cię na więcej, <span class='fw-bold'>skontaktuj się z nami i dowiedz się więcej:</span> contact@gemius.com",
+            resultText4: "Całkiem nieźle! Gratulacje! Otrzymujesz odznakę \"głodny wiedzy\"",
+            resultText5: "Gratulacje! Jesteś mistrzem wiedzy o Gemius! A oto twoja odznaka - \"prymus wiedzy o Gemius\"",
+            punkt: "punkt",
+            punkty: "punkty",
+            punktow: "punktów",
+            gain: "Zdobywasz ",
+            question: "Pytanie",
+            yourAnswer: "Twoja odpowiedź:",
+            correctAnswer2: "Poprawna odpowiedź:",
+            noQuestion: "Brak odpowiedzi"
+        },
+        en: {
+            question1: "In how many countries does Gemius have local offices?",
+            question2: "What is the name of the Internet audience survey in other countries, implemented in Poland as Mediapanel?",
+            question3: "How many people in Poland use the Internet on an average day?",
+            question4: "Which Gemius tool is used to manage online campaigns in real time?",
+            question5: "As part of its research, Gemius provides measurement of:",
+            resultText0: "Ooo clearly you know little about Us 😔 Nothing lost, you can always learn more by contacting us:</span> contact@gemius.com",
+            resultText3: "You have some knowledge of Gemius, but you can do better! <span class='fw-bold'>contact us and learn more:</span> contact@gemius.com",
+            resultText4: "Pretty good! Congratulations! You receive the badge \"hungry for knowledge\" badge",
+            resultText5: "Congratulations! You are the master of Gemius knowledge! and here is your badge - \"primus of Gemius knowledge\"",
+            punkt: "point",
+            punkty: "points",
+            punktow: "points",
+            gain: "Gain ",
+            question: "Question",
+            yourAnswer: "Your Answer:",
+            correctAnswer2: "Correct answer:",
+            noQuestion: "No questions",
+        }
+    };
+
+    var questions = [
+        {
+            question: texts[lang].question1,
+            answers: {
+                a: "5",
+                b: "7",
+                c: "12",
+                d: "19"
+            },
+            correctAnswer: "c",
+            points: 1,
+            isPointScored: false,
+            userAnswer: null
+        },
+        {
+            question: texts[lang].question2,
+            answers: {
+                a: "gemiusResearch",
+                b: "gemiusAudience",
+                c: "gemiusInternet",
+                d: "gemiusMedia"
+            },
+            correctAnswer: "b",
+            points: 1,
+            isPointScored: false,
+            userAnswer: null
+        },
+        {
+            question: texts[lang].question3,
+            answers: {
+                a: "15 mln",
+                b: "20 mln",
+                c: "25,5 mln",
+                d: "30,5 mln"
+            },
+            correctAnswer: "c",
+            points: 1,
+            isPointScored: false,
+            userAnswer: null
+        },
+        {
+            question: texts[lang].question4,
+            answers: {
+                a: "gemiusDirectEffect",
+                b: "gemiusTargetEffect",
+                c: "gemiusEffective",
+                d: "gemiusAdManager"
+            },
+            correctAnswer: "a",
+            points: 1,
+            isPointScored: false,
+            userAnswer: null
+        },
+        {
+            question: texts[lang].question5,
+            answers: {
+                a: "internetu",
+                b: "internetu i telewizji",
+                c: "internetu, radia i telewizji",
+                d: "internetu, radia, telewizji i outdooru"
+            },
+            correctAnswer: "d",
+            points: 1,
+            isPointScored: false,
+            userAnswer: null
+        }
+    ];
+
+    function displayQuestion() {
+        var q = questions[currentQuestion];
+        $('#question').text((currentQuestion + 1) + ". " + q.question);
+        $('#answers').empty();
+        $.each(q.answers, function (key, value) {
+            $('#answers').append(
+                '<div class="quiz-square-shape-left"></div>' +
+                '<div class="quiz-square-shape-right"></div>' +
+                '<li class="list-group-item z-1">' +
+                '<input class="form-check-input me-1" type="radio" name="listGroupRadio" value="' + key + '" id="' + key + '">' +
+                '<label class="form-check-label stretched-link" for="' + key + '">' + value + '</label>' +
+                '</li>'
+            );
+        });
+        toggleNextButton();
+        togglePreviousButton();
+    }
+
+    function getCorrectGrammar(score) {
+        if (score === 1)
+            return texts[lang].punkt;
+        else if (score === 2 || score === 3 || score === 4)
+            return texts[lang].punkty;
+        else
+            return texts[lang].punktow;
+    }
+
+    function generateRandomNumber() {
+        return Math.floor(Math.random() * (999 - 20 + 1)) + 20;
+    }
+
+    function handleResize() {
+        var windowWidth = $(window).width();
+        if (windowWidth < 992) {
+            $('#locationsMap').css('margin-bottom', '3rem');
+        } else {
+            $('#locationsMap').css('margin-bottom', '');
+        }
+    }
+
+    function updateResult(score) {
+        let resultText;
+        let badgeImage;
+        if (score === 5) {
+            let quizCompletedEvent = new CustomEvent('quizCompleted');
+            document.dispatchEvent(quizCompletedEvent);
+            handleResize();
+            $(window).on('resize', handleResize);
+        }
+        if (score === 0 || score === 1 || score === 2) {
+            resultText = texts[lang].resultText0;
+        } else if (score === 3) {
+            resultText = texts[lang].resultText3;
+        } else if (score === 4) {
+            resultText = texts[lang].resultText4;
+        } else {
+            resultText = texts[lang].resultText5;
+        }
+        badgeImage = "/static/assets_bart/img/badges/" + score + ".svg";
+        $('#result').html(score + " " + texts[lang].punktow);
+        $('#quiz-result-text').html(texts[lang].gain + score + " " + getCorrectGrammar(score) + " - " + resultText);
+        $('#badgeImage').attr("src", badgeImage);
+    }
+
+    function checkAnswer() {
+        var selected = $('input[name="listGroupRadio"]:checked').val();
+        questions[currentQuestion].userAnswer = selected;
+        if (selected === questions[currentQuestion].correctAnswer && !questions[currentQuestion].isPointScored) {
+            score += questions[currentQuestion].points;
+            questions[currentQuestion].isPointScored = true;
+        }
+    }
+
+    $('#nextQuestion').click(function () {
+        checkAnswer();
+        currentQuestion++;
+        if (currentQuestion >= questions.length) {
+            updateResult(score);
+        }
+        if (currentQuestion < questions.length) {
+            displayQuestion();
+        } else {
+            $('#quiz-shape-top-left').hide();
+            $('#quiz-shape-top-right').hide();
+            $('#quiz').hide();
+            $('#quiz-result').show();
+        }
+    });
+
+    $('#previousQuestion').click(function () {
+        currentQuestion--;
+        displayQuestion();
+    });
+
+    $('#tryAgain').click(function () {
+        $('#quiz-result-text').empty();
+        $('#answersContainer').empty();
+        currentQuestion = 0;
+        score = 0;
+        questions.forEach(function (q) {
+            q.isPointScored = false;
+        });
+        displayQuestion();
+        $('#quiz-result').hide();
+        $('#quiz').show();
+        $('#quiz-shape-top-left').show();
+        $('#quiz-shape-top-right').show();
+        $('#showAnswers').show();
+        $('#tryAgainContainer').removeClass('col-12').addClass('col').addClass('justify-content-end').removeClass('justify-content-center');
+    });
+
+    displayQuestion();
+
+    function toggleNextButton() {
+        var selected = $('input[name="listGroupRadio"]:checked').val();
+        if (selected) {
+            $('#nextQuestion').removeClass('disabled').attr('aria-disabled', 'false');
+        } else {
+            $('#nextQuestion').addClass('disabled').attr('aria-disabled', 'true');
+        }
+    }
+
+    function togglePreviousButton() {
+        if (currentQuestion > 0) {
+            $('#previousQuestion').removeClass('d-none');
+        } else {
+            $('#previousQuestion').addClass('d-none');
+        }
+    }
+
+    $(document).on('change', 'input[name="listGroupRadio"]', function () {
+        var selectedValue = $(this).val();
+        if ($(this).is(':checked')) {
+            toggleNextButton();
+        }
+    });
+
+    $('#showAnswers').click(function () {
+        $(this).hide();
+        $('#answersContainer').empty();
+        $('#tryAgainContainer').removeClass('col').removeClass('justify-content-end').addClass('justify-content-center').addClass('col-12');
+
+        questions.forEach(function (q, index) {
+            var userAnswer = q.userAnswer ? q.answers[q.userAnswer] : texts[lang].noQuestion;
+            var correctAnswer = q.answers[q.correctAnswer];
+            $('#answersContainer').append('<div class="card mb-3">' +
+                '<div class="card-body">' +
+                '<p class="card-text"><strong> '+ texts[lang].question + (index + 1) + ':</strong> ' + q.question + '</p>' +
+                '<p class="card-text"><strong> ' + texts[lang].yourAnswer + '</strong> ' + userAnswer + '</p>' +
+                '<p class="card-text"><strong> ' + texts[lang].correctAnswer2 +'</strong> ' + correctAnswer + '</p>' +
+                '</div>' +
+                '</div>'
+            );
+        });
+    });
+
+});
+
+
+$(document).ready(function () {
+    var countries = [
+        {
+            name: "Belgium",
+            path: "M1644.76 2509.37V2518.11L1649.13 2524.96H1651.41L1653.5 2520.4L1657.31 2518.69L1660.54 2519.26L1664.72 2519.83L1671.37 2524.77L1683.16",
+        },
+        {
+            name: "Bulgaria",
+            path: "M2838.86 3238.72L2835.43 3237.57L2831.63 3236.62L2827.64 3238.15L2825.74 3241.95L2827.83 3245.75L2829.92 3247.84L2831.63 3251.07V3256.01L2829.92",
+        },
+        {
+            name: "Croatia",
+            path: "M2177.37 2972.41L2180.22 2974.31L2184.59 2976.02H2192.77L2195.05 2979.25H2200.75L2202.84 2974.88L2205.12 2974.31L2207.02 2976.97L2210.82",
+        },
+        {
+            name: "Czech Republic",
+            path: "M2451.85 2664.67L2450.9 2656.11L2449.38 2653.26L2441.2 2648.51V2643L2433.41 2632.93L2430.56 2630.07L2424.67 2630.45L2421.63 2628.93L2419.34 2627",
+        },
+        {
+            name: "Estonia",
+            path: "M2733.74 1927.06L2741.15 1921.92H2749.42L2754.27 1920.21L2759.69 1915.94L2767.1 1912.51L2772.52 1910.23L2775.08 1912.8L2777.36",
+        },
+        {
+            name: "Germany",
+            path: "M1920 2205.91H1939.39L1945.09 2207.62L1950.22 2211.04L1954.5 2213.32H1959.06L1962.77 2209.61L1969.04 2207.9L1970.47 2207.62V2211.32L1976.17",
+        },
+        {
+            name: "Hungary",
+            path: "M2620.45 2747.92L2614.94 2749.64L2608.67 2751.35L2605.44 2753.82L2600.3 2754.2L2598.02 2751.92L2596.5 2748.87L2596.69 2744.5L2594.22",
+        },
+        {
+            name: "Latvia",
+            path: "M2858.05 2134.53H2842.28L2836.76 2132.25L2831.82 2128.64L2827.45 2121.99L2822.7 2115.71L2818.14 2110.2L2806.92 2101.27L2800.27",
+        },
+        {
+            name: "Lithuania",
+            path: "M2686.6 2288.5L2691.73 2290.97L2695.53 2293.25L2700.29 2290.87H2709.22L2714.16 2293.25L2717.77 2290.87L2723.1 2292.01L2727.09 2294.39L2729.37",
+        },
+        {
+            name: "Portugal",
+            path: "M1006.28 3231.87L1010.65 3230.73L1012.36 3227.12C1012.36 3227.12 1016.73 3225.41 1017.49 3224.65C1018.25 3223.89 1018.63 3221.99 1018.63",
+        },
+        {
+            name: "Romania",
+            path: "M2953 3097.49L2950.29 3097.2L2943.59 3096.63L2938.46 3096.2C2938.46 3096.2 2932.9 3095.77 2932.47 3095.77C2932.04 3095.77 2928.34",
+        },
+        {
+            name: "Serbia",
+            path: "M2524.74 2922.99L2521.61 2921.85L2517.05 2920.14L2512.49 2919.85L2508.21 2921.56L2506.78 2924.99L2499.94 2925.27L2492.53 2923.56L2487.11",
+        },
+        {
+            name: "Slovakia",
+            path: "M2644.4 2697.17L2632.62 2691.85L2622.35 2686.34L2616.84 2682.92L2612.66 2678.92L2609.62 2673.22L2606.01 2671.51L2598.59 2669.04L2590.99",
+        },
+        {
+            name: "Slovenia",
+            path: "M2188.3 2897.61L2193.43 2898.75H2198.85L2206.53 2901.04L2210.25 2903.89L2216.53 2904.17L2225.08 2904.74L2228.22 2907.02L2232.49",
+        },
+        {
+            name: "Turkey",
+            path: "M2949.32 3330.98H2927.65L2924.61 3332.31L2920.61 3331.64L2924.99 3329.08C2924.99 3329.08 2925.37 3325.46 2925.18 3324.89C2924.99 3324.32 2921.19",
+        },
+        {
+            name: "Ukraine",
+            path: "M3453.87 2848.62L3456.91 2841.4L3462.99 2839.12L3455.77 2836.08L3457.29 2830.37L3458.05 2826.19L3459.95 2814.41L3461.09 2811.36L3464.51",
+        },
+        {
+            name: "Poland",
+            path: "M2240.92 2556.33L2241.86 2550.08L2246.21 2545.17L2249.99 2537.99L2251.69 2531L2250.37 2525.33V2518.15L2248.86 2509.27L2245.08 2504.54L2241.86",
+        }
+    ];
+    var domain = window.location.origin;
+    var mapObject = document.getElementById("locationsMapObject");
+    var previousClickedElement = null;
+    mapObject.addEventListener("load", function () {
+        var svgDoc = mapObject.contentDocument;
+        countries.forEach(function (country) {
+            svgDoc.querySelectorAll("path").forEach(function (path) {
+                if (path.getAttribute("d").indexOf(country.path) !== -1) {
+                    path.id = country.name;
+                    path.addEventListener("click", function () {
+                        if (previousClickedElement) {
+                            previousClickedElement.style.fill = "";
+                        }
+                        var textElement = svgDoc.querySelector("text");
+                        if (textElement) {
+                            textElement.remove();
+                        }
+                        var imageElement = svgDoc.querySelector("image");
+                        if (imageElement) {
+                            imageElement.remove();
+                        }
+                        this.style.fill = "#0261B8";
+                        var bbox = path.getBBox();
+                        var centerX = bbox.x + bbox.width / 2;
+                        var centerY = bbox.y + bbox.height / 2;
+                        var text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                        svgDoc.documentElement.appendChild(text);
+                        var domain = window.location.origin;
+                        var countryImage = domain + "/static/assets_bart/img/map/countries/" + country.name.toLowerCase() + ".svg";
+                        var img = new Image();
+                        img.src = countryImage;
+                        var tooltipCountryHeight = 0;
+                        var tooltipCountryWidth = 0;
+                        img.onload = function () {
+                            tooltipCountryHeight = this.height;
+                            tooltipCountryWidth = this.width;
+                            var image = document.createElementNS("http://www.w3.org/2000/svg", "image");
+                            if (country.name === "Croatia") {
+                                // Due to its unique shape, the geographic centre of Croatia is actually located in Bosnia and Herzegovina.
+                                image.setAttribute("x", (centerX - tooltipCountryWidth * 1.5).toString());
+                                image.setAttribute("y", (centerY - tooltipCountryHeight * 3.5).toString());
+                            } else {
+                                image.setAttribute("x", (centerX - tooltipCountryWidth * 1.5).toString());
+                                image.setAttribute("y", (centerY - tooltipCountryHeight * 3).toString());
+                            }
+                            image.setAttribute("width", (tooltipCountryWidth * 3).toString());
+                            image.setAttributeNS("http://www.w3.org/1999/xlink", "href", countryImage);
+                            svgDoc.documentElement.appendChild(image);
+                            image.addEventListener("click", function (event) {
+                                event.stopPropagation();
+                            });
+                        };
+                        previousClickedElement = this;
+                    });
+                }
+            });
+        });
+
+        svgDoc.documentElement.addEventListener("click", function (event) {
+            var clickedElement = event.target;
+            if (clickedElement.tagName.toLowerCase() !== 'path') {
+                var textElement = svgDoc.querySelector("text");
+                if (textElement) {
+                    textElement.remove();
+                }
+                var imageElement = svgDoc.querySelector("image");
+                if (imageElement) {
+                    previousClickedElement.style.fill = "";
+                    imageElement.remove();
+                }
+            } else {
+                var dataID = clickedElement.getAttribute("data-id");
+                if (!dataID) {
+                    var textElement = svgDoc.querySelector("text");
+                    if (textElement) {
+                        textElement.remove();
+                    }
+                    var imageElement = svgDoc.querySelector("image");
+                    if (imageElement) {
+                        previousClickedElement.style.fill = "";
+                        imageElement.remove();
+                    }
+                }
+            }
+        });
+    });
+
+
+
+});
+
+</script>
+
+</body>
+</html>

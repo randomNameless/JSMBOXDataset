@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>search.html</title>
+</head>
+<body>
+
+<script>
+var timer;
+var opensoman = false;
+var firstname = '';
+
+$(function () {
+    //回车事件
+    $("#txtKeywords").bind("keyup", function (event) {
+        var e = event || window.event;
+        if (e && e.keyCode === 13 && $('.new-search-list .new-search-list-item.active').index() === -1 && $.trim($(this).val()) !== '') {
+            newsearch();
+        }
+    });
+    $("#txtKeywords").bind("input propertychange", searchCallback);
+    $("#txtKeywords").focus(function () {
+        $(this).prop('placeholder', '');
+        if ($.trim($(this).val()) === "") {
+            defaultSearch();
+        } else {
+            SearchInputChange();
+        }
+    }).blur(function () {
+        $(this).prop('placeholder', $(this).data('default'));
+    });
+    $(document.body).click(function () {
+        var $active = document.activeElement;
+        if ($active.nodeName !== 'INPUT' && $active.id !== 'txtKeywords') {
+            $(".new-search-input-form .new-search-list").hide();
+        }
+    });
+});
+
+function getuserinfo(self) {
+    var isload = $(self).data("isload");
+    if (isload === 0) {
+        $.get("/dm5.ashx", { action: "getuserinfo", t: new Date().getTime() }, function (data) {
+            var result = JSON.parse(data);
+            if (result && result["isSuccess"]) {
+                if (result["isVip"]) {
+                    $(".hover-user .subtitle").html("到期：" + (result["expireTime"] || "") +
+                        "<a href=\"/vipopen/\" class=\"right\" target=\"_blank\">VIP续费</a>");
+                } else {
+                    $(".hover-user .subtitle").html("<a href=\"/vipopen/\" class=\"right\" target=\"_blank\">开通VIP</a>");
+                }
+                $(".hover-user .line:eq(0) span").text(result["mangaCoin"] || 0);
+                $(".hover-user .line:eq(1) span").text(result["giftCoin"] || 0);
+                $(self).data("isload", 1);
+            }
+        });
+    }
+}
+
+
+function newsearch() {
+    var $keywords = $("#txtKeywords");
+    $keywords.focusout();
+    if ($('#btnSearch').hasClass('disable')) {
+        $('#btnSoman')[0].click();
+    } else {
+        $('#btnSearch')[0].click();
+    }
+}
+
+// 默认搜索栏推荐显示
+function defaultSearch() {
+    //发送web请求
+    $.ajax({
+        url: '/searchcomic.ashx?d=' + new Date().getTime(),
+        data: { t: 2 },
+        error: function (msg) {
+        },
+        success: function (str) {
+            $(".new-search-input-form .new-search-list").empty().html(str).show();
+            searcheventbind();
+        }
+    });
+}
+
+function searchCallback() {
+    var keywords = $("#txtKeywords").val();
+    if (keywords == '') {
+        keywords = $('#txtKeywords').data('default');
+    }
+    $('#btnSearch').prop('href', '/search?title=' + encodeURIComponent(keywords) + '&language=1');
+    $("#btnSearch").removeClass('disable');
+    $('#btnSoman').prop('href', 'https://www.hisoman.com/search.html?keyword=' + encodeURIComponent(keywords));
+    if (location.href.indexOf('search') > 0) {
+        $('#btnSearch').prop('target', '_self');
+    } else {
+        $('#btnSearch').prop('target', '_search');
+    }
+    if (timer) {
+        clearTimeout(timer);
+    }
+    timer = setTimeout(SearchInputChange, 500);
+}
+
+//搜索框文本改变
+function SearchInputChange() {
+    opensoman = false;
+    firstname = '';
+    var keywords = $("#txtKeywords").val();
+    if (keywords && keywords != "") {
+        //发送web请求
+        $.ajax({
+            url: '/search.ashx?d=' + new Date().getTime(),
+            data: { t: keywords, language: 1 },
+            error: function (msg) {
+            },
+            success: function (str) {
+                if (str !== '') {
+                    if (!opensoman) {
+                        $("#btnSearch").css('cursor', 'pointer').removeClass('disable');
+                    }
+                    $(".new-search-input-form .new-search-list").empty().html(str).show();
+                    searcheventbind();
+                    $('.new-search-list .new-search-list-item .left').each(function () {
+                        if ($(this).text() == firstname) {
+                            $(this).parent().parent().prop('href', 'https://www.hisoman.com/search.html?keyword='
+                                + encodeURIComponent($(this).text())).prop('target', $('#btnSoman').prop('target'));
+                        }
+                    });
+                } else {
+                    $('#btnSearch').removeAttr('href');
+                    $('#btnSearch').removeAttr('target');
+                    $("#btnSearch").css('cursor', 'default').addClass('disable');
+                    $(".new-search-input-form .new-search-list").empty();
+                }
+            }
+        });
+        $.ajax({
+            url: '/searchcomic.ashx?d=' + new Date().getTime(),
+            data: { t: 3, title: keywords },
+            dataType: 'json',
+            error: function (msg) {
+            },
+            success: function (data) {
+                $('#btnSoman').prop('href', 'https://www.hisoman.com/search.html?keyword=' + encodeURIComponent(keywords));
+                if (data) {
+                    if (data['isContainMangabz']) {
+                        opensoman = true;
+                        $("#btnSearch").css('cursor', 'default').addClass('disable');
+                        $('#btnSearch').removeAttr('href');
+                    }
+                    if (data['name'] != '') {
+                        firstname = data['name'];
+                        $('.new-search-list .new-search-list-item .left').each(function () {
+                            if ($(this).text() == data['name']) {
+                                $(this).parent().parent().prop('href', 'https://www.hisoman.com/search.html?keyword='
+                                    + encodeURIComponent($(this).text())).prop('target', $('#btnSoman').prop('target'));
+                            }
+                        });
+                    }
+                }
+            }
+        });
+    } else {
+        defaultSearch();
+    }
+}
+
+function searcheventbind() {
+    $('.new-search-list .new-search-list-item').hover(function () {
+        $('.new-search-list .new-search-list-item').removeClass('active');
+        $(this).addClass('active');
+    });
+}
+
+document.onkeydown = function (e) {
+    e = e || window.keyCode;
+    if ($('.new-search-list').is(':visible')) {
+        var index = $('.new-search-list-item.active').index();
+        if (e.keyCode === 38) {
+            index--;
+            if (index < 0) {
+                index = $('.new-search-list-item').length - 1;
+            }
+        } else if (e.keyCode === 40) {
+            index++;
+            if (index >= $('.new-search-list-item').length) {
+                index = 0;
+            }
+        }
+        if (index >= 0 && index < $('.new-search-list-item').length) {
+            $('.new-search-list-item.active').removeClass('active');
+            $('.new-search-list-item:eq(' + index + ')').addClass('active');
+            if (e.keyCode === 13) {
+                if ($('.new-search-list-item.active').length > 0) {
+                    $('.new-search-list-item.active')[0].click();
+                }
+            }
+        }
+    }
+}
+</script>
+
+</body>
+</html>

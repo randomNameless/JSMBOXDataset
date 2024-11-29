@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>clientlib-productrates.lc-d74a27895af608d88d1ded526fe0b6ce-lc.min.html</title>
+</head>
+<body>
+
+<script>
+(function(){
+  const currentRatesUrl = window.GLOBAL_KEYS.CURRENT_PRODUCT_RATES_URL;
+  let locale;
+  const textElTypes = ['b', 'a', 'p', 'span', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'th', 'td'];
+  let productMaps;
+  const productCrossRef = {
+    "3000": "SAVINGS",
+    "3010": "SAVINGS_USD",
+    "3100": "SAVINGS_RSP",
+    "3200": "SAVINGS_TFSA",
+    "3300": "SAVINGS_CHILD",
+    "3333": "SAVINGS_BIS",
+    "3343": "SAVINGS_BIS_USD",
+    "3400": "SAVINGS_RIF",
+    "3500": "GIC",
+    "3510": "GIC_USD",
+    "3533": "GIC_BIS",
+    "3543": "GIC_BIS_USD",
+    "3600": "GIC_RSP",
+    "3800": "GIC_TFSA",
+    "3900": "GIC_RIF",
+    "4000": "CHQ",
+    "5100": "RSP",
+    "5700": "TERM_LOAN",
+    "6800": "LOC",
+    "7910": "HELOC",
+    "VarMortgage": "MRTG",
+    "Mortgage": "MRTG",
+    "prime_rate": "PRIME"
+  }
+  const minRateMap = {
+    "4000": {
+      "0": "1",
+      "50000": "2",
+      "100000": "3",
+      "500000": "4"
+    },
+    "3333": {
+      "0": "1",
+      "100000": "2",
+      "500000": "3"
+    }
+  }  
+  const gicTermMap = {
+    "90": "90_DAY",
+    "180": "180_DAY",
+    "270": "270_DAY",
+    "1": "1_YEAR",
+    "1.5": "1.5_YEAR",
+    "2": "2_YEAR",
+    "3": "3_YEAR",
+    "4": "4_YEAR",
+    "5": "5_YEAR",
+  }
+  const MONTHS_EN = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September','October', 'November', 'December'];
+  const MONTHS_FR = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre','octobre', 'novembre', 'décembre'];
+  function convertDateLocale(dateStr) {
+    if(!dateStr) {
+      return "";
+    }
+    const [month,date,year] = dateStr.split("-");
+    let localeDate = "";
+    if(locale === "fr") {
+      localeDate = `${date} ${MONTHS_FR[parseInt(month) - 1]} ${year}`; 
+    } else {
+      localeDate = `${MONTHS_EN[parseInt(month) - 1]} ${date}, ${year}`;;
+    }
+    return localeDate;
+  }
+
+  function getTermFullDesc(term, time_unit, min_rate_balance, locale) {
+    if ((term && time_unit) || !min_rate_balance) {
+      if(time_unit === 'DAY') {
+        return `${term} ${locale === 'fr' ? 'jours' : 'Day'}`;
+      } else if(time_unit === 'MONTH') {
+        return `${term * 12} ${locale === 'fr' ? 'mois': 'month'}`;
+      } else {
+        return `${term} ${locale === 'fr'?
+        (term < 2 ? 'an' : 'ans') :
+        'Year'}`;
+      } 
+    } else if (min_rate_balance) {
+      return min_rate_balance;
+    }
+  }
+
+  function mapProductRates(data) {
+    const productMapRatesDates = {};
+    productMapRatesDates["FX.RATE.US_BUY"] = data.exchange_rates[0].buy;
+    productMapRatesDates["FX.RATE.US_SELL"] = data.exchange_rates[0].sell;
+    productMapRatesDates["FX.DATE"] = data.exchange_rates[0].date;
+
+    const rates = data.rates;
+    let maxRate = 0;
+    rates.forEach((product) => {
+      let rateKey = product.max_product_code || product.group;
+      let tempRateKey = productCrossRef[rateKey] || rateKey;
+      let rateTerm = "";
+      let rate_locale = locale === "fr" ? "rate_fr": "rate_en";
+      let apr_rate_locale =  locale === "fr" ? "apr_value_fr": "apr_value_en";
+      if(!!product.min_rate_balance) {
+        rateTerm = minRateMap[rateKey][product.min_rate_balance]
+      }
+      else if(product.group === "gic") {
+        rateTerm = gicTermMap[product.term];
+      } else if(product.group === "rsp"){
+        rateTerm = `${product.term}_${product.time_unit}`;
+      }else if(product.group === "borrowing" && !!product.time_unit){
+        rateTerm = `${product.term}_${product.time_unit}`;
+      }else if(product.group === "prime_rate") {
+        rateTerm = "";
+        interest = "tangerine_prime_rate";
+      } else if(product.group === "mortgage") {
+        rateTerm = `${product.term}_YEAR`;
+        if(product.max_product_code === "VarMortgage") {
+          rateTerm = `${product.term}_YEAR_VAR`;
+        }
+      }else {
+        rateTerm = product.term
+      }
+      let rateKeyObj = !!rateTerm ? `${tempRateKey}.RATE.${rateTerm}` : `${tempRateKey}.RATE`;
+      let dateKey = !!rateTerm ? `${tempRateKey}.DATE.${rateTerm}` : `${tempRateKey}.DATE`;
+      let maxRateKey = `${tempRateKey}.RATE.MAX`;
+      let maxRateTerm = `${tempRateKey}.RATE.MAX.TERM`;
+      productMapRatesDates[rateKeyObj] = product[rate_locale];
+      productMapRatesDates[dateKey] = convertDateLocale(product.date);
+      if(product.min_rate_balance) {
+        productMapRatesDates[`${rateKeyObj}.MIN_BALANCE`] = product.min_rate_balance;
+      }
+      if(product.group === "mortgage" && product.term === 5) {
+        if(!!product[apr_rate_locale]){
+          productMapRatesDates[`${rateKeyObj}.APR`] = product[apr_rate_locale];
+          productMapRatesDates[`${dateKey}.APR`] = convertDateLocale(product.date);
+        }        
+      }
+      if(!productMapRatesDates[maxRateKey] && (!!product.term || !!product.min_rate_balance)) {
+        maxRate = product["interest_rate"];
+        productMapRatesDates[maxRateKey] = product[rate_locale];
+        productMapRatesDates[maxRateTerm] = getTermFullDesc(product.term, product.time_unit, product.min_rate_balance, locale);
+      } else {
+        if((!!product.term || !!product.min_rate_balance) && (parseFloat(product["interest_rate"]) > maxRate)) {
+          maxRate = product["interest_rate"];
+          productMapRatesDates[maxRateKey] = product[rate_locale];
+          productMapRatesDates[maxRateTerm] = getTermFullDesc(product.term, product.time_unit, product.min_rate_balance, locale);;
+        }
+      }
+    });
+    window.currentProducts = productMapRatesDates;
+    document.dispatchEvent(new CustomEvent("CURRENT_RATES_LOADED", {detail: productMapRatesDates}));
+    return productMapRatesDates;
+  } 
+  function injectProductValues(selectors, productMaps) {
+    selectors.forEach((selector) => {
+      textElTypes.map(eltype => {
+        selector.querySelectorAll(eltype).forEach(el => {
+          const regexMatches = el.innerText.match(/\[\[(\w+.\d*)*\]\]/g);
+          if(regexMatches && regexMatches.length > 0) {
+            regexMatches.forEach((match) => {
+              const str = match.substring(2, match.length-2);
+              const value = productMaps[str];
+              if(!!value) {
+                el.innerText = el.innerText.split(match).join(value);
+              }
+            })
+          }
+        });
+      });
+    });
+    document.dispatchEvent(new CustomEvent("CURRENT_RATES_INJECTION_COMPLETE"));
+  }
+  function onDocumentReady() {
+    locale = document.querySelector('html').getAttribute('lang') === 'fr' ? 'fr' : 'en';
+    const selectors = document.querySelectorAll(".cmp-container--includes-product-rates");
+    if(selectors.length > 0) {
+      fetch(currentRatesUrl,{method: "GET"})
+      .then((response) => response.json())
+      .then((data) => {
+        try {
+          productMaps = mapProductRates(data);
+          injectProductValues(selectors, productMaps);
+        }
+        catch(error) {
+          console.error("Error occured with Product rate", error);
+        }
+      });
+    }
+    document.addEventListener("REPLACE_WITH_PRODUCT_RATE", (event) => {
+      if(!!event.detail && !!productMaps) {
+        const elemSelectors = document.querySelectorAll(event.detail);
+        if(elemSelectors.length > 0) {
+          injectProductValues(elemSelectors, productMaps);
+        }
+      }
+    })
+  }
+  if (document.readyState !== "loading") {
+    onDocumentReady();
+  } else {
+    document.addEventListener("DOMContentLoaded", onDocumentReady);
+  }
+
+})();
+</script>
+
+</body>
+</html>

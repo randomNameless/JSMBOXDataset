@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PortalEvents.html</title>
+</head>
+<body>
+
+<script>
+var allUserData = [];
+function RegisterFunction(callback, context) {
+    var handler;
+    if (typeof callback === "function") {
+        var z = arguments.length;
+        var arg = [];
+        if (arguments && arguments.length > 2)
+            for (var i = 2; i < arguments.length; i++)
+                arg.push(arguments[i]);
+        handler = allUserData.push({ FN: callback, Args: arg, Context: context });
+    }
+    return handler;
+}
+function ExecuteRegisteredEvents() {
+    for (var i = 0; i < allUserData.length; i++) {
+        if (allUserData[i]) {
+            allUserData[i].FN.apply(allUserData[i].Context, allUserData[i].Args);
+        }
+    }
+}
+
+function UnRegisterFunction(handler) {
+    if (allUserData && allUserData.length >= handler) {
+        allUserData[(handler-1)] = null;
+    }
+}
+function UnRegisterAllFunctions()
+{
+    if (allUserData && allUserData.length >0) {
+        allUserData = [];
+    }
+}
+
+
+var RegisteredPortalEventsHandlers = {};
+
+function RegisterPortalEventHandler(EventID, HandlerFn, Context,FuncNameKey) {
+    RegisteredPortalEventsHandlers[EventID] = RegisteredPortalEventsHandlers[EventID] || [];
+    var HandlerID = -1;
+    for (var index = 0; index < RegisteredPortalEventsHandlers[EventID].length; index++) {
+        if (RegisteredPortalEventsHandlers[EventID][index].FuncNameKey == FuncNameKey) {
+            HandlerID = index;
+            break;
+        }
+    }
+    if (HandlerID < 0)
+        HandlerID = RegisteredPortalEventsHandlers[EventID].push({ "HandlerFn": HandlerFn, "Context": Context, "FuncNameKey": FuncNameKey }) - 1;
+    return HandlerID;
+}
+
+function FirePortalEvent() {
+    //EventID, args
+    var EventID = arguments[0];
+    try {
+        for (var i = 0; i < RegisteredPortalEventsHandlers[EventID].length; i++) {
+            try {
+                var HandlerFn = RegisteredPortalEventsHandlers[EventID][i].HandlerFn;
+                var Context = RegisteredPortalEventsHandlers[EventID][i].Context;
+                HandlerFn.apply(Context, Array.prototype.slice.call(arguments, 1));
+            } catch (e) {
+                log(e);
+            }
+        }
+        
+    } catch (e) {
+        log(e);
+    }
+}
+</script>
+
+</body>
+</html>

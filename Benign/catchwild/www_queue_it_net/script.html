@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>script.html</title>
+</head>
+<body>
+
+<script>
+function guid() {
+    function s4() {
+        return Math.floor((1 + Math.random()) * 0x10000)
+            .toString(16)
+            .substring(1);
+    }
+    return (
+        s4() +
+        s4() +
+        "-" +
+        s4() +
+        "-" +
+        s4() +
+        "-" +
+        s4() +
+        "-" +
+        s4() +
+        s4() +
+        s4()
+    );
+}
+
+function getCookie(name) {
+    var value = "; " + document.cookie;
+    var parts = value.split("; " + name + "=");
+    if (parts.length === 2) return parts.pop().split(";").shift();
+}
+
+function formatPageNameFromUrl() {
+    var pathArray = window.location.pathname.split('/').filter(Boolean); // Split the URL path and remove any empty elements
+    var pageName = pathArray.map(function (segment) {
+        // Capitalize the first letter of each segment and replace hyphens with spaces
+        return segment.charAt(0).toUpperCase() + segment.slice(1).replace(/-/g, ' ');
+    }).join(' - '); // Join the segments with ' - '
+
+    return pageName;
+}
+
+function getURLParameter(name) {
+    var results = new RegExp('[\?&]' + name + '=([^&#]*)').exec(window.location.href);
+    return results ? decodeURIComponent(results[1]) : null;
+}
+
+// Small helper for detection of external links
+function isExternal(url) {
+    const pattern = new RegExp(
+        "^(https?:\\/\\/)?" + // protocol
+        "((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.?)+[a-z]{2,}|" + // domain name
+        "((\\d{1,3}\\.){3}\\d{1,3}))" + // OR ip (v4) address
+        "(\\:\\d+)?(\\/[-a-z\\d%_.@+]*)*" + // port and path
+        "(\\?[;&a-z\\d%_.@+=-]*)?" + // query string
+        "(\\#[-a-z\\d_]*)?$",
+        "i"
+    ); // fragment locator
+    return pattern.test(url);
+}
+
+$(document).ready(function () {
+    var videoSrc = "";
+    var videoAltText = "";
+
+    if ($(".accordion").length) {
+        var scriptTag = document.createElement("script");
+        var firstScriptTag = document.getElementsByTagName("script")[0];
+        scriptTag.src = "/scripts/accordion.compiled.js";
+        scriptTag.async = true;
+        scriptTag.defer = true;
+        firstScriptTag.parentNode.insertBefore(scriptTag, firstScriptTag);
+    }
+
+    $(".start-video").click(function () {
+        videoSrc = $(this).data("embedurl");
+        videoAltText = $(this).data("videoalttext");
+    });
+
+    // when the modal is opened autoplay it
+    $("#video-modal").on("shown.bs.modal", function () {
+        $("#video-container").append(
+            '<iframe id="video" class="embed-responsive-item" src="' +
+            videoSrc +
+            '?feature=oembed&autoplay=1&rel=0&modestbranding=1&showinfo=0" alt="' +
+            videoAltText +
+            '" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>'
+        );
+    });
+
+    $("#video-modal").on("hidden.bs.modal", function () {
+        $("#video-container").empty();
+        videoSrc = "";
+        videoAltText = "";
+        $("#video-modal").on("hidden.bs.modal", function () {
+            $("#video-container").empty();
+        });
+    });
+
+
+    if ($("form").length) {
+        var formSubmissionId = guid();
+        var formActionQueryString =
+            $("form").attr("action").indexOf("?") >= 0
+                ? "&"
+                : "?" +
+                "fn=" +
+                $("input[name='FormName']").val() +
+                "&fsid=" +
+                formSubmissionId;
+        $("form").attr("action", $("form").attr("action") + formActionQueryString);
+        $(".umbraco-forms-field.formsubmissionid.hidden input").val(
+            formSubmissionId
+        );
+
+        var sessionId =
+            typeof getCookie("session-id") !== "undefined"
+                ? getCookie("session-id")
+                : "00000000-0000-0000-0000-000000000000";
+        $(".umbraco-forms-field.sessionid.hidden input").val(sessionId);
+        $(".umbraco-forms-field.sessionreport.hidden input").val(
+            "https://datastudio.google.com/reporting/1AumipdZyo9JnsodwmaeeFJRPdEstHsPF/page/uC4c?config=%7B%22df0%22:%22include%25EE%2580%25800%25EE%2580%2580IN%25EE%2580%2580" +
+            sessionId +
+            "%22%7D"
+        );
+    }
+
+    $("#galleryModal").insertAfter("#video-modal");
+
+    $(".rte").on("click", (e) => {
+        var target = e.target.closest("a");
+
+        if (!target) return;
+
+        var href = target.getAttribute("href");
+
+        if (!href) return;
+
+        if (isExternal(href)) {
+            window.open(href, "_blank");
+            e.preventDefault();
+        }
+    });
+
+    $(".statistic-counter").each(function () {
+        $(this).attr("data-counter-animated", "false");
+    });
+
+    $(window).scroll(function () {
+        $(".statistic-counter").each(function () {
+            var top_of_element = $(this).offset().top;
+            var bottom_of_element = $(this).offset().top + $(this).outerHeight();
+            var bottom_of_screen = $(window).scrollTop() + $(window).innerHeight();
+            var top_of_screen = $(window).scrollTop();
+
+            if (
+                bottom_of_screen > top_of_element &&
+                top_of_screen < bottom_of_element
+            ) {
+                if ($(this).attr("data-counter-animated") === "false") {
+                    $(this).attr("data-counter-animated", "true");
+
+                    $(this)
+                        .prop("Counter", 0)
+                        .animate(
+                            {
+                                Counter: $(this).text(),
+                            },
+                            {
+                                duration: 1500,
+                                easing: "swing",
+                                step: function (now) {
+                                    $(this).text(Math.ceil(now));
+                                },
+                            }
+                        );
+                }
+            }
+        });
+    });
+
+    //Transparent Navbar Begins
+    const navbar = document.querySelector(".navbar");
+    const navLink = Array.from(
+        document.querySelectorAll(
+            ".nav-link, .nav-link a, .nav-item .btn-outline-black"
+        )
+    );
+    const btnDarkGreen = document.querySelector(".nav-item .btn-dark-green");
+    const btnOutlineBlack = document.querySelector(".btn-outline-black");
+    const globeIcon = document.querySelector(".region-selector-toggle");
+    const firstRowContainer = document.getElementsByClassName("row-container")[0];
+    const firstRowContainerDark = firstRowContainer.classList.contains("bg-color-dark-green");
+    const imageBanner = firstRowContainer.classList.contains("image-banner");
+    const containsBanner = document.querySelector(".top-panel-container");
+    const logo = document.querySelector(".nav-logo");
+    const lp = window.location.href.indexOf("/lp/") > -1;
+    const fr = window.location.href.indexOf("/fr/") > -1;
+    const de = window.location.href.indexOf("/de/") > -1;
+    const pt = window.location.href.indexOf("/pt-br/") > -1;
+    const navBarToggler = document.querySelector(
+        ".navbar-light .navbar-toggler-icon"
+    );
+
+    //Padding for first row container
+    firstRowContainer.style.paddingTop = "6.5rem";
+
+    //Padding removed on landing pages
+    if (lp || de || pt || fr) {
+        firstRowContainer.style.paddingTop = "1rem";
+    }
+
+    if (firstRowContainerDark)
+        navLink.forEach((link) => {
+            link.style.color = "#fff";
+            btnOutlineBlack.style.borderColor = "#fff";
+            btnDarkGreen.style.borderColor = "#fff";
+            globeIcon.style.fill = "#fff";
+            logo.src = "/media/fwydbdkd/logo_white-01.svg";
+            navBarToggler.style.filter =
+                "invert(100%) sepia(0%) saturate(7474%) hue-rotate(119deg) brightness(108%) contrast(100%)";
+        });
+
+    if (imageBanner) {
+        logo.src = "/media/bpkh1aje/logo_black-01.svg";
+        navbar.style.background = "#fff";
+    };
+
+    if (containsBanner) {
+        logo.src = "/media/bpkh1aje/logo_black-01.svg";
+        navbar.classList.remove("fixed-top");
+        navbar.style.position = "fixed";;
+    };
+
+    window.addEventListener('scroll', () => {
+        if (window.scrollY > 15) {
+            navbar.style.background = "#fff";
+        } else {
+            navbar.style.background = "none";
+            logo.src = "/media/bpkh1aje/logo_black-01.svg";
+        }
+    });
+
+    // Banner on page
+    window.addEventListener('scroll', () => {
+        if (window.scrollY > 15 && containsBanner) {
+            navbar.style.background = "#fff";
+            navbar.classList.add("fixed-top")
+        } else if (containsBanner) {
+            logo.src = "/media/bpkh1aje/logo_black-01.svg";
+            navbar.classList.remove("fixed-top");
+            navbar.style.background = "none";
+            navbar.style.position = "fixed";
+        }
+    });
+
+    window.addEventListener('scroll', () => {
+        if (window.scrollY > 15 && imageBanner) {
+            navbar.style.background = "#fff";
+        }
+    });
+
+    // Dark Background - white text &  white logos
+    window.addEventListener('scroll', () => {
+        if (window.scrollY > 15 && firstRowContainerDark)
+            navLink.forEach((link) => {
+                logo.src = "/media/bpkh1aje/logo_black-01.svg";
+                link.style.color = "#000";
+                btnOutlineBlack.style.borderColor = "#000";
+                globeIcon.style.fill = "#000";
+                navBarToggler.style.filter = "none";
+            });
+        else if (firstRowContainerDark)
+            navLink.forEach((link) => {
+                logo.src = "/media/fwydbdkd/logo_white-01.svg";
+                link.style.color = "#fff";
+                btnOutlineBlack.style.borderColor = "#fff";
+                btnDarkGreen.style.borderColor = "#fff";
+                globeIcon.style.fill = "#fff";
+                navBarToggler.style.filter =
+                    "invert(100%) sepia(0%) saturate(7474%) hue-rotate(119deg) brightness(108%) contrast(100%)";
+            });
+    });
+
+    // Dark mode
+    const darkModeLogo = document.querySelector("source");
+    window.addEventListener('scroll', () => {
+        if (
+            window.scrollY > 15 &&
+            window.matchMedia &&
+            window.matchMedia("(prefers-color-scheme: dark)").matches
+        )
+            darkModeLogo.srcset = "/media/fwydbdkd/logo_white-01.svg";
+    });
+});
+//Transparent Navbar Ends
+document.addEventListener('DOMContentLoaded', function () {
+    // Tabs initialization
+    const tabsContainer = document.querySelector('.tabs__tab-container');
+    if (tabsContainer) {
+        tabsContainer.addEventListener('click', function (e) {
+            const clicked = e.target.closest('.tabs__tab');
+            if (!clicked) return;
+
+            // Handling active tab and content
+            document.querySelectorAll('.tabs__tab, .tabs__content').forEach(el => {
+                el.classList.remove(el.classList.contains('tabs__tab') ? 'tabs__tab--active' : 'tabs__content--active');
+            });
+            clicked.classList.add('tabs__tab--active');
+            document.querySelector(`.tabs__content--${clicked.dataset.tab}`).classList.add('tabs__content--active');
+        });
+    }
+
+    // Accordions initialization
+    document.querySelectorAll('.accordion-item .accordion-header').forEach(header => {
+        header.addEventListener('click', function () {
+            const content = this.nextElementSibling;
+            content.classList.toggle('active');
+
+            // Close other open accordions
+            document.querySelectorAll('.accordion-item .accordion-content').forEach(otherContent => {
+                if (otherContent !== content) {
+                    otherContent.classList.remove('active');
+                }
+            });
+        });
+    });
+});
+
+//Navbar
+$(document).ready(function () {
+    let navbarOpen = false
+    let mobileNavOpen = false
+    let regionSelectorOpen = false
+
+    let navbar = document.querySelector(".navbar")
+
+    if (!navbar) return
+
+    let meganav = document.querySelector('.meganav')
+    let mobileNav = document.querySelector('.mobile-nav')
+    var mobileNavToggler = document.querySelector('.navbar-toggler')
+    var mobileNavClose = document.querySelector('.mobile-nav__close')
+    let overlay = document.querySelector('.navbar-overlay')
+    let meganavPanels = meganav.querySelectorAll('.meganav-panel')
+
+    var mobileNavAccordions = mobileNav.querySelectorAll('.mobile-nav-accordion')
+    let regionSelector = document.querySelector('.region-selector')
+    let regionSelectorToggles = document.querySelectorAll('.region-selector-toggle')
+    let regionSelectorBackground = document.querySelector('.region-selector-background')
+
+    function onNavItemHovered(e) {
+        var item = e.target.closest('.js-nav-item')
+        if (!item) return
+
+
+        if (item.classList.contains('nav-item--has-children')) {
+            showMeganav(true)
+            selectNavItem(item.dataset.navFor)
+        } else {
+            showMeganav(false)
+        }
+    }
+
+    function onMobileNavAccordionTapped(e) {
+        let tappedAccordion = e.target.closest('.mobile-nav-accordion')
+
+        mobileNavAccordions.forEach(accordion => {
+            if (accordion == tappedAccordion) {
+                accordion.classList.toggle('mobile-nav-accordion--open')
+            } else {
+                accordion.classList.remove('mobile-nav-accordion--open')
+            }
+        })
+    }
+
+    function selectNavItem(name) {
+        selectedNavItem = name
+
+        meganavPanels.forEach(p => {
+            if (p.dataset.panelFor == name) {
+                p.classList.add('meganav-panel--open')
+            } else {
+                p.classList.remove('meganav-panel--open')
+            }
+        })
+    }
+
+    function onNavbarMouseOut(e) {
+        showMeganav(false)
+    }
+
+    function showMeganav(show) {
+        if (show) {
+            if (navbarOpen) return
+            navbarOpen = true
+
+            meganav.classList.add('meganav--open')
+
+            navbar.addEventListener('mouseleave', onNavbarMouseOut)
+        } else {
+            if (!navbarOpen) return
+            navbarOpen = false
+            meganav.classList.remove('meganav--open')
+
+            navbar.removeEventListener('mouseleave', onNavbarMouseOut)
+        }
+
+        updateOverlay()
+    }
+
+    function showMobileNav(show) {
+        if (show) {
+            if (mobileNavOpen) return
+            mobileNavOpen = true
+            mobileNav.classList.add('mobile-nav--open')
+        } else {
+            if (!mobileNavOpen) return
+            mobileNavOpen = false
+            mobileNav.classList.remove('mobile-nav--open')
+        }
+
+
+        updateOverlay()
+    }
+
+    function showRegionSelector(show) {
+        if (show) {
+            if (regionSelectorOpen) return
+            regionSelectorOpen = true
+            regionSelector.classList.add('region-selector--open')
+        } else {
+            if (!regionSelectorOpen) return
+            regionSelectorOpen = false
+            regionSelector.classList.remove('region-selector--open')
+        }
+    }
+
+    function updateOverlay() {
+        if (navbarOpen || mobileNavOpen) {
+            overlay.classList.add('navbar-overlay--open')
+            document.body.style.overflowY = 'hidden'
+        } else {
+            overlay.classList.remove('navbar-overlay--open')
+            document.body.style.overflowY = 'visible'
+        }
+    }
+
+    mobileNavAccordions.forEach(accordion => {
+        var header = accordion.querySelector('.mobile-nav-accordion-header')
+
+        if (header.dataset.hasChildren === 'True') {
+            header.addEventListener('click', (e) => {
+                onMobileNavAccordionTapped(e)
+
+                e.preventDefault()
+            })
+        }
+    })
+
+    navbar.querySelectorAll(".js-nav-item").forEach(i => i.addEventListener('mouseover', onNavItemHovered))
+    mobileNavToggler.addEventListener('click', () => {
+        showMobileNav(!mobileNavOpen)
+    })
+
+    mobileNavClose.addEventListener('click', () => {
+        showMobileNav(false)
+    })
+
+    regionSelectorBackground.addEventListener('click', (e) => showRegionSelector(false))
+    regionSelectorToggles.forEach(t => t.addEventListener('click', (e) => showRegionSelector(true)))
+});
+
+function getParam(p) {
+    var match = RegExp('[?&]' + p + '=([^&]*)').exec(window.location.search);
+    return match && decodeURIComponent(match[1].replace(/\+/g, ' '));
+}
+
+function getExpiryRecord(value) {
+    var expiryPeriod = 90 * 24 * 60 * 60 * 1000; // 90 day expiry in milliseconds
+
+    var expiryDate = new Date().getTime() + expiryPeriod;
+    return {
+        value: value,
+        expiryDate: expiryDate
+    };
+}
+
+function addGclid() {
+    var gclidParam = getParam('gclid');
+    var gclidRecord = null;
+
+    var gclsrcParam = getParam('gclsrc');
+    var isGclsrcValid = !gclsrcParam || gclsrcParam.indexOf('aw') !== -1;
+
+    // Check if gclid parameter is present and gclsrc parameter is valid
+    if (gclidParam && isGclsrcValid) {
+        gclidRecord = getExpiryRecord(gclidParam);
+        localStorage.setItem('gclid', JSON.stringify(gclidRecord));
+    }
+
+    // Retrieve the gclid from localStorage and check its validity
+    var gclid = gclidRecord || JSON.parse(localStorage.getItem('gclid'));
+    var isGclidValid = gclid && new Date().getTime() < gclid.expiryDate;
+
+    // Select all elements with class 'gclid_field'
+    var gclidFields = document.querySelectorAll('.gclid_field input[type="hidden"]');
+
+    // Loop through all elements and set the value if gclid is valid
+    gclidFields.forEach(function (field) {
+        if (isGclidValid) {
+            field.value = gclid.value; // Set the gclid value to the input field
+        }
+    });
+}
+// Ensure that the gclid is added once the window has loaded
+window.addEventListener('load', addGclid);
+
+// Function to detect if the browser is Safari on Mac OS
+function isSafariOnMac() {
+    var userAgent = navigator.userAgent;
+    var isMac = userAgent.indexOf('Mac') !== -1; // Check for Mac OS
+    var isSafari = /^((?!chrome|android).)*safari/i.test(userAgent); // Check for Safari
+
+    return isMac && isSafari; // Return true if both conditions are met
+}
+
+// Function to autoplay the video when the modal is opened, and pause the video when the modal is closed
+$(function() {
+  // Function to stop video playback when modal is hidden
+  $("body").on('hidden.bs.modal', function(e) {
+    var $iframes = $(e.target).find("iframe");
+    $iframes.each(function(index, iframe) {
+      // Stop the video by removing the src attribute
+      $(iframe).attr("src", "");
+    });
+  });
+
+  // Function to load and autoplay the video when the button is clicked
+  $("body").on('click', '.load-video-btn', function(e) {
+    e.preventDefault(); // Prevent default action if button is a link
+
+    var targetModal = $(this).data('target'); // Get the target modal selector
+    var $modal = $(targetModal);
+    var $iframe = $modal.find("iframe");
+    
+    // Get the video source URL from data attribute or existing src
+    var src = $iframe.data("src") || $iframe.attr("src");
+    
+    if (!src) {
+      console.error("No video source found for the iframe.");
+      return; // Exit if no source is found
+    }
+
+    // Store the original source in a data attribute if not already stored
+    if (!$iframe.data("src")) {
+      $iframe.data("src", src);
+    }
+
+    // Set the src attribute to include autoplay parameter
+    if (src.indexOf("?") > -1) {
+      src += "&autoplay=1";
+    } else {
+      src += "?autoplay=1";
+    }
+    $iframe.attr("src", src);
+
+    // Show the modal if not already displayed
+    $modal.modal('show');
+  });
+});
+
+
+// Function to rearrange video sources for Safari on Mac OS browsers
+function prioritizeMp4ForSafariOnMac() {
+    // Check if the browser is Safari on Mac
+    if (isSafariOnMac()) {
+        // Get all video elements
+        var videos = document.getElementsByTagName('video');
+        // Loop through each video on the page
+        for (var i = 0; i < videos.length; i++) {
+            var video = videos[i];
+            var sources = video.getElementsByTagName('source');
+            var mp4Source = null;
+            // Find the MP4 source and remove it from its current position
+            for (var j = 0; j < sources.length; j++) {
+                if (sources[j].type === 'video/mp4') {
+                    mp4Source = sources[j];
+                    video.removeChild(sources[j]);
+                    break;
+                }
+            }
+            // If an MP4 source was found, reinsert it at the beginning
+            if (mp4Source) {
+                video.insertBefore(mp4Source, video.firstChild);
+            }
+        }
+    }
+}
+// Run the function when the window loads
+window.onload = prioritizeMp4ForSafariOnMac;
+</script>
+
+</body>
+</html>

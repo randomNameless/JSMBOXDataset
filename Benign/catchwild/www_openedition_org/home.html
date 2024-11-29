@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>home.html</title>
+</head>
+<body>
+
+<script>
+/*
+ * home.js
+ * requiert jQuery 1.3.2
+ *
+ * Page d'accueil de Revues.org et openedition.org
+ *
+ */
+
+/*
+ * Fonctions de défilement et helpers ==========================================
+ *
+ */
+
+jQuery.fn.extend({
+
+	topMargin: function() {
+		return parseInt(this.css('margin-top'), 10);
+	},
+
+	enable: function() {
+		return this.removeAttr('disabled');
+	},
+
+	disable: function() {
+		return this.attr('disabled', 'disabled');
+	},
+
+	// Retourne un tableau contenant uniquement
+	// des ??ents de type ELEMENT_NODE
+	elementNodes: function() {
+		return jQuery.grep(this, function(a){return a.nodeType == 1;})
+	},
+
+	// Scroll : boutons --------------------------------------------------------
+	scrollButtons: function() {
+		$('.asc-desc').find('button').click( function(e) {
+			e.preventDefault();
+			var $this = $(this);
+			//TODO - var self = $this.parent().parent().parent().parent().find('.scroll');
+			var scrollTo = -1;
+			if($this.hasClass('down')) {
+				scrollTo = +1;
+			}
+			self.scrollAnimate(scrollTo);
+		});
+	},
+
+	// Scroll : animation ------------------------------------------------------
+	scrollAnimate: function(dir) {
+		if (false === this.hasClass('scroll')) { return this; }
+
+		var self        = this,
+		    scrollSpeed = 500, // vitesse
+		    scrollData  = self.data('scroll'),
+		    items       = self.children(),
+		    buttons     = scrollData.buttons,
+		    itemsMargin = scrollData.margin,
+		    frameHeight = self.attr('clientHeight'),
+		    frameOffset = self.offset().top,
+		    frameBottom = frameHeight + frameOffset,
+			threshold   = frameHeight * dir; // seuil
+
+		// D?activation des boutons
+		jQuery(':button', buttons).disable();
+
+		// Masquage des textes des Focus
+		jQuery('#Green').hide().empty();
+		jQuery('#revuesorgFocus').find('div.focus').removeClass('shown');
+
+		if (dir < 0) {
+
+			var len = scrollData.previtems.length;
+			scrollData.currentitem = scrollData.previtems[len-1];
+			scrollData.previtems.pop();
+
+			// Pond?ation du seuil pour ?iter qu'un item
+			// tronqu?avant le scroll le soit ?alement apr?...
+			threshold += scrollData.currentitem.offset().top;
+			threshold += frameHeight - frameOffset - itemsMargin;
+
+		} else {
+
+			scrollData.previtems.push(scrollData.currentitem);
+
+			items.each(function(i) {
+
+				var item = jQuery(this),
+				    thisHeight = item.height(),
+				    thisOffsetTop = item.offset().top,
+				    thisOffsetBottom = thisOffsetTop + thisHeight + jQuery('img.mask').height();
+
+				if (thisOffsetBottom > frameBottom) {
+
+					if (item.index(this) == scrollData.currentitem.index(this)) {
+
+						threshold -= thisOffsetBottom - (thisHeight * 1.5) + (itemsMargin * 2);
+						scrollSpeed *= 2;
+						return false; // break
+
+					} else {
+
+						scrollData.currentitem = item;
+						threshold -= frameBottom + itemsMargin - thisOffsetTop;
+						return false; // break
+
+					}
+				}
+
+			});
+
+		}
+
+		// Let's scroll
+		self.animate({scrollTop: self.scrollTop() + Math.ceil(threshold)}, scrollSpeed, function() {
+
+			if (dir > 0 && scrollData.lastitem === null) {
+				self.scrollLoad();
+			} else {
+				self.scrollControls();
+			}
+
+		});
+
+		return self;
+	},
+
+	// Scroll : chargement des items -------------------------------------------
+	scrollLoad: function() {
+
+		if (false === this.hasClass('scroll')) { return this; }
+
+		var self = this,
+		    scrollData  = self.data('scroll'),
+		    limit       = scrollData.limit,
+		    offset      = scrollData.offset,
+		    margins     = scrollData.margin * 2,
+		    buttons     = scrollData.buttons,
+		    indicator   = jQuery('div.indicator', buttons);
+
+		jQuery.ajaxSetup({
+			timeout: 10000,
+			error: function(xhr) {
+				xhr.abort();
+				indicator.removeClass('loading');
+				/*
+				setTimeout(function() {
+					// Nouvelle tentative
+					scrollData.offset -= limit;
+					self.scrollLoad();
+				}, 5000);
+				*/
+			}
+		});
+
+		if (scrollData.lastitem === null) {
+
+			offset += limit;
+			scrollData.offset = offset;
+
+			// Loading...
+			indicator.addClass('loading');
+
+			jQuery.get('?page=get'
+					+ '&list=' + self.attr('id')
+					+ '&limit=' + limit
+					+ '&offset=' + offset, '', function(response) {
+
+				///if (!response) return false;
+				var items = jQuery(response).elementNodes(),
+				    lastitem;
+
+				// Injection des nouveaux items
+				if (items.length) {
+					self.append(items);
+				}
+
+				// Fin des r?ultats
+				if (!response || items.length < limit) {
+					lastitem = self.children(':last').height(self.attr('clientHeight') - margins);
+					scrollData.lastitem = lastitem;
+				}
+
+				// R?ctivation des boutons
+				self.scrollControls();
+				indicator.removeClass('loading');
+
+			}, 'html');
+		}
+
+		return self;
+	},
+
+	// Scroll : r?ctivation des boutons ---------------------------------------
+	scrollControls: function() {
+
+		var scrollData  = this.data('scroll'),
+		    last        = scrollData.lastitem,
+		    buttons     = scrollData.buttons;
+
+		if (last === null ||
+		   (last !== null && Math.ceil(last.offset().top) > Math.ceil(this.offset().top + scrollData.margin))) {
+			jQuery(':button.down', buttons).enable();
+		}
+
+		if (scrollData.sectiontop > scrollData.firstitem.offset().top) {
+			jQuery(':button.up', buttons).enable();
+		}
+
+	}
+
+});
+
+</script>
+
+</body>
+</html>

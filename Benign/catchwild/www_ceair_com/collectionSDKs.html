@@ -1,0 +1,1172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>collectionSDKs.html</title>
+</head>
+<body>
+
+<script>
+'use strict';
+
+var _extends2 = Object.assign || function (target) {
+  for (var i = 1; i < arguments.length; i++) {
+    var source = arguments[i]; for (var key in source) {
+      if (Object.prototype.hasOwnProperty.call(source, key)) {
+        target[key] = source[key];
+      }
+    }
+  } return target;
+};
+
+var _extends = Object.assign || function (target) {
+  for (var i = 1; i < arguments.length; i++) {
+    var source = arguments[i];
+    for (var key in source) {
+      if (Object.prototype.hasOwnProperty.call(source, key)) {
+        target[key] = source[key];
+      }
+    }
+  }
+  return target;
+};
+
+function _toConsumableArray(arr) {
+  if (Array.isArray(arr)) {
+    for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) {
+      arr2[i] = arr[i];
+    }
+    return arr2;
+  } else {
+    return Array.from(arr);
+  }
+}
+
+/* eslint-disable camelcase */
+/* eslint-disable no-undef */
+(function () {
+  GIOloader();
+  sensorsLoader();
+})();
+
+// SDK loaders
+function GIOloader() {
+  var d = document,
+    g = d.createElement('script'),
+    s = d.getElementsByTagName('script')[0];
+  g.type = 'text/javascript';
+  g.innerHTML = "webViewRequestSend=false;!function(e,t,n,g,i){e[i]=e[i]||function(){(e[i].q=e[i].q||[]).push(arguments)},n=t.createElement('script'),tag=t.getElementsByTagName('script')[0],n.async=1,n.src=('https:'==document.location.protocol?'https://':'http://')+g,tag.parentNode.insertBefore(n,tag)}(window,document,'script','assets.giocdn.com/2.1/2.3.4/gio-2.3.4.js','gio');gio('init','84bb15efa4e13721', {});gio('config', {'hashtag':true});gio('send');";
+  s.parentNode.insertBefore(g, s);
+}
+
+// 神策埋点
+function sensorsLoader(){
+  var sensors = window['sensorsDataAnalytic201505'];
+  sensors.init({
+    server_url: 'https://behavior.ceair.com:8106/sa?project=b2c',
+    heatmap: { scroll_notice_map: 'not_collect' },
+    is_track_single_page: true,
+    use_client_time: true,
+    send_type: 'beacon'
+  });
+  sensors.quick('autoTrack');
+}
+
+/**
+ * 获取名称
+ * @param {*} travelType`
+ */
+function _getTravelTypeTitle(travelType) {
+  switch (travelType) {
+    case 'oneway':
+      return '单程';
+    case 'roundtrip':
+      return '返程';
+    case 'multitrip':
+      return '多段';
+  }
+};
+
+/** collect positions 
+ * @use collect(position, params)
+ **/
+function collect(position, data) {
+  try {
+    switch (position) {
+      case 'doSensorsNoFlightTrack':
+        _doSensorsNoFlightTrack(data);
+      case 'doSensorsNoFlightPrice':
+        _doSensorsNoFlightPrice(data);
+      case 'homeCateClick':
+        // 点击了首页tab选项
+        _gioHomeCateClickRep(data);
+        break;
+      case 'airsearchSuccess':
+        // 搜索航班按钮
+        _gioAirsearchSuccess(data);
+        break;
+      case 'confirmMessage':
+        // 疫情提示最后一个按钮
+        gio('track', 'confirmMessage', data);
+        break;
+      case 'brandPageChooseNew':
+        _gioBrandPageChoose(data.curCabin, data.index, data.cabinList, data.productList, data.isReschedule);
+        break;
+      case 'brandOrderSuccess':
+        // 当用户在品牌运价页面选择并成功支付订单时触发
+        _gioBrandOrderSuccess();
+        break;
+      case 'orderSubmit':
+        // 当用户订单提交成功时触发
+        _gioOrderSubmit(data);
+        break;
+      case 'orderPaySuccess':
+        // 当用户订单支付成功时触发
+        if (data.trkOrderStatus) {
+          _gioOrderPaySuccess();
+        }
+        break;
+      case 'serverSuccess':
+        _gioServerSuccess(data);
+        break;
+      case 'selectPaymentMethod':
+        if (data.payDesc.includes('支付宝')) {
+          _gioCommonPoint('ticket_payMethod_alipay_click');
+        } else if (data.payDesc.includes('快钱')) {
+          _gioCommonPoint('ticket_payMethod_快钱_click');
+        } else if (data.payDesc.includes('易宝')) {
+          _gioCommonPoint('ticket_payMethod_易宝_click');
+        } else if (data.payDesc.includes('微信')) {
+          _gioCommonPoint('ticket_payMethod_wechat_click');
+        } else if (data.payDesc.includes('快捷支付')) {
+          _gioCommonPoint('ticket_payMethod_快捷_click');
+        } else if (data.payDesc.includes('汇付')) {
+          _gioCommonPoint('ticket_payMethod_汇付天下_click');
+        } else if (data.payDesc.includes('外卡支付')) {
+          _gioCommonPoint('ticket_payMethod_国际支付_click');
+        }
+        break;
+      // 点击支付
+      case 'pay':
+        _gioCommonPoint('ticket_paymentPage_confirm_payment');
+        break;
+      case 'trackXRecommendClick':
+        _gioPaymentResultBannerClick(data);
+        break;
+      case 'trackXProductPayment':
+        _gioXProductPayment(data);
+        break;
+      case 'trackUpgradePayment':
+        _gioUpgradePayment(data);
+        break;
+      case 'baggageClick':
+        _gioCommonPoint(data.type);
+        break;
+      case 'seatPageAutoCheckIn':
+        _gioAutoCheckInClick(data);
+        break;
+      case 'seatAndCheckIn':
+        _gioCommonPoint(data.type);
+        break;
+      case 'trackRefund':
+        _gioCommonPoint(data.type);
+        break;
+      case 'trackMeal':
+        _gioCommonPoint(data.type);
+        break;          
+      case 'seatSafeConfirmMessage':
+        gio('track', 'confirmMessage', data);
+        break;
+      case 'mainProgressSeatSubmit':
+        gio('track', 'seatSubmit', data);
+        break;
+      case 'sideOnlineService':
+        _gioCommonPoint('pic_onlineService');
+        break;
+      case 'closeSideOnlineService':
+        _gioCommonPoint('Icon_OnlineSER_Close');
+        break;
+      case 'ticket_additionalPage_next_click':
+        _gioCommonPoint('ticket_additionalPage_next_click');
+        break;
+      case 'errorMessage':
+        gio('track', 'ErrorMessage', data);
+        break;
+      // 计数埋点
+      case 'common-point':
+        _gioCommonPoint(data);
+        break;
+      // 页面埋点
+      case 'page-point':
+        _gioPagePoint(data);
+        break;
+      case 'rescheduleChoose':
+        gio('track', 'rescheduleChoose', data);
+        break;
+      case 'gsSubmit':
+        _gioGsSubmit(data);
+        break;
+      case 'addSubmit':
+        _gioAddSubmit(data);
+        break;
+      case 'checkbox':
+        gio('track', 'checkBox', data);
+        break;
+      case 'resourceClick':
+        _gioResourceClickPoint(data);
+        break;
+      case 'FLTInfoSearch':
+        _gioResourceClickPoint(data, 'FLTInfoSearch');
+        break;
+      case 'homeClick':
+        _gioCommonPoint(data);
+        break;
+      case 'buttonClick':
+        gio('track', 'buttonClick', data);
+        break;
+    }
+  } catch (e) {
+    console.log(e);
+  }
+}
+/**
+ * @description: 神策埋点 没有航班数据
+ * @return {*}
+ */
+function _doSensorsNoFlightTrack(data) {
+  var sensors = window['sensorsDataAnalytic201505'];
+  sensors.track('shoppingWarning', data);
+};
+function _doSensorsNoFlightPrice(data) {
+  var sensors = window['sensorsDataAnalytic201505'];
+  sensors.track('noPriceWarning', data);
+};
+function _gioGsSubmit(data) {
+  var segInfo = [];
+  var params = {};
+  data.tripList.map(function (item) {
+    segInfo.push(item.depCityName + '_' + item.arrCityName + '_' + item.marketCarr + item.marketFlightNo + '_' + item.depDate);
+  });
+  params.ud_var = data.ud_var;
+  params.flightInfo_var = segInfo.join('_');
+  params.checkBox_var = true;
+  params.curPrice_var = '' + data.currency + data.cartDetail.cashAmt + '_' + '积分' + data.cartDetail.pointAmt;
+  params.error_var = data.res.resultMsg;
+
+  if (data.cartDetail.usedWSD) {
+    params.couponName_var = '\u4E07\u4E8B\u8FBE' + data.cartDetail.usedWSD;
+  }
+  if (data.cartDetail.usedCouponForUpCabin) {
+    if (params.couponName_var) {
+      params.couponName_var += '_\u5347\u8231\u5238' + data.cartDetail.usedCouponForUpCabin;
+    } else {
+      params.couponName_var = '\u5347\u8231\u5238' + data.cartDetail.usedCouponForUpCabin;
+    }
+  }
+  if (data.cartDetail.usedSXQ) {
+    if (params.couponName_var) {
+      params.couponName_var += '_\u6613\u4EAB\u5238' + data.cartDetail.usedSXQ;
+    } else {
+      params.couponName_var = '\u6613\u4EAB\u5238' + data.cartDetail.usedSXQ;
+    }
+  }
+
+  gio('track', 'gsSubmit', params);
+}
+// 附加服务 下一步
+function _gioAddSubmit(data) {
+
+  var params = {};
+  var segArr = [];
+  data.flightList.map(function (item) {
+    item.flightSegments.map(function (seg) {
+      segArr.push(seg.orgCityName + '_' + seg.destCityName + '_' + seg.fltDate + '_' + seg.airlineCode + seg.flightNo);
+    });
+  });
+  function formTotal() {
+    var orderDetail = data.orderDetail;
+    return '' + orderDetail.total.currency + orderDetail.total.amount + (orderDetail.total.subamount ? '_' + orderDetail.total.subcurrency + orderDetail.total.subamount : '');
+  }
+  params.flightInfo_var = segArr.join('_');
+  params.curPrice_var = formTotal();
+  if (data.oldOrderDetail && data.oldOrderDetail.xproductInfos && data.oldOrderDetail.xproductInfos.itineraryOrderInfoList) {
+    params.voucher_var = '邮寄行程单';
+  }
+  if (data.bookingParam.invoiceInfoList && data.bookingParam.invoiceInfoList.length) {
+    params.voucher_var = '预约数电票';
+  }
+  if (data.bookingParam && data.bookingParam.insuranceBookingInfo && data.bookingParam.insuranceBookingInfo.insuranceProductList && data.bookingParam.insuranceBookingInfo.insuranceProductList.length) {
+    params.checkBox_var = function () {
+      var arr = [];
+      data.bookingParam.insuranceBookingInfo.insuranceProductList.map(function (item) {
+        arr.push(item.insuranceName);
+      });
+      return arr.join('_');
+    }();
+  }
+
+  if (data && data.oldOrderDetail && data.oldOrderDetail.couponInfoDetails && data.oldOrderDetail.couponInfoDetails.length) {
+    var couponName_var = '';
+    data.oldOrderDetail.couponInfoDetails.map(function (item, index) {
+      if (index === 0) {
+        couponName_var += item.couponName + '_' + item.discountDesc;
+      } else {
+        couponName_var += '_' + item.couponName + '_' + item.discountDesc;
+      }
+    });
+    params.couponName_var = couponName_var;
+  }
+  if (data.bookingParam.sxtCouponInfo) {
+    params.deduct_var = '\u6613\u4EAB\u5238_' + data.bookingParam.sxtCouponInfo.couponPrice;
+  }
+  gio('track', 'addSubmit', params);
+}
+
+/**
+ * 首页分类点击
+ * @param {*} tabIndex
+ */
+function _gioHomeCateClickRep(tabIndex) {
+  console.log('tabIndex', tabIndex)
+  var getTabValue = function getTabValue(index) {
+    switch (index) {
+      case 1:
+        return '改升';
+      case 2:
+        return '退票';
+      case 3:
+        return '预付费行李';
+      case 4:
+        return '特殊旅客服务';
+      case 5:
+        return '客票验真';
+      case 6:
+        return '其他';
+    }
+  };
+  var tabValue = getTabValue(tabIndex);
+  gio('track', 'homeCateClick', {
+    homeCateTab_var: tabIndex,
+    homeCateLoc_var: tabValue
+  });
+}
+
+/**
+ * 获取舱位信息
+ * @param {*} cabinclass
+ */
+function _getCabinTitle(cabinclass) {
+  switch (cabinclass) {
+    case 'ALL':
+      return '所有舱位';
+    case 'Y':
+      return '经济舱';
+    case 'W':
+      return '超级经济舱';
+    case 'F':
+      return '公务/头等舱';
+    default:
+      return '全部舱位';
+  }
+}
+
+/**
+ * 获取支付方式文案
+ * @param {*} payway
+ */
+function _getPayWayTitle(payway) {
+  switch (payway) {
+    case 'money':
+      return '现金';
+    case 'JF':
+      return '积分';
+  }
+}
+
+/**
+ * 航线搜索埋点
+ * @param {*} query
+ */
+function _gioAirsearchSuccess(data) {
+  var query = data.query;
+  var requestData = {};
+  var travelTypeText = function (travelType) {
+    switch (travelType) {
+      case 'oneway':
+        return '单程';
+      case 'roundtrip':
+        return '往返';
+      default:
+        return '多段';
+    }
+  }(query.travelType);
+  requestData.airsearchType_var = travelTypeText;
+  requestData.nationOrInterFlight_var = ''; // 暂时拿不到 TODO
+  requestData.historyInfo_var = _getHistoryData(query.travelType);
+  requestData.searchInfo_var = _getSearchData(query);
+  gio('track', 'airsearchSuccess', requestData);
+}
+
+/**
+ * 获取历史数据
+ */
+function _getHistoryData(travelType) {
+  var userSearchHistory = null;
+  var data = '';
+  var ceairStore = JSON.parse(localStorage.getItem('ceair-store'))
+  if (travelType !== 'multitrip') {
+    userSearchHistory = ceairStore.shopping.userSearchHistroy;
+  } else {
+    userSearchHistory = ceairStore.shopping.mtUserSearchHistory;
+  }
+  if (userSearchHistory) {
+    switch (userSearchHistory.travelType) {
+      case 'oneway':
+        data = userSearchHistory.depCity + '_' + userSearchHistory.arrCity + '_' + userSearchHistory.datePicker.singleValue + '_\u6210\u4EBA' + userSearchHistory.passengerNum.adtNum + '\u513F\u7AE5' + userSearchHistory.passengerNum.chdNum + '\u5A74\u513F' + userSearchHistory.passengerNum.infNum + '_' + _getCabinTitle(userSearchHistory.cabinClass) + '_' + _getPayWayTitle(userSearchHistory.payWay);
+        break;
+      case 'roundtrip':
+        data = userSearchHistory.depCity + '_' + userSearchHistory.arrCity + '_' + userSearchHistory.datePicker.selectRangeDateValue.goDate + '_' + userSearchHistory.arrCity + '_' + userSearchHistory.depCity + '_' + userSearchHistory.datePicker.selectRangeDateValue.backDate + '_\u6210\u4EBA' + userSearchHistory.passengerNum.adtNum + '\u513F\u7AE5' + userSearchHistory.passengerNum.chdNum + '\u5A74\u513F' + userSearchHistory.passengerNum.infNum + '_' + _getCabinTitle(userSearchHistory.cabinClass) + '_' + _getPayWayTitle(userSearchHistory.payWay);
+        break;
+      default:
+        userSearchHistory.tripList.map(function (trip) {
+          data += trip.depCity + '_' + trip.arrCity + '_' + trip.datePicker.singleValue + '_';
+        });
+        data += '\u6210\u4EBA' + userSearchHistory.passengerNum.adtNum + '\u513F\u7AE5' + userSearchHistory.passengerNum.chdNum + '\u5A74\u513F' + userSearchHistory.passengerNum.infNum;
+        break;
+    }
+  }
+  return data;
+}
+
+/**
+ * 当次搜索数据
+ */
+function _getSearchData(query) {
+  var data = '';
+  var passengerNumString = '';
+  passengerNumString = query.passengerNum.split(',').map(function (num, index) {
+    if (index === 0) {
+      return '\u6210\u4EBA' + num;
+    } else if (index === 1) {
+      return '\u513F\u7AE5' + num;
+    } else {
+      return '\u5A74\u513F' + num;
+    }
+  }).join('');
+
+  switch (query.travelType) {
+    case 'oneway':
+      data = query.depCityName + '_' + query.arrCityName + '_' + query.date + '_' + passengerNumString + '_' + _getCabinTitle(query.cabinClass) + '_' + _getPayWayTitle(query.payWay);
+      break;
+    case 'roundtrip':
+      data = query.depCityName + '_' + query.arrCityName + '_' + query.date.split(',')[0] + '_' + query.arrCityName + '_' + query.depCityName + '_' + query.date.split(',')[1] + '_' + passengerNumString + '_' + _getCabinTitle(query.cabinClass) + '_' + _getPayWayTitle(query.payWay);
+      break;
+    default:
+      JSON.parse(query.segList).map(function (trip) {
+        data += trip.depCityName + '_' + trip.arrCityName + '_' + trip.depDate + '_';
+      });
+      data += passengerNumString;
+      break;
+  }
+  return data;
+}
+
+/**
+ * 点击预订时候
+ * @param {*} data
+ */
+function _gioBrandPageChoose(curCabin, index, cabinList, productList, isReschedule) {
+  function findProduct(productCode) {
+    return productList.find(function (product) {
+      return product.productCode === productCode;
+    });
+  }
+  function findFareByType(fareInfos, paxType) {
+    return fareInfos.find(function (fare) {
+      return fare.paxType === paxType;
+    });
+  }
+  function generateAvailabelClass(cabinList) {
+    if (!cabinList) {
+      return '';
+    }
+    var arr = [];
+    cabinList.map(function (cabin) {
+      var tempAdtFare = findFareByType(cabin.fareInfos, 'ADT');
+      if (isReschedule) {
+        arr.push(tempAdtFare.productCode + '-' + cabin.cabinLevelName + '-' + Number(tempAdtFare.reQueryTotalPrice));
+      } else {
+        arr.push(tempAdtFare.productCode + '-' + cabin.cabinLevelName + '-' + Number(tempAdtFare.price));
+      }
+    });
+    return arr.join(',');
+  }
+  function generateAvailabelCabin(foldedCabins) {
+    if (!foldedCabins) {
+      return '';
+    }
+    var arr = [];
+    foldedCabins.map(function (cabin) {
+      arr.push(findProduct(findFareByType(cabin.fareInfos, 'ADT').productCode).cabinLabelInfo[0].labelName);
+    });
+    return arr.join('/');
+  }
+  var adtFare = findFareByType(curCabin.fareInfos, 'ADT');
+  if (isReschedule) {
+    var chdFare = findFareByType(curCabin.fareInfos, 'CHD');
+    var infFare = findFareByType(curCabin.fareInfos, 'INF');
+    var totalPrice = Number(adtFare.reQueryTotalPrice) + Number(chdFare ? chdFare.reQueryTotalPrice : 0) + Number(infFare ? infFare.reQueryTotalPrice : 0);
+    var chooseClass_var = adtFare.productCode + '-' + findProduct(adtFare.productCode).cabinLabelInfo[0].labelName + '-' + totalPrice + '_成人' + Number(adtFare.reQueryTotalPrice);
+    if (chdFare) {
+      chooseClass_var += '_儿童' + Number(chdFare.reQueryTotalPrice);
+    }
+    if (infFare) {
+      chooseClass_var += '_婴儿' + Number(infFare.reQueryTotalPrice);
+    }
+    gio('track', 'brandPageChoose', {
+      brandPageType_var: '舱位选择页面-横排',
+      chooseClass_var: chooseClass_var,
+      currentCabin_var: curCabin.cabinLevelName,
+      availableClass_var: generateAvailabelClass(cabinList),
+      pageLocation_var: '官网_改期升舱_航班选择'
+    });
+  } else {
+    gio('track', 'brandPageChoose', {
+      brandPageType_var: '舱位选择页面-横排',
+      chooseClass_var: adtFare.productCode + '-' + findProduct(adtFare.productCode).cabinLabelInfo[0].labelName + '-' + Number(adtFare.price),
+      currentCabin_var: curCabin.cabinLevelName,
+      availableClass_var: generateAvailabelClass(cabinList),
+      info_var: generateAvailabelCabin(cabinList[index].foldedCabins),
+      pageLocation_var: '官网_航班选择'
+    });
+  }
+}
+
+
+/**
+ * 获取品牌运价请求数据
+ * @param {*} data
+ */
+function _getBrandPageChooseRequestDataByType(data) {
+  switch (data.type) {
+    case 'ver':
+      return _getBrandPageChooseReqeustDataByVer(data.data);
+    case 'hor':
+      return _getBrandPageChooseRequestDataByHor(data.data);
+    case 'booking':
+      return _getBrandPageChooseRequestDataByBooking(data.data);
+  }
+}
+
+function _getBrandPageChooseRequestDataByHor(data) {
+  var innerData = data.data;
+  var titleInfo = '舱位选择页面-横排';
+  var fareInfo = _getFareInfoByPaxType('ADT', innerData.fareInfos);
+  var requestData = {
+    brandPageType_var: titleInfo,
+    chooseClass_var: _getClassVerInFareInfo(fareInfo, innerData.cabinLevelName),
+    currentCabin_var: innerData.cabinLevelName,
+    availableClass_var: _getAvailableClass(data.currentFlightList)
+  };
+
+  return requestData;
+}
+
+function _getAvailableClass(currentFlightList) {
+  var availableClass = [];
+  var _iteratorNormalCompletion3 = true;
+  var _didIteratorError3 = false;
+  var _iteratorError3 = undefined;
+
+  try {
+    for (var _iterator3 = currentFlightList[Symbol.iterator](), _step3; !(_iteratorNormalCompletion3 = (_step3 = _iterator3.next()).done); _iteratorNormalCompletion3 = true) {
+      var flightList = _step3.value;
+
+      var adtFareInfo = _getFareInfoByPaxType('ADT', flightList.fareInfos);
+      var info = _getClassVerInFareInfo(adtFareInfo, flightList.cabinLevelName);
+      availableClass.push(info);
+    }
+  } catch (err) {
+    _didIteratorError3 = true;
+    _iteratorError3 = err;
+  } finally {
+    try {
+      if (!_iteratorNormalCompletion3 && _iterator3.return) {
+        _iterator3.return();
+      }
+    } finally {
+      if (_didIteratorError3) {
+        throw _iteratorError3;
+      }
+    }
+  }
+
+  return availableClass.join(',');
+}
+
+function _getBrandPageChooseReqeustDataByVer(data) {
+  var titleInfo = '舱位选择页面-竖排';
+  var cabinLevel = data.cabin.ctype;
+  var cabinName = _getCabinNameByCabinLevel(cabinLevel);
+  var requestData = {
+    brandPageType_var: titleInfo,
+    chooseClass_var: _getClassVer(data.cabin.fareInfoDescList[0], cabinName),
+    currentCabin_var: cabinName,
+    availableClass_var: _getClassVer(data.cabin.fareInfoDescList[0], cabinName)
+  };
+  return requestData;
+}
+
+function _getBrandPageChooseRequestDataByBooking(data) {
+  var titleInfo = '资料填写页面';
+  // 可选的品牌运价
+  var brandList = data.brandList;
+  // RT...
+  var travelType = data.travelType;
+  // 选择的内容
+  var flightList = data.flightList;
+  // 升舱的舱位
+  var upFare = data.upFare;
+  var adtFareInfo = _getFareInfoByPaxType('ADT', upFare.fareInfos);
+  var cabinName = _getCabinNameByCabinLevel(upFare.cabinLevel);
+  var requestData = {
+    brandPageType_var: titleInfo,
+    chooseClass_var: _getClassVerInFareInfo(adtFareInfo, cabinName),
+    currentCabin_var: upFare.cabinLevelName,
+    availableClass_var: _getAvailableClass(brandList[brandList.length - 1])
+  };
+
+  return requestData;
+}
+
+function _getCabinNameByCabinLevel(cabinLevel) {
+  switch (cabinLevel) {
+    case 'F':
+      return '头等舱';
+    case 'J':
+      return '商务舱';
+    case 'Y':
+      return '经济舱';
+    case 'W':
+      return '超级经济舱';
+  }
+}
+
+function _getClassVer(data, cabinName, productionInfos) {
+  // 产品code-基础经济舱-1120
+  return data.productCode + '-' + cabinName + '-' + data.totalPrice;
+}
+
+function _getClassVerInFareInfo(fareInfo, cabinName) {
+  return fareInfo.productCode + '-' + cabinName + '-' + fareInfo.price;
+}
+
+/**
+ * 获取相关运价
+ * @param {*} paxType
+ * @param {*} fareInfos
+ */
+function _getFareInfoByPaxType(paxType, fareInfos) {
+  return fareInfos.find(function (fareInfo) {
+    return fareInfo.paxType === paxType;
+  });
+}
+
+/**
+ * 埋点上报 品牌运价页面订单支付成功
+ * @param {*} data
+ */
+function _gioBrandOrderSuccess() {
+  var brandPriceFlag = sessionStorage.getItem('brandPriceFlag');
+  if (!brandPriceFlag || brandPriceFlag === 'false') {
+    // 非品牌运价不上报
+    return;
+  }
+  var isUpgrade = localStorage.getItem('isUpgrade');
+  if (isUpgrade === 'true' || isUpgrade === true) {
+    isUpgrade = true;
+  } else {
+    isUpgrade = false;
+  }
+  var titleInfo = isUpgrade ? '资料填写页面' : '舱位选择页面-横排';
+  var brandOrder = void 0;
+  try {
+    brandOrder = JSON.parse(localStorage.getItem('brandOrder'));
+  } catch (error) { }
+  if (!brandOrder) {
+    return;
+  }
+
+  brandOrder.pageLocation_var = 'global';
+  brandOrder.brandPageType_var = titleInfo;
+  gio('track', 'brandOrderSuccess', brandOrder);
+}
+
+/**
+ * 埋点上报 订单提交成功
+ */
+function _gioOrderSubmit(data) {
+  var requestData = _getRequestIngioOrderSubmitByTravelType(data, data.travelType);
+  localStorage.setItem('orderSubmit', JSON.stringify(requestData));
+  requestData.pageLocation_var = 'global';
+  gio('track', 'orderSubmit', requestData);
+}
+
+/**
+ * 通过travelType来提交订单
+ * @param {*} travelType
+ */
+function _getRequestIngioOrderSubmitByTravelType(data, travelType) {
+  switch (travelType) {
+    case 'oneway':
+      return _getReqeustOrderSubmitReqeuestDataOW(data);
+    case 'roundtrip':
+      return _getReqeustOrderSubmitReqeuestDataRT(data);
+    case 'multitrip':
+      return _getReqeustOrderSubmitReqeuestDataMT(data);
+  }
+}
+
+/**
+ * 请求
+ */
+function _getReqeustOrderSubmitReqeuestDataOW(data) {
+  var ceairStore = JSON.parse(localStorage.getItem('ceair-store'))
+  var flightList = ceairStore.bookingNew.flightList;
+  // 航程信息 数组的每个都是一样的
+  var flightSegments = flightList[0].flightSegments;
+  var desFlightSegments = [];
+  var travelType = data.travelType;
+  if (travelType === 'oneway') {
+    desFlightSegments = flightSegments;
+  } else {
+    var _iteratorNormalCompletion4 = true;
+    var _didIteratorError4 = false;
+    var _iteratorError4 = undefined;
+
+    try {
+      for (var _iterator4 = flightList[Symbol.iterator](), _step4; !(_iteratorNormalCompletion4 = (_step4 = _iterator4.next()).done); _iteratorNormalCompletion4 = true) {
+        var flight = _step4.value;
+
+        desFlightSegments = [].concat(_toConsumableArray(desFlightSegments), _toConsumableArray(flight.flightSegments));
+      }
+    } catch (err) {
+      _didIteratorError4 = true;
+      _iteratorError4 = err;
+    } finally {
+      try {
+        if (!_iteratorNormalCompletion4 && _iterator4.return) {
+          _iterator4.return();
+        }
+      } finally {
+        if (_didIteratorError4) {
+          throw _iteratorError4;
+        }
+      }
+    }
+  }
+  var responseData = data.data;
+  var requestData = {
+    brandCode_var: _getValueInChoosedFlightList(flightList, 'productCode'),
+    orderID_var: responseData.tdOrderNo,
+    ticketPrice_var: _getValueInChoosedFlightList(flightList, 'price'),
+    cangwei_var: _getCabinLevelNameInChoosedFlightList(flightList),
+    flightNumber_var: _getFlightNumberInFlightSegments(desFlightSegments),
+    ifRoundTrip_var: _getTravelTypeTitle(travelType),
+    ifInternational_var: _getDomesticOrInterTitle(flightList),
+    deptCity_var: _getFlightSegmentValue(desFlightSegments, 'orgCityName'),
+    destCity_var: _getFlightSegmentValue(desFlightSegments, 'destCityName'),
+    deptDate_var: _getFlightSegmentValue(desFlightSegments, 'fltDate')
+  };
+  return requestData;
+}
+
+function _getReqeustOrderSubmitReqeuestDataRT(data) {
+  return _getReqeustOrderSubmitReqeuestDataOW(data);
+}
+
+function _getReqeustOrderSubmitReqeuestDataMT(data) {
+  return _getReqeustOrderSubmitReqeuestDataOW(data);
+}
+
+/**
+ * 获取航程相关值
+ * @param {*} flightSegments
+ * @param {*} key
+ */
+function _getFlightSegmentValue(flightSegments, key) {
+  var values = [];
+  var _iteratorNormalCompletion5 = true;
+  var _didIteratorError5 = false;
+  var _iteratorError5 = undefined;
+
+  try {
+    for (var _iterator5 = flightSegments[Symbol.iterator](), _step5; !(_iteratorNormalCompletion5 = (_step5 = _iterator5.next()).done); _iteratorNormalCompletion5 = true) {
+      var flightSegment = _step5.value;
+
+      values.push(flightSegment[key]);
+    }
+  } catch (err) {
+    _didIteratorError5 = true;
+    _iteratorError5 = err;
+  } finally {
+    try {
+      if (!_iteratorNormalCompletion5 && _iterator5.return) {
+        _iterator5.return();
+      }
+    } finally {
+      if (_didIteratorError5) {
+        throw _iteratorError5;
+      }
+    }
+  }
+
+  return values.join(',');
+}
+
+/**
+ * 获取航班号
+ * @param {*} flightSegments
+ */
+function _getFlightNumberInFlightSegments(flightSegments) {
+  var flightNumbers = [];
+  var _iteratorNormalCompletion6 = true;
+  var _didIteratorError6 = false;
+  var _iteratorError6 = undefined;
+
+  try {
+    for (var _iterator6 = flightSegments[Symbol.iterator](), _step6; !(_iteratorNormalCompletion6 = (_step6 = _iterator6.next()).done); _iteratorNormalCompletion6 = true) {
+      var flightSegment = _step6.value;
+
+      flightNumbers.push('' + flightSegment.carrierCode + flightSegment.carrierNo);
+    }
+  } catch (err) {
+    _didIteratorError6 = true;
+    _iteratorError6 = err;
+  } finally {
+    try {
+      if (!_iteratorNormalCompletion6 && _iterator6.return) {
+        _iterator6.return();
+      }
+    } finally {
+      if (_didIteratorError6) {
+        throw _iteratorError6;
+      }
+    }
+  }
+
+  return flightNumbers.join(',');
+}
+
+/**
+ *
+ * @param {*} flightList
+ */
+function _getValueInChoosedFlightList(flightList, key) {
+  var values = [];
+  var _iteratorNormalCompletion7 = true;
+  var _didIteratorError7 = false;
+  var _iteratorError7 = undefined;
+
+  try {
+    for (var _iterator7 = flightList[Symbol.iterator](), _step7; !(_iteratorNormalCompletion7 = (_step7 = _iterator7.next()).done); _iteratorNormalCompletion7 = true) {
+      var flight = _step7.value;
+
+      var fareInfos = flight.flightInfo.fareInfos;
+      var adtFareInfo = _getFareInfoByPaxType('ADT', fareInfos);
+      values.push(adtFareInfo[key]);
+    }
+  } catch (err) {
+    _didIteratorError7 = true;
+    _iteratorError7 = err;
+  } finally {
+    try {
+      if (!_iteratorNormalCompletion7 && _iterator7.return) {
+        _iterator7.return();
+      }
+    } finally {
+      if (_didIteratorError7) {
+        throw _iteratorError7;
+      }
+    }
+  }
+
+  return values.join(',');
+}
+
+/**
+ * 获取舱位描述
+ * @param {*} flightList
+ */
+function _getCabinLevelNameInChoosedFlightList(flightList) {
+  var values = [];
+  var _iteratorNormalCompletion8 = true;
+  var _didIteratorError8 = false;
+  var _iteratorError8 = undefined;
+
+  try {
+    for (var _iterator8 = flightList[Symbol.iterator](), _step8; !(_iteratorNormalCompletion8 = (_step8 = _iterator8.next()).done); _iteratorNormalCompletion8 = true) {
+      var flight = _step8.value;
+
+      values.push(flight.flightInfo.cabinLevelName);
+    }
+  } catch (err) {
+    _didIteratorError8 = true;
+    _iteratorError8 = err;
+  } finally {
+    try {
+      if (!_iteratorNormalCompletion8 && _iterator8.return) {
+        _iterator8.return();
+      }
+    } finally {
+      if (_didIteratorError8) {
+        throw _iteratorError8;
+      }
+    }
+  }
+
+  return values.join(',');
+}
+
+/**
+ * 获取国内还是国际
+ * @param {*} domesticOrInter
+ */
+function _getDomesticOrInterTitle(flightList) {
+  var domesticOrInters = [];
+  var _iteratorNormalCompletion9 = true;
+  var _didIteratorError9 = false;
+  var _iteratorError9 = undefined;
+
+  try {
+    for (var _iterator9 = flightList[Symbol.iterator](), _step9; !(_iteratorNormalCompletion9 = (_step9 = _iterator9.next()).done); _iteratorNormalCompletion9 = true) {
+      var flight = _step9.value;
+
+      var domesticOrInterTitle = flight.domesticOrInter === 'I' ? '国际' : '国内';
+      domesticOrInters.push(domesticOrInterTitle);
+    }
+  } catch (err) {
+    _didIteratorError9 = true;
+    _iteratorError9 = err;
+  } finally {
+    try {
+      if (!_iteratorNormalCompletion9 && _iterator9.return) {
+        _iterator9.return();
+      }
+    } finally {
+      if (_didIteratorError9) {
+        throw _iteratorError9;
+      }
+    }
+  }
+
+  return domesticOrInters.join(',');
+}
+
+/**
+ * 上报订单支付成功 埋点
+ */
+function _gioOrderPaySuccess() {
+  var requestData = JSON.parse(localStorage.getItem('orderSubmit'));
+  requestData.pageLocation_var = 'global';
+  gio('track', 'orderPaySuccess', requestData);
+}
+
+/**
+ * 线上服务成功
+ *
+ * 完成值机操作&完成免费/付费选座:预办登机
+ * 点击航班动态查询:航班动态
+ * 点击行李查询:行李查询
+ * 完成非自愿退改:特服
+ * 完成退票:退票
+ * 完成改期:改期
+ * 完成升舱:升舱
+ * 完成白金卡升舱:白金卡升舱
+ * 完成机上服务WIFI的申请:机上WIFI
+ */
+function _gioServerSuccess(data) {
+  var requestData = {
+    serverContext_var: data.title
+  };
+
+  requestData.pageLocation_var = 'global';
+  gio('track', 'orderPaySuccess', requestData);
+}
+
+/**
+ * 支付结果页banner点击埋点
+ * @param {*} data 
+ */
+function _gioPaymentResultBannerClick(data) {
+  var productNameMap = {
+    "VIP": "贵宾厅",
+    "UPGRADE": "升舱",
+    "BAGGAGE": "行李"
+  };
+  var requestData = {
+    pageLocation_var: '机票支付完成页',
+    platform_var: 'PC',
+    sceneCode_var: '支付完成页',
+    productCode_var: data,
+    productName_var: productNameMap[data],
+    ud_var: JSON.parse(sessionStorage.getItem('user')).userId.toString()
+  };
+  gio('track', 'bannersClick', requestData);
+}
+
+/**
+ * X产品支付页埋点
+ * @param {*} data 
+ */
+function _gioXProductPayment(data) {
+  var productCode = data.productCode;
+
+  var segNums = 1;
+  var ticketNums = 1;
+  if (productCode === 'UPGRADE') {
+    ticketNums = data.airPaxInfos.length;
+    segNums = data.airPaxInfos[0].airSegInfoDetails.length;
+  }
+  if (productCode === 'BAGGAGE') {
+    segNums = data.bagggeeList.length;
+  }
+  // 多人多航段循环埋点
+  for (var ticketIndex = 0; ticketIndex < ticketNums; ticketIndex++) {
+    for (var i = 0; i < segNums; i++) {
+      var query = handleQuery(data, ticketIndex, i);
+      var requestData = {
+        pageLocation_var: '支付页',
+        platform_var: 'PC',
+        sceneCode_var: '支付页',
+        productCode_var: query.productCode,
+        ticketNO_var: query.tktNos,
+        airlineIata_var: query.airline,
+        flightNumber_var: '' + query.airline + query.fltNo,
+        deptCity_var: query.deptAptCode,
+        destCity_var: query.arrAptCode,
+        ud_var: JSON.parse(sessionStorage.getItem('user')).userId.toString()
+      };
+      gio('track', 'serviceOrder', requestData);
+    }
+  }
+}
+
+// 新增改期升舱支付埋点
+function _gioUpgradePayment(data) {
+  var passenger = [];
+  var segInfo = [];
+  var priceInfo = [];
+  var couponInfo = '';
+  data.airPaxInfos.forEach(function (per) {
+    passenger.push(per.id);
+  });
+  data.airPaxInfos[0].airSegInfoDetails.forEach(function (seg) {
+    segInfo.push(seg.deptAptCityName + '_' + seg.arrAptCityName + '_' + seg.airline + seg.fltNo + '_' + seg.departureDate);
+  });
+  if (data.originCouponInfo) {
+    couponInfo = [];
+    data.originCouponInfo.forEach(function (item) {
+      couponInfo.push('' + item.couponName + item.promoCashAmt + '\u5F20');
+    });
+    couponInfo = '' + couponInfo.join('_');
+  }
+  if (data.cashAmt) {
+    priceInfo.push(data.cashAmt);
+  }
+  if (data.couponAmt) {
+    priceInfo.push(data.couponAmt + '\u79EF\u5206');
+  }
+  if (couponInfo) {
+    priceInfo.push(couponInfo);
+  }
+  var query = {
+    passenger: passenger,
+    segInfo: segInfo,
+    priceInfo: priceInfo,
+    payType: data.payType,
+    errorMsg: data.errorMsg
+  };
+  var requestData = {
+    ud_var: JSON.parse(sessionStorage.getItem('user')).userId.toString(),
+    passenger_var: query.passenger.join('_'),
+    flightInfo_var: query.segInfo.join('_'),
+    curPrice_var: query.priceInfo.join('+'),
+    payType_var: query.payType,
+    error_var: query.errorMsg
+  };
+  gio('track', 'gsPayment', requestData);
+}
+
+// 选座是否勾选自动值机
+function _gioAutoCheckInClick(data) {
+  var requestData = {
+    message_var: '选座页面是否勾选自动值机',
+    status_var: data ? 'Y' : 'N'
+  };
+  gio('track', 'checkBox', requestData);
+}
+
+function handleQuery(data, ticketIndex, index) {
+  var productCode = data.productCode;
+
+  var res = {};
+  if (productCode === 'UPGRADE') {
+    var _data$airPaxInfos$tic = data.airPaxInfos[ticketIndex],
+      tktNos = _data$airPaxInfos$tic.tktNos,
+      airSegInfoDetails = _data$airPaxInfos$tic.airSegInfoDetails;
+    var _airSegInfoDetails$in = airSegInfoDetails[index],
+      airline = _airSegInfoDetails$in.airline,
+      deptAptCode = _airSegInfoDetails$in.deptAptCode,
+      arrAptCode = _airSegInfoDetails$in.arrAptCode,
+      fltNo = _airSegInfoDetails$in.fltNo;
+
+    res = {
+      tktNos: tktNos,
+      airline: airline,
+      deptAptCode: deptAptCode,
+      arrAptCode: arrAptCode,
+      fltNo: fltNo,
+      payType: data.payType
+    };
+  }
+  if (productCode === 'BAGGAGE') {
+    if (data.bagggeeList[index]) {
+      var _data$bagggeeList$ind = data.bagggeeList[index],
+        realCarrCd = _data$bagggeeList$ind.realCarrCd,
+        realFlightNo = _data$bagggeeList$ind.realFlightNo,
+        arrAirCode = _data$bagggeeList$ind.arrAirCode,
+        depAirCode = _data$bagggeeList$ind.depAirCode,
+        flightTktNo = _data$bagggeeList$ind.flightTktNo;
+
+      res = {
+        tktNos: flightTktNo,
+        airline: realCarrCd,
+        deptAptCode: depAirCode,
+        arrAptCode: arrAirCode,
+        fltNo: realFlightNo
+      };
+    }
+  }
+  return _extends2({}, res, {
+    productCode: productCode
+  });
+}
+
+// 自定义埋点，仅需要传入一个点位名称
+function _gioCommonPoint(pointName) {
+  gio('track', 'eventHappen', { eventAbbre: pointName });
+}
+// 页面埋点
+function _gioPagePoint(pointName) {
+  gio('page.set', { 'pageName': pointName });
+}
+//资源点击埋点
+function _gioResourceClickPoint(pointObject, type = 'resourceClick') {
+  gio('track', type, pointObject);
+}
+</script>
+
+</body>
+</html>

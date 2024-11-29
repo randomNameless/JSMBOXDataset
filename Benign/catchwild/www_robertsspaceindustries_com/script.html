@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>script.html</title>
+</head>
+<body>
+
+<script>
+const app_name = document.currentScript.getAttribute('data-app-name');
+const initial_category = document.currentScript.getAttribute('data-category');
+const initial_sub_category = document.currentScript.getAttribute('data-sub-category');
+
+// Google Consent Mode
+window.dataLayer = window.dataLayer || [];
+function gtag() {
+  dataLayer.push(arguments)
+}
+gtag("consent", "default", {
+  ad_personalization: "denied",
+  ad_storage: "denied",
+  ad_user_data: "denied",
+  analytics_storage: "denied",
+  functionality_storage: "denied",
+  personalization_storage: "denied",
+  security_storage: "granted",
+  wait_for_update: 500
+});
+gtag("set", "ads_data_redaction", true);
+gtag("set", "url_passthrough", true);
+// End Google Consent Mode
+
+// Set custom layer data
+if(app_name) {
+    gtag("set", "app_name", app_name);
+}
+if(initial_category) {
+    gtag("set", "page_category", initial_category);
+}
+if(initial_sub_category) {
+    gtag("set", "page_sub_category", initial_sub_category);
+}
+
+
+gtag("set", "env", 'prod');
+gtag("set", "logged_status", 'anonymous');
+// EndSet custom layer data
+
+// Google Tag Manager
+(function (w, d, s, l, i) {
+  w[l] = w[l] || [];
+  w[l].push({ 'gtm.start': new Date().getTime(), event: 'gtm.js' });
+  var f = d.getElementsByTagName(s)[0],
+    j = d.createElement(s),
+    dl = l != 'dataLayer' ? '&l=' + l : '';
+  j.async = true;
+  j.src = 'https://www.googletagmanager.com/gtm.js?id=' + i + dl + '';
+  f.parentNode.insertBefore(j, f);
+})(window, document, 'script', 'dataLayer', 'GTM-KHNFZPT');
+// EndGoogle Tag Manager
+
+class RSITagManager {
+  constructor(gtag) {
+    if (!gtag) {
+      console.log('gtag not found');
+      return;
+    }
+
+    this.gtag = gtag;
+
+    this.#listentoRSITagManagerPageView();
+    this.#listentoRSITagManagerEvent();
+
+    // fire the RSITagManager_ready event so other application can listen to it
+    requestAnimationFrame(() => {
+      const rsiTMReady = new CustomEvent('RSITagManager_ready');
+      window.dispatchEvent(rsiTMReady);
+    });
+  }
+
+  #listentoRSITagManagerPageView() {
+    window.addEventListener('RSITagManager_page_view', this.#pageViewCallback.bind(this));
+  }
+
+  #listentoRSITagManagerEvent() {
+    window.addEventListener('RSITagManager_event', this.#eventCallback.bind(this));
+  }
+
+  #eventCallback(e) {
+    const { action, data } = e.detail;
+    if (this.isReady) {
+      return this.event(action, data);
+    }
+  }
+
+  #pageViewCallback(e) {
+    const { page_title, page_location, page_category, page_sub_category, data } = e.detail;
+    if (this.isReady) {
+      return this.pageView(page_title, page_location, page_category, page_sub_category, data);
+    }
+  }
+
+  isReady() {
+    return this.gtag !== undefined;
+  }
+
+  event(action, data) {
+    this.gtag('event', action, data);
+  }
+
+  // this method must be called only when a custom page view needs to be tracked
+  // to not trigger a pageview when the url changes because it will be tracked by default
+  pageView(page_title, page_location, page_category, page_sub_category, data) {
+    this.event('page_view', {
+      page_title,
+      page_location,
+      page_category,
+      page_sub_category,
+      ...data,
+    });
+  }
+
+  setPageCategory(category) {
+    this.gtag('set', 'page_category', category);
+  }
+
+  setPageSubCategory(sub_category) {
+    this.gtag('set', 'page_sub_category', sub_category);
+  }
+
+  set(...args) {
+    this.gtag('set', ...args);
+  }
+
+  get(...args) {
+    this.gtag('get', ...args);
+  }
+
+  config(...args) {
+    this.gtag('config', ...args);
+  }
+
+  consent(...args) {
+    this.gtag('consent', ...args);
+  }
+}
+
+// RSI Tag Manager
+if (!window.RSITM) {
+  // instanciate the GA class and make it available in the window
+  window.RSITM = new RSITagManager(gtag);
+} else {
+  console.warn('RSITagManager - RSITM already exists');
+}
+// EndRSI Tag Manager
+
+
+</script>
+
+</body>
+</html>

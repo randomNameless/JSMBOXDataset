@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>hls.init.html</title>
+</head>
+<body>
+
+<script>
+jQuery(document).ready(function () {
+  var url = location.protocol + "//" + location.host + "/api/vod";
+  var vodList = $("video");
+
+  if (Hls.isSupported()) {
+    for (var i = 0; i < vodList.length; i++) {
+      var vod = vodList[i];
+      jQuery.support.cors = true;
+      jQuery.ajax({
+        url: url,
+        type: 'GET',
+        data: { "videoId": vod.getAttribute("videoId") },
+        dataType: 'json',
+        async: false,
+        success: function (res) {
+          if (res.success) {
+            if (res.status == "3") {
+              var hls = new Hls();
+              hls.loadSource(res.videoUrl);
+              hls.attachMedia(vod);
+              hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                console.log('加载成功');
+              });
+            }
+            else {
+              if (!vod.hasOwnProperty('poster')) {
+                vod.setAttribute('poster', '/images/novideo.jpg');
+              }
+            }
+          }
+        }
+      });
+    }
+  }
+  else {
+    for (var i = 0; i < vodList.length; i++) {
+      var vod = vodList[i];
+      jQuery.support.cors = true;
+      jQuery.ajax({
+        url: url,
+        type: 'GET',
+        data: { "videoId": vod.getAttribute("videoId") },
+        dataType: 'json',
+        async: false,
+        success: function (res) {
+          if (res.success) {
+            if (res.status == "3") {
+              vod.src = res.videoUrl;
+              vod.addEventListener('loadedmetadata', function () {
+                vod.play();
+              });
+            }
+            else {
+              if (!vod.hasOwnProperty('poster')) {
+                vod.setAttribute('poster', '/images/novideo.jpg');
+              }
+            }
+          }
+        }
+      });
+    }
+  }
+});
+</script>
+
+</body>
+</html>

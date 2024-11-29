@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>analytics.html</title>
+</head>
+<body>
+
+<script>
+// Form Tracking //
+const DATA_LAYER_CACHE = 'dataLayerCache';
+const pushToDataLayerAndCache = (event, data) => {
+    const current = JSON.parse(window.localStorage.getItem(DATA_LAYER_CACHE) ?? "[]");
+    window.localStorage.setItem(DATA_LAYER_CACHE, JSON.stringify([...current, {
+        event,
+        ...data
+    }]));
+}
+
+const loadDataLayer = () => {
+    const cache = window.localStorage.getItem(DATA_LAYER_CACHE);
+    if (!cache) {
+        return;
+    }
+    window.localStorage.removeItem(DATA_LAYER_CACHE);
+    window.dataLayer = window.dataLayer || [];
+    window.dataLayer.push(...JSON.parse(cache));
+}
+loadDataLayer();
+
+window.registerFormLoads = (name, type) => {
+	const formElements = document.querySelectorAll('form');
+    formElements.forEach((formElement) => {
+        let product;
+
+        formElement.addEventListener('submit', (event) => {
+			const product = formElement.querySelector('[name="Sales_qualified_Product__c"]') !== null ? formElement.querySelector('[name="Sales_qualified_Product__c"]').value : "N/A";
+            pushToDataLayerAndCache("edm_form_submit_success", {
+                'edm_form_type': type,
+				'edm_form_name': name,
+				'edm_form_products': product
+            });
+        });
+
+		const observer = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+
+                if (entry.isIntersecting) {
+                    window.dataLayer.push({
+                        'event': 'edm_form_view',
+						'edm_form_type': formElement.getAttribute('data-type'),
+						'edm_form_name': formElement.getAttribute('data-name'),
+						'edm_form_products': product
+                    });
+                    observer.unobserve(formElement);
+                }
+            });
+        });
+        observer.observe(formElement);
+    });
+}
+
+
+(function() {
+
+	// Ahref Tracking //
+	const anchorElements = document.querySelectorAll('a');
+	anchorElements.forEach((anchorElement) => {
+		
+		const href = anchorElement.getAttribute('href');
+
+		// Track other ahrefs here...
+
+
+		// Track PDF downloads
+		if (anchorElement.href && anchorElement.href.indexOf('.pdf') > -1) {
+			anchorElement.addEventListener('click', function(e) {
+				var href = this.href;
+				var filename = href.substring(href.lastIndexOf('/')+1);
+				var title = document.querySelector('h1').innerText;
+				window.dataLayer.push({
+					'event': 'edm_file_download',
+					'edm_attachment_page_title': title,
+					'edm_attachment': filename,
+					'edm_attachment_url': href
+				});
+			});
+		}
+
+		// Email ahrefs
+		if (href && href.startsWith('mailto:')) {
+			anchorElement.addEventListener('click', function() {
+				window.window.dataLayer.push({
+					'event': 'edm_email_click',
+					'edm_email_address': href.substring(7),
+				});
+			});
+		}
+	});
+	
+
+	// Drift Chat Tracking //
+	if (typeof window.drift !== 'undefined') {
+		window.drift.on('ready', function(api) {
+			window.drift.on("startConversation", function(data) {
+				window.dataLayer.push({
+					'event': 'edm_chat_converation_started',
+					'edm_drift_conversation': data.conversationId
+				});
+			});
+			window.drift.on("message:sent", function(data) {
+				window.dataLayer.push({
+					'event': 'edm_chat_message_sent',
+					'edm_drift_conversation': data.conversationId
+				});
+			});
+			window.drift.on("message", function(data) {
+				window.dataLayer.push({
+					'event': 'edm_chat_message_received',
+					'edm_drift_conversation': data.conversationId
+				});
+			});
+			window.drift.on("emailCapture", function(data) {
+				window.dataLayer.push({
+					'event': 'edm_chat_email_captured',
+					'edm_drift_conversation': data.conversationId
+				});
+			});
+			window.drift.on("phoneCapture", function(data) {
+				window.dataLayer.push({
+					'event': 'edm_chat_phone_captured',
+					'edm_drift_conversation': data.conversationId
+				});
+			});
+			window.drift.on("scheduling:requestMeeting", function(data) {
+				window.dataLayer.push({
+					'event': 'edm_chat_meeting_requested',
+					'edm_drift_meetingwith': data.teamMember.name,
+					'edm_drift_conversation': data.conversationId
+				});
+			});
+			window.drift.on("scheduling:meetingBooked", function(data) {
+				window.dataLayer.push({
+					'event': 'edm_chat_meeting_booked',
+					'edm_drift_bookedwith': data.teamMember.name,
+					'edm_drift_conversation': data.conversationId
+				});
+			});
+			window.drift.on("conversation:playbookFired", function(data) {
+				window.dataLayer.push({
+					'event': 'edm_chat_playbook_fired',
+					'edm_drift_playbook': data.playbookId,
+				});
+			});
+			window.drift.on("conversation:playbookClicked", function(data) {
+				window.dataLayer.push({
+					'event': 'edm_chat_playbook_clicked',
+					'edm_drift_playbook': data.playbookId,
+				});
+			});
+			window.drift.on("conversation:playbookDismissed", function(data) {
+				window.dataLayer.push({
+					'event': 'edm_chat_playbook_dismissed',
+					'edm_drift_playbook': data.playbookId,
+				});
+			});
+			window.drift.on("conversation:buttonClicked", function(data) {
+				window.dataLayer.push({
+					'event': 'edm_chat_button_clicked',
+					'edm_drift_button': data.buttonBody,
+					'edm_drift_conversation': data.conversationId
+				});
+			});
+			window.drift.on('chatOpen', function(data) {
+				window.dataLayer.push({
+					'event': 'edm_chat_opened',
+					'edm_drift_conversation': data.conversationId
+				});
+			});
+			window.drift.on('chatClosed', function(data) {
+				window.dataLayer.push({
+					'event': 'edm_chat_closed',
+					'edm_drift_conversation': data.conversationId
+				});
+			});
+		});
+	}
+
+
+	// Video Tracking //
+	var divisor = 25;
+	var videos_status = {};
+	function eventHandler(e) {
+		var elem = document.getElementById(e.target.id);
+		videos_status[e.target.id].current = Math.round(e.target.currentTime);	
+		switch (e.type) {
+			case 'timeupdate':
+				var pct = Math.floor(100 * videos_status[e.target.id].current / e.target.duration);
+				for (var j in videos_status[e.target.id]._progress_markers) {
+					if (pct >= j && j > videos_status[e.target.id].greatest_marker) {
+						videos_status[e.target.id].greatest_marker = j;
+					}
+				}
+				if (videos_status[e.target.id].greatest_marker && !videos_status[e.target.id]._progress_markers[videos_status[e.target.id].greatest_marker]) {
+					videos_status[e.target.id]._progress_markers[videos_status[e.target.id].greatest_marker] = true;
+					window.dataLayer.push({
+						'event': 'edm_video_' + videos_status[e.target.id].greatest_marker,
+						'edm_video_name': elem.getAttribute('data-title'),
+						'edm_video_type': elem.getAttribute('data-type'),
+						'edm_video_products': elem.getAttribute('data-products'),
+						'edm_video_file': decodeURIComponent(e.target.currentSrc.split('/')[e.target.currentSrc.split('/').length - 1])
+					});
+				}
+			break;
+
+			case 'play':
+				window.dataLayer.push({
+					'event': 'edm_video_play',
+					'edm_video_name': elem.getAttribute('data-title'),
+					'edm_video_type': elem.getAttribute('data-type'),
+					'edm_video_products': elem.getAttribute('data-products'),
+					'edm_video_file': decodeURIComponent(e.target.currentSrc.split('/')[e.target.currentSrc.split('/').length - 1])
+				});
+			break;
+
+			case 'pause':
+				window.dataLayer.push({
+					'event': 'edm_video_pause',
+					'edm_video_percent': Math.floor(100 * videos_status[e.target.id].current / e.target.duration),
+					'edm_video_name': elem.getAttribute('data-title'),
+					'edm_video_type': elem.getAttribute('data-type'),
+					'edm_video_products': elem.getAttribute('data-products'),
+					'edm_video_file': decodeURIComponent(e.target.currentSrc.split('/')[e.target.currentSrc.split('/').length - 1])
+				});
+			break;
+
+			case 'ended':
+				window.dataLayer.push({
+					'event': 'edm_video_complete',
+					'edm_video_name': elem.getAttribute('data-title'),
+					'edm_video_type': elem.getAttribute('data-type'),
+					'edm_video_products': elem.getAttribute('data-products'),
+					'edm_video_file': decodeURIComponent(e.target.currentSrc.split('/')[e.target.currentSrc.split('/').length - 1])
+				});
+			break;
+			default:
+			break;
+		}
+	}
+
+	var videos = document.getElementsByTagName('video');
+	for (var i = 0; i < videos.length; i++) {
+		var videoTagId;
+		if (!videos[i].getAttribute('id')) {
+			videoTagId = 'html5_video_' + Math.random().toString(36).slice(2);
+			videos[i].setAttribute('id', videoTagId);
+		} else {
+			videoTagId = videos[i].getAttribute('id');
+		}
+		videos_status[videoTagId] = {};
+		videos_status[videoTagId].greatest_marker = 0;
+		videos_status[videoTagId]._progress_markers = {};
+		for (j = 0; j < 100; j++) {
+			videos_status[videoTagId].progress_point = divisor * Math.floor(j / divisor);
+			videos_status[videoTagId]._progress_markers[videos_status[videoTagId].progress_point] = false;
+		}
+		videos_status[videoTagId].current = 0;   
+		videos[i].addEventListener("play", eventHandler, false);
+		videos[i].addEventListener("pause", eventHandler, false);
+		videos[i].addEventListener("complete", eventHandler, false);
+		videos[i].addEventListener("timeupdate", eventHandler, false);
+		videos[i].addEventListener("ended", eventHandler, false);
+	}
+})();
+</script>
+
+</body>
+</html>

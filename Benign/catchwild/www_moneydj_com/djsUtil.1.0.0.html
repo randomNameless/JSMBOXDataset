@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>djsUtil.1.0.0.html</title>
+</head>
+<body>
+
+<script>
+///////////////////////////////////////////////////////////
+// original from jMoney6 util.string.js realease 2012/6/28
+///////////////////////////////////////////////////////////
+
+//    function quotedstring(s)
+//    function iif(bval, tval, fval)
+//    function trim(t)
+
+//    array
+//    aryFunc.unique = function(ary)
+
+//    date
+//    dateFunc.parseDate = function(str)
+//    dateFunc.dateAdd = function(dt, interval, number) //interval: y/q/m/w/d/h/mi/s
+//    dateFunc.dateDiff = function(dtFrom, dtTo, interval) { // dtTo - dtFrom
+//    dateFunc.format = function(dt, formatStr); yyyy/YYYY/yy/YY/MM/M/dd/DD/d/D/hh/HH/h/H/mm/m/ss/SS/s/S/wk/WK/xk/XK
+//    dateFunc.isDate = function(dateStr);  //檢查字串是否為日期
+//    dateFunc.firstDateOfMonth = function(o)
+//    dateFunc.lastDateOfMonth = function(o) 
+//    dateFunc.firstDateOfQuater = function(o) 
+//    dateFunc.lastDateOfQuater = function(o) 
+//    dateFunc.firstDateOfYear = function(o) 
+//    dateFunc.lastDateOfYear = function(o) 
+//    dateFunc.setDay = function(dt, day) //若日期設定失敗則回傳undefined, ex: dateFunc.setDay(new Date('2010/2/3'), 30)
+
+//    numFunc.format = function(n, nDot) 
+//    numFunc.format4 = function(n, nDot)
+//    numFunc.numRound = function(ff, dot)
+//    numFunc.percent = function(ch, mo, dot) 
+//    numFunc.growth = function(newval, oldval, dot)
+//    numFunc.safeInt = function(str) 
+//    numFunc.safeIntEmpty = function(str) 
+//    numFunc.safeIntNull = function(str) 
+//    numFunc.safeFloat = function(str) 
+//    numFunc.safeFloatEmpty = function(str) 
+//    numFunc.safeFloatNull = function(str) 
+
+
+//    string
+//    strFunc.rightStr = function(str, n) 
+//    strFunc.LeftStr = function(str, n)  // n負數表 去尾字元
+//    strFunc.padL = function(str, len, ch) 
+//    strFunc.padR = function(str, len, ch) 
+//    strFunc.padC = function(str, len, ch) 
+//    strFunc.isNum = function(sValue) 
+//    strFunc.safeStr = function(str) 
+//    strFunc.toBold = function(str, term)  //比對term與str,相同的子字串粗體顯示(<b>...</b>),回傳被修改的str.
+
+var djsUtil = {
+  aryFunc: {},
+  dateFunc:{},
+  numFunc : {},
+  strFunc : {},
+  objFunc : {}
+};
+
+djsUtil.quotedstring = function(s) {
+    return "'" + s + "'";
+};
+
+djsUtil.iif = function(bval, tval, fval) {
+    if (bval)
+        return tval;
+    else
+        return fval;
+};
+
+djsUtil.trim = function(t) {
+    return (t + '' || '').replace(/^\s+|\s+$/g, '');
+};
+
+
+
+
+var aryFunc = djsUtil.aryFunc;
+aryFunc.unique = function(ary) {
+    var result = [];
+    var temp = {};
+    for (var i = 0, l = ary.length; i < l; i++) {
+        var id = ary[i];
+        if (!temp[id]) temp[id] = true;
+    }
+    for (var att in temp) {
+        result.push(att);
+    }
+    return result;
+};
+aryFunc.find = function(str, ary) {
+    var idx = -1;
+    for (var i = 0, l = ary.length; i < l; i++) {
+        if (ary[i] == str) { idx = i; break; }
+    }
+    return idx;
+};
+
+aryFunc.groupsum = function(objGroup, name, val) {  // objGroup = { id:[], val:[] } 
+    var idx = aryFunc.find(name, objGroup.id);
+    if (idx < 0) {
+        objGroup.id.push(name);
+        objGroup.val.push(val- 0);
+    }
+    else {
+        objGroup.val[idx] += (val - 0);
+    }
+};
+
+
+// base JSLINQ.js
+aryFunc.sparse2Matrix = function(arrRow, rowKeyFn, rowidxFn, colidxFn) {
+    var arrItem = JSLINQ(arrRow).Distinct(function(o) { return rowKeyFn(o); }).ToArray();
+    var matrix = [];
+    $.each(arrItem, function(i, o) {
+        var arrCol = [];
+        rowidxFn(arrCol, o);
+        //rowidxFn(arrCol, key) 1.set arrCol length 2.assign key col cell
+        //1. arrCol.length = colSize
+        //2. arrOne[0] = key
+        matrix.push(arrCol);
+    });
+    $.each(arrRow, function(i, rcd) {
+        var rowidx = aryFunc.find(rowKeyFn(rcd), arrItem);
+        colidxFn(matrix[rowidx], rcd);
+        //colidxFn(arrCol, rcd) 1.calc colidx 2.assign col cell
+        //1. dateFunc.dateDiff(sdate, rcd.BookDate, 'm') + 1;
+        //2. matrix[rowidx][colidx] = rcd[dataID]
+        //var colidx = colFn(rcd);
+        //matrix[rowidx][colidx] = o[dataID];
+    });
+    return matrix;
+};
+aryFunc.tableRowText = function($tabrow, from, to) {
+    var arrTmp = [];
+    $tabrow.each(function(i, o) {
+        arrTmp.push($(o).text());
+    });
+    from = from || 0;
+    to = to || arrTmp.length;
+    var arr = arrTmp.slice(from, to);
+    return arr;
+};
+
+aryFunc.tableRowFloat = function($tabrow, from, to) {
+    var arrTmp = [];
+    $tabrow.each(function(i, o) {
+        arrTmp.push(numFunc.safeFloat($(o).text()));
+    });
+    from = from || 0;
+    to = to || arrTmp.length;
+    var arr = arrTmp.slice(from, to);
+    return arr;
+};
+
+
+var dateFunc = djsUtil.dateFunc;
+dateFunc.parseDate = function(str) {
+    if (str instanceof Date) { return new Date(str); }
+    if (typeof str == 'number') { return new Date(str); }
+    if (typeof str == 'string') {
+        str = str.replace(/\//g, '-');
+
+        //yyyy-mm-dd
+        var results = str.match(/^ *(\d{4})-(\d{1,2})-(\d{1,2}) *$/);
+        if (results && results.length > 3)
+            return new Date(parseInt(results[1], 10), parseInt(results[2], 10) - 1, parseInt(results[3], 10));
+
+        //yyyy-mm-dd hh:mm:ss
+        results = str.match(/^ *(\d{4})-(\d{1,2})-(\d{1,2}) +(\d{1,2}):(\d{1,2}):(\d{1,2}) *$/);
+        if (results && results.length > 6)
+            return new Date(parseInt(results[1], 10), parseInt(results[2], 10) - 1, parseInt(results[3], 10), parseInt(results[4], 10), parseInt(results[5], 10), parseInt(results[6], 10));
+
+        //yyyy-mm-dd hh:mm:ss.?
+        results = str.match(/^ *(\d{4})-(\d{1,2})-(\d{1,2}) +(\d{1,2}):(\d{1,2}):(\d{1,2})\.(\d{1,9}) *$/);
+        if (results && results.length > 7)
+            return new Date(parseInt(results[1], 10), parseInt(results[2], 10) - 1, parseInt(results[3], 10), parseInt(results[4], 10), parseInt(results[5], 10), parseInt(results[6], 10), parseInt(results[7], 10));
+
+        //yyyy-mm-dd hh
+        results = str.match(/^ *(\d{4})-(\d{1,2})-(\d{1,2}) +(\d{1,2}) *$/);
+        if (results && results.length > 4)
+            return new Date(parseInt(results[1], 10), parseInt(results[2], 10) - 1, parseInt(results[3], 10), parseInt(results[4], 10), 0, 0);
+
+        //yyyy-mm-dd hh:mm
+        results = str.match(/^ *(\d{4})-(\d{1,2})-(\d{1,2}) +(\d{1,2}):(\d{1,2}) *$/);
+        if (results && results.length > 5)
+            return new Date(parseInt(results[1], 10), parseInt(results[2], 10) - 1, parseInt(results[3], 10), parseInt(results[4], 10), parseInt(results[5], 10), 0);
+    }
+    return str;
+};
+dateFunc.dateAdd = function(dt, interval, number) {
+    var valid = new Date(dt);
+    var date = new Date(dt);
+    switch (interval) {
+        case 'y': date.setFullYear(date.getFullYear() + number); break;
+        case 'q': date.setMonth(date.getMonth() + number * 3); break;
+        case 'm': date.setMonth(date.getMonth() + number);
+            var validMonth = valid.getMonth() + number;
+            if (validMonth < 0) validMonth += 12;
+            if (validMonth % 12 != date.getMonth()) {//is overflow?
+                date = dateFunc.dateAdd(date.setDate(1), 'd', -1); //將多餘的天數移除
+            }
+            break;
+        case 'w': date.setDate(date.getDate() + number * 7); break;
+        case 'd': date.setDate(date.getDate() + number); break;
+        case 'h': date.setHours(date.getHours() + number); break;
+        case 'mi': date.setMinutes(date.getMinutes() + number); break;
+        case 's': date.setSeconds(date.getSeconds() + number); break;
+        default:  date.setDate(d.getDate() + number); break;
+    }
+    return new Date(date);
+};
+
+dateFunc.dateDiff = function(dtFrom, dtTo, interval) {
+    var dtS = new Date(dtFrom);
+    var dtE = new Date(dtTo);
+    if (isNaN(dtS) || isNaN(dtE)) return undefined;
+    
+    switch (interval) {
+        case "s": return parseInt((dtE - dtS) / 1000);
+        case "mi": return parseInt((dtE - dtS) / 60000);
+        case "h": return parseInt((dtE - dtS) / 3600000);
+        case "d": return parseInt((dtE - dtS) / 86400000);
+        case "w": return parseInt((dtE - dtS) / (86400000 * 7));
+        case "m": return (dtE.getMonth() + 1) + ((dtE.getFullYear() - dtS.getFullYear()) * 12) - (dtS.getMonth() + 1);
+        case "y": return dtE.getFullYear() - dtS.getFullYear();
+    }
+    return undefined;
+};
+
+//var dates = dateFunc.format( new Date() , 'yyyy-MM-DD hh:mm:ss');
+//var dates = dateFunc.format( new Date() , 'yyyy/MM/DD 星期XK');
+dateFunc.format = function(dt, formatStr) {
+    if (!dt) return '';
+    if (!formatStr) formatStr = 'YYYY/MM/DD';
+    var date = dateFunc.parseDate(dt);
+    var wkstr = ['日', '一', '二', '三', '四', '五', '六'];
+
+    var str = formatStr;
+    str = str.replace(/yyyy|YYYY/, date.getFullYear());
+    str = str.replace(/yy|YY/, (date.getYear() % 100) > 9 ? (date.getYear() % 100).toString() : '0' + (date.getYear() % 100));
+    str = str.replace(/MM/, date.getMonth() > 8 ? (date.getMonth() + 1).toString() : '0' + (date.getMonth() + 1));
+    str = str.replace(/M/g, date.getMonth() + 1);
+    str = str.replace(/dd|DD/, date.getDate() > 9 ? date.getDate().toString() : '0' + date.getDate());
+    str = str.replace(/d|D/g, date.getDate());
+    str = str.replace(/hh|HH/, date.getHours() > 9 ? date.getHours().toString() : '0' + date.getHours());
+    str = str.replace(/h|H/g, date.getHours());
+    str = str.replace(/mm/, date.getMinutes() > 9 ? date.getMinutes().toString() : '0' + date.getMinutes());
+    str = str.replace(/m/g, date.getMinutes());
+    str = str.replace(/ss|SS/, date.getSeconds() > 9 ? date.getSeconds().toString() : '0' + date.getSeconds());
+    str = str.replace(/s|S/g, date.getSeconds());
+
+    str = str.replace(/QQ/, Math.ceil(( date.getMonth() + 1) / 3 )+'Q');
+    str = str.replace(/q/g,  Math.ceil(( date.getMonth() + 1) / 3 ));
+
+    str = str.replace(/wk|WK/g, date.getDay());
+    str = str.replace(/xk|XK/g, wkstr[date.getDay()]);
+    return str;
+};
+
+dateFunc.isDate = function(dateStr) {
+    if (dateStr instanceof Date) return true;
+    if (typeof dateStr != 'string' || dateStr.length == 0) return false;
+    var datePat = /^(\d{4})(\/|-)(\d{1,2})(\/|-)(\d{1,2})$/ // valid format yyyy/mm/dd or yyyy-mm-dd
+    var matchArray = dateStr.match(datePat)
+
+    if (matchArray == null) return false
+
+    var year = matchArray[1]
+    var month = matchArray[3]
+    var day = matchArray[5]
+
+    if (month < 1 || month > 12) return false
+    if (day < 1 || day > 31) return false
+    if ((month == 4 || month == 6 || month == 9 || month == 11) && day == 31) return false
+
+    var isLeap = (year % 4 == 0 && (year % 100 != 0 || year % 400 == 0));
+    if (month == 2 && (day > 29 || (day == 29 && !isLeap))) return false
+
+    if (year < 1900 || year > 2078) return false;
+
+    return true
+};
+
+dateFunc.firstDateOfMonth = function(o) {
+    var dt = dateFunc.parseDate(o);
+    var yy = dt.getFullYear(), mm = dt.getMonth();
+    return new Date(new Date(yy, mm, 1));
+};
+dateFunc.lastDateOfMonth = function(o) {
+    var dt = dateFunc.parseDate(o);
+
+    var yy = dt.getFullYear(), mm = dt.getMonth() + 1;
+    return new Date(new Date(yy, mm, 1) - 1);
+};
+
+dateFunc.firstDateOfQuater = function(o) {
+    var dt = dateFunc.parseDate(o);
+    var yy = dt.getFullYear(), mm = dt.getMonth() + 1;
+    if (mm >= 1 && mm <= 3) {
+        mm = 1;
+    }
+    else if (mm >= 4 && mm <= 6) {
+        mm = 4;
+    }
+    else if (mm >= 7 && mm <= 9) {
+        mm = 7;
+    }
+    else if (mm >= 10 && mm <= 12) {
+        mm = 10;
+    }
+    return new Date(yy, mm - 1, 1);
+};
+dateFunc.lastDateOfQuater = function(o) {
+    var dt = dateFunc.parseDate(o);
+
+    var yy = dt.getFullYear(), mm = dt.getMonth() + 1;
+    if (mm >= 1 && mm <= 3) {
+        mm = 4;
+    }
+    else if (mm >= 4 && mm <= 6) {
+        mm = 7;
+    }
+    else if (mm >= 7 && mm <= 9) {
+        mm = 10;
+    }
+    else if (mm >= 10 && mm <= 12) {
+        mm = 1; yy += 1;
+    }
+    return new Date(new Date(yy, mm - 1, 1) - 1);
+};
+dateFunc.firstDateOfYear = function(o) {
+    var dt = dateFunc.parseDate(o);
+    var yy = dt.getFullYear(), mm = dt.getMonth() + 1;
+    mm = 1;
+    return new Date(yy, mm - 1, 1);
+};
+dateFunc.lastDateOfYear = function(o) {
+    var dt = dateFunc.parseDate(o);
+
+    var yy = dt.getFullYear(), mm = dt.getMonth() + 1;
+    mm = 1; yy += 1;
+    return new Date(new Date(yy, mm - 1, 1) - 1);
+};
+dateFunc.ageYear = function(o) {
+    var dt = dateFunc.parseDate(o);
+    if (!(dt instanceof Date)) { return ''; }
+
+    var yy = (new Date()).getFullYear() - dt.getFullYear();
+    if (yy == 0) yy = 1;
+    return yy;
+};
+dateFunc.setDay = function(dt, day) {
+    var t = new Date(dt);
+    var d = numFunc.safeInt(day);
+    var tStr = t.getFullYear() + '/'+ (t.getMonth()+1) + '/'+d;
+    if(dateFunc.isDate(tStr)) {
+        t.setDate(d)
+        return t;
+    }
+    return undefined;
+};
+dateFunc.setDate = function(dt, date, op) {
+    var t = new Date(dt);
+    var d = numFunc.safeInt(date);
+    var m = t.getMonth();
+    t.setDate(d);
+    if (t.getMonth() != m && d != 0) {
+        if (typeof op == 'string' && op == 'ld')
+            t = dateFunc.dateAdd(t.setDate(1), 'd', -1);
+        else if (typeof op == 'string' && op == 'fd')
+            t.setDate(1);
+    }
+
+    return t;
+};
+var numFunc = djsUtil.numFunc;
+//Number                  Pattern     Result
+//10000000000001124       #,###.###   10,000,000,000,001,124.000
+//123.125                 ##,#.#,#    1,2,3.1,3
+//123.125                 ###.#       123.1
+//123.125                 00000       00123
+//123.125                 .000        .125
+//0.125                   0.0000      0.1250
+//0.125                   00.0000     00.1250
+//
+//Ê¹ÓÃ´úÂë:
+//var numberText = numFunc.format(123.456, '##.##')//output 123.46
+
+//第二参數 NA or 0-整數, 1:小數一位, d:動態調整,最大到第四位
+numFunc.format = function(n, nDot) {
+    if (n == null || n == undefined || $.trim(n) == "") { return 'N/A'; }
+    if (nDot == 'd') { var tn = n.toString().split('.'); if(tn.length>=2) nDot = (tn[1].length<5)?tn[1].length:4; else nDot = 0; }//dynamic
+    if (!nDot) nDot = 0;
+
+    if (typeof n != 'number') { n = parseFloat((n + '').replace(new RegExp(",", 'g'), ""), 10); }
+
+    if (isNaN(n)) { return 'N/A'; }
+
+    var nStr;
+    nStr = n.toFixed(nDot);
+
+    var x = nStr.split('.');
+    var x1 = x[0];
+    var x2 = x.length > 1 ? '.' + x[1] : '';
+    var rgx = /(\d+)(\d{3})/;
+    while (rgx.test(x1)) {
+        x1 = x1.replace(rgx, '$1' + ',' + '$2');
+    }
+    return x1 + x2;
+};
+//直接除10000取小數幾位 NA or 0-整數, 1:小數一位
+numFunc.format4 = function(n, nDot) {
+    if (n == null || n == undefined) { return ''; }
+    if (!nDot) nDot = 0;
+
+    if (typeof n != 'number') { n = parseFloat((n + '').replace(new RegExp(",", 'g'), ""), 10); }
+
+    if (isNaN(n)) { return ''; }
+
+    var nStr;
+    nStr = numFunc.numRound(n/10000, nDot)+'';
+
+    var x = nStr.split('.');
+    var x1 = x[0];
+    var x2 = x.length > 1 ? '.' + x[1] : '';
+    var rgx = /(\d+)(\d{3})/;
+    while (rgx.test(x1)) {
+        x1 = x1.replace(rgx, '$1' + ',' + '$2');
+    }
+    return x1 + x2;
+};
+
+
+//numFunc.format = function(n, format) {
+//    if (isNaN(n) || n == null || n == undefined) {
+//        if (format == undefined) return '';
+//        else n = '';
+//    }
+//    var i, c, f, comma, symbol = '', sign = '', decimals = '', integers = '';
+//    var fInt, fDec, nInt, nDec, len = 0, cnt = 0;
+//    if (n < 0) sign = '-';
+//    n += ''; if (sign) n = n.replace('-', '');
+//    format = (format) ? format + '' : '#,##0';
+//    if (format.indexOf(',') >= 0) comma = ',';
+//    if (format.indexOf('$') >= 0) symbol = '$';
+//    else if (format.indexOf('%') >= 0) symbol = '%';
+//    s = format.split('.');
+//    fInt = ((s[0] == '' || s[0] == null || s[0] == 'undefinded') ? '' : s[0]);
+//    fInt = fInt.split('').reverse().join('');
+//    fDec = (s[1] == '' || s[1] == null || s[1] == 'undefinded') ? '' : s[1];
+//    s = n.split('.');
+//    nInt = ((s[0] == '' || s[0] == null || s[0] == 'undefinded') ? '' : s[0]);
+//    nInt = nInt.split('').reverse().join(''); ;
+//    nDec = (s[1] == '' || s[1] == null || s[1] == 'undefinded') ? '' : s[1];
+//    if (nInt) len = nInt.length;
+//    if (fInt.length > len) len = fInt.length;
+//    for (i = 0; i < len; i++) {
+//        c = nInt.charAt(i);
+//        f = fInt.charAt(i);
+//        cnt++;
+//        if (cnt == 4 && comma && (c || f == '0')) integers += comma;
+//        if (f == '0' && !c) integers += '0';
+//        else if (c) integers += c;
+//        if (cnt == 4) cnt = 1;
+//    }
+//    if (fDec) len = fDec.length;
+//    for (i = 0; i < len; i++) {
+//        c = nDec.charAt(i);
+//        f = fDec.charAt(i);
+//        if ((f == '#' || f == '0') && !c) decimals += '0';
+//        else if ((f == '#' || f == '0') && c) decimals += c;
+//    }
+//    f = ((integers + '').split('').reverse().join('')) + ((decimals) ? '.' + decimals : '');
+//    if (symbol == '%') f += symbol;
+//    else f = symbol + f;
+//    return sign + f;
+//};
+
+numFunc.numRound = function(ff, dot) {
+    if (!dot) return Math.round(ff);
+    if (dot > 0) {
+        var base = Math.pow(10, dot);
+        return (Math.round(ff * base) / base).toFixed(dot);
+    }
+    else {
+        var base = Math.pow(10, dot);
+        var rev = Math.pow(10, -1 * dot);
+        return (Math.round(ff * base) * rev).toFixed(0);
+    }
+};
+numFunc.percent = function(ch, mo, dot) {
+    if (!mo || ch == undefined || ch == null) return '';
+    if (mo == 0 && ch != 0) return '';//Infinity
+    return (ch / mo * 100).toFixed(dot);
+};
+numFunc.growth = function(newval, oldval, dot) {
+    if (!oldval || newval == undefined || newval == null) return '';
+    if (oldval == 0 && newval != 0) return '';//Infinity
+    return ((newval-oldval) / oldval * 100).toFixed(dot);
+};
+numFunc.safeInt = function(str) {
+    if (str instanceof Number) return parseInt(str);
+    if (!str) return 0;
+    str += '';
+    var n = parseInt(str.replace(new RegExp(',', 'g'), ''), 10);
+    return isNaN(n) ? 0 : n;
+};
+numFunc.safeIntEmpty = function(str) {
+    if (str instanceof Number) return parseInt(str);
+    str += '';
+    var n = parseInt(str.replace(new RegExp(',', 'g'), ''), 10);
+    return isNaN(n) ? '' : n;
+};
+numFunc.safeIntNull = function(str) {
+    if (str instanceof Number) return parseInt(str);
+    str += '';
+    var n = parseInt(str.replace(new RegExp(',', 'g'), ''), 10);
+    return isNaN(n) ? null : n;
+};
+numFunc.safeFloat = function(str) {
+    if (str instanceof Number) return str;
+    if (!str) return 0;
+    str += '';
+    var n = parseFloat(str.replace(new RegExp(',', 'g'), ''), 10);
+    return isNaN(n) ? 0 : n;
+};
+numFunc.safeFloatEmpty = function(str) {
+    if (str instanceof Number) return str;
+    str += '';
+    var n = parseFloat(str.replace(new RegExp(',', 'g'), ''), 10);
+    return isNaN(n) ? '' : n;
+};
+numFunc.safeFloatNull = function(str) {
+    if (str instanceof Number) return str;
+    str += '';
+    var n = parseFloat(str.replace(new RegExp(',', 'g'), ''), 10);
+    return isNaN(n) ? null : n;
+};
+
+
+var strFunc = djsUtil.strFunc;
+strFunc.rightStr = function(str, n) {
+    if (n <= 0)
+        return '';
+    else if (n > String(str).length)
+        return str;
+    else {
+        var iLen = String(str).length;
+        return String(str).substring(iLen, iLen - n);
+    }
+};
+strFunc.leftStr = function(str, n) {
+    var sss = String(str);
+    if (n >= 0)
+        return sss.substr(0, n);
+    else {
+        var iLen = sss.length + n;
+        return sss.substr(0, iLen);
+    }
+};
+strFunc.padL = function(str, len, ch) { return strFunc.pad(str, len, ch, 'L'); };
+strFunc.padR = function(str, len, ch) { return strFunc.pad(str, len, ch, 'R'); };
+strFunc.padC = function(str, len, ch) { return strFunc.pad(str, len, ch, 'C'); };
+strFunc.pad = function(str, len, pad, dir) {
+
+    if (typeof (len) == 'undefined') { var len = 0; }
+    if (typeof (pad) == 'undefined') { var pad = ' '; }
+    if (typeof (dir) == 'undefined') { var dir = 'R'; }
+    str += '';
+
+    if (len + 1 >= str.length) {
+        switch (dir) {
+
+            case 'L':
+                str = Array(len + 1 - str.length).join(pad) + str;
+                break;
+
+            case 'C':
+                var right = Math.ceil((padlen = len - str.length) / 2);
+                var left = padlen - right;
+                str = Array(left + 1).join(pad) + str + Array(right + 1).join(pad);
+                break;
+
+            default:
+                str = str + Array(len + 1 - str.length).join(pad);
+                break;
+
+        } // switch
+
+    }
+
+    return str;
+
+};
+strFunc.isNum = function(sValue) {
+    if (trim(sValue) == '' || isNaN(sValue))
+        return false;
+    else
+        return true;
+};
+strFunc.safeStr = function(str) {
+    if (str == undefined || str == null) return '';
+    return str;
+};
+
+strFunc.toBold = function(str, term) {
+    str = str.replace(new RegExp('<b>', 'g'), '&#&').replace(new RegExp('</b>', 'g'), '&!#&');
+    var strConvert = str;
+    if (str.length > 0 && term.length > 0) {
+        var ptr = str.toLowerCase().search(term.toLowerCase());
+        if (ptr > -1) {
+            var a = str.substr(0, ptr) + '<b>' + str.substr(ptr, term.length) + '</b>';
+            var b = str.substr(ptr + term.length, str.length - term.length);
+            strConvert = a + $.autolist.prototype.strMapping(b, term);
+        }
+    }
+    return strConvert.replace(new RegExp('&#&', 'g'), '<b>').replace(new RegExp('&!#&', 'g'), '</b>');
+};
+
+var objFunc = djsUtil.objFunc;
+objFunc.clone = function(obj) {
+    var newObj = (obj instanceof Array) ? [] : {};
+    for (i in obj) {
+        if (i == 'clone') continue;
+        if (obj[i] && typeof obj[i] == "object") {
+            newObj[i] = objFunc.clone(obj[i]);
+        }
+        else {
+            newObj[i] = obj[i];
+        }
+    } 
+    return newObj;
+};
+
+objFunc.sumGroup = function(objGroup, name, val) {  // objGroup = {  }
+    if (!name) { name = '' };
+    if (!(name in objGroup)) { objGroup[name] = 0; }
+    objGroup[name] += val;
+};
+
+objFunc.sumGroupToName = function(objGroup, name, val) {  // objGroup = {  }
+    var ary = [];
+    for (var prop in objGroup) { ary.push(prop); }
+    return ary;
+};
+
+objFunc.sumGroupToValue = function(objGroup, name, val) {  // objGroup = {  }
+    var ary = [];
+    for (var prop in objGroup) { ary.push(objGroup[prop]); }
+    return ary;
+};
+
+</script>
+
+</body>
+</html>

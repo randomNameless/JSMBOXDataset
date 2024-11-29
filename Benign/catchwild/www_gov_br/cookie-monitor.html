@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>cookie-monitor.html</title>
+</head>
+<body>
+
+<script>
+import { isObject, isNull } from './types.js';
+import { loadDocumentFragment, setAttribute } from './wc.js';
+
+//Constants
+const
+    assets = {
+        template: (new URL('../html/cookie-monitor.html', import.meta.url)).toString()
+    };
+let templateDocument;
+
+async function main() {
+    templateDocument = await loadDocumentFragment(assets.template, 'template');
+    window.customElements.define('cookie-monitor', CookieMonitor);
+    return 'cookie-monitor'; //return the tag name.
+}
+
+class CookieMonitor extends HTMLElement {
+    constructor() {
+        super();
+
+        this.monitorId = this.monitorId || [...Array(16)].map(() => Math.floor(Math.random() * 16).toString(16)).join('');
+        this.cookieName = this.cookieName || 'Monitored-Cookie';
+
+        const root = templateDocument.cloneNode(true);
+        this._elements = {
+            root,
+            iframe: root.querySelector('iframe')
+        };
+
+        this._refreshElements();
+
+        this.attachShadow({ mode: 'open' });
+    }
+
+    connectedCallback() {
+        window.addEventListener('message', event => this._onMessage(event));
+        this.addEventListener('cookieChanged', event => this.onCookieChange && new Function(['event'], this.onCookieChange)(event));
+        this.shadowRoot.append(this._elements.root);
+    }
+
+    get serverIframeSrc() { return this.getAttribute('server-iframe-src'); }
+    set serverIframeSrc(value) { setAttribute(this, 'server-iframe-src', value); }
+    get monitorId() { return this.getAttribute('monitor-id'); }
+    set monitorId(value) { setAttribute(this, 'monitor-id', value); }
+    get cookieName() { return this.getAttribute('cookie-name'); }
+    set cookieName(value) { setAttribute(this, 'cookie-name', value); }
+    get onCookieChange() { return this.getAttribute('oncookiechange'); }
+    set onCookieChange(value) { setAttribute(this, 'oncookiechange', value); }
+
+    static get observedAttributes() { return ['server-iframe-src', 'monitor-id', 'cookie-name', 'oncookiechange']; }
+
+    attributeChangedCallback(attrName, oldVal, newVal) {
+        if (attrName === 'server-iframe-src' || attrName === 'monitor-id' || attrName === 'cookie-name') {
+            this._refreshElements();
+            return;
+        }
+    }
+
+    _refreshElements() {
+        if (isNull(this.serverIframeSrc)) {
+            this._elements.iframe.removeAttribute('src');
+            return;
+        }
+        const iframeElementSrcUrl = new URL(this.serverIframeSrc);
+        iframeElementSrcUrl.searchParams.set('parent-origin', window.location.origin);
+        iframeElementSrcUrl.searchParams.set('monitor-id', this.monitorId);
+        iframeElementSrcUrl.searchParams.set('cookie-name', this.cookieName);
+        this._elements.iframe.setAttribute("src", iframeElementSrcUrl.toString());
+    }
+
+
+    _onMessage(event) {
+        if (event.origin !== new URL(this.serverIframeSrc).origin || !isObject(event.data) || isNull(event.data.messageType)) {
+            return;
+        }
+        if (event.data.messageType === 'cookieChanged') {
+            if (event.data.monitorId !== this.monitorId) {
+                return;
+            }
+            this.dispatchEvent(new CustomEvent('cookieChanged', { bubbles: false, composed: false, detail: event.data }));
+            return;
+        }
+    }
+}
+
+main();
+
+</script>
+
+</body>
+</html>

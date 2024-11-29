@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>home.calenda.html</title>
+</head>
+<body>
+
+<script>
+/*
+ * home.calenda.js
+ * requiert jQuery 1.3.2, jquery-ui
+ *
+ * Page d'accueil d'openedition.org
+ *
+ */
+jQuery(function($) {
+
+	// Calenda -----------------------------------------------------------------
+
+	var calenda          = $('#Calenda'), // contexte
+		calendaNumEvent  = $('#calendaNumEvent').find('strong'), // nombre d'éléments du mois (conteneur)
+		calendaNum       = calendaNumEvent.find('span'), // nombre d'éléments du mois (texte)
+		calendaDay       = $('#calendaDay'), // le jour, sous le calendrier
+		calendaDayEvents = $('#calendaDayEvents'), // la liste des élements du jour
+		scheduled        = [], // liste des jours ayant un élément programmé	    
+		numEvents = 3, // nombre d'éléments à afficher sous le calendrier
+
+	    today     = new Date(),
+	    currYear  = today.getFullYear(),
+	    currMonth = today.getMonth() + 1;
+
+	/// FIXME : hauteur colonnes sans scroll
+	$('div.column.last', calenda).height($('div.column.first', calenda).height());
+
+	// Calendrier
+
+	// Il faut d?inir globalement les options pour les utilitaires
+	$.datepicker.setDefaults({
+		dateFormat: $.datepicker.W3C,
+		navigationAsDateFormat: true,
+		currentText: 'MM',
+		prevText: 'M',
+		nextText: 'M'
+	});
+
+	$.ajax({
+		url: '?page=get&list=calendaGetScheduled&date=' + currYear + '-' + currMonth,
+		type: 'GET',
+		dataType: 'json',
+		success: function(response){
+
+			scheduled = response;
+
+			$('#datepicker').datepicker({
+				onChangeMonthYear: function(y, m, inst) {
+					var month = y + '-' + m;
+
+					// Premier affichage, pas besoin d'ajax
+					if (!inst.input.datepicker('getDate')) { return; }
+
+					scheduled = [];
+
+					calendaDayEvents.hide();
+					calendaDay.text($.datepicker.formatDate('d MM yy', $.datepicker.parseDate('yy-mm-dd', month + '-1')));
+					calendaNumEvent.addClass('loading');
+					calendaNum.empty().load('?page=get&list=calendaNumEvent&date=' + month);
+
+					$.ajax({
+						url: '?page=get&list=calendaGetScheduled&date=' + month,
+						type: 'GET',
+						async: false,
+						dataType: 'json',
+						success: function(response){
+							scheduled = response;
+							//inst.input.datepicker('refresh');
+							calendaDayEvents.load('?page=get&list=calendaEvents&date=' + month + '-1&limit=' + numEvents + '&sortorder=desc&orderby=start', function() {
+								calendaNumEvent.removeClass('loading');
+								calendaDayEvents.show();
+							});
+						}
+					});
+				},
+				beforeShowDay: function(date) {
+					var day = $.datepicker.formatDate($.datepicker.W3C, date);
+					return ($.inArray(day, scheduled) == -1) ? [false, ''] : [true, ''];
+				},
+				onSelect: function(datetext) {
+					var date = $.datepicker.parseDate($.datepicker.W3C, datetext);
+					calendaDayEvents.hide();
+					calendaDay.text($.datepicker.formatDate('d MM yy', date));
+					calendaNumEvent.addClass('loading');
+					calendaDayEvents.load('?page=get&list=calendaEvents&date=' + datetext + '&limit=' + numEvents + '&sortorder=desc&orderby=start', function() {
+						calendaNumEvent.removeClass('loading');
+						calendaDayEvents.show();
+					});
+				}
+			});
+		}
+	});
+});
+</script>
+
+</body>
+</html>

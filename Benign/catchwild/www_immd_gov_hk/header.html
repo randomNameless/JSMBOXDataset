@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>header.html</title>
+</head>
+<body>
+
+<script>
+var headerLoad = $.Deferred();
+
+$('header').load('/' + getCurrLang() + '/share/header.html', function() {
+  
+  $('.skip-link_link').on('click', function() {
+    $('#skiptarget').focus();
+  });
+  
+  
+  var path = window.location.pathname;
+  
+  $('.a-change-lang-eng').attr('href', path.replace(/(\/hkt\/|\/hks\/)/, '/eng/'));
+  $('.a-change-lang-hkt').attr('href', path.replace(/(\/eng\/|\/hks\/)/, '/hkt/'));
+  $('.a-change-lang-hks').attr('href', path.replace(/(\/eng\/|\/hkt\/)/, '/hks/'));
+  
+  
+  var widthForLogo = window.innerWidth - $('.nav-mobile').width() - 50;
+  if (widthForLogo < $('.logo').width()) {
+    $('.logo').width(widthForLogo);
+  }
+  
+  $("#otherLang, .otherLang-wrapper").hover(function(){
+		$(".otherLang-wrapper").css("display", "block");
+	}, function(){
+		$(".otherLang-wrapper").css("display", "none");
+	});
+  
+  
+  $('.share-btn').on('click', function(e) {
+    e.preventDefault();
+    
+    var isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    var isWechat = false;
+    
+    var pageTitle = encodeURIComponent($('title')[0].innerHTML);
+    var pageURL = encodeURIComponent(window.location.href);
+    
+    var popupHref = '';
+    
+    if ($(this).hasClass('share-btn-email')) {
+      popupHref = 'mailto:?subject=' + pageTitle + '&body=' + pageTitle + '%20%20%20' + pageURL;
+    } else if ($(this).hasClass('share-btn-whatsapp')) {
+      if (isMobileDevice) {
+        popupHref = 'whatsapp://send?text=' + pageTitle + '   ' + pageURL;
+      } else {
+        popupHref = 'https://web.whatsapp.com/send?text=' + pageTitle + '   ' + pageURL;
+      }
+    } else if ($(this).hasClass('share-btn-wechat')) {
+      popupHref = window.location.href;
+      isWechat = true;
+    } else if ($(this).hasClass('share-btn-facebook')) {
+      popupHref = 'https://www.facebook.com/sharer/sharer.php?u=' + pageURL;
+    } else if ($(this).hasClass('share-btn-twitter')) {
+      popupHref = 'http://twitter.com/share?text=' + pageTitle + '   ' + '&url=' + pageURL;
+    } else if ($(this).hasClass('share-btn-weibo')) {
+      popupHref = 'http://service.weibo.com/share/share.php?url=' + pageURL + '&title=' + pageTitle;
+    }
+    
+    
+    var popupTitle, wechatMessage;
+    var currLang = getCurrLang();
+    
+    if (currLang == 'eng') {
+      popupTitle = 'Share | Immigration Department';
+      wechatMessage = 'Please launch WeChat and scan the QR Code below';
+    } else if (currLang == 'hkt') {
+      popupTitle = '分享 | 入境事務處';
+      wechatMessage = '請在微信中掃描二維碼';
+    } else if (currLang == 'hks') {
+      popupTitle = '分享 | 入境事务处';
+      wechatMessage = '请在微信中扫描二维码';
+    }
+    
+    
+    var newWindow = window.open(popupHref, popupTitle, 'scrollbars=yes,width=600,height=500,left=0,top=0,');
+    
+    if (isWechat) {
+      newWindow.document.write('<!DOCTYPE HTML><html><head><title>' + popupTitle + '</title></head><body><p>' + wechatMessage + '</p><div id="qr-code-div"></div></body></html>');
+      
+      new QRCode(newWindow.document.getElementById('qr-code-div'), popupHref);
+    }
+    
+    newWindow.focus();
+  });
+  
+  
+  headerLoad.resolve();
+});
+</script>
+
+</body>
+</html>

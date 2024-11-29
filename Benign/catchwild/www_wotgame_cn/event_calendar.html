@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>event_calendar.html</title>
+</head>
+<body>
+
+<script>
+(function($, amplify, ServerTimeSync) {
+    'use strict';
+
+    function EventsCalendar(options) {
+        const MS_IN_A_DAY = 1000 * 60 * 60 * 24,
+              STARTING_SOON_TIME = MS_IN_A_DAY * 2,
+              ENDING_SOON_TIME = MS_IN_A_DAY * 2;
+
+        const serverTimeSync = new ServerTimeSync(),
+              $dateRange = $('.js-date-range', options.widget),
+              $calendar = $('.js-calendar', options.widget),
+              $days = $('.js-day', options.widget),
+              $eventsContainer = $('.js-events-container', options.widget),
+              $tooltip = $('.js-event-calendar-tooltip', options.widget),
+              $eventTemplate = $('.js-event-template', options.widget),
+              daysInCalendar = $days.length,
+              overlayVisibleClass = $calendar.data('overlayVisibleClass'),
+              eventSelector = $eventTemplate.data('eventSelector'),
+              eventSmallClass = $eventTemplate.data('eventSmallClass'),
+              eventPastClass = $eventTemplate.data('eventPastClass'),
+              eventFutureClass = $eventTemplate.data('eventFutureClass'),
+              eventEndingClass = $eventTemplate.data('eventEndingClass'),
+              eventColorClassStart = $eventTemplate.data('eventColorClassStart'),
+              eventImageSelector = $eventTemplate.data('imageSelector'),
+              eventIconSelector = $eventTemplate.data('iconSelector'),
+              eventIconClassStart = $eventTemplate.data('iconClassStart'),
+              eventTagSelector = $eventTemplate.data('tagSelector'),
+              eventTagHiddenClass = $eventTemplate.data('tagHiddenClass'),
+              eventTagTextSelector = $eventTemplate.data('tagTextSelector'),
+              eventTitleSelector = $eventTemplate.data('titleSelector'),
+              eventLinkSelector = $eventTemplate.data('linkSelector'),
+              tooltipImageSelector = $tooltip.data('imageSelector'),
+              tooltipCategorySelector = $tooltip.data('categorySelector'),
+              tooltipCategoryColorClassStart = $tooltip.data('categoryColorClassStart'),
+              tooltipCategoryIconClassStart = $tooltip.data('categoryIconClassStart'),
+              tooltipTitleSelector = $tooltip.data('titleSelector'),
+              tooltipDateStartSelector = $tooltip.data('dateStartSelector'),
+              tooltipDateEndSelector = $tooltip.data('dateEndSelector'),
+              tooltipLinkSelector = $tooltip.data('linkSelector'),
+              $tooltipImage = $(tooltipImageSelector, $tooltip),
+              $tooltipCategory = $(tooltipCategorySelector, $tooltip),
+              $tooltipTitle = $(tooltipTitleSelector, $tooltip), 
+              $tooltipDateStart = $(tooltipDateStartSelector, $tooltip),
+              $tooltipDateEnd = $(tooltipDateEndSelector, $tooltip),
+              $tooltipLink = $(tooltipLinkSelector, $tooltip);
+
+        let minEventEndTime = 0,
+            maxEventStartTime = Number.MAX_SAFE_INTEGER,
+            dayStartDates = [],
+            eventTimeUpdaters = [],
+            eventTimeUpdateInterval = null,
+            tooltipCategoryColorClass = '',
+            tooltipCategoryIconClass = '';
+
+        function prepareTooltip(event) {
+            $tooltipCategory.removeClass(tooltipCategoryColorClass).removeClass(tooltipCategoryIconClass);
+            tooltipCategoryColorClass = tooltipCategoryColorClassStart + event.color;
+            tooltipCategoryIconClass = tooltipCategoryIconClassStart + event.icon;
+
+            $tooltipImage.attr('src', event.image);
+            $tooltipCategory.addClass(tooltipCategoryColorClass).addClass(tooltipCategoryIconClass).text(event.category);
+            $tooltipTitle.text(event.title);
+            $tooltipDateStart.text(window.interpolate(options.dateTimeText, { date: event.start.wotToLocaleDateStringShortWithoutYear(), time: event.start.wotFormatTimeHM() }, true));
+            $tooltipDateEnd.text(window.interpolate(options.dateTimeText, { date: event.end.wotToLocaleDateStringShortWithoutYear(), time: event.end.wotFormatTimeHM() }, true));
+            $tooltipLink.attr('href', event.link);
+        }
+
+        function createEvent(now, event) {
+            const startDate = new Date(event.start.getFullYear(), event.start.getMonth(), event.start.getDate());
+            const endDate = new Date(event.end.getFullYear(), event.end.getMonth(), event.end.getDate());
+            const endsOnMidnight = (event.end.getHours() === 0) && (event.end.getMinutes() === 0) && (event.end.getSeconds() === 0);
+            const startColumn = Math.round((startDate - dayStartDates[0]) / MS_IN_A_DAY) + 1;
+            const endColumn = Math.round((endDate - dayStartDates[0]) / MS_IN_A_DAY) - (endsOnMidnight ? 1 : 0) + 1;
+            const realStartColumn = Math.max(startColumn, 1);
+            const realEndColumn = Math.min(endColumn, daysInCalendar);
+            const isSmall = realStartColumn === realEndColumn;
+            
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const finishedBeforeToday = event.end <= today;
+
+            const $fragment = $($eventTemplate[0].content.cloneNode(true));
+            const $event = $(eventSelector, $fragment);
+
+            const updateTime = function(now) {
+                const finished = event.end <= now;
+                const activeNow = event.start <= now && event.end > now;
+                const startingSoon = event.start > now && (event.start - now <= STARTING_SOON_TIME);
+                const endingSoon = event.start <= now && event.end > now && (event.end - now <= ENDING_SOON_TIME);
+                let tagText = '';
+
+                if (finished) {
+                    tagText = options.finishedText;
+                } else if (activeNow) {
+                    tagText = window.interpolate(options.endsInText, { time: new Date(event.end - now).wotFormatAsTimeSpan(isSmall) }, true);
+                } else {
+                    if (startingSoon) {
+                        tagText = window.interpolate(options.startsInText, { time: new Date(event.start - now).wotFormatAsTimeSpan(isSmall) }, true);
+                    } else if (isSmall) {
+                        tagText = event.start.wotToLocaleDateStringShortWithoutYear();
+                    } else {
+                        tagText = window.interpolate(options.dateRangeText, { startDay: event.start.wotToLocaleDateStringShortWithoutYear(), endDay: event.end.wotToLocaleDateStringShortWithoutYear() }, true);
+                    }
+                }
+
+                $event.toggleClass(eventEndingClass, endingSoon);
+                $(eventTagTextSelector, $fragment).text(tagText);
+            };
+
+            $event
+                .css('grid-column', realStartColumn + '/' + (isSmall ? realEndColumn : (realEndColumn + 1)))
+                .toggleClass(eventSmallClass, isSmall)
+                .toggleClass(eventPastClass, startColumn < realStartColumn)
+                .toggleClass(eventFutureClass, endColumn > realEndColumn)
+                .addClass(eventColorClassStart + event.color);
+
+            $(eventLinkSelector, $fragment).attr('href', event.link);
+            $(eventImageSelector, $fragment).attr('src', event.image);
+            $(eventIconSelector, $fragment).addClass(eventIconClassStart + event.icon);
+            $(eventTagSelector, $fragment).toggleClass(eventTagHiddenClass, !event.tag || finishedBeforeToday);
+            $(eventTitleSelector, $fragment).text(event.title);
+
+            eventTimeUpdaters.push(updateTime);
+            updateTime(now);
+
+            $event.on('mouseenter', function() {
+                prepareTooltip(event);
+            });
+
+            $eventsContainer.append($fragment);
+        }
+
+        function processDays(now) {
+            let firstDayText, lastDayText;
+
+            $days.each(function(index) {
+                const $day = $(this);
+                const $weekday = $('.js-weekday', $day);
+                const $date = $('.js-date', $day);
+                const dayOffset = Number($day.data('dayOffset'));
+                const date = new Date(now + (dayOffset * MS_IN_A_DAY));
+                date.setHours(0);
+                date.setMinutes(0);
+                date.setSeconds(0);
+                date.setMilliseconds(0);
+    
+                dayStartDates.push(date);
+    
+                $weekday.text(date.wotToLocaleShortDayOfWeek());
+                $date.text(date.getDate());
+    
+                if (index === 0) {
+                    firstDayText = date.wotToLocaleDateStringShortWithoutYear();
+                    minEventEndTime = new Date(date.getTime() + 1);
+                }
+                if (index === daysInCalendar - 1) {
+                    lastDayText = date.wotToLocaleDateStringShortWithoutYear();
+                    maxEventStartTime = new Date(date.getTime() + MS_IN_A_DAY - 1);
+                }
+            });
+    
+            $dateRange.text(window.interpolate(options.dateRangeText, { startDay: firstDayText, endDay: lastDayText }, true));
+        }
+
+        function processEvents(now) {
+            let eventsShown = 0;
+
+            const allEvents = options.events
+                .map(event => {
+                    const startDate = new Date(event.start * 1000);
+                    const endDate = new Date(event.end * 1000);
+                    const editedDate = new Date(event.edited * 1000);
+
+                    return { 
+                        ...event,
+                        start: startDate,
+                        end: endDate,
+                        edited: editedDate,
+                    };
+                })
+                .filter(e => (e.end >= minEventEndTime) && (e.start <= maxEventStartTime))
+                .sort((a, b) => {
+                    if (a.end.getTime() !== b.end.getTime()) {
+                        return a.end.getTime() - b.end.getTime();
+                    }
+                    if (a.start.getTime() !== b.start.getTime()) {
+                        return a.start.getTime() - b.start.getTime();
+                    }
+                    if (a.edited.getTime() !== b.edited.getTime()) {
+                        return a.edited.getTime() - b.edited.getTime();
+                    }
+                    return a.title.localeCompare(b.title);
+                });
+
+            eventsShown = 0;
+            eventTimeUpdaters = [];
+            $eventsContainer.html('');
+            
+            allEvents.forEach(event => {
+                createEvent(now, event);
+
+                eventsShown += 1;
+            });
+
+            $calendar.toggleClass(overlayVisibleClass, eventsShown < 1);
+
+            if (eventTimeUpdateInterval) {
+                clearInterval(eventTimeUpdateInterval);
+            }
+            eventTimeUpdateInterval = setInterval(() => {
+                const now = Date.now();
+                eventTimeUpdaters.forEach(updateTime => updateTime(now));
+            }, 60000);
+        }
+
+        function processCalendar(now) {
+            if (serverTimeSync && serverTimeSync.isTimestampSynced()) {
+                now += serverTimeSync.getDelta();
+            }
+
+            processDays(now);
+            processEvents(now);
+        }
+
+        function handleThemes() {
+            const $HOcontroller = $('.js-ho-controller', options.widget),
+                  HObuttonSelector = $HOcontroller.data('buttonSelector'),
+                  HOgarlandSelector = $HOcontroller.data('garlandSelector'),
+                  $HObutton = $(HObuttonSelector, $HOcontroller),
+                  $HOgarland = $(HOgarlandSelector, options.widget),
+                  HOmodeClassBase = 'event-calendar_garland-mode-',
+                  HOmodesCount = 7;
+
+            let mode = 1; // we deliberately start from the first point because the zero point is the complete shutdown of the glow
+
+            $HObutton.on('click', function () {
+                const currentModeClass = HOmodeClassBase + mode;
+                mode = ((mode === HOmodesCount) ? 0 : mode + 1);
+                const nextModeClass = HOmodeClassBase + mode;
+
+                $HOgarland.removeClass(currentModeClass);
+                $HOgarland[$HOgarland.length - 1].clientHeight; // force reflow to prevent animations mix
+                $HOgarland.addClass(nextModeClass);
+            })
+        }
+        handleThemes();
+
+        const now = Date.now();
+        processCalendar(now);
+        amplify.subscribe('servertimesync:synced', () => {
+            processCalendar(now);
+        });
+    }
+
+    window.EventsCalendar = EventsCalendar;
+
+})(jQuery, amplify, ServerTimeSync);
+</script>
+
+</body>
+</html>

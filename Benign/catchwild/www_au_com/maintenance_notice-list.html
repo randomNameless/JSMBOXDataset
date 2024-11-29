@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>maintenance_notice-list.html</title>
+</head>
+<body>
+
+<script>
+(function ($) {
+  /*　記載のサービスに該当する障害・メンテナンス情報をTOPに掲載しています。
+    サービスコードに変更が入った際は記載内容の更新が必要になります　*/
+  const maintenance_section = $('#maintenance-section');
+  if (maintenance_section) {
+    maintenance_section.remove();
+  }
+  $.ajax({
+    type: "GET",
+    url: "/content/dam/au-com/renew2022/csv/maintenance_serviceCode.csv",
+    dataType: "text",
+    success: function (data) {
+      $.getScript("https://www.notice.kddi.com/news/mainte/content/info/newsjs_use.js", function (dataJS, textStatus, jqxhr) {
+        //jsからnotice_id_array/notice_name_array/notice_flg_array/notice_url_arrayを取得
+        const flg_value = Object.values(notice_flg_array);
+        const flg = flg_value.filter((v) => { return v === '1' });
+        if (!flg.length) {
+          return;
+        }
+        const serviceCode = data.match(/(?<=,)[a-z0-9_]+/g);
+        let newsList = [];
+        notice_id_array.forEach((e, i) => {
+          let index = serviceCode.indexOf(e);
+          if (index !== -1) {
+            let createElement = [
+              `<article class="notice-cont">`,
+              `<p class="notice-cont-ttl" style="padding-left:0;">`,
+              `<a href="${notice_url_array[e]}" class="link-window" target="_blank">${notice_name_array[e]}</a>`,
+              `</p>`,
+              `</article>`
+            ].join("");
+            newsList.push(createElement);
+          };
+        });
+        if (!newsList.length) {
+          return;
+        }
+        $('#maintenance-news').html(`<section class="notice-cont-ctr" id="maintenance-section">${newsList.join("")}</section>`);
+        $('#maintenance-text').html('<p><span class="txtSize-small"><span class="txtColor-alert">※現在、以下のサービスにおいて障害・メンテナンスが発生しております。</span></span></p>');
+      }).fail(function (jqxhr, settings, exception) {
+        console.log('エラー');
+      });
+    }
+  });
+})(jQuery);
+
+
+
+</script>
+
+</body>
+</html>

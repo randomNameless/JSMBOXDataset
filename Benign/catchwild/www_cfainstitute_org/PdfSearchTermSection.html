@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PdfSearchTermSection.html</title>
+</head>
+<body>
+
+<script>
+import {
+  resultContext,
+} from "https://static.cloud.coveo.com/atomic/v2/index.esm.js";
+import { inputContains, getHashParam } from "../utility-functions.js";
+
+//PDF Search
+export class PdfSearchTermSection extends HTMLElement {
+  shadow;
+  result;
+  initialized = false;
+
+  async connectedCallback() {
+    if (this.initialized) {
+      return;
+    }
+
+    this.initialized = true;
+    this.shadow = this.attachShadow({ mode: "open" });
+
+    try {
+      this.result = await resultContext(this);
+      this.render();
+    } catch (error) {
+      console.error(error);
+    }
+  }
+  render() {
+    const pdfcontent = this.result.raw.pdfcontent || "";
+    const pdfcontenturl = this.result.raw.pdfcontenturl || "";
+    const isTopResult = this.result.isTopResult;
+
+    if (isTopResult) {
+      this.shadow.innerHTML = "";
+      return;
+    }
+
+    let searchTerm = getHashParam('q');
+    if (
+      pdfcontent &&
+      searchTerm &&
+      inputContains(pdfcontent, searchTerm) &&
+      pdfcontenturl
+    ) {
+
+      let linkContent = `<em><strong>"${searchTerm}"</strong> is found in a <a href="${pdfcontenturl}">document</a> on this page.<em>`;
+
+      this.shadow.innerHTML = `
+          <div class="result-meta">
+            <span class="result-meta-item">
+              <span class="date" style="color: black;">
+                ${linkContent}
+              </span>
+            </span>
+          </div>
+        `;
+    } else {
+      this.shadow.innerHTML = "";
+    }
+  }
+}
+
+</script>
+
+</body>
+</html>

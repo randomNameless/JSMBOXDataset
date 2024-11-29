@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DigitalData.html</title>
+</head>
+<body>
+
+<script>
+if (!Array.from) {
+  Array.from = (function () {
+    var symbolIterator;
+    try {
+      symbolIterator = Symbol.iterator ? Symbol.iterator : 'Symbol(Symbol.iterator)';
+    } catch (e) {
+      symbolIterator = 'Symbol(Symbol.iterator)';
+    }
+    var toStr = Object.prototype.toString;
+    var isCallable = function (fn) {
+      return typeof fn === 'function' || toStr.call(fn) === '[object Function]';
+    };
+    var toInteger = function (value) {
+      var number = Number(value);
+      if (isNaN(number)) return 0;
+      if (number === 0 || !isFinite(number)) return number;
+      return (number > 0 ? 1 : -1) * Math.floor(Math.abs(number));
+    };
+    var maxSafeInteger = Math.pow(2, 53) - 1;
+    var toLength = function (value) {
+      var len = toInteger(value);
+      return Math.min(Math.max(len, 0), maxSafeInteger);
+    };
+    var setGetItemHandler = function setGetItemHandler(isIterator, items) {
+      var iterator = isIterator && items[symbolIterator]();
+      return function getItem(k) {
+        return isIterator ? iterator.next() : items[k];
+      };
+    };
+    var getArray = function getArray(T, A, len, getItem, isIterator, mapFn) {
+      var k = 0;
+      while (k < len || isIterator) {
+        var item = getItem(k);
+        var kValue = isIterator ? item.value : item;
+        if (isIterator && item.done) {
+          return A;
+        } else {
+          if (mapFn) {
+            A[k] = typeof T === 'undefined' ? mapFn(kValue, k) : mapFn.call(T, kValue, k);
+          } else {
+            A[k] = kValue;
+          }
+        }
+        k += 1;
+      }
+      if (isIterator) {
+        throw new TypeError('Array.from: provided arrayLike or iterator has length more then 2 ** 52 - 1');
+      } else {
+        A.length = len;
+      }
+      return A;
+    };
+    return function from(arrayLikeOrIterator) {
+      var C = this;
+      var items = Object(arrayLikeOrIterator);
+      var isIterator = isCallable(items[symbolIterator]);
+      if (arrayLikeOrIterator == null && !isIterator) {
+        throw new TypeError('Array.from requires an array-like object or iterator - not null or undefined');
+      }
+      var mapFn = arguments.length > 1 ? arguments[1] : void undefined;
+      var T;
+      if (typeof mapFn !== 'undefined') {
+        if (!isCallable(mapFn)) {
+          throw new TypeError('Array.from: when provided, the second argument must be a function');
+        }
+        if (arguments.length > 2) {
+          T = arguments[2];
+        }
+      }
+      var len = toLength(items.length);
+      var A = isCallable(C) ? Object(new C(len)) : new Array(len);
+      return getArray(T, A, len, setGetItemHandler(isIterator, items), isIterator, mapFn);
+    };
+  })();
+}
+
+prepareDigitalData();
+
+function prepareDigitalData() {
+  try {
+    let dtmPageName;
+    let dtmCurrDomain = window.location.hostname.toString();
+    let dtmCurrPath = window.location.pathname.toString();
+    let dtmCountry = checkStr(getContent('page.country')) !== '' ? checkStr(getContent('page.country')) : 'sg';
+    let dtmHierarchy;
+    let dtmLanguage = checkStr(getContent('page.language')) !== '' ? checkStr(getContent('page.language')) : 'en';
+    let dtmFormName;
+    let dtmProductName;
+    let dtmServiceName;
+    let dtmSubCat1;
+    let dtmSubCat2;
+    let dtmCurrPathArray;
+    let destinationUrl = dtmCurrDomain + window.location.pathname.toString();
+    let s = '';
+    let s2 = {};
+    let values = [];
+
+    let YTListeners = [];
+    //copy all s object to temp
+    for (let i in s) {
+      s2[i] = s[i];
+    }
+
+    /********************************************************************************/
+    /** Fecthing PageName 														**/
+    /********************************************************************************/
+    /*Removing the first / from dtmCurrPath*/
+    dtmCurrPath = dtmCurrPath.substr(1);
+
+    /*Creating Pagename*/
+    let dtmPageNameArray = dtmCurrPath.split('/').join(':');
+
+    /* Page Name Clean Up Code - Start */
+    dtmPageNameArray = dtmPageNameArray.toLowerCase();
+    dtmPageNameArray = dtmPageNameArray.replace(new RegExp(/pages:/g), '');
+    //to replicate ":index" treatment to ""
+    dtmPageNameArray = dtmPageNameArray.replace(/:index/, '');
+    /* sharepoint */
+    dtmPageNameArray = dtmPageNameArray.replace(/:default.aspx/, '');
+    dtmPageNameArray = dtmPageNameArray.replace(new RegExp(/.aspx/g), '');
+    //to replicate ".aspx" treatment to ".page"
+    dtmPageNameArray = dtmPageNameArray.replace(/:default.page/, '');
+    dtmPageNameArray = dtmPageNameArray.replace(new RegExp(/.page/g), '');
+    //remove all occurence of "?" to prevent duplicate pagename entry
+    dtmPageNameArray = dtmPageNameArray.replace(/\?/g, '');
+    //Merged from GM-MM s_code - Start
+    dtmPageNameArray = dtmPageNameArray.replace(/home:default.page/, 'home:index.html');
+    /* Page Name Clean Up Code - End */
+
+    if (dtmPageNameArray === '') {
+      dtmPageName = dtmCountry + ':' + dtmLanguage;
+    } else {
+      dtmPageName = dtmCountry + ':' + dtmLanguage + ':' + changeTPC(dtmPageNameArray); // --
+    }
+
+    /* Break up Page Name into sections and sub sections  */
+    let valueArray = dtmPageName.split(':');
+    if (valueArray[1] !== undefined) {
+      dtmHierarchy = valueArray[0] + '|' + valueArray[1];
+      if (valueArray[2] !== undefined) {
+        dtmHierarchy = valueArray[0] + '|' + valueArray[1] + '|' + valueArray[2];
+        let dtmChannel = valueArray[0] + ':' + valueArray[1] + ':' + valueArray[2];
+        //s.elet66 = valueArray[2];
+        if (valueArray[3] !== undefined) {
+          dtmHierarchy = valueArray[0] + '|' + valueArray[1] + '|' + valueArray[2] + '|' + valueArray[3];
+          if (valueArray[4] !== undefined) {
+            dtmHierarchy =
+              valueArray[0] + '|' + valueArray[1] + '|' + valueArray[2] + '|' + valueArray[3] + '|' + valueArray[4];
+            if (valueArray[5] !== undefined) {
+              dtmHierarchy =
+                valueArray[0] +
+                '|' +
+                valueArray[1] +
+                '|' +
+                valueArray[2] +
+                '|' +
+                valueArray[3] +
+                '|' +
+                valueArray[4] +
+                '|' +
+                valueArray[5];
+              if (valueArray[6] !== undefined) {
+                dtmHierarchy =
+                  valueArray[0] +
+                  '|' +
+                  valueArray[1] +
+                  '|' +
+                  valueArray[2] +
+                  '|' +
+                  valueArray[3] +
+                  '|' +
+                  valueArray[4] +
+                  '|' +
+                  valueArray[5] +
+                  '|' +
+                  valueArray[6];
+              }
+            }
+          }
+        }
+      }
+    }
+
+    /********************************************************************************/
+    /** Form Name, Product name and Service name								**/
+    /**************************************************************************/
+
+    // Set Form name
+    dtmFormName = dtmPageName.replace(/:/g, '_');
+
+    // Set Product Name
+    let productType = getContent('product.productType');
+    let pprimaryCat = getContent('product.primaryCat');
+
+    window.productType = getContent('product.productType');
+    window.pprimaryCat = getContent('product.primaryCat');
+
+    let psubCat1 = unescape(getContent('product.subCat1'));
+
+    if (productType !== undefined && productType !== '' && productType !== null) {
+      window.dtmProductName = dtmProductName = productType;
+      if (pprimaryCat !== undefined && pprimaryCat !== '' && pprimaryCat !== null) {
+        dtmProductName = productType + ':' + pprimaryCat;
+        if (psubCat1 !== undefined && psubCat1 !== '' && psubCat1 !== null) {
+          //dtmProductName = productType+':'+pprimaryCat+':'+psubCat1;
+          //Set SubCategory for multiple products
+          if (psubCat1.indexOf(';') > 0) {
+            let finalProducts = psubCat1.split(';');
+            for (let i = 0; i < finalProducts.length; i++) {
+              let item = {
+                product: {
+                  category: {
+                    subCategory1: productType + ':' + pprimaryCat + ':' + finalProducts[i],
+                  },
+                },
+              };
+              values.push(item);
+              //setting value for elet58
+              let multiProduct = productType + ':' + pprimaryCat + ':' + finalProducts[i];
+              if (i === 0) {
+                dtmProductName = multiProduct;
+              } else {
+                dtmProductName = dtmProductName + ',;' + multiProduct;
+              }
+            }
+          } else {
+            let item = {
+              product: {
+                category: {
+                  //"productType": checkStr($("meta[name='product.productType']").attr("content")),
+                  //"primaryCategory": checkStr($("meta[name='product.primaryCat']").attr("content")),
+                  subCategory1: productType + ':' + pprimaryCat + ':' + psubCat1,
+                },
+              },
+            };
+            values.push(item);
+            dtmProductName = productType + ':' + pprimaryCat + ':' + psubCat1;
+          }
+        }
+      }
+    }
+
+    // End multiple product tracking
+
+    // Set Service Name
+    let serviceType = getContent('service.serviceType');
+
+    let sprimaryCat = getContent('service.primaryCat');
+    let ssubCat1 = getContent('service.primaryCat');
+
+    if (serviceType !== undefined && serviceType !== '' && serviceType !== null) {
+      dtmServiceName = serviceType;
+      if (sprimaryCat !== undefined && sprimaryCat !== '' && sprimaryCat !== null) {
+        dtmServiceName = serviceType + ':' + sprimaryCat;
+        if (ssubCat1 !== undefined && ssubCat1 !== '' && ssubCat1 !== null) {
+          dtmServiceName = serviceType + ':' + sprimaryCat + ':' + ssubCat1;
+        }
+      }
+    }
+
+    /**
+ Check for undefined/null and return empty
+ **/
+    function checkStr(val) {
+      return val === undefined || val === null || val.length <= 0 ? '' : trimStr(val);
+    }
+
+    /**
+ Trim unwanted spaces
+ **/
+    function trimStr(str) {
+      return str.replace(/^\s+|\s+$/g, '');
+    }
+
+    /**
+     * Change page name from treasures-private-client to tpc if exisit
+     */
+
+    function changeTPC(str) {
+      // --
+      if (str.indexOf('treasures-private-client') > -1) {
+        return str.replace('treasures-private-client', 'tpc');
+      } else if (str.indexOf('private-banking') > -1) {
+        return str.replace('private-banking', 'private-bank');
+      } else if (
+        dtmCurrDomain === 'www.posb.com.sg' ||
+        dtmCurrDomain === 'dbsweb-posb.sgp.dbs.com' ||
+        dtmCurrDomain === 'preview-posb.sgp.dbs.com' ||
+        dtmCurrDomain === 'dbsweb-s01.posb.com.sg' ||
+        dtmCurrDomain === 'dbsweb-uat-posb.sgp.dbs.com' ||
+        dtmCurrDomain === 'dbswebuatak-www.posb.com.sg' ||
+        dtmCurrDomain === 'dbsweb-g01-prv.posb.com.sg'
+      ) {
+        if (str.indexOf('personal') > -1) {
+          return str.replace('personal', 'personal:posb');
+        } else {
+          return str.replace('i-bank', 'personal:posb');
+        }
+      } else {
+        return str;
+      }
+    }
+
+    function getPromoName(str) {
+      if (str === undefined || str === '') {
+        let category = '';
+        let nodesList = document.querySelectorAll('.breadcrumb div a');
+        Array.from(nodesList).forEach(function (node) {
+          if (category !== '') {
+            category = category + ':' + node.innerText;
+          } else {
+            category = node.innerText;
+          }
+        });
+        // if (category === '') {
+        //   $('.seo-div-breadcrumb a').each(function () {
+        //     if (category!=='') {
+        //       category = category + ':' + $(this).text();
+        //     } else {
+        //       category = $(this).text();
+        //     }
+        //   });
+        // }
+
+        if (dtmCountry === 'sg') {
+          //for promotion
+          if (destinationUrl.indexOf('/promotion/') > -1) {
+            let promoName = document.querySelector('h1').innerText;
+            return checkStr(promoName);
+          }
+        }
+        return '';
+      } else {
+        return str;
+      }
+    }
+
+    /********************************************************************************/
+    /** Sub Category 1 and Sub Category 2								**/
+    /**************************************************************************/
+
+    dtmCurrPathArray = dtmCurrPath.split('/');
+    let categoryInitial =
+      dtmCountry +
+      ':' +
+      dtmLanguage +
+      ':' +
+      checkStr(getContent('page.site')) +
+      ':' +
+      checkStr(getContent('page.primaryCat'));
+
+    if (checkStr(dtmCurrPathArray[1]) !== '' && dtmCurrPathArray[1].indexOf('.page') === -1) {
+      dtmSubCat1 = categoryInitial + ':' + dtmCurrPathArray[1];
+      if (checkStr(dtmCurrPathArray[2]) !== '' && dtmCurrPathArray[2].indexOf('.page') === -1) {
+        dtmSubCat2 = categoryInitial + ':' + dtmCurrPathArray[1] + ':' + dtmCurrPathArray[2];
+      } else {
+        dtmSubCat2 = 'n/a';
+      }
+    } else {
+      dtmSubCat1 = 'n/a';
+      dtmSubCat2 = 'n/a';
+    }
+
+    /********************************************************************************/
+    /** Site Name								**/
+    /**************************************************************************/
+    let site = dtmCountry + ':' + dtmLanguage + ':' + checkStr(getContent('page.site'));
+
+    /********************************************************************************/
+    /** Assigning data layer to DTM 											**/
+
+    /*******************************************************************************/
+    window.dtmPageName = checkStr(dtmPageName);
+    window.digitalData = {
+      page: {
+        pageInfo: {
+          pageName: checkStr(dtmPageName),
+          language: checkStr(getContent('page.language')),
+          hier: checkStr(dtmHierarchy),
+          brand: checkStr(getContent('page.brand')),
+          country: checkStr(getContent('page.country')),
+          destinationURL: destinationUrl,
+        },
+        category: {
+          primaryCategory: checkStr(getContent('page.primaryCat')),
+          subCategory1: dtmSubCat1,
+          subCategory2: dtmSubCat2,
+          site: site,
+          pageType: checkStr(getContent('page.pageType')),
+        },
+      },
+      ...(values.length > 0 ? { item: values } : {}),
+      product: {
+        category: {
+          productType: checkStr(getContent('product.productType')),
+          primaryCategory: checkStr(getContent('product.primaryCat')),
+          subCategory1: checkStr(getContent('product.subCat1')),
+        },
+
+        attributes: {
+          productOffer: checkStr(getContent('product.productOffer')),
+          promoName: getPromoName(checkStr(getContent('product.promoName'))),
+        },
+        productInfo: {
+          productName: checkStr(dtmProductName),
+        },
+      },
+      service: {
+        category: {
+          serviceType: checkStr(getContent('service.serviceType')),
+          primaryCategory: checkStr(getContent('service.primaryCat')),
+          subCategory1: checkStr(getContent('service.subCat1')),
+        },
+        serviceInfo: {
+          serviceName: checkStr(dtmServiceName),
+        },
+      },
+      form: {
+        name: checkStr(dtmFormName),
+        stepDetail: '',
+        field: '',
+        type: checkStr(getContent('form.primaryCat')),
+      },
+      transaction: {
+        transactionID: '',
+      },
+    };
+  } catch (error) {
+    console.log(error);
+  }
+}
+
+function getContent(name) {
+  if (document.getElementsByName(name)[0]) {
+    return document.getElementsByName(name)[0].content;
+  }
+  return null;
+}
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>sign-up.html</title>
+</head>
+<body>
+
+<script>
+
+(function($) {
+var hostmark = {
+	clear: function() { $('.free-or-taken').hide(); },
+	showTaken: function(taken) { hostmark.clear(); $('#hostname-'+((taken)?'taken':'free')).show(); },
+	isTaken: function() { return $('#hostname-taken').is(':visible'); }
+};
+
+var hosterror = {
+	show: function(msg) {
+		$('#host-add-form').addClass('error');
+		$('#host-error').html(msg).show();
+		$('#hostname').addClass('error mb-0');
+		hostmark.showTaken(true);
+	},
+
+	clear: function() {
+		$('#host-add-form').removeClass('error');
+		$('#host-error').hide();
+		$('#hostname').removeClass('error mb-0');
+	},
+
+	visible: function() {
+		return $('#host-error').is(':visible');
+	}
+};
+
+var hostavail = {
+	no_thanks_id: 'blogname-purchase-no-thanks',
+	check_results: {},
+	last_check: '',
+	running: false,
+	enhanced_chosen: false,
+
+	showSuggested: function($box, data) {
+		// fill in avail list
+		var $ul = $('ul.available-domains', $box).empty();
+		for(var i = 0; i < data.length; i++) {
+			var o = data[i];
+			$ul.append('<li'+((i>=6)?' style="display:none;"':'')+'><i class="pull-left icon-right-circle"></i><a href="#">'+o.host+'.'+o.domain+'</a></li>');
+		}
+
+		$ul.append('<li><a href="#" class="view-more"><strong>+ '+ messages['view_more'] +'</strong></a></li>');
+		$box.show();
+	},
+
+	hide: function() {
+		$('#host-messagebox').slideUp();
+	},
+
+	updateNoThanksText: function(type) {
+		var txt = (type != 'free') ? '.'+hostavail.getDomain() : messages['the_free_hostname'];
+		$('#'+hostavail.no_thanks_id+' span').html(txt);
+	},
+
+	reset: function() {
+		$('.hostinfo').hide();
+		hosterror.clear();
+		hostmark.clear();
+		hostavail.setDomain('hopto.org');
+		hostavail.setHostname('');
+		hostavail.last_check = {};
+	},
+
+	setDisabled: function(disabled) {
+		var els = [$('#hostname'), $('#domain')];
+		if(disabled) {
+			$('#hostname').addClass('disabled').attr('disabled', 'disabled').val('');
+			$('#domain').addClass('disabled').attr('disabled', 'disabled');
+			$('.hostinfo').hide();
+			if(hosterror.visible())
+				hostavail.reset();
+		}
+		else {
+			$('#hostname').removeClass('disabled').removeAttr('disabled').val('');
+			$('#domain').removeClass('disabled').addClass('enable').removeAttr("disabled");
+		}
+	},
+
+	setSignupButtonState: function() {
+		var type = $('#domain option:selected').closest('optgroup').attr('label');
+		if(!$('#hostname').attr('disabled') && (type && type.toLowerCase() == 'enhanced')) {
+			$('#free-signup').attr('disabled', 'disabled').addClass('disabled');
+			$('#tooltip-wrapper').tooltip({position: "bottom"});
+			return;
+		}
+		$('#free-signup').removeAttr('disabled').removeClass('disabled').removeAttr('title');
+		$('#tooltip-wrapper').tooltip('disable');
+	},
+
+	show: function(data) {
+		// Hide both is-avail, is-not-avail
+		$('.hostinfo').hide();
+
+		if(!data.success) {
+			if(data.errmsg) hosterror.show(data.errmsg);
+			return;
+		}
+
+		if(data.domreg.length > 0) {
+			$('#com-available .domreg-domain').html(data.domreg);
+            $('#com-available a').attr('href', '/domains?domain=' + data.domreg);
+			$('#com-available').show();
+		}
+
+		if(data.domreg.length > 0) {
+			$('#com-available-8 .domreg-domain').html(data.domreg);
+            $('#com-available-8 a').attr('href', '/domains?domain=' + data.domreg);
+			$('#com-available-8').show();
+		}
+
+		hostmark.showTaken(!data.available);
+
+		(data.available) ? $( "#free-signup" ).removeClass( "disabled") : $( "#free-signup" ).addClass( "disabled");
+
+		var $box = (data.available) ? $('#is-available') : $('#is-not-available');
+
+		if (!data.available) {
+			$('#hostname').addClass('error');
+		}
+
+		hostavail.showSuggested($box, data.suggestions.enhanced);
+
+		hostavail.updateNoThanksText(data.type);
+
+		$('#host-messagebox').show();
+		console.log(data.available);
+	},
+
+	getHostname: function() { return $.trim($('#hostname').val().toLowerCase()); },
+	setHostname: function(host) { $('#hostname').val(host); },
+
+	getDomain: function() { return $('#domain').val(); },
+	setDomain: function(domain) {
+		var $el = $('#domain');
+		if(!domain || $el.val() == domain)
+			return;
+
+		if( ! hostavail.hasDomain(domain)) {
+			$('#domain').append('<optgroup label="Free"><option class="newusertxt" value="'+domain+'">.'+domain+'</option></optgroup>');
+			hostavail.enhanced_chosen = true;
+		}
+
+		$el.val(domain);
+
+		hostavail.setSignupButtonState();
+	},
+
+	hasDomain: function(domain)
+	{
+		var matches = $.grep($('#domain option'), function(el, index)
+		{
+			return el.value == domain;
+		});
+
+		return !! matches.length;
+	},
+
+	isValidHostname: function(host) {
+		return (/^[a-zA-Z0-9]+$/).test(host);
+	},
+
+	maxLength: function(host) {
+		return (/^[a-zA-Z0-9\-]{1,19}$/).test(host);
+	},
+
+	check: function() {
+
+		var host = hostavail.getHostname(),
+			domain = hostavail.getDomain(),
+			params = { "host":host, "domain": domain },
+			fqdn = host+'.'+domain;
+
+		hostavail.enhanced_chosen = false;
+
+		if(hostavail.last_check === fqdn)
+			return;
+
+		hostavail.last_check = fqdn;
+
+		// Set the hostname input to the cleaned up version
+		hostavail.setHostname(host);
+
+		// hide messages and alerts
+		hostmark.clear();
+		hosterror.clear();
+
+		// Validate the host
+		if(host.length === 0)
+			return;
+
+		if(!hostavail.isValidHostname(host)) {
+			hosterror.show(messages['hostnames_only_letters_and_numbers']);
+			return;
+		}
+
+		if(!hostavail.maxLength(host)) {
+			hosterror.show(messages['hostnames_max_length']);
+			return;
+		}
+
+		if(hostavail.check_results[fqdn]) {
+			hostavail.show(hostavail.check_results[fqdn]);
+			return;
+		}
+
+		$.getJSON('/hostavail.php', params, function(data) {
+			hostavail.check_results[fqdn] = data;
+			hostavail.show(data);
+		});
+	},
+
+	isValid: function() {
+
+		if(hostavail.getHostname().length === 0){
+			return true;
+		}
+		return !hosterror.visible() && !hostmark.isTaken();
+	},
+
+	getEl: function() { return $('#hostname').closest('div'); }
+};
+
+var emailavail = {
+	check_results: {},
+	last_check: false,
+	show: function(data) {
+		if(!data.success) {
+			if(data.errmsg) {
+			    $('#email').html(data.errmsg).show();
+			    return;
+			}
+		}
+		else if (data.errmsg) {
+		    $('#email-warning').html(data.errmsg).show();
+		    return;
+		}
+
+		if(!data.available) {
+			$('#email-error').html(messages['email_already_in_use']).show();
+			$('#email').addClass('has-error mb-0');
+			return;
+		}
+
+		$('#email').removeClass('has-error');
+	},
+	check: function() {
+		var email = $.trim($('#email').val()).toLowerCase();
+
+		$('#email').removeClass('has-error');
+		$('#email-error').hide();
+		$('#email-warning').hide();
+
+		if(email.length === 0)
+			return;
+
+		if(!(/^\S+@\S+\.\S+$/).test(email)) {
+			$('#email-error').html(messages['invalid_email_address']).show();
+			$('#email').addClass('has-error mb-0');
+			return;
+		}
+
+		$('#email').val(email);
+
+		if(email in emailavail.check_results)
+			return emailavail.show(emailavail.check_results[email]);
+
+		if(emailavail.last_check === email)
+			return;
+
+		emailavail.last_check = email;
+		$.getJSON('/useravail.php', {'email': email}, function(data) {
+			emailavail.check_results[email] = data;
+			emailavail.show(data);
+		});
+	},
+
+	isValid: function() {
+		if($('#email').val().length === 0)
+			$('#email-error').html(messages['email_required']).show();
+		return !$('#email-error').is(':visible');
+	},
+
+	getEl: function() { return $('#email').closest('div'); }
+};
+
+var password = {
+	check: function() {
+		var pw = $('#inputPassword').val(),
+			errmsg = '';
+		$('#inputPassword').removeClass('has-error');
+
+		$('#p-error').hide();
+
+		if(pw.length === 0) return;
+		else if(pw === '12345') errmsg = "That's amazing! I've got the same combination on my luggage!";
+		else if(pw.length < 6) errmsg = messages['password_6_characters'];
+		else if(/\s/.test(pw)) errmsg = messages['password_no_spaces'];
+		else return;
+		$('#p-error').html(errmsg).show();
+		$('#inputPassword').addClass('has-error');
+	},
+
+	isValid: function() {
+		password.check();
+		if($('#inputPassword').val().length === 0) {
+			$('#p-error').html(messages['password_is_required']).show();
+			$('#inputPassword').addClass('has-error');
+		}
+
+		$('#inputPassword').removeClass('has-error');
+		return !$('#p-error').is(':visible');
+	},
+
+	getEl: function() { return $('#inputPassword').closest('div'); }
+};
+
+var c_email = {
+	check: function() {
+		var email = $('#email').val(),
+			c_email = $('#c_email').val(),
+			errmsg = '';
+
+		$('#c_email-error').hide();
+		$('#c_email-warning').hide();
+
+		if(email.length === 0) return;
+		else if(c_email != email) errmsg = messages['email_must_match'];
+		else return;
+
+		$('#c_email-error').html(errmsg).show();
+	},
+
+	isValid: function() {
+		if( !$('#c_email').val()) {
+			return true; // if the field does not exist then we do not need to validate it
+		}
+
+		c_email.check();
+
+		if($('#c_email').val().length === 0) {
+			$('#c_email-error').html(messages['email_confirm_required']).show();
+		}
+		return !$('#c_email-error').is(':visible');
+	},
+
+	getEl: function() { return $('#c_email').closest('div'); }
+};
+
+var newuserform = {
+	'scrollToEl': function(el) {
+		var complete = false;
+		$('html, body').animate({
+			//scrollTop: $(el).offset().top
+		}, 500, function() {
+			// did jquery.color load?
+			if(!$.Color || complete) return;
+			var color = $(el).css('backgroundColor');
+			complete = true;
+		});
+	},
+
+	'isValid': function() {
+		var objs = [hostavail, password, emailavail, c_email];
+		for(i in objs) {
+			if(!objs[i].isValid()) {
+				newuserform.scrollToEl(objs[i].getEl());
+				return false;
+			}
+		}
+		return true;
+	},
+
+	errorFocus: function() {
+		var passEmailError = $("#newuser-form").find("input.has-error").focus();
+
+		var hostNotAvailableError = $("#newuser-form").find("#is-not-available").css('display') === 'block';
+
+		var hostError = $("#newuser-form").find("#host-error").css('display') === 'block';
+
+		
+
+		if ((passEmailError.length == 0) && (hostError || hostNotAvailableError)) {
+			$("#newuser-form").find("#hostname").addClass('error mb-0');
+		}
+
+		hostNotAvailableError = undefined;
+		passEmailError = undefined;
+		hostError = undefined;
+	}
+};
+
+//** EVENTS **//
+$(document).ready(function() {
+
+	$('#newuser-form').submit(function(e) {
+		if(!newuserform.isValid()) {
+			e.preventDefault();
+			newuserform.errorFocus();
+			return false;
+		}
+	});
+
+	if($('#newuser-form').get(0).reset) $('#newuser-form').get(0).reset();
+
+	// hide message box on click
+	$('#host-messagebox').on('click', '.close-link', function(e) {
+		e.preventDefault();
+		// If the link is the no-thanks and the domain was not set before the lookup, set it back to free.
+		// FIXME: total hack. use a data element or state or something.
+		if($(this).attr('id') == hostavail.no_thanks_id && $('span', this).html().indexOf(' ') != -1)
+			hostavail.setDomain('no-ip.org');
+
+		hostavail.hide();
+	});
+
+	$('#host-add-form').on('click', 'ul.available-domains li a', function(e) {
+	    e.preventDefault();
+		if($(this).hasClass('view-more')) {
+			$(this).closest('li').hide().siblings().show();
+			return;
+		}
+
+	    var parts = $(this).html().split('.');
+		hostavail.setHostname(parts.shift());
+		hostavail.setDomain(parts.join('.'));
+
+		hostavail.hide();
+
+	});
+
+	$('#com-available .hostbtn').click(function(e) {
+		e.preventDefault();
+		hostavail.setDomain('com');
+		hostavail.hide();
+	});
+
+	$('#com-available-8 .hostbtn').click(function(e) {
+		e.preventDefault();
+		hostavail.setDomain('com');
+		hostavail.hide();
+	});
+
+	$('#com-available a').on('click', function(e) {
+        e.preventDefault();
+        var dom = $('.domreg-domain', this).html();
+        document.location.href = '/domains?domain=' + dom + '&signup_variation_id=0';
+    });
+
+		$('#com-available-8 a').on('click', function(e) {
+					e.preventDefault();
+					var dom = $('.domreg-domain', this).html();
+					document.location.href = '/domains?domain=' + dom + '&signup_variation_id=8';
+			});
+
+	$('#hostname').typeWatch({
+		'captureLength': 2,
+		'wait': 750,
+		'highlight': false,
+		'callback': hostavail.check
+	}).blur(hostavail.check);
+
+	$('#inputPassword').typeWatch({
+		'captureLength': 1,
+		'wait': 0,
+		'highlight': false,
+		'callback': function () {
+		    if (/[\^+%&?'+\$]/.test($('#inputPassword').val())) {
+			$('#p-warning').html(messages['special_chars_warning']).show();
+		    }
+		}
+	});
+
+	$('#domain').change(function() {
+		hostavail.setSignupButtonState();
+		hostavail.check();
+	});
+
+
+	// Maybe on blur() instead of typeWatch
+	$('#email').focus().typeWatch({
+		'capturelength': 2,
+		'wait': 500,
+		'callback': emailavail.check
+	}).blur(emailavail.check);
+
+	$('#inputPassword').blur(password.check);
+	$('#c_email').blur(c_email.check);
+
+	$('#nohost').click(function(e) {
+		hostavail.setDisabled($(this).is(':checked'));
+		hostavail.setSignupButtonState();
+	});
+
+	$('#enhanced-signup').click(function(e) {
+		if (hostavail.enhanced_chosen && ! $('#nohost').is(':checked')) {
+			$("#nohost").attr('checked', false);
+			return;
+		}
+
+		if ((Object.keys(hostavail.last_check).length === 0) || (! $('#nohost').is(':checked') && ! hostavail.check_results[hostavail.last_check].available)) {
+			$("#nohost").attr('checked', true);
+		    hostavail.setDisabled($(this).is(':checked'));
+		}
+	});
+
+});
+})(jQuery);
+
+</script>
+
+</body>
+</html>

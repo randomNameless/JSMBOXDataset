@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>scriptChapter.html</title>
+</head>
+<body>
+
+<script>
+import { reactive } from 'https://unpkg.com/petite-vue?module';
+import scriptHelpers from '/scripts/scriptHelpers.js';
+import {$store} from '/scripts/store.js';
+
+export const chapterScript = reactive({
+  openChapterSection(i, value){
+    $store.info[i].isChapterSectionOpen = value;
+    if(value){
+      this.findActualChapter(i, $store.source(i).currentTime);
+    }
+  },
+  isInChapter(indexPodcast, actualSeconds, indexChapter) {
+    const chapterEnd = $store.info[indexPodcast].chapters[indexChapter+1]?.startTime ?? Infinity;
+    return $store.info[indexPodcast].chapters[indexChapter].startTime <= actualSeconds && actualSeconds < chapterEnd;
+  },
+  findActualChapter(i, time){
+    if(!$store.info[i].chapters.length || !$store.info[i].isChapterSectionOpen){
+      return;
+    }
+    if (-1!==$store.info[i].actualChapter && this.isInChapter(i, time, $store.info[i].actualChapter)) {
+      return;
+    }
+    for (let indexChapter = 0, len = $store.info[i].chapters.length;indexChapter < len;indexChapter++) {
+      if (this.isInChapter(i, time, indexChapter)) {
+        $store.info[i].actualChapter = indexChapter;
+        return;
+      }
+    }
+    $store.info[i].actualChapter = -1;
+  },
+
+  async loadChapters(index){
+    if(!listPodcasts[index]?.annotations?.["chaptering"]){
+        return;
+    }
+    let result = await scriptHelpers.makeRequest(listPodcasts[index].annotations["chaptering"], "GET", false);
+    if(!result.chapters){
+        return
+    }
+    for (let i = 0, len = result.chapters.length; i < len; i++) {
+        $store.info[index].chapters.push({
+            startTime: result.chapters[i].startTime,
+            startDisplay: scriptHelpers.relativeTimeFormat(result.chapters[i].startTime * 1000),
+            title: result.chapters[i].title
+        });
+    }
+  },
+  async updateChaptersDelay(index){
+    for (let i = 0, len = $store.info[index].chapters.length; i < len; i++) {
+      const startTime = $store.info[index].chapters[i].startTime + Math.floor($store.info[index].delayWithStitching)
+      $store.info[index].chapters[i].startTime = startTime;
+      $store.info[index].chapters[i].startDisplay = scriptHelpers.relativeTimeFormat(startTime* 1000);
+    }
+  },
+})
+</script>
+
+</body>
+</html>

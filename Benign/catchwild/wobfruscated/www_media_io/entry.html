@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>entry.html</title>
+</head>
+<body>
+<script>(function(w, d) {
+  function addCss(href, dom) {
+    var link = d.createElement('link');
+    link.href = href;
+    link.rel = 'stylesheet';
+    dom.appendChild(link);
+  }
+  function addJs(src, dom, type, callback) {
+    var script = d.createElement("script");
+    script.crossOrigin = true;
+    script.src = src;
+    type && (script.type = type);
+    script.onload = function() {
+      callback && callback(true);
+    }
+    script.onerror = function() {
+      callback && callback(false);
+    }
+    dom.appendChild(script);
+  }
+
+  var labBase = "https://www.media.io/lab/plugins";
+	function initAssetsApp() {
+   	var basePath = 'https://www.media.io/assetsv6';
+		var cssfiles = [];
+		var jsfiles = [
+			'/assets/app.bundle.js',
+			'/assets/vendor.bundle.js'
+		];
+		cssfiles.forEach((item) => addCss(basePath + item, d.head));
+		jsfiles.forEach((item) => addJs(basePath + item, d.body));
+	}
+  const createLabPluginsCfg = () => {
+    const entries = {};
+    if (!w.__disabled_mi_lab_plugin_search) entries['siteSearch.html'] = '#site_search';
+    if (!w.__disabled_mi_lab_plugin_message) entries['siteMsg.html'] = '#site_message';
+    if (!w.__disabled_mi_lab_plugin_user) entries['siteLogin.html'] = '#app_userInfo';
+    return entries;
+  }
+  
+  function initLabPlugins(entries) {
+    // load Advertising SDK
+    addJs('https://dc-static.wondershare.cc/account_center/mk_channel_sdk.js', d.body);
+    var path = "/output_list.json";
+    fetch(labBase + path).then((res) => res.json())
+      .then((output) => {
+        if (!output) {
+          console.warn("could not get json");
+          return;
+        }
+        for (var k of Object.keys(entries)) {
+          var jsLink = output[k]?.file;
+          var cssLinks = Object.keys(output).filter(item => item.endsWith('css')).map(item => output[item].file);
+          var container = d.querySelector(entries[k]);
+          if(!container) {
+            console.warn("could not find container", entries[k]);
+            continue;
+          }
+          if (container.shadowRoot) {
+            console.warn("container already has shadowRoot", entries[k]);
+            continue;
+          }
+          var shadowRoot = container.attachShadow({ mode: 'open' });
+          cssLinks && cssLinks.forEach((href) => addCss(`${labBase}/${href}`, shadowRoot));
+          jsLink && addJs(`${labBase}/${jsLink}`, shadowRoot, 'module'); 
+        }
+      });
+  };
+  function doInit() {
+    if (w.__is_mi_assetsv6_app_pages) initAssetsApp();
+    initLabPlugins(createLabPluginsCfg());
+  }
+  if (w.__is_mi_assetsv6_app_pages) return doInit();
+  addJs(labBase + '/entry_page_check.js', d.body, '', doInit);
+})(window, document);</script>
+</body>
+</html>

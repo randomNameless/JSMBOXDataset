@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>session-client@2.1.1.html</title>
+</head>
+<body>
+
+<script>
+(function (factory) {
+  typeof define === 'function' && define.amd ? define(factory) :
+  factory();
+})((function () { 'use strict';
+
+  /*! js-cookie v3.0.1 | MIT */
+  /* eslint-disable no-var */
+  function assign (target) {
+    for (var i = 1; i < arguments.length; i++) {
+      var source = arguments[i];
+      for (var key in source) {
+        target[key] = source[key];
+      }
+    }
+    return target
+  }
+  /* eslint-enable no-var */
+
+  /* eslint-disable no-var */
+  var defaultConverter = {
+    read: function (value) {
+      if (value[0] === '"') {
+        value = value.slice(1, -1);
+      }
+      return value.replace(/(%[\dA-F]{2})+/gi, decodeURIComponent)
+    },
+    write: function (value) {
+      return encodeURIComponent(value).replace(
+        /%(2[346BF]|3[AC-F]|40|5[BDE]|60|7[BCD])/g,
+        decodeURIComponent
+      )
+    }
+  };
+  /* eslint-enable no-var */
+
+  /* eslint-disable no-var */
+
+  function init (converter, defaultAttributes) {
+    function set (key, value, attributes) {
+      if (typeof document === 'undefined') {
+        return
+      }
+
+      attributes = assign({}, defaultAttributes, attributes);
+
+      if (typeof attributes.expires === 'number') {
+        attributes.expires = new Date(Date.now() + attributes.expires * 864e5);
+      }
+      if (attributes.expires) {
+        attributes.expires = attributes.expires.toUTCString();
+      }
+
+      key = encodeURIComponent(key)
+        .replace(/%(2[346B]|5E|60|7C)/g, decodeURIComponent)
+        .replace(/[()]/g, escape);
+
+      var stringifiedAttributes = '';
+      for (var attributeName in attributes) {
+        if (!attributes[attributeName]) {
+          continue
+        }
+
+        stringifiedAttributes += '; ' + attributeName;
+
+        if (attributes[attributeName] === true) {
+          continue
+        }
+
+        // Considers RFC 6265 section 5.2:
+        // ...
+        // 3.  If the remaining unparsed-attributes contains a %x3B (";")
+        //     character:
+        // Consume the characters of the unparsed-attributes up to,
+        // not including, the first %x3B (";") character.
+        // ...
+        stringifiedAttributes += '=' + attributes[attributeName].split(';')[0];
+      }
+
+      return (document.cookie =
+        key + '=' + converter.write(value, key) + stringifiedAttributes)
+    }
+
+    function get (key) {
+      if (typeof document === 'undefined' || (arguments.length && !key)) {
+        return
+      }
+
+      // To prevent the for loop in the first place assign an empty array
+      // in case there are no cookies at all.
+      var cookies = document.cookie ? document.cookie.split('; ') : [];
+      var jar = {};
+      for (var i = 0; i < cookies.length; i++) {
+        var parts = cookies[i].split('=');
+        var value = parts.slice(1).join('=');
+
+        try {
+          var foundKey = decodeURIComponent(parts[0]);
+          jar[foundKey] = converter.read(value, foundKey);
+
+          if (key === foundKey) {
+            break
+          }
+        } catch (e) {}
+      }
+
+      return key ? jar[key] : jar
+    }
+
+    return Object.create(
+      {
+        set: set,
+        get: get,
+        remove: function (key, attributes) {
+          set(
+            key,
+            '',
+            assign({}, attributes, {
+              expires: -1
+            })
+          );
+        },
+        withAttributes: function (attributes) {
+          return init(this.converter, assign({}, this.attributes, attributes))
+        },
+        withConverter: function (converter) {
+          return init(assign({}, this.converter, converter), this.attributes)
+        }
+      },
+      {
+        attributes: { value: Object.freeze(defaultAttributes) },
+        converter: { value: Object.freeze(converter) }
+      }
+    )
+  }
+
+  var api = init(defaultConverter, { path: '/' });
+
+  function mitt(n){return {all:n=n||new Map,on:function(t,e){var i=n.get(t);i?i.push(e):n.set(t,[e]);},off:function(t,e){var i=n.get(t);i&&(e?i.splice(i.indexOf(e)>>>0,1):n.set(t,[]));},emit:function(t,e){var i=n.get(t);i&&i.slice().map(function(n){n(e);}),(i=n.get("*"))&&i.slice().map(function(n){n(t,e);});}}}
+
+  function _extends() {
+    _extends = Object.assign || function (target) {
+      for (var i = 1; i < arguments.length; i++) {
+        var source = arguments[i];
+
+        for (var key in source) {
+          if (Object.prototype.hasOwnProperty.call(source, key)) {
+            target[key] = source[key];
+          }
+        }
+      }
+
+      return target;
+    };
+
+    return _extends.apply(this, arguments);
+  }
+
+  function _assertThisInitialized(self) {
+    if (self === void 0) {
+      throw new ReferenceError("this hasn't been initialised - super() hasn't been called");
+    }
+
+    return self;
+  }
+
+  function _setPrototypeOf(o, p) {
+    _setPrototypeOf = Object.setPrototypeOf || function _setPrototypeOf(o, p) {
+      o.__proto__ = p;
+      return o;
+    };
+
+    return _setPrototypeOf(o, p);
+  }
+
+  function _inheritsLoose(subClass, superClass) {
+    subClass.prototype = Object.create(superClass.prototype);
+    subClass.prototype.constructor = subClass;
+    _setPrototypeOf(subClass, superClass);
+  }
+
+  function _getPrototypeOf(o) {
+    _getPrototypeOf = Object.setPrototypeOf ? Object.getPrototypeOf : function _getPrototypeOf(o) {
+      return o.__proto__ || Object.getPrototypeOf(o);
+    };
+    return _getPrototypeOf(o);
+  }
+
+  function _isNativeFunction(fn) {
+    return Function.toString.call(fn).indexOf("[native code]") !== -1;
+  }
+
+  function _isNativeReflectConstruct() {
+    if (typeof Reflect === "undefined" || !Reflect.construct) return false;
+    if (Reflect.construct.sham) return false;
+    if (typeof Proxy === "function") return true;
+
+    try {
+      Boolean.prototype.valueOf.call(Reflect.construct(Boolean, [], function () {}));
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function _construct(Parent, args, Class) {
+    if (_isNativeReflectConstruct()) {
+      _construct = Reflect.construct;
+    } else {
+      _construct = function _construct(Parent, args, Class) {
+        var a = [null];
+        a.push.apply(a, args);
+        var Constructor = Function.bind.apply(Parent, a);
+        var instance = new Constructor();
+        if (Class) _setPrototypeOf(instance, Class.prototype);
+        return instance;
+      };
+    }
+
+    return _construct.apply(null, arguments);
+  }
+
+  function _wrapNativeSuper(Class) {
+    var _cache = typeof Map === "function" ? new Map() : undefined;
+
+    _wrapNativeSuper = function _wrapNativeSuper(Class) {
+      if (Class === null || !_isNativeFunction(Class)) return Class;
+
+      if (typeof Class !== "function") {
+        throw new TypeError("Super expression must either be null or a function");
+      }
+
+      if (typeof _cache !== "undefined") {
+        if (_cache.has(Class)) return _cache.get(Class);
+
+        _cache.set(Class, Wrapper);
+      }
+
+      function Wrapper() {
+        return _construct(Class, arguments, _getPrototypeOf(this).constructor);
+      }
+
+      Wrapper.prototype = Object.create(Class.prototype, {
+        constructor: {
+          value: Wrapper,
+          enumerable: false,
+          writable: true,
+          configurable: true
+        }
+      });
+      return _setPrototypeOf(Wrapper, Class);
+    };
+
+    return _wrapNativeSuper(Class);
+  }
+
+  var SessionErrorCode = /*#__PURE__*/function (SessionErrorCode) {
+    SessionErrorCode["CB"] = "cbUnsuccessful";
+    SessionErrorCode["REJECTED"] = "scriptRejected";
+    SessionErrorCode["UNKNOWN_ERROR"] = "unknownError";
+    SessionErrorCode["WIDGET_MISSING"] = "widgetMissing";
+    SessionErrorCode["WIDGET_OUTLINK_GETTER_MISSING"] = "widgetOutlinkGetterMissing";
+    return SessionErrorCode;
+  }({});
+  var SessionWidgetFetchingError = /*#__PURE__*/function (_Error) {
+    _inheritsLoose(SessionWidgetFetchingError, _Error);
+    function SessionWidgetFetchingError(err) {
+      var _this;
+      _this = _Error.call(this, err || 'Error while fetching session widget') || this;
+      Object.setPrototypeOf(_assertThisInitialized(_this), SessionWidgetFetchingError.prototype);
+      return _this;
+    }
+    return SessionWidgetFetchingError;
+  }( /*#__PURE__*/_wrapNativeSuper(Error));
+  var SessionWidgetMissingError = /*#__PURE__*/function (_Error2) {
+    _inheritsLoose(SessionWidgetMissingError, _Error2);
+    function SessionWidgetMissingError(err) {
+      var _this2;
+      _this2 = _Error2.call(this, err || 'Session widget missing') || this;
+      Object.setPrototypeOf(_assertThisInitialized(_this2), SessionWidgetMissingError.prototype);
+      return _this2;
+    }
+    return SessionWidgetMissingError;
+  }( /*#__PURE__*/_wrapNativeSuper(Error));
+  var SessionWidgetInitializationError = /*#__PURE__*/function (_Error3) {
+    _inheritsLoose(SessionWidgetInitializationError, _Error3);
+    function SessionWidgetInitializationError() {
+      var _this3;
+      _this3 = _Error3.call(this, 'Session widget initialization failed') || this;
+      Object.setPrototypeOf(_assertThisInitialized(_this3), SessionWidgetInitializationError.prototype);
+      return _this3;
+    }
+    return SessionWidgetInitializationError;
+  }( /*#__PURE__*/_wrapNativeSuper(Error));
+  function errorMapper(error, debug) {
+    if (debug) {
+      console.error(error);
+    }
+    switch (true) {
+      case error instanceof SessionWidgetFetchingError:
+        return SessionErrorCode.REJECTED;
+      case error instanceof SessionWidgetMissingError:
+        return SessionErrorCode.WIDGET_MISSING;
+      case error instanceof SessionWidgetInitializationError:
+        return SessionErrorCode.CB;
+      default:
+        return SessionErrorCode.UNKNOWN_ERROR;
+    }
+  }
+
+  var SessionContext = /*#__PURE__*/function (SessionContext) {
+    SessionContext["PRELOAD"] = "PRELOAD";
+    SessionContext["LOADED"] = "LOADED";
+    return SessionContext;
+  }({});
+  var SessionEvent = /*#__PURE__*/function (SessionEvent) {
+    SessionEvent["STATE_CHANGED"] = "@SESSION_BUS/STATE_CHANGED";
+    SessionEvent["SESSION_OPTIONS_CHANGED"] = "@SESSION_BUS/SESSION_OPTIONS_CHANGED";
+    SessionEvent["SESSION_INSTALLATION_FAILED"] = "@SESSION_BUS/SESSION_INSTALLATION_FAILED";
+    SessionEvent["SESSION_INSTALLATION_STARTED"] = "@SESSION_BUS/SESSION_INSTALLATION_STARTED";
+    SessionEvent["SESSION_INSTALLATION_FINISHED"] = "@SESSION_BUS/SESSION_INSTALLATION_FINISHED";
+    SessionEvent["SESSION_WIDGET_FETCHING_FAILED"] = "@SESSION_BUS/SESSION_WIDGET_FETCHING_FAILED";
+    SessionEvent["SESSION_WIDGET_FETCHING_STARTED"] = "@SESSION_BUS/SESSION_WIDGET_FETCHING_STARTED";
+    SessionEvent["SESSION_WIDGET_FETCHING_FINISHED"] = "@SESSION_BUS/SESSION_WIDGET_FETCHING_FINISHED";
+    SessionEvent["SESSION_WIDGET_INITIALIZATION_FAILED"] = "@SESSION_BUS/SESSION_WIDGET_INITIALIZATION_FAILED";
+    SessionEvent["SESSION_WIDGET_INITIALIZATION_STARTED"] = "@SESSION_BUS/SESSION_WIDGET_INITIALIZATION_STARTED";
+    SessionEvent["SESSION_WIDGET_INITIALIZATION_FINISHED"] = "@SESSION_BUS/SESSION_WIDGET_INITIALIZATION_FINISHED";
+    return SessionEvent;
+  }({});
+
+  function _await$2(value, then, direct) {
+    if (direct) {
+      return then ? then(value) : value;
+    }
+    if (!value || !value.then) {
+      value = Promise.resolve(value);
+    }
+    return then ? value.then(then) : value;
+  }
+  function _catch(body, recover) {
+    try {
+      var result = body();
+    } catch (e) {
+      return recover(e);
+    }
+    if (result && result.then) {
+      return result.then(void 0, recover);
+    }
+    return result;
+  }
+  function _rethrow(thrown, value) {
+    if (thrown) throw value;
+    return value;
+  }
+  function _finallyRethrows(body, finalizer) {
+    try {
+      var result = body();
+    } catch (e) {
+      return finalizer(true, e);
+    }
+    if (result && result.then) {
+      return result.then(finalizer.bind(null, false), finalizer.bind(null, true));
+    }
+    return finalizer(false, result);
+  }
+  var Client = /*#__PURE__*/function () {
+    function Client(channel) {
+      this.channel = channel;
+    }
+    var _proto = Client.prototype;
+    _proto.install = function install(sessionWidget) {
+      try {
+        var _this = this;
+        return _await$2(_finallyRethrows(function () {
+          return _catch(function () {
+            _this.channel.emit(SessionEvent.SESSION_INSTALLATION_STARTED, _extends({}, sessionWidget.options));
+            _this.channel.emit(SessionEvent.SESSION_WIDGET_FETCHING_STARTED);
+            return _await$2(sessionWidget.fetch(), function () {
+              _this.channel.emit(SessionEvent.SESSION_WIDGET_FETCHING_FINISHED);
+              _this.channel.emit(SessionEvent.SESSION_WIDGET_INITIALIZATION_STARTED);
+              return _await$2(sessionWidget.initialize(), function () {
+                _this.channel.emit(SessionEvent.SESSION_WIDGET_INITIALIZATION_FINISHED);
+                _this.channel.emit(SessionEvent.SESSION_INSTALLATION_FINISHED);
+              });
+            });
+          }, function (err) {
+            var error = errorMapper(err);
+            _this.channel.emit(SessionEvent.SESSION_INSTALLATION_FAILED, error);
+          });
+        }, function (_wasThrown, _result) {
+          return _await$2(sessionWidget.cleanup(), function () {
+            return _rethrow(_wasThrown, _result);
+          });
+        }));
+      } catch (e) {
+        return Promise.reject(e);
+      }
+    };
+    return Client;
+  }();
+
+  function createDefaultSessionOptions(p) {
+    if (p === void 0) {
+      p = {};
+    }
+    return _extends({
+      offer_id: '',
+      campaign_id: '',
+      url_id: '',
+      aff_id: '',
+      outlinks_set_id: '',
+      override_gateway: '',
+      override_url: '',
+      debug: false,
+      fallback_outlinks: {},
+      popunders: true,
+      visitorIdGeneration: true
+    }, p);
+  }
+
+  var SessionRunnerStatus = /*#__PURE__*/function (SessionRunnerStatus) {
+    SessionRunnerStatus["IDLE"] = "idle";
+    SessionRunnerStatus["DONE"] = "done";
+    SessionRunnerStatus["RUNNING"] = "running";
+    return SessionRunnerStatus;
+  }({});
+  var SessionActionType = /*#__PURE__*/function (SessionActionType) {
+    SessionActionType["SESSION_INSTALLATION_FAILED"] = "@SESSION/SESSION_INSTALLATION_FAILED";
+    SessionActionType["SESSION_INSTALLATION_STARTED"] = "@SESSION/SESSION_INSTALLATION_STARTED";
+    SessionActionType["SESSION_WIDGET_FETCHING_STARTED"] = "@SESSION/SESSION_WIDGET_FETCHING_STARTED";
+    SessionActionType["SESSION_WIDGET_FETCHING_FINISHED"] = "@SESSION/SESSION_WIDGET_FETCHING_FINISHED";
+    SessionActionType["SESSION_WIDGET_INITIALIZATION_STARTED"] = "@SESSION/SESSION_WIDGET_INITIALIZATION_STARTED";
+    SessionActionType["SESSION_WIDGET_INITIALIZATION_FINISHED"] = "@SESSION/SESSION_WIDGET_INITIALIZATION_FINISHED";
+    return SessionActionType;
+  }({});
+  function sessionStateReducer(state, action) {
+    switch (action.type) {
+      case SessionActionType.SESSION_INSTALLATION_STARTED:
+        {
+          return _extends({}, state, {
+            options: _extends({}, state.options, (action == null ? void 0 : action.options) || {})
+          });
+        }
+      case SessionActionType.SESSION_WIDGET_FETCHING_STARTED:
+        {
+          return _extends({}, state, {
+            error: undefined,
+            fetchingStatus: SessionRunnerStatus.RUNNING,
+            initializationStatus: SessionRunnerStatus.IDLE
+          });
+        }
+      case SessionActionType.SESSION_WIDGET_FETCHING_FINISHED:
+        {
+          return _extends({}, state, {
+            fetchingStatus: SessionRunnerStatus.DONE
+          });
+        }
+      case SessionActionType.SESSION_WIDGET_INITIALIZATION_STARTED:
+        {
+          return _extends({}, state, {
+            error: undefined,
+            fetchingStatus: SessionRunnerStatus.DONE,
+            initializationStatus: SessionRunnerStatus.RUNNING
+          });
+        }
+      case SessionActionType.SESSION_WIDGET_INITIALIZATION_FINISHED:
+        {
+          return _extends({}, state, {
+            error: undefined,
+            fetchingStatus: SessionRunnerStatus.DONE,
+            initializationStatus: SessionRunnerStatus.DONE
+          });
+        }
+      case SessionActionType.SESSION_INSTALLATION_FAILED:
+        {
+          return _extends({}, state, {
+            error: action.error,
+            fetchingStatus: SessionRunnerStatus.IDLE,
+            initializationStatus: SessionRunnerStatus.IDLE
+          });
+        }
+      default:
+        return state;
+    }
+  }
+  function createDefaultSessionState() {
+    var options = createDefaultSessionOptions();
+    return {
+      error: undefined,
+      options: options,
+      fetchingStatus: SessionRunnerStatus.RUNNING,
+      initializationStatus: SessionRunnerStatus.IDLE
+    };
+  }
+
+  function _empty() {}
+  function _awaitIgnored(value, direct) {
+    if (!direct) {
+      return value && value.then ? value.then(_empty) : Promise.resolve();
+    }
+  }
+  function _await$1(value, then, direct) {
+    if (direct) {
+      return then ? then(value) : value;
+    }
+    if (!value || !value.then) {
+      value = Promise.resolve(value);
+    }
+    return then ? value.then(then) : value;
+  }
+  var Session = /*#__PURE__*/function () {
+    // TODO: WeakMap(Set) at some point?
+
+    function Session(handlers, channel) {
+      this.handlers = new Map();
+      this.channel = channel || mitt();
+      this.context = SessionContext.LOADED;
+      this.state = createDefaultSessionState();
+      this.client = new Client(this.channel);
+      this.closeEventListeners = this.setupSessionEventListeners();
+      this.setupProxyHandlers(handlers);
+      this.destroy = this.destroy.bind(this);
+      this.dispatch = this.dispatch.bind(this);
+      this.initialize = this.initialize.bind(this);
+    }
+    var _proto = Session.prototype;
+    _proto.initialize = function initialize(sessionWidget) {
+      try {
+        var _this = this;
+        return _await$1(_awaitIgnored(_this.client.install(sessionWidget)));
+      } catch (e) {
+        return Promise.reject(e);
+      }
+    };
+    _proto.destroy = function destroy() {
+      var _this$closeEventListe;
+      (_this$closeEventListe = this.closeEventListeners) == null ? void 0 : _this$closeEventListe.call(this);
+      this.handlers.clear();
+      this.channel.all.clear();
+    };
+    _proto.subscribe = function subscribe(handler) {
+      var _this2 = this;
+      handler(this.state);
+      this.channel.on(SessionEvent.STATE_CHANGED, handler);
+      return function () {
+        _this2.channel.off(SessionEvent.STATE_CHANGED, handler);
+      };
+    };
+    _proto.setupProxyHandlers = function setupProxyHandlers(initHandlers) {
+      var _this3 = this;
+      if (initHandlers === void 0) {
+        initHandlers = [];
+      }
+      // TODO: Handle this init case better
+      if (initHandlers.length) {
+        initHandlers.forEach(function (value, index) {
+          if (!_this3.handlers.has(index.toString())) {
+            var unsubscribe = _this3.subscribe(value);
+            _this3.handlers.set(index.toString(), unsubscribe);
+          }
+        });
+      }
+      var proxy = new Proxy([], {
+        get: function get(target, prop, receiver) {
+          return Reflect.get(target, prop, receiver);
+        },
+        set: function set(target, prop, value) {
+          if (!_this3.handlers.has(prop)) {
+            var unsubscribe = _this3.subscribe(value);
+            _this3.handlers.set(prop, unsubscribe);
+          } else {
+            var _unsubscribe = _this3.handlers.get(prop);
+            _this3.handlers["delete"](prop);
+            _unsubscribe == null ? void 0 : _unsubscribe();
+          }
+          return Reflect.set(target, prop, value);
+        }
+      });
+      Object.setPrototypeOf(initHandlers, proxy);
+      return;
+    };
+    _proto.setupSessionEventListeners = function setupSessionEventListeners() {
+      var _this4 = this;
+      // Bootstrap process
+      var installationFailed = this.onInstallFailed.bind(this);
+      var installationStarted = this.onInstallStarted.bind(this);
+      var installationFinished = this.onInstallFinished.bind(this);
+
+      // Fetching process
+      var fetchingStarted = this.onFetchingStarted.bind(this);
+      var fetchingFinished = this.onFetchingFinished.bind(this);
+
+      // Init process
+      var initializationStarted = this.onInitializationStarted.bind(this);
+      var initializationFinished = this.onInitializationFinished.bind(this);
+      this.channel.on(SessionEvent.SESSION_INSTALLATION_FAILED, installationFailed);
+      this.channel.on(SessionEvent.SESSION_INSTALLATION_STARTED, installationStarted);
+      this.channel.on(SessionEvent.SESSION_INSTALLATION_FINISHED, installationFinished);
+      this.channel.on(SessionEvent.SESSION_WIDGET_FETCHING_STARTED, fetchingStarted);
+      this.channel.on(SessionEvent.SESSION_WIDGET_FETCHING_FINISHED, fetchingFinished);
+      this.channel.on(SessionEvent.SESSION_WIDGET_INITIALIZATION_STARTED, initializationStarted);
+      this.channel.on(SessionEvent.SESSION_WIDGET_INITIALIZATION_FINISHED, initializationFinished);
+      return function () {
+        _this4.channel.off(SessionEvent.SESSION_INSTALLATION_FAILED, installationFailed);
+        _this4.channel.off(SessionEvent.SESSION_INSTALLATION_STARTED, installationStarted);
+        _this4.channel.off(SessionEvent.SESSION_INSTALLATION_FINISHED, installationFinished);
+        _this4.channel.off(SessionEvent.SESSION_WIDGET_FETCHING_STARTED, fetchingStarted);
+        _this4.channel.off(SessionEvent.SESSION_WIDGET_FETCHING_FINISHED, fetchingFinished);
+        _this4.channel.off(SessionEvent.SESSION_WIDGET_INITIALIZATION_STARTED, initializationStarted);
+        _this4.channel.off(SessionEvent.SESSION_WIDGET_INITIALIZATION_FINISHED, initializationFinished);
+        return;
+      };
+    };
+    _proto.dispatch = function dispatch(action) {
+      this.state = sessionStateReducer(this.state, action);
+      this.channel.emit(SessionEvent.STATE_CHANGED, this.state);
+    };
+    _proto.onInstallStarted = function onInstallStarted(options) {
+      this.dispatch({
+        type: SessionActionType.SESSION_INSTALLATION_STARTED,
+        options: options
+      });
+    };
+    _proto.onInstallFinished = function onInstallFinished() {
+      // Not in use at the moment
+    };
+    _proto.onInstallFailed = function onInstallFailed(error) {
+      this.dispatch({
+        type: SessionActionType.SESSION_INSTALLATION_FAILED,
+        error: error
+      });
+    };
+    _proto.onFetchingStarted = function onFetchingStarted() {
+      this.dispatch({
+        type: SessionActionType.SESSION_WIDGET_FETCHING_FINISHED
+      });
+    };
+    _proto.onFetchingFinished = function onFetchingFinished() {
+      this.dispatch({
+        type: SessionActionType.SESSION_WIDGET_FETCHING_STARTED
+      });
+    };
+    _proto.onInitializationStarted = function onInitializationStarted() {
+      this.dispatch({
+        type: SessionActionType.SESSION_WIDGET_INITIALIZATION_STARTED
+      });
+    };
+    _proto.onInitializationFinished = function onInitializationFinished() {
+      this.dispatch({
+        type: SessionActionType.SESSION_WIDGET_INITIALIZATION_FINISHED
+      });
+    };
+    return Session;
+  }();
+
+  function _objectWithoutPropertiesLoose(source, excluded) {
+    if (source == null) return {};
+    var target = {};
+    var sourceKeys = Object.keys(source);
+    var key, i;
+
+    for (i = 0; i < sourceKeys.length; i++) {
+      key = sourceKeys[i];
+      if (excluded.indexOf(key) >= 0) continue;
+      target[key] = source[key];
+    }
+
+    return target;
+  }
+
+  var _excluded = ["url"];
+  function _await(value, then, direct) {
+    if (direct) {
+      return then ? then(value) : value;
+    }
+    if (!value || !value.then) {
+      value = Promise.resolve(value);
+    }
+    return then ? value.then(then) : value;
+  }
+  var DEFAULT_SESSION_WIDGET_URL = 'https://gateway.jerkmate.com/wswidget/ws-session-widget.min.js';
+  var BrowserSessionWidget = /*#__PURE__*/function () {
+    function BrowserSessionWidget(options) {
+      this.script = document.createElement('script');
+      var url = options.url,
+        opts = _objectWithoutPropertiesLoose(options, _excluded);
+      this.options = _extends({
+        url: url || DEFAULT_SESSION_WIDGET_URL
+      }, opts);
+    }
+    var _proto = BrowserSessionWidget.prototype;
+    _proto.fetch = function fetch() {
+      var _this = this;
+      return new Promise(function (res, rej) {
+        _this.script.src = _this.options.url;
+        _this.script.type = 'text/javascript';
+        _this.script.async = true;
+        var onSuccess = function onSuccess() {
+          return res();
+        };
+        _this.script.addEventListener('load', onSuccess);
+        var onError = function onError(err) {
+          rej(new SessionWidgetFetchingError(err == null ? void 0 : err.message));
+          return;
+        };
+        _this.script.addEventListener('error', onError);
+        document.body.appendChild(_this.script);
+      });
+    };
+    _proto.cleanup = function cleanup() {
+      try {
+        var _this2$script$parentE;
+        var _this2 = this;
+        (_this2$script$parentE = _this2.script.parentElement) == null ? void 0 : _this2$script$parentE.removeChild(_this2.script);
+        return _await();
+      } catch (e) {
+        return Promise.reject(e);
+      }
+    };
+    _proto.initialize = function initialize() {
+      var _this3 = this;
+      return new Promise(function (res, rej) {
+        var _window = window,
+          sessionWidget = _window.sessionWidget;
+        if (typeof (sessionWidget == null ? void 0 : sessionWidget.init) !== 'function') {
+          rej(new SessionWidgetMissingError());
+          return;
+        }
+        var handleSessionWidgetInit = function handleSessionWidgetInit(isOk) {
+          if (!isOk) {
+            rej(new SessionWidgetInitializationError());
+            return;
+          }
+          res();
+          return;
+        };
+        sessionWidget == null ? void 0 : sessionWidget.init(_this3.options, handleSessionWidgetInit);
+      });
+    };
+    return BrowserSessionWidget;
+  }();
+
+  function getLanguageFromCookie() {
+    var language = api.get('user-language');
+    return language || 'en';
+  }
+  function getSettingsByLangCode(language) {
+    var setting = window.sessionInitInfo;
+    var sessionOptions = setting;
+    sessionOptions.url_id = setting.url_id ? getUrlIdByLanguage(setting.url_id, language) : '';
+    return sessionOptions;
+  }
+  function getUrlIdByLanguage(url_id, lang) {
+    return url_id[lang] || url_id['en'];
+  }
+
+  // Avoid double initialization
+  if (!(window.session && window.session.context === SessionContext.LOADED)) {
+    var _window, _window2, _window2$session;
+    var session = new Session((_window = window) == null ? void 0 : _window.sessionDataLayer, (_window2 = window) == null ? void 0 : (_window2$session = _window2.session) == null ? void 0 : _window2$session.channel);
+    var options = getSettingsByLangCode(getLanguageFromCookie());
+    window.session = session;
+    window.session.initialize(new BrowserSessionWidget(options));
+  }
+
+}));
+//# sourceMappingURL=session-client@2.1.1.js.map
+
+</script>
+
+</body>
+</html>

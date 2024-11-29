@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>index.html</title>
+</head>
+<body>
+
+<script>
+$(function () {
+  var wait;
+  $('.tabbar-box')
+    .on('click', 'a', function (e) {
+      e.preventDefault();
+      clearTimeout(wait)
+      wait = setTimeout(function () {
+        location.href = e.target.href;
+      }, 200)
+      // var that = $(e.target);
+      // var index = that.index()
+      // that.addClass('selected').siblings().removeClass('selected')
+      // $('.tab-content-list>div').eq(index).show().siblings().hide();
+      // initAllImage();
+    })
+    .on('dblclick', 'a', function (e) {
+      clearTimeout(wait)
+
+      var that = $(e.target);
+      window.open(that.attr('data-href'), "_blank");
+    });
+
+  (function () {
+    // 轮播图
+    var swipeImageList = $('.swipe-image-list')
+    var itemBox = swipeImageList.find('.banner-swipe-item-box');
+    var itemWidth = itemBox.width();
+    var length = itemBox.length;
+    var timeline;
+    swipeImageList[0].innerHTML += swipeImageList[0].innerHTML;
+
+
+    if (length <= 1) return;
+    var html = $(Array.apply(null, { length: length }).fill('<a href="javascript:;"></a>').join(''))
+    html.eq(0).addClass('selected');
+    var switchBar = $('.banner-switch-bar');
+    switchBar.append(html);
+    var current = 0;
+    var animateValue = 300;
+    var delayValue = 5000;
+
+    $(".banner-left-btn").on("click", function () {
+      gotoIndex(current - 1)
+    })
+    $(".banner-right-btn").on("click", function () {
+      gotoIndex(current + 1)
+    })
+    switchBar.on('click', 'a', function (e) {
+      gotoIndex($(e.target).index())
+    })
+    var isMove = false;
+    var playing = false;
+    swipeImageList.on('mousemove', function () {
+      clearTimeout(timeline);
+      isMove = true;
+    })
+
+    swipeImageList.on('mouseout', function () {
+      isMove = false;
+      run();
+    })
+
+    function gotoIndex(index) {
+      if (index == current) return;
+      if (playing) return;
+      playing = true;
+      clearTimeout(timeline);
+      var prev = current;
+      current = index;
+      if (current > length - 1) {
+        current = 0;
+      }
+      if (current < 0) {
+        current = length - 1;
+      }
+
+      if (prev == 0 && current == length - 1) {
+        swipeImageList.css({
+          marginLeft: -1 * itemWidth * length
+        })
+      }
+      setTimeout(function () {
+        html.eq(current).addClass('selected').siblings().removeClass('selected')
+        swipeImageList.stop(true).animate({
+          marginLeft: -1 * itemWidth * current
+        }, animateValue, function () {
+          run();
+          playing = false;
+        })
+      })
+    }
+
+    function run() {
+      if (isMove) return;
+      clearTimeout(timeline);
+      timeline = setTimeout(function () {
+        gotoIndex(current + 1)
+      }, delayValue + animateValue)
+    }
+    run();
+  })();
+
+  $(window).on("scroll", function () {
+    initAllImage();
+  })
+
+  function initAllImage() {
+    var initValue = $(window).scrollTop();
+    var windowHeight = window.innerHeight
+    $(".photo-image img:not([src])[data-src],.photo-image img[src=''][data-src]").each(function (index, element) {
+      var nowItem = $(element);
+      if (!nowItem.is(':hidden') && nowItem.offset().top < initValue + windowHeight) {
+        nowItem.attr('src', nowItem.attr('data-src'))
+      }
+    })
+  }
+
+  initAllImage();
+});
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>TitleSection.html</title>
+</head>
+<body>
+<script>import {
+  resultContext,
+} from "https://static.cloud.coveo.com/atomic/v2/index.esm.js";
+import { checkDomainUrl, highlightStreamText } from "../utility-functions.js";
+import { RPC_URL } from "./Constants.js";
+
+//Title
+export class TitleSection extends HTMLElement {
+  shadow;
+  result;
+  initialized = false;
+
+  async connectedCallback() {
+    if (this.initialized) {
+      return;
+    }
+
+    this.initialized = true;
+    this.shadow = this.attachShadow({ mode: "open" });
+
+    try {
+      this.result = await resultContext(this);
+      this.render();
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  render() {
+    let clickUri;
+    const itemHeaderTitle = this.result.raw.itemheadertitle;
+    const title = this.result.title;
+    const isLoginRequired = this.result.raw.IsLoginRequired;
+    const secureClass = isLoginRequired ? "locked" : "";
+    const isTopResult = this.result.isTopResult;
+    const structuretype = this.result.raw.structuretype || "";
+    const bgpermid = this.result.raw.permanentid || "";
+    const bgtitle = this.result.raw.bgtitle || "no-title";
+
+    //link priority
+    if (this.result.raw.clickableuri !== undefined) {
+      clickUri = this.result.raw.clickableuri || ""
+    } else
+    {
+        clickUri = this.result.clickUri || "";
+    }
+
+    let titleContent = "";
+    if (isTopResult) {
+      titleContent = `<h4 class="coveo-title ${secureClass}">
+                            <a href="${clickUri}" target="_blank">
+                              ${itemHeaderTitle ? itemHeaderTitle : title}
+                            </a>
+                          </h4>`;
+    } else {
+      if (isLoginRequired) {
+        titleContent = `
+            <h4 class="coveo-title locked">
+              <a class="CoveoResultLink" target="${
+          checkDomainUrl(clickUri, RPC_URL) ? "_blank" : ""
+        }">
+                ${
+          itemHeaderTitle
+            ? highlightStreamText(itemHeaderTitle)
+            : title
+              ? highlightStreamText(title)
+              : clickUri
+        }
+              </a>
+            </h4>
+          `;
+      } else {
+        if (structuretype === "Blogs") {
+          titleContent = `
+              <h4 class="coveo-title">
+                <a class="CoveoResultLink" target="_blank" href="${RPC_URL}en/blogpage#q=${bgpermid}">
+                  ${bgtitle}
+                </a>
+              </h4>
+            `;
+        } else {
+          titleContent = `
+              <h4 class="coveo-title">
+                <a href="${clickUri}" class="CoveoResultLink" target="${
+            checkDomainUrl(clickUri, RPC_URL) ? "_blank" : ""
+          }">
+                  ${
+            itemHeaderTitle
+              ? highlightStreamText(itemHeaderTitle)
+              : title
+                ? highlightStreamText(title)
+                : clickUri
+          }
+                </a>
+              </h4>
+            `;
+        }
+        this.shadow.innerHTML = `
+          <style>
+            .coveo-title {
+              margin: 0 0 var(--cfa--spacing--xs) 0;
+            }
+            .CoveoResultLink {
+              color: inherit;
+              text-decoration: none;
+              font-size: 1.25rem;
+              font-style: normal;
+              font-weight: 700;
+              line-height: 1.5;
+            }
+
+            .CoveoResultLink:hover,
+            .CoveoResultLink:focus,
+            .CoveoResultLink:focus-visible,
+            .CoveoResultLink:active {
+              text-decoration: underline;
+            }
+
+            .CoveoResultLink[target=_blank]::after {
+              margin-left: var(--cfa--spacing--xs);
+              display: inline-block;
+              content: '\\e89e';
+              vertical-align: middle;
+              font-family: 'material';
+            }
+          </style>
+          ${titleContent}
+        `;
+      }
+    }
+  }
+}</script>
+</body>
+</html>

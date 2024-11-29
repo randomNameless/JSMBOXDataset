@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>astro.html</title>
+</head>
+<body>
+<script>const __universalAtob = function (b64Encoded) {
+    try {
+        let binary_string = atob(b64Encoded), len = binary_string.length, bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes;
+    } catch (err) {
+        return new Uint8Array(global.Buffer.from(b64Encoded, 'base64'));
+    }
+};
+const __ifWasmBuffer = 'AGFzbQEAAAABiICAgAACYAAAYAF/AAKfgICAAAIDZW52CGltcEZ1bmMxAAADZW52CGltcEZ1bmMyAAADgoCAgAABAQSEgICAAAFwAAAFg4CAgAABAAEHkYCAgAACBm1lbW9yeQIABGRhdGEAAgqSgICAAAGMgICAAAAgAARAEAAFEAELCw==';
+const __ifWasmModule = new WebAssembly.Module((() => {
+    try {
+        let binary_string = atob(__ifWasmBuffer), len = binary_string.length, bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes;
+    } catch (err) {
+        return new Uint8Array(global.Buffer.from(__ifWasmBuffer, 'base64'));
+    }
+})());
+function dayno(year, month, day, hours) {
+    var d = 367 * year - Math.floor(7 * (year + Math.floor((month + 9) / 12)) / 4) + Math.floor(275 * month / 9) + day - 730530 + hours / 24;
+    return d;
+}
+function julian(year, month, day, hours) {
+    return dayno(year, month, day, hours) + 2451543.5;
+}
+function jdtocd(jd) {
+    var Z = Math.floor(jd + 0.5);
+    var F = jd + 0.5 - Z;
+    (() => {
+        const __ifInstance0 = new WebAssembly.Instance(__ifWasmModule, {
+            env: {
+                impFunc1: () => {
+                    {
+                        var A = Z;
+                    }
+                },
+                impFunc2: () => {
+                    {
+                        var alpha = Math.floor((Z - 1867216.25) / 36524.25);
+                        var A = Z + 1 + alpha - Math.floor(alpha / 4);
+                    }
+                }
+            }
+        });
+        const __exports = __ifInstance0.exports;
+        return __exports.data(Z < 2299161 ? 1 : 0);
+    })();
+    var B = A + 1524;
+    var C = Math.floor((B - 122.1) / 365.25);
+    var D = Math.floor(365.25 * C);
+    var E = Math.floor((B - D) / 30.6001);
+    var d = B - D - Math.floor(30.6001 * E) + F;
+    (() => {
+        const __ifInstance1 = new WebAssembly.Instance(__ifWasmModule, {
+            env: {
+                impFunc1: () => {
+                    {
+                        var month = E - 1;
+                    }
+                },
+                impFunc2: () => {
+                    {
+                        var month = E - 13;
+                    }
+                }
+            }
+        });
+        const __exports = __ifInstance1.exports;
+        return __exports.data(E < 14 ? 1 : 0);
+    })();
+    (() => {
+        const __ifInstance2 = new WebAssembly.Instance(__ifWasmModule, {
+            env: {
+                impFunc1: () => {
+                    {
+                        var year = C - 4716;
+                    }
+                },
+                impFunc2: () => {
+                    {
+                        var year = C - 4715;
+                    }
+                }
+            }
+        });
+        const __exports = __ifInstance2.exports;
+        return __exports.data(month > 2 ? 1 : 0);
+    })();
+    var day = Math.floor(d);
+    var h = (d - day) * 24;
+    var hours = Math.floor(h);
+    var m = (h - hours) * 60;
+    var minutes = Math.floor(m);
+    var seconds = Math.round((m - minutes) * 60);
+    (() => {
+        const __ifInstance3 = new WebAssembly.Instance(__ifWasmModule, {
+            env: {
+                impFunc1: () => {
+                    {
+                        minutes = minutes + 1;
+                        seconds = seconds - 60;
+                    }
+                },
+                impFunc2: () => {
+                }
+            }
+        });
+        const __exports = __ifInstance3.exports;
+        return __exports.data(seconds >= 60 ? 1 : 0);
+    })();
+    (() => {
+        const __ifInstance4 = new WebAssembly.Instance(__ifWasmModule, {
+            env: {
+                impFunc1: () => {
+                    {
+                        hours = hours + 1;
+                        minutes = 0;
+                    }
+                },
+                impFunc2: () => {
+                }
+            }
+        });
+        const __exports = __ifInstance4.exports;
+        return __exports.data(minutes >= 60 ? 1 : 0);
+    })();
+    var dw = Math.floor(jd + 1.5) - 7 * Math.floor((jd + 1.5) / 7);
+    return new Array(year, month, day, dw, hours, minutes, seconds);
+}
+function local_sidereal(year, month, day, hours, lon) {
+    var d = dayno(year, month, day, hours);
+    var lst = 98.9818 + 0.985647352 * d + hours * 15 + lon;
+    return rev(lst) / 15;
+}
+function radtoaa(ra, dec, year, month, day, hours, lat, lon) {
+    var lst = local_sidereal(year, month, day, hours, lon);
+    var x = cosd(15 * (lst - ra)) * cosd(dec);
+    var y = sind(15 * (lst - ra)) * cosd(dec);
+    var z = sind(dec);
+    var xhor = x * sind(lat) - z * cosd(lat);
+    var yhor = y;
+    var zhor = x * cosd(lat) + z * sind(lat);
+    var azimuth = rev(atan2d(yhor, xhor) + 180);
+    var altitude = atan2d(zhor, Math.sqrt(xhor * xhor + yhor * yhor));
+    return new Array(altitude, azimuth);
+}</script>
+</body>
+</html>

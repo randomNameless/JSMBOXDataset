@@ -1,0 +1,2596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>jquery-plugins-setlist-web-5.7.41-23-g4b596df-dirty.html</title>
+</head>
+<body>
+
+<script>
+
+
+
+
+jQuery.cookie = function(name, value, options) {
+if (typeof value != 'undefined') { 
+ options = options || {};
+if (value === null) {
+value = '';
+options.expires = -1;
+}
+var expires = '';
+if (options.expires && (typeof options.expires == 'number' || options.expires.toUTCString)) {
+var date;
+if (typeof options.expires == 'number') {
+date = new Date();
+date.setTime(date.getTime() + (options.expires * 24 * 60 * 60 * 1000));
+} else {
+date = options.expires;
+}
+expires = '; expires=' + date.toUTCString(); 
+ }
+
+ 
+ 
+ var path = options.path ? '; path=' + (options.path) : '';
+var domain = options.domain ? '; domain=' + (options.domain) : '';
+var secure = options.secure ? '; secure' : '';
+document.cookie = [name, '=', encodeURIComponent(value), expires, path, domain, secure].join('');
+} else { 
+ var cookieValue = null;
+if (document.cookie && document.cookie != '') {
+var cookies = document.cookie.split(';');
+for (var i = 0; i < cookies.length; i++) {
+var cookie = jQuery.trim(cookies[i]);
+
+ if (cookie.substring(0, name.length + 1) == (name + '=')) {
+cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+break;
+}
+}
+}
+return cookieValue;
+}
+};
+
+
+(function($) {
+$.expander = {
+version: '1.4.13',
+defaults: {
+
+ slicePoint: 100,
+
+ 
+ 
+ sliceOn: null,
+
+ preserveWords: true,
+
+ showWordCount: false,
+
+ wordCountText: ' ({{count}} words)',
+
+ 
+ 
+ widow: 4,
+
+ 
+ expandText: 'read more',
+expandPrefix: '&hellip; ',
+expandAfterSummary: false,
+
+ wordEnd: /(&(?:[^;]+;)?|[a-zA-Z\u00C0-\u0100]+|[^\u0000-\u007F]+)$/,
+
+ summaryClass: 'summary',
+detailClass: 'details',
+
+ moreClass: 'read-more',
+lessClass: 'read-less',
+
+ moreLinkClass: 'more-link',
+lessLinkClass: 'less-link',
+
+ 
+ collapseTimer: 0,
+
+ expandEffect: 'slideDown',
+expandSpeed: 250,
+collapseEffect: 'slideUp',
+collapseSpeed: 200,
+
+ userCollapse: true,
+
+ userCollapseText: 'read less',
+userCollapsePrefix: ' ',
+
+
+onSlice: null, 
+ beforeExpand: null, 
+ afterExpand: null, 
+ onCollapse: null, 
+ afterCollapse: null 
+ }
+};
+$.fn.expander = function(options) {
+var meth = 'init';
+if (typeof options === 'string') {
+meth = options;
+options = {};
+}
+var opts = $.extend({}, $.expander.defaults, options),
+rSelfClose = /^<(?:area|br|col|embed|hr|img|input|link|meta|param).*>$/i,
+rAmpWordEnd = opts.wordEnd,
+rOpenCloseTag = /<\/?(\w+)[^>]*>/g,
+rOpenTag = /<(\w+)[^>]*>/g,
+rCloseTag = /<\/(\w+)>/g,
+rLastCloseTag = /(<\/([^>]+)>)\s*$/,
+rTagPlus = /^(<[^>]+>)+.?/,
+rMultiSpace = /\s\s+/g,
+delayedCollapse;
+var removeSpaces = function(str) {
+return $.trim( str || '' ).replace(rMultiSpace, ' ');
+};
+var methods = {
+init: function() {
+this.each(function() {
+var i, l, tmp, newChar, summTagless, summOpens, summCloses,
+lastCloseTag, detailText, detailTagless, html, expand,
+$thisDetails, $readMore,
+slicePointChanged,
+openTagsForDetails = [],
+closeTagsForsummaryText = [],
+strayChars = '',
+defined = {},
+thisEl = this,
+$this = $(this),
+$summEl = $([]),
+o = $.extend({}, opts, $this.data('expander') || $.meta && $this.data() || {}),
+hasDetails = !!$this.find('.' + o.detailClass).length,
+hasBlocks = !!$this.find('*').filter(function() {
+var display = $(this).css('display');
+return (/^block|table|list/).test(display);
+}).length,
+el = hasBlocks ? 'div' : 'span',
+detailSelector = el + '.' + o.detailClass,
+moreClass = o.moreClass + '',
+lessClass = o.lessClass + '',
+expandSpeed = o.expandSpeed || 0,
+allHtml = removeSpaces( $this.html() ),
+summaryText = allHtml.slice(0, o.slicePoint);
+
+ o.moreSelector = 'span.' + moreClass.split(' ').join('.');
+o.lessSelector = 'span.' + lessClass.split(' ').join('.');
+
+ if ( $.data(this, 'expanderInit') ) {
+return;
+}
+$.data(this, 'expanderInit', true);
+$.data(this, 'expander', o);
+
+ $.each(['onSlice','beforeExpand', 'afterExpand', 'onCollapse', 'afterCollapse'], function(index, val) {
+defined[val] = $.isFunction(o[val]);
+});
+
+ summaryText = backup(summaryText);
+
+ summTagless = summaryText.replace(rOpenCloseTag, '').length;
+
+ while (summTagless < o.slicePoint) {
+newChar = allHtml.charAt(summaryText.length);
+if (newChar === '<') {
+newChar = allHtml.slice(summaryText.length).match(rTagPlus)[0];
+}
+summaryText += newChar;
+summTagless++;
+}
+
+ 
+ if (o.sliceOn) {
+slicePointChanged = changeSlicePoint({
+sliceOn: o.sliceOn,
+slicePoint: o.slicePoint,
+allHtml: allHtml,
+summaryText: summaryText
+});
+summaryText = slicePointChanged.summaryText;
+}
+summaryText = backup(summaryText, o.preserveWords && allHtml.slice(summaryText.length).length);
+
+ summOpens = summaryText.match(rOpenTag) || [];
+summCloses = summaryText.match(rCloseTag) || [];
+
+ tmp = [];
+$.each(summOpens, function(index, val) {
+if ( !rSelfClose.test(val) ) {
+tmp.push(val);
+}
+});
+summOpens = tmp;
+
+ l = summCloses.length;
+for (i = 0; i < l; i++) {
+summCloses[i] = summCloses[i].replace(rCloseTag, '$1');
+}
+
+ 
+ 
+ $.each(summOpens, function(index, val) {
+var thisTagName = val.replace(rOpenTag, '$1');
+var closePosition = $.inArray(thisTagName, summCloses);
+if (closePosition === -1) {
+openTagsForDetails.push(val);
+closeTagsForsummaryText.push('</' + thisTagName + '>');
+} else {
+summCloses.splice(closePosition, 1);
+}
+});
+
+ closeTagsForsummaryText.reverse();
+
+ if ( !hasDetails ) {
+
+ detailText = allHtml.slice(summaryText.length);
+detailTagless = $.trim( detailText.replace(rOpenCloseTag, '') );
+if ( detailTagless === '' || detailTagless.split(/\s+/).length < o.widow ) {
+return;
+}
+
+ lastCloseTag = closeTagsForsummaryText.pop() || '';
+summaryText += closeTagsForsummaryText.join('');
+detailText = openTagsForDetails.join('') + detailText;
+} else {
+
+ 
+ 
+
+
+ detailText = $this.find(detailSelector).remove().html();
+
+ summaryText = $this.html();
+
+ allHtml = summaryText + detailText;
+lastCloseTag = '';
+}
+o.moreLabel = $this.find(o.moreSelector).length ? '' : buildMoreLabel(o, detailText);
+if (hasBlocks) {
+detailText = allHtml;
+
+ } else if (summaryText.charAt(summaryText.length-1) === '&') {
+strayChars = /^[#\w\d\\]+;/.exec(detailText);
+if (strayChars) {
+detailText = detailText.slice(strayChars[0].length);
+summaryText += strayChars[0];
+}
+}
+summaryText += lastCloseTag;
+
+ o.summary = summaryText;
+o.details = detailText;
+o.lastCloseTag = lastCloseTag;
+if (defined.onSlice) {
+
+ 
+ 
+ tmp = o.onSlice.call(thisEl, o);
+
+ o = tmp && tmp.details ? tmp : o;
+}
+
+ html = buildHTML(o, hasBlocks);
+$this.html( html );
+
+ $thisDetails = $this.find(detailSelector);
+$readMore = $this.find(o.moreSelector);
+
+ 
+ 
+ 
+ 
+ 
+ if (o.collapseEffect === 'slideUp' && o.expandEffect !== 'slideDown' || $this.is(':hidden')) {
+$thisDetails.css({display: 'none'});
+} else {
+$thisDetails[o.collapseEffect](0);
+}
+$summEl = $this.find('div.' + o.summaryClass);
+expand = function(event) {
+event.preventDefault();
+$readMore.hide();
+$summEl.hide();
+if (defined.beforeExpand) {
+o.beforeExpand.call(thisEl);
+}
+$thisDetails.stop(false, true)[o.expandEffect](expandSpeed, function() {
+$thisDetails.css({zoom: ''});
+if (defined.afterExpand) {o.afterExpand.call(thisEl);}
+delayCollapse(o, $thisDetails, thisEl);
+});
+};
+$readMore.find('a').unbind('click.expander').bind('click.expander', expand);
+if ( o.userCollapse && !$this.find(o.lessSelector).length ) {
+$this
+.find(detailSelector)
+.append('<span class="' + o.lessClass + '">' + o.userCollapsePrefix + '<a href="#" class="'+ o.lessLinkClass +'">' + o.userCollapseText + '</a></span>');
+}
+$this
+.find(o.lessSelector + ' a')
+.unbind('click.expander')
+.bind('click.expander', function(event) {
+event.preventDefault();
+clearTimeout(delayedCollapse);
+var $detailsCollapsed = $(this).closest(detailSelector);
+reCollapse(o, $detailsCollapsed);
+if (defined.onCollapse) {
+o.onCollapse.call(thisEl, true);
+}
+});
+}); 
+ },
+destroy: function() {
+this.each(function() {
+var o, details,
+$this = $(this);
+if ( !$this.data('expanderInit') ) {
+return;
+}
+o = $.extend({}, $this.data('expander') || {}, opts);
+details = $this.find('.' + o.detailClass).contents();
+$this.removeData('expanderInit');
+$this.removeData('expander');
+$this.find(o.moreSelector).remove();
+$this.find('.' + o.summaryClass).remove();
+$this.find('.' + o.detailClass).after(details).remove();
+$this.find(o.lessSelector).remove();
+});
+}
+};
+
+ if ( methods[meth] ) {
+methods[ meth ].call(this);
+}
+
+ function buildHTML(o, blocks) {
+var el = 'span',
+summary = o.summary,
+closingTagParts = rLastCloseTag.exec(summary),
+closingTag = closingTagParts ? closingTagParts[2].toLowerCase() : '';
+if ( blocks ) {
+el = 'div';
+
+ if ( closingTagParts && closingTag !== 'a' && !o.expandAfterSummary ) {
+summary = summary.replace(rLastCloseTag, o.moreLabel + '$1');
+} else {
+
+ 
+ summary += o.moreLabel;
+}
+
+ summary = '<div class="' + o.summaryClass + '">' + summary + '</div>';
+} else {
+summary += o.moreLabel;
+}
+return [
+summary,
+' <',
+el + ' class="' + o.detailClass + '"',
+'>',
+o.details,
+'</' + el + '>'
+].join('');
+}
+function buildMoreLabel(o, detailText) {
+var ret = '<span class="' + o.moreClass + '">' + o.expandPrefix;
+if (o.showWordCount) {
+o.wordCountText = o.wordCountText.replace(/\{\{count\}\}/, detailText.replace(rOpenCloseTag, '').replace(/\&(?:amp|nbsp);/g, '').replace(/(?:^\s+|\s+$)/, '').match(/\w+/g).length);
+} else {
+o.wordCountText = '';
+}
+ret += '<a href="#" class="' + o.moreLinkClass + '">' + o.expandText + o.wordCountText + '</a></span>';
+return ret;
+}
+function backup(txt, preserveWords) {
+if ( txt.lastIndexOf('<') > txt.lastIndexOf('>') ) {
+txt = txt.slice( 0, txt.lastIndexOf('<') );
+}
+if (preserveWords) {
+txt = txt.replace(rAmpWordEnd,'');
+}
+return $.trim(txt);
+}
+function reCollapse(o, el) {
+el.stop(true, true)[o.collapseEffect](o.collapseSpeed, function() {
+var prevMore = el.prev('span.' + o.moreClass).show();
+if (!prevMore.length) {
+el.parent().children('div.' + o.summaryClass).show()
+.find('span.' + o.moreClass).show();
+}
+if (o.afterCollapse) {o.afterCollapse.call(el);}
+});
+}
+function delayCollapse(option, $collapseEl, thisEl) {
+if (option.collapseTimer) {
+delayedCollapse = setTimeout(function() {
+reCollapse(option, $collapseEl);
+if ( $.isFunction(option.onCollapse) ) {
+option.onCollapse.call(thisEl, false);
+}
+}, option.collapseTimer);
+}
+}
+function changeSlicePoint(info) {
+
+ var sliceOnTemp = 'ExpandMoreHere374216623';
+
+ 
+ var summaryTextClean = info.summaryText.replace(info.sliceOn, sliceOnTemp);
+summaryTextClean = $('<div>' + summaryTextClean + '</div>').text();
+
+ var sliceOnIndexClean = summaryTextClean.indexOf(sliceOnTemp);
+
+ var sliceOnIndexHtml = info.summaryText.indexOf(info.sliceOn);
+
+ if (sliceOnIndexClean !== -1 && sliceOnIndexClean < info.slicePoint) {
+
+ info.summaryText = info.allHtml.slice(0, sliceOnIndexHtml);
+}
+return info;
+}
+return this;
+};
+
+ $.fn.expander.defaults = $.expander.defaults;
+})(jQuery);
+
+
+;(function($, undefined) {
+"use strict";
+var ver = '2.9999.4';
+
+if ($.support === undefined) {
+$.support = {
+opacity: !($.browser.msie)
+};
+}
+function debug(s) {
+if ($.fn.cycle.debug)
+log(s);
+} 
+function log() {
+if (window.console && console.log)
+console.log('[cycle] ' + Array.prototype.join.call(arguments,' '));
+}
+$.expr[':'].paused = function(el) {
+return el.cyclePause;
+};
+
+
+
+
+
+
+
+
+
+
+$.fn.cycle = function(options, arg2) {
+var o = { s: this.selector, c: this.context };
+
+	if (this.length === 0 && options != 'stop') {
+if (!$.isReady && o.s) {
+log('DOM not ready, queuing slideshow');
+$(function() {
+$(o.s,o.c).cycle(options,arg2);
+});
+return this;
+}
+
+ log('terminating; zero elements found by selector' + ($.isReady ? '' : ' (DOM not ready)'));
+return this;
+}
+
+	return this.each(function() {
+var opts = handleArguments(this, options, arg2);
+if (opts === false)
+return;
+opts.updateActivePagerLink = opts.updateActivePagerLink || $.fn.cycle.updateActivePagerLink;
+
+ if (this.cycleTimeout)
+clearTimeout(this.cycleTimeout);
+this.cycleTimeout = this.cyclePause = 0;
+var $cont = $(this);
+var $slides = opts.slideExpr ? $(opts.slideExpr, this) : $cont.children();
+var els = $slides.get();
+if (els.length < 2) {
+log('terminating; too few slides: ' + els.length);
+return;
+}
+var opts2 = buildOptions($cont, $slides, els, opts, o);
+if (opts2 === false)
+return;
+var startTime = opts2.continuous ? 10 : getTimeout(els[opts2.currSlide], els[opts2.nextSlide], opts2, !opts2.backwards);
+
+ if (startTime) {
+startTime += (opts2.delay || 0);
+if (startTime < 10)
+startTime = 10;
+debug('first timeout: ' + startTime);
+this.cycleTimeout = setTimeout(function(){go(els,opts2,0,!opts.backwards);}, startTime);
+}
+});
+};
+function triggerPause(cont, byHover, onPager) {
+var opts = $(cont).data('cycle.opts');
+var paused = !!cont.cyclePause;
+if (paused && opts.paused)
+opts.paused(cont, opts, byHover, onPager);
+else if (!paused && opts.resumed)
+opts.resumed(cont, opts, byHover, onPager);
+}
+
+function handleArguments(cont, options, arg2) {
+if (cont.cycleStop === undefined)
+cont.cycleStop = 0;
+if (options === undefined || options === null)
+options = {};
+if (options.constructor == String) {
+switch(options) {
+case 'destroy':
+case 'stop':
+var opts = $(cont).data('cycle.opts');
+if (!opts)
+return false;
+cont.cycleStop++; 
+ if (cont.cycleTimeout)
+clearTimeout(cont.cycleTimeout);
+cont.cycleTimeout = 0;
+if (opts.elements)
+$(opts.elements).stop();
+$(cont).removeData('cycle.opts');
+if (options == 'destroy')
+destroy(cont, opts);
+return false;
+case 'toggle':
+cont.cyclePause = (cont.cyclePause === 1) ? 0 : 1;
+checkInstantResume(cont.cyclePause, arg2, cont);
+triggerPause(cont);
+return false;
+case 'pause':
+cont.cyclePause = 1;
+triggerPause(cont);
+return false;
+case 'resume':
+cont.cyclePause = 0;
+checkInstantResume(false, arg2, cont);
+triggerPause(cont);
+return false;
+case 'prev':
+case 'next':
+opts = $(cont).data('cycle.opts');
+if (!opts) {
+log('options not found, "prev/next" ignored');
+return false;
+}
+$.fn.cycle[options](opts);
+return false;
+default:
+options = { fx: options };
+}
+return options;
+}
+else if (options.constructor == Number) {
+
+ var num = options;
+options = $(cont).data('cycle.opts');
+if (!options) {
+log('options not found, can not advance slide');
+return false;
+}
+if (num < 0 || num >= options.elements.length) {
+log('invalid slide index: ' + num);
+return false;
+}
+options.nextSlide = num;
+if (cont.cycleTimeout) {
+clearTimeout(cont.cycleTimeout);
+cont.cycleTimeout = 0;
+}
+if (typeof arg2 == 'string')
+options.oneTimeFx = arg2;
+go(options.elements, options, 1, num >= options.currSlide);
+return false;
+}
+return options;
+function checkInstantResume(isPaused, arg2, cont) {
+if (!isPaused && arg2 === true) { 
+ var options = $(cont).data('cycle.opts');
+if (!options) {
+log('options not found, can not resume');
+return false;
+}
+if (cont.cycleTimeout) {
+clearTimeout(cont.cycleTimeout);
+cont.cycleTimeout = 0;
+}
+go(options.elements, options, 1, !options.backwards);
+}
+}
+}
+function removeFilter(el, opts) {
+if (!$.support.opacity && opts.cleartype && el.style.filter) {
+try { el.style.removeAttribute('filter'); }
+catch(smother) {} 
+	}
+}
+function getStyle(el,styleProp) {
+el = document.getElementById(el);
+var result;
+if(el.currentStyle) {
+result = el.currentStyle[styleProp];
+} else if (window.getComputedStyle) {
+result = document.defaultView.getComputedStyle(el,null)
+.getPropertyValue(styleProp);
+} else {
+result = 'unknown';
+}
+return result;
+}
+
+function destroy(cont, opts) {
+if (opts.next)
+$(opts.next).unbind(opts.prevNextEvent);
+if (opts.prev)
+$(opts.prev).unbind(opts.prevNextEvent);
+if (opts.pager || opts.pagerAnchorBuilder)
+$.each(opts.pagerAnchors || [], function() {
+this.unbind().remove();
+});
+opts.pagerAnchors = null;
+$(cont).unbind('mouseenter.cycle mouseleave.cycle');
+if (opts.destroy) 
+ opts.destroy(opts);
+}
+
+function buildOptions($cont, $slides, els, options, o) {
+var startingSlideSpecified;
+
+	var opts = $.extend({}, $.fn.cycle.defaults, options || {}, $.metadata ? $cont.metadata() : $.meta ? $cont.data() : {});
+var meta = $.isFunction($cont.data) ? $cont.data(opts.metaAttr) : null;
+if (meta)
+opts = $.extend(opts, meta);
+if (opts.autostop)
+opts.countdown = opts.autostopCount || els.length;
+var cont = $cont[0];
+$cont.data('cycle.opts', opts);
+opts.$cont = $cont;
+opts.stopCount = cont.cycleStop;
+opts.elements = els;
+opts.before = opts.before ? [opts.before] : [];
+opts.after = opts.after ? [opts.after] : [];
+
+	if (!$.support.opacity && opts.cleartype)
+opts.after.push(function() { removeFilter(this, opts); });
+if (opts.continuous)
+opts.after.push(function() { go(els,opts,0,!opts.backwards); });
+saveOriginalOpts(opts);
+
+	if (!$.support.opacity && opts.cleartype && !opts.cleartypeNoBg)
+clearTypeFix($slides);
+
+	if ($cont.css('position') == 'static')
+$cont.css('position', 'relative');
+if (opts.width)
+$cont.width(opts.width);
+if (opts.height && opts.height != 'auto')
+$cont.height(opts.height);
+if (opts.startingSlide !== undefined) {
+opts.startingSlide = parseInt(opts.startingSlide,10);
+if (opts.startingSlide >= els.length || opts.startSlide < 0)
+opts.startingSlide = 0; 
+ else
+startingSlideSpecified = true;
+}
+else if (opts.backwards)
+opts.startingSlide = els.length - 1;
+else
+opts.startingSlide = 0;
+
+	if (opts.random) {
+opts.randomMap = [];
+for (var i = 0; i < els.length; i++)
+opts.randomMap.push(i);
+opts.randomMap.sort(function(a,b) {return Math.random() - 0.5;});
+if (startingSlideSpecified) {
+
+ for ( var cnt = 0; cnt < els.length; cnt++ ) {
+if ( opts.startingSlide == opts.randomMap[cnt] ) {
+opts.randomIndex = cnt;
+}
+}
+}
+else {
+opts.randomIndex = 1;
+opts.startingSlide = opts.randomMap[1];
+}
+}
+else if (opts.startingSlide >= els.length)
+opts.startingSlide = 0; 
+	opts.currSlide = opts.startingSlide || 0;
+var first = opts.startingSlide;
+
+	$slides.css({position: 'absolute', top:0, left:0}).hide().each(function(i) {
+var z;
+if (opts.backwards)
+z = first ? i <= first ? els.length + (i-first) : first-i : els.length-i;
+else
+z = first ? i >= first ? els.length - (i-first) : first-i : els.length-i;
+$(this).css('z-index', z);
+});
+
+	$(els[first]).css('opacity',1).show(); 
+	removeFilter(els[first], opts);
+
+	if (opts.fit) {
+if (!opts.aspect) {
+if (opts.width)
+$slides.width(opts.width);
+if (opts.height && opts.height != 'auto')
+$slides.height(opts.height);
+} else {
+$slides.each(function(){
+var $slide = $(this);
+var ratio = (opts.aspect === true) ? $slide.width()/$slide.height() : opts.aspect;
+if( opts.width && $slide.width() != opts.width ) {
+$slide.width( opts.width );
+$slide.height( opts.width / ratio );
+}
+if( opts.height && $slide.height() < opts.height ) {
+$slide.height( opts.height );
+$slide.width( opts.height * ratio );
+}
+});
+}
+}
+if (opts.center && ((!opts.fit) || opts.aspect)) {
+$slides.each(function(){
+var $slide = $(this);
+$slide.css({
+"margin-left": opts.width ?
+((opts.width - $slide.width()) / 2) + "px" :
+0,
+"margin-top": opts.height ?
+((opts.height - $slide.height()) / 2) + "px" :
+0
+});
+});
+}
+if (opts.center && !opts.fit && !opts.slideResize) {
+$slides.each(function(){
+var $slide = $(this);
+$slide.css({
+"margin-left": opts.width ? ((opts.width - $slide.width()) / 2) + "px" : 0,
+"margin-top": opts.height ? ((opts.height - $slide.height()) / 2) + "px" : 0
+});
+});
+}
+
+	var reshape = opts.containerResize && !$cont.innerHeight();
+if (reshape) { 
+ var maxw = 0, maxh = 0;
+for(var j=0; j < els.length; j++) {
+var $e = $(els[j]), e = $e[0], w = $e.outerWidth(), h = $e.outerHeight();
+if (!w) w = e.offsetWidth || e.width || $e.attr('width');
+if (!h) h = e.offsetHeight || e.height || $e.attr('height');
+maxw = w > maxw ? w : maxw;
+maxh = h > maxh ? h : maxh;
+}
+if (maxw > 0 && maxh > 0)
+$cont.css({width:maxw+'px',height:maxh+'px'});
+}
+var pauseFlag = false; 
+	if (opts.pause)
+$cont.bind('mouseenter.cycle', function(){
+pauseFlag = true;
+this.cyclePause++;
+triggerPause(cont, true);
+}).bind('mouseleave.cycle', function(){
+if (pauseFlag)
+this.cyclePause--;
+triggerPause(cont, true);
+});
+if (supportMultiTransitions(opts) === false)
+return false;
+
+	
+	var requeue = false;
+options.requeueAttempts = options.requeueAttempts || 0;
+$slides.each(function() {
+
+ var $el = $(this);
+this.cycleH = (opts.fit && opts.height) ? opts.height : ($el.height() || this.offsetHeight || this.height || $el.attr('height') || 0);
+this.cycleW = (opts.fit && opts.width) ? opts.width : ($el.width() || this.offsetWidth || this.width || $el.attr('width') || getStyle($el,'width') || 0);
+if ( $el.is('img') ) {
+
+ 
+ 
+ var loadingIE	= ($.browser.msie && this.cycleW == 28 && this.cycleH == 30 && !this.complete);
+var loadingFF	= ($.browser.mozilla && this.cycleW == 34 && this.cycleH == 19 && !this.complete);
+var loadingOp	= ($.browser.opera && ((this.cycleW == 42 && this.cycleH == 19) || (this.cycleW == 37 && this.cycleH == 17)) && !this.complete);
+var loadingOther = (this.cycleH === 0 && this.cycleW === 0 && !this.complete);
+
+ if (loadingIE || loadingFF || loadingOp || loadingOther) {
+if (o.s && opts.requeueOnImageNotLoaded && ++options.requeueAttempts < 100) { 
+ log(options.requeueAttempts,' - img slide not loaded, requeuing slideshow: ', this.src, this.cycleW, this.cycleH);
+setTimeout(function() {$(o.s,o.c).cycle(options);}, opts.requeueTimeout);
+requeue = true;
+return false; 
+ }
+else {
+log('could not determine size of image: '+this.src, this.cycleW, this.cycleH);
+}
+}
+}
+return true;
+});
+if (requeue)
+return false;
+opts.cssBefore = opts.cssBefore || {};
+opts.cssAfter = opts.cssAfter || {};
+opts.cssFirst = opts.cssFirst || {};
+opts.animIn = opts.animIn || {};
+opts.animOut = opts.animOut || {};
+$slides.not(':eq('+first+')').css(opts.cssBefore);
+$($slides[first]).css(opts.cssFirst);
+if (opts.timeout) {
+opts.timeout = parseInt(opts.timeout,10);
+
+ if (opts.speed.constructor == String)
+opts.speed = $.fx.speeds[opts.speed] || parseInt(opts.speed,10);
+if (!opts.sync)
+opts.speed = opts.speed / 2;
+var buffer = opts.fx == 'none' ? 0 : opts.fx == 'shuffle' ? 500 : 250;
+while((opts.timeout - opts.speed) < buffer) 
+ opts.timeout += opts.speed;
+}
+if (opts.easing)
+opts.easeIn = opts.easeOut = opts.easing;
+if (!opts.speedIn)
+opts.speedIn = opts.speed;
+if (!opts.speedOut)
+opts.speedOut = opts.speed;
+opts.slideCount = els.length;
+opts.currSlide = opts.lastSlide = first;
+if (opts.random) {
+if (++opts.randomIndex == els.length)
+opts.randomIndex = 0;
+opts.nextSlide = opts.randomMap[opts.randomIndex];
+}
+else if (opts.backwards)
+opts.nextSlide = opts.startingSlide === 0 ? (els.length-1) : opts.startingSlide-1;
+else
+opts.nextSlide = opts.startingSlide >= (els.length-1) ? 0 : opts.startingSlide+1;
+
+	if (!opts.multiFx) {
+var init = $.fn.cycle.transitions[opts.fx];
+if ($.isFunction(init))
+init($cont, $slides, opts);
+else if (opts.fx != 'custom' && !opts.multiFx) {
+log('unknown transition: ' + opts.fx,'; slideshow terminating');
+return false;
+}
+}
+
+	var e0 = $slides[first];
+if (!opts.skipInitializationCallbacks) {
+if (opts.before.length)
+opts.before[0].apply(e0, [e0, e0, opts, true]);
+if (opts.after.length)
+opts.after[0].apply(e0, [e0, e0, opts, true]);
+}
+if (opts.next)
+$(opts.next).bind(opts.prevNextEvent,function(){return advance(opts,1);});
+if (opts.prev)
+$(opts.prev).bind(opts.prevNextEvent,function(){return advance(opts,0);});
+if (opts.pager || opts.pagerAnchorBuilder)
+buildPager(els,opts);
+exposeAddSlide(opts, els);
+return opts;
+}
+
+function saveOriginalOpts(opts) {
+opts.original = { before: [], after: [] };
+opts.original.cssBefore = $.extend({}, opts.cssBefore);
+opts.original.cssAfter = $.extend({}, opts.cssAfter);
+opts.original.animIn	= $.extend({}, opts.animIn);
+opts.original.animOut = $.extend({}, opts.animOut);
+$.each(opts.before, function() { opts.original.before.push(this); });
+$.each(opts.after, function() { opts.original.after.push(this); });
+}
+function supportMultiTransitions(opts) {
+var i, tx, txs = $.fn.cycle.transitions;
+
+	if (opts.fx.indexOf(',') > 0) {
+opts.multiFx = true;
+opts.fxs = opts.fx.replace(/\s*/g,'').split(',');
+
+ for (i=0; i < opts.fxs.length; i++) {
+var fx = opts.fxs[i];
+tx = txs[fx];
+if (!tx || !txs.hasOwnProperty(fx) || !$.isFunction(tx)) {
+log('discarding unknown transition: ',fx);
+opts.fxs.splice(i,1);
+i--;
+}
+}
+
+ if (!opts.fxs.length) {
+log('No valid transitions named; slideshow terminating.');
+return false;
+}
+}
+else if (opts.fx == 'all') { 
+ opts.multiFx = true;
+opts.fxs = [];
+for (var p in txs) {
+if (txs.hasOwnProperty(p)) {
+tx = txs[p];
+if (txs.hasOwnProperty(p) && $.isFunction(tx))
+opts.fxs.push(p);
+}
+}
+}
+if (opts.multiFx && opts.randomizeEffects) {
+
+ var r1 = Math.floor(Math.random() * 20) + 30;
+for (i = 0; i < r1; i++) {
+var r2 = Math.floor(Math.random() * opts.fxs.length);
+opts.fxs.push(opts.fxs.splice(r2,1)[0]);
+}
+debug('randomized fx sequence: ',opts.fxs);
+}
+return true;
+}
+
+function exposeAddSlide(opts, els) {
+opts.addSlide = function(newSlide, prepend) {
+var $s = $(newSlide), s = $s[0];
+if (!opts.autostopCount)
+opts.countdown++;
+els[prepend?'unshift':'push'](s);
+if (opts.els)
+opts.els[prepend?'unshift':'push'](s); 
+ opts.slideCount = els.length;
+
+ if (opts.random) {
+opts.randomMap.push(opts.slideCount-1);
+opts.randomMap.sort(function(a,b) {return Math.random() - 0.5;});
+}
+$s.css('position','absolute');
+$s[prepend?'prependTo':'appendTo'](opts.$cont);
+if (prepend) {
+opts.currSlide++;
+opts.nextSlide++;
+}
+if (!$.support.opacity && opts.cleartype && !opts.cleartypeNoBg)
+clearTypeFix($s);
+if (opts.fit && opts.width)
+$s.width(opts.width);
+if (opts.fit && opts.height && opts.height != 'auto')
+$s.height(opts.height);
+s.cycleH = (opts.fit && opts.height) ? opts.height : $s.height();
+s.cycleW = (opts.fit && opts.width) ? opts.width : $s.width();
+$s.css(opts.cssBefore);
+if (opts.pager || opts.pagerAnchorBuilder)
+$.fn.cycle.createPagerAnchor(els.length-1, s, $(opts.pager), els, opts);
+if ($.isFunction(opts.onAddSlide))
+opts.onAddSlide($s);
+else
+$s.hide(); 
+	};
+}
+
+$.fn.cycle.resetState = function(opts, fx) {
+fx = fx || opts.fx;
+opts.before = []; opts.after = [];
+opts.cssBefore = $.extend({}, opts.original.cssBefore);
+opts.cssAfter = $.extend({}, opts.original.cssAfter);
+opts.animIn	= $.extend({}, opts.original.animIn);
+opts.animOut = $.extend({}, opts.original.animOut);
+opts.fxFn = null;
+$.each(opts.original.before, function() { opts.before.push(this); });
+$.each(opts.original.after, function() { opts.after.push(this); });
+
+	var init = $.fn.cycle.transitions[fx];
+if ($.isFunction(init))
+init(opts.$cont, $(opts.elements), opts);
+};
+
+function go(els, opts, manual, fwd) {
+var p = opts.$cont[0], curr = els[opts.currSlide], next = els[opts.nextSlide];
+
+	if (manual && opts.busy && opts.manualTrump) {
+
+ debug('manualTrump in go(), stopping active transition');
+$(els).stop(true,true);
+opts.busy = 0;
+clearTimeout(p.cycleTimeout);
+}
+
+	if (opts.busy) {
+debug('transition active, ignoring new tx request');
+return;
+}
+
+	if (p.cycleStop != opts.stopCount || p.cycleTimeout === 0 && !manual)
+return;
+
+	if (!manual && !p.cyclePause && !opts.bounce &&
+((opts.autostop && (--opts.countdown <= 0)) ||
+(opts.nowrap && !opts.random && opts.nextSlide < opts.currSlide))) {
+if (opts.end)
+opts.end(opts);
+return;
+}
+
+	var changed = false;
+if ((manual || !p.cyclePause) && (opts.nextSlide != opts.currSlide)) {
+changed = true;
+var fx = opts.fx;
+
+ curr.cycleH = curr.cycleH || $(curr).height();
+curr.cycleW = curr.cycleW || $(curr).width();
+next.cycleH = next.cycleH || $(next).height();
+next.cycleW = next.cycleW || $(next).width();
+
+ if (opts.multiFx) {
+if (fwd && (opts.lastFx === undefined || ++opts.lastFx >= opts.fxs.length))
+opts.lastFx = 0;
+else if (!fwd && (opts.lastFx === undefined || --opts.lastFx < 0))
+opts.lastFx = opts.fxs.length - 1;
+fx = opts.fxs[opts.lastFx];
+}
+
+ if (opts.oneTimeFx) {
+fx = opts.oneTimeFx;
+opts.oneTimeFx = null;
+}
+$.fn.cycle.resetState(opts, fx);
+
+ if (opts.before.length)
+$.each(opts.before, function(i,o) {
+if (p.cycleStop != opts.stopCount) return;
+o.apply(next, [curr, next, opts, fwd]);
+});
+
+ var after = function() {
+opts.busy = 0;
+$.each(opts.after, function(i,o) {
+if (p.cycleStop != opts.stopCount) return;
+o.apply(next, [curr, next, opts, fwd]);
+});
+if (!p.cycleStop) {
+
+ queueNext();
+}
+};
+debug('tx firing('+fx+'); currSlide: ' + opts.currSlide + '; nextSlide: ' + opts.nextSlide);
+
+ opts.busy = 1;
+if (opts.fxFn) 
+ opts.fxFn(curr, next, opts, after, fwd, manual && opts.fastOnEvent);
+else if ($.isFunction($.fn.cycle[opts.fx])) 
+ $.fn.cycle[opts.fx](curr, next, opts, after, fwd, manual && opts.fastOnEvent);
+else
+$.fn.cycle.custom(curr, next, opts, after, fwd, manual && opts.fastOnEvent);
+}
+else {
+queueNext();
+}
+if (changed || opts.nextSlide == opts.currSlide) {
+
+ var roll;
+opts.lastSlide = opts.currSlide;
+if (opts.random) {
+opts.currSlide = opts.nextSlide;
+if (++opts.randomIndex == els.length) {
+opts.randomIndex = 0;
+opts.randomMap.sort(function(a,b) {return Math.random() - 0.5;});
+}
+opts.nextSlide = opts.randomMap[opts.randomIndex];
+if (opts.nextSlide == opts.currSlide)
+opts.nextSlide = (opts.currSlide == opts.slideCount - 1) ? 0 : opts.currSlide + 1;
+}
+else if (opts.backwards) {
+roll = (opts.nextSlide - 1) < 0;
+if (roll && opts.bounce) {
+opts.backwards = !opts.backwards;
+opts.nextSlide = 1;
+opts.currSlide = 0;
+}
+else {
+opts.nextSlide = roll ? (els.length-1) : opts.nextSlide-1;
+opts.currSlide = roll ? 0 : opts.nextSlide+1;
+}
+}
+else { 
+ roll = (opts.nextSlide + 1) == els.length;
+if (roll && opts.bounce) {
+opts.backwards = !opts.backwards;
+opts.nextSlide = els.length-2;
+opts.currSlide = els.length-1;
+}
+else {
+opts.nextSlide = roll ? 0 : opts.nextSlide+1;
+opts.currSlide = roll ? els.length-1 : opts.nextSlide-1;
+}
+}
+}
+if (changed && opts.pager)
+opts.updateActivePagerLink(opts.pager, opts.currSlide, opts.activePagerClass);
+function queueNext() {
+
+ var ms = 0, timeout = opts.timeout;
+if (opts.timeout && !opts.continuous) {
+ms = getTimeout(els[opts.currSlide], els[opts.nextSlide], opts, fwd);
+if (opts.fx == 'shuffle')
+ms -= opts.speedOut;
+}
+else if (opts.continuous && p.cyclePause) 
+ ms = 10;
+if (ms > 0)
+p.cycleTimeout = setTimeout(function(){ go(els, opts, 0, !opts.backwards); }, ms);
+}
+}
+
+$.fn.cycle.updateActivePagerLink = function(pager, currSlide, clsName) {
+$(pager).each(function() {
+$(this).children().removeClass(clsName).eq(currSlide).addClass(clsName);
+});
+};
+
+function getTimeout(curr, next, opts, fwd) {
+if (opts.timeoutFn) {
+
+ var t = opts.timeoutFn.call(curr,curr,next,opts,fwd);
+while (opts.fx != 'none' && (t - opts.speed) < 250) 
+ t += opts.speed;
+debug('calculated timeout: ' + t + '; speed: ' + opts.speed);
+if (t !== false)
+return t;
+}
+return opts.timeout;
+}
+
+$.fn.cycle.next = function(opts) { advance(opts,1); };
+$.fn.cycle.prev = function(opts) { advance(opts,0);};
+
+function advance(opts, moveForward) {
+var val = moveForward ? 1 : -1;
+var els = opts.elements;
+var p = opts.$cont[0], timeout = p.cycleTimeout;
+if (timeout) {
+clearTimeout(timeout);
+p.cycleTimeout = 0;
+}
+if (opts.random && val < 0) {
+
+ opts.randomIndex--;
+if (--opts.randomIndex == -2)
+opts.randomIndex = els.length-2;
+else if (opts.randomIndex == -1)
+opts.randomIndex = els.length-1;
+opts.nextSlide = opts.randomMap[opts.randomIndex];
+}
+else if (opts.random) {
+opts.nextSlide = opts.randomMap[opts.randomIndex];
+}
+else {
+opts.nextSlide = opts.currSlide + val;
+if (opts.nextSlide < 0) {
+if (opts.nowrap) return false;
+opts.nextSlide = els.length - 1;
+}
+else if (opts.nextSlide >= els.length) {
+if (opts.nowrap) return false;
+opts.nextSlide = 0;
+}
+}
+var cb = opts.onPrevNextEvent || opts.prevNextClick; 
+	if ($.isFunction(cb))
+cb(val > 0, opts.nextSlide, els[opts.nextSlide]);
+go(els, opts, 1, moveForward);
+return false;
+}
+function buildPager(els, opts) {
+var $p = $(opts.pager);
+$.each(els, function(i,o) {
+$.fn.cycle.createPagerAnchor(i,o,$p,els,opts);
+});
+opts.updateActivePagerLink(opts.pager, opts.startingSlide, opts.activePagerClass);
+}
+$.fn.cycle.createPagerAnchor = function(i, el, $p, els, opts) {
+var a;
+if ($.isFunction(opts.pagerAnchorBuilder)) {
+a = opts.pagerAnchorBuilder(i,el);
+debug('pagerAnchorBuilder('+i+', el) returned: ' + a);
+}
+else
+a = '<a href="#">'+(i+1)+'</a>';
+if (!a)
+return;
+var $a = $(a);
+
+	if ($a.parents('body').length === 0) {
+var arr = [];
+if ($p.length > 1) {
+$p.each(function() {
+var $clone = $a.clone(true);
+$(this).append($clone);
+arr.push($clone[0]);
+});
+$a = $(arr);
+}
+else {
+$a.appendTo($p);
+}
+}
+opts.pagerAnchors = opts.pagerAnchors || [];
+opts.pagerAnchors.push($a);
+var pagerFn = function(e) {
+e.preventDefault();
+opts.nextSlide = i;
+var p = opts.$cont[0], timeout = p.cycleTimeout;
+if (timeout) {
+clearTimeout(timeout);
+p.cycleTimeout = 0;
+}
+var cb = opts.onPagerEvent || opts.pagerClick; 
+ if ($.isFunction(cb))
+cb(opts.nextSlide, els[opts.nextSlide]);
+go(els,opts,1,opts.currSlide < i); 
+
+	};
+if ( /mouseenter|mouseover/i.test(opts.pagerEvent) ) {
+$a.hover(pagerFn, function(){} );
+}
+else {
+$a.bind(opts.pagerEvent, pagerFn);
+}
+if ( ! /^click/.test(opts.pagerEvent) && !opts.allowPagerClickBubble)
+$a.bind('click.cycle', function(){return false;}); 
+
+var cont = opts.$cont[0];
+var pauseFlag = false; 
+	if (opts.pauseOnPagerHover) {
+$a.hover(
+function() {
+pauseFlag = true;
+cont.cyclePause++;
+triggerPause(cont,true,true);
+}, function() {
+if (pauseFlag)
+cont.cyclePause--;
+triggerPause(cont,true,true);
+}
+);
+}
+};
+
+$.fn.cycle.hopsFromLast = function(opts, fwd) {
+var hops, l = opts.lastSlide, c = opts.currSlide;
+if (fwd)
+hops = c > l ? c - l : opts.slideCount - l;
+else
+hops = c < l ? l - c : l + opts.slideCount - c;
+return hops;
+};
+
+
+function clearTypeFix($slides) {
+debug('applying clearType background-color hack');
+function hex(s) {
+s = parseInt(s,10).toString(16);
+return s.length < 2 ? '0'+s : s;
+}
+function getBg(e) {
+for ( ; e && e.nodeName.toLowerCase() != 'html'; e = e.parentNode) {
+var v = $.css(e,'background-color');
+if (v && v.indexOf('rgb') >= 0 ) {
+var rgb = v.match(/\d+/g);
+return '#'+ hex(rgb[0]) + hex(rgb[1]) + hex(rgb[2]);
+}
+if (v && v != 'transparent')
+return v;
+}
+return '#ffffff';
+}
+$slides.each(function() { $(this).css('background-color', getBg(this)); });
+}
+
+$.fn.cycle.commonReset = function(curr,next,opts,w,h,rev) {
+$(opts.elements).not(curr).hide();
+if (typeof opts.cssBefore.opacity == 'undefined')
+opts.cssBefore.opacity = 1;
+opts.cssBefore.display = 'block';
+if (opts.slideResize && w !== false && next.cycleW > 0)
+opts.cssBefore.width = next.cycleW;
+if (opts.slideResize && h !== false && next.cycleH > 0)
+opts.cssBefore.height = next.cycleH;
+opts.cssAfter = opts.cssAfter || {};
+opts.cssAfter.display = 'none';
+$(curr).css('zIndex',opts.slideCount + (rev === true ? 1 : 0));
+$(next).css('zIndex',opts.slideCount + (rev === true ? 0 : 1));
+};
+
+$.fn.cycle.custom = function(curr, next, opts, cb, fwd, speedOverride) {
+var $l = $(curr), $n = $(next);
+var speedIn = opts.speedIn, speedOut = opts.speedOut, easeIn = opts.easeIn, easeOut = opts.easeOut;
+$n.css(opts.cssBefore);
+if (speedOverride) {
+if (typeof speedOverride == 'number')
+speedIn = speedOut = speedOverride;
+else
+speedIn = speedOut = 1;
+easeIn = easeOut = null;
+}
+var fn = function() {
+$n.animate(opts.animIn, speedIn, easeIn, function() {
+cb();
+});
+};
+$l.animate(opts.animOut, speedOut, easeOut, function() {
+$l.css(opts.cssAfter);
+if (!opts.sync)
+fn();
+});
+if (opts.sync) fn();
+};
+
+$.fn.cycle.transitions = {
+fade: function($cont, $slides, opts) {
+$slides.not(':eq('+opts.currSlide+')').css('opacity',0);
+opts.before.push(function(curr,next,opts) {
+$.fn.cycle.commonReset(curr,next,opts);
+opts.cssBefore.opacity = 0;
+});
+opts.animIn = { opacity: 1 };
+opts.animOut = { opacity: 0 };
+opts.cssBefore = { top: 0, left: 0 };
+}
+};
+$.fn.cycle.ver = function() { return ver; };
+
+$.fn.cycle.defaults = {
+activePagerClass: 'activeSlide', 
+ after: null, 
+ allowPagerClickBubble: false, 
+ animIn: null, 
+ animOut: null, 
+ aspect: false, 
+ autostop: 0, 
+ autostopCount: 0, 
+ backwards: false, 
+ before: null, 
+ center: null, 
+ cleartype: !$.support.opacity, 
+ cleartypeNoBg: false, 
+ containerResize: 1, 
+ continuous: 0, 
+ cssAfter: null, 
+ cssBefore: null, 
+ delay: 0, 
+ easeIn: null, 
+ easeOut: null, 
+ easing: null, 
+ end: null, 
+ fastOnEvent: 0, 
+ fit: 0, 
+ fx: 'fade', 
+ fxFn: null, 
+ height: 'auto', 
+ manualTrump: true, 
+ metaAttr: 'cycle', 
+ next: null, 
+ nowrap: 0, 
+ onPagerEvent: null, 
+ onPrevNextEvent: null, 
+ pager: null, 
+ pagerAnchorBuilder: null, 
+ pagerEvent: 'click.cycle', 
+ pause: 0, 
+ pauseOnPagerHover: 0, 
+ prev: null, 
+ prevNextEvent: 'click.cycle',
+ random: 0, 
+ randomizeEffects: 1, 
+ requeueOnImageNotLoaded: true, 
+ requeueTimeout: 250, 
+ rev: 0, 
+ shuffle: null, 
+ skipInitializationCallbacks: false, 
+ slideExpr: null, 
+ slideResize: 1, 
+ speed: 1000, 
+ speedIn: null, 
+ speedOut: null, 
+ startingSlide: undefined,
+ sync: 1, 
+ timeout: 4000, 
+ timeoutFn: null, 
+ updateActivePagerLink: null,
+ width: null 
+};
+})(jQuery);
+
+(function($) {
+"use strict";
+
+
+
+
+
+$.fn.cycle.transitions.none = function($cont, $slides, opts) {
+opts.fxFn = function(curr,next,opts,after){
+$(next).show();
+$(curr).hide();
+after();
+};
+};
+
+$.fn.cycle.transitions.fadeout = function($cont, $slides, opts) {
+$slides.not(':eq('+opts.currSlide+')').css({ display: 'block', 'opacity': 1 });
+opts.before.push(function(curr,next,opts,w,h,rev) {
+$(curr).css('zIndex',opts.slideCount + (rev !== true ? 1 : 0));
+$(next).css('zIndex',opts.slideCount + (rev !== true ? 0 : 1));
+});
+opts.animIn.opacity = 1;
+opts.animOut.opacity = 0;
+opts.cssBefore.opacity = 1;
+opts.cssBefore.display = 'block';
+opts.cssAfter.zIndex = 0;
+};
+
+$.fn.cycle.transitions.scrollUp = function($cont, $slides, opts) {
+$cont.css('overflow','hidden');
+opts.before.push($.fn.cycle.commonReset);
+var h = $cont.height();
+opts.cssBefore.top = h;
+opts.cssBefore.left = 0;
+opts.cssFirst.top = 0;
+opts.animIn.top = 0;
+opts.animOut.top = -h;
+};
+$.fn.cycle.transitions.scrollDown = function($cont, $slides, opts) {
+$cont.css('overflow','hidden');
+opts.before.push($.fn.cycle.commonReset);
+var h = $cont.height();
+opts.cssFirst.top = 0;
+opts.cssBefore.top = -h;
+opts.cssBefore.left = 0;
+opts.animIn.top = 0;
+opts.animOut.top = h;
+};
+$.fn.cycle.transitions.scrollLeft = function($cont, $slides, opts) {
+$cont.css('overflow','hidden');
+opts.before.push($.fn.cycle.commonReset);
+var w = $cont.width();
+opts.cssFirst.left = 0;
+opts.cssBefore.left = w;
+opts.cssBefore.top = 0;
+opts.animIn.left = 0;
+opts.animOut.left = 0-w;
+};
+$.fn.cycle.transitions.scrollRight = function($cont, $slides, opts) {
+$cont.css('overflow','hidden');
+opts.before.push($.fn.cycle.commonReset);
+var w = $cont.width();
+opts.cssFirst.left = 0;
+opts.cssBefore.left = -w;
+opts.cssBefore.top = 0;
+opts.animIn.left = 0;
+opts.animOut.left = w;
+};
+$.fn.cycle.transitions.scrollHorz = function($cont, $slides, opts) {
+$cont.css('overflow','hidden').width();
+opts.before.push(function(curr, next, opts, fwd) {
+if (opts.rev)
+fwd = !fwd;
+$.fn.cycle.commonReset(curr,next,opts);
+opts.cssBefore.left = fwd ? (next.cycleW-1) : (1-next.cycleW);
+opts.animOut.left = fwd ? -curr.cycleW : curr.cycleW;
+});
+opts.cssFirst.left = 0;
+opts.cssBefore.top = 0;
+opts.animIn.left = 0;
+opts.animOut.top = 0;
+};
+$.fn.cycle.transitions.scrollVert = function($cont, $slides, opts) {
+$cont.css('overflow','hidden');
+opts.before.push(function(curr, next, opts, fwd) {
+if (opts.rev)
+fwd = !fwd;
+$.fn.cycle.commonReset(curr,next,opts);
+opts.cssBefore.top = fwd ? (1-next.cycleH) : (next.cycleH-1);
+opts.animOut.top = fwd ? curr.cycleH : -curr.cycleH;
+});
+opts.cssFirst.top = 0;
+opts.cssBefore.left = 0;
+opts.animIn.top = 0;
+opts.animOut.left = 0;
+};
+
+$.fn.cycle.transitions.slideX = function($cont, $slides, opts) {
+opts.before.push(function(curr, next, opts) {
+$(opts.elements).not(curr).hide();
+$.fn.cycle.commonReset(curr,next,opts,false,true);
+opts.animIn.width = next.cycleW;
+});
+opts.cssBefore.left = 0;
+opts.cssBefore.top = 0;
+opts.cssBefore.width = 0;
+opts.animIn.width = 'show';
+opts.animOut.width = 0;
+};
+$.fn.cycle.transitions.slideY = function($cont, $slides, opts) {
+opts.before.push(function(curr, next, opts) {
+$(opts.elements).not(curr).hide();
+$.fn.cycle.commonReset(curr,next,opts,true,false);
+opts.animIn.height = next.cycleH;
+});
+opts.cssBefore.left = 0;
+opts.cssBefore.top = 0;
+opts.cssBefore.height = 0;
+opts.animIn.height = 'show';
+opts.animOut.height = 0;
+};
+
+$.fn.cycle.transitions.shuffle = function($cont, $slides, opts) {
+var i, w = $cont.css('overflow', 'visible').width();
+$slides.css({left: 0, top: 0});
+opts.before.push(function(curr,next,opts) {
+$.fn.cycle.commonReset(curr,next,opts,true,true,true);
+});
+
+	if (!opts.speedAdjusted) {
+opts.speed = opts.speed / 2; 
+ opts.speedAdjusted = true;
+}
+opts.random = 0;
+opts.shuffle = opts.shuffle || {left:-w, top:15};
+opts.els = [];
+for (i=0; i < $slides.length; i++)
+opts.els.push($slides[i]);
+for (i=0; i < opts.currSlide; i++)
+opts.els.push(opts.els.shift());
+
+	opts.fxFn = function(curr, next, opts, cb, fwd) {
+if (opts.rev)
+fwd = !fwd;
+var $el = fwd ? $(curr) : $(next);
+$(next).css(opts.cssBefore);
+var count = opts.slideCount;
+$el.animate(opts.shuffle, opts.speedIn, opts.easeIn, function() {
+var hops = $.fn.cycle.hopsFromLast(opts, fwd);
+for (var k=0; k < hops; k++) {
+if (fwd)
+opts.els.push(opts.els.shift());
+else
+opts.els.unshift(opts.els.pop());
+}
+if (fwd) {
+for (var i=0, len=opts.els.length; i < len; i++)
+$(opts.els[i]).css('z-index', len-i+count);
+}
+else {
+var z = $(curr).css('z-index');
+$el.css('z-index', parseInt(z,10)+1+count);
+}
+$el.animate({left:0, top:0}, opts.speedOut, opts.easeOut, function() {
+$(fwd ? this : curr).hide();
+if (cb) cb();
+});
+});
+};
+$.extend(opts.cssBefore, { display: 'block', opacity: 1, top: 0, left: 0 });
+};
+
+$.fn.cycle.transitions.turnUp = function($cont, $slides, opts) {
+opts.before.push(function(curr, next, opts) {
+$.fn.cycle.commonReset(curr,next,opts,true,false);
+opts.cssBefore.top = next.cycleH;
+opts.animIn.height = next.cycleH;
+opts.animOut.width = next.cycleW;
+});
+opts.cssFirst.top = 0;
+opts.cssBefore.left = 0;
+opts.cssBefore.height = 0;
+opts.animIn.top = 0;
+opts.animOut.height = 0;
+};
+$.fn.cycle.transitions.turnDown = function($cont, $slides, opts) {
+opts.before.push(function(curr, next, opts) {
+$.fn.cycle.commonReset(curr,next,opts,true,false);
+opts.animIn.height = next.cycleH;
+opts.animOut.top = curr.cycleH;
+});
+opts.cssFirst.top = 0;
+opts.cssBefore.left = 0;
+opts.cssBefore.top = 0;
+opts.cssBefore.height = 0;
+opts.animOut.height = 0;
+};
+$.fn.cycle.transitions.turnLeft = function($cont, $slides, opts) {
+opts.before.push(function(curr, next, opts) {
+$.fn.cycle.commonReset(curr,next,opts,false,true);
+opts.cssBefore.left = next.cycleW;
+opts.animIn.width = next.cycleW;
+});
+opts.cssBefore.top = 0;
+opts.cssBefore.width = 0;
+opts.animIn.left = 0;
+opts.animOut.width = 0;
+};
+$.fn.cycle.transitions.turnRight = function($cont, $slides, opts) {
+opts.before.push(function(curr, next, opts) {
+$.fn.cycle.commonReset(curr,next,opts,false,true);
+opts.animIn.width = next.cycleW;
+opts.animOut.left = curr.cycleW;
+});
+$.extend(opts.cssBefore, { top: 0, left: 0, width: 0 });
+opts.animIn.left = 0;
+opts.animOut.width = 0;
+};
+
+$.fn.cycle.transitions.zoom = function($cont, $slides, opts) {
+opts.before.push(function(curr, next, opts) {
+$.fn.cycle.commonReset(curr,next,opts,false,false,true);
+opts.cssBefore.top = next.cycleH/2;
+opts.cssBefore.left = next.cycleW/2;
+$.extend(opts.animIn, { top: 0, left: 0, width: next.cycleW, height: next.cycleH });
+$.extend(opts.animOut, { width: 0, height: 0, top: curr.cycleH/2, left: curr.cycleW/2 });
+});
+opts.cssFirst.top = 0;
+opts.cssFirst.left = 0;
+opts.cssBefore.width = 0;
+opts.cssBefore.height = 0;
+};
+
+$.fn.cycle.transitions.fadeZoom = function($cont, $slides, opts) {
+opts.before.push(function(curr, next, opts) {
+$.fn.cycle.commonReset(curr,next,opts,false,false);
+opts.cssBefore.left = next.cycleW/2;
+opts.cssBefore.top = next.cycleH/2;
+$.extend(opts.animIn, { top: 0, left: 0, width: next.cycleW, height: next.cycleH });
+});
+opts.cssBefore.width = 0;
+opts.cssBefore.height = 0;
+opts.animOut.opacity = 0;
+};
+
+$.fn.cycle.transitions.blindX = function($cont, $slides, opts) {
+var w = $cont.css('overflow','hidden').width();
+opts.before.push(function(curr, next, opts) {
+$.fn.cycle.commonReset(curr,next,opts);
+opts.animIn.width = next.cycleW;
+opts.animOut.left = curr.cycleW;
+});
+opts.cssBefore.left = w;
+opts.cssBefore.top = 0;
+opts.animIn.left = 0;
+opts.animOut.left = w;
+};
+
+$.fn.cycle.transitions.blindY = function($cont, $slides, opts) {
+var h = $cont.css('overflow','hidden').height();
+opts.before.push(function(curr, next, opts) {
+$.fn.cycle.commonReset(curr,next,opts);
+opts.animIn.height = next.cycleH;
+opts.animOut.top = curr.cycleH;
+});
+opts.cssBefore.top = h;
+opts.cssBefore.left = 0;
+opts.animIn.top = 0;
+opts.animOut.top = h;
+};
+
+$.fn.cycle.transitions.blindZ = function($cont, $slides, opts) {
+var h = $cont.css('overflow','hidden').height();
+var w = $cont.width();
+opts.before.push(function(curr, next, opts) {
+$.fn.cycle.commonReset(curr,next,opts);
+opts.animIn.height = next.cycleH;
+opts.animOut.top = curr.cycleH;
+});
+opts.cssBefore.top = h;
+opts.cssBefore.left = w;
+opts.animIn.top = 0;
+opts.animIn.left = 0;
+opts.animOut.top = h;
+opts.animOut.left = w;
+};
+
+$.fn.cycle.transitions.growX = function($cont, $slides, opts) {
+opts.before.push(function(curr, next, opts) {
+$.fn.cycle.commonReset(curr,next,opts,false,true);
+opts.cssBefore.left = this.cycleW/2;
+opts.animIn.left = 0;
+opts.animIn.width = this.cycleW;
+opts.animOut.left = 0;
+});
+opts.cssBefore.top = 0;
+opts.cssBefore.width = 0;
+};
+
+$.fn.cycle.transitions.growY = function($cont, $slides, opts) {
+opts.before.push(function(curr, next, opts) {
+$.fn.cycle.commonReset(curr,next,opts,true,false);
+opts.cssBefore.top = this.cycleH/2;
+opts.animIn.top = 0;
+opts.animIn.height = this.cycleH;
+opts.animOut.top = 0;
+});
+opts.cssBefore.height = 0;
+opts.cssBefore.left = 0;
+};
+
+$.fn.cycle.transitions.curtainX = function($cont, $slides, opts) {
+opts.before.push(function(curr, next, opts) {
+$.fn.cycle.commonReset(curr,next,opts,false,true,true);
+opts.cssBefore.left = next.cycleW/2;
+opts.animIn.left = 0;
+opts.animIn.width = this.cycleW;
+opts.animOut.left = curr.cycleW/2;
+opts.animOut.width = 0;
+});
+opts.cssBefore.top = 0;
+opts.cssBefore.width = 0;
+};
+
+$.fn.cycle.transitions.curtainY = function($cont, $slides, opts) {
+opts.before.push(function(curr, next, opts) {
+$.fn.cycle.commonReset(curr,next,opts,true,false,true);
+opts.cssBefore.top = next.cycleH/2;
+opts.animIn.top = 0;
+opts.animIn.height = next.cycleH;
+opts.animOut.top = curr.cycleH/2;
+opts.animOut.height = 0;
+});
+opts.cssBefore.height = 0;
+opts.cssBefore.left = 0;
+};
+
+$.fn.cycle.transitions.cover = function($cont, $slides, opts) {
+var d = opts.direction || 'left';
+var w = $cont.css('overflow','hidden').width();
+var h = $cont.height();
+opts.before.push(function(curr, next, opts) {
+$.fn.cycle.commonReset(curr,next,opts);
+if (d == 'right')
+opts.cssBefore.left = -w;
+else if (d == 'up')
+opts.cssBefore.top = h;
+else if (d == 'down')
+opts.cssBefore.top = -h;
+else
+opts.cssBefore.left = w;
+});
+opts.animIn.left = 0;
+opts.animIn.top = 0;
+opts.cssBefore.top = 0;
+opts.cssBefore.left = 0;
+};
+
+$.fn.cycle.transitions.uncover = function($cont, $slides, opts) {
+var d = opts.direction || 'left';
+var w = $cont.css('overflow','hidden').width();
+var h = $cont.height();
+opts.before.push(function(curr, next, opts) {
+$.fn.cycle.commonReset(curr,next,opts,true,true,true);
+if (d == 'right')
+opts.animOut.left = w;
+else if (d == 'up')
+opts.animOut.top = -h;
+else if (d == 'down')
+opts.animOut.top = h;
+else
+opts.animOut.left = -w;
+});
+opts.animIn.left = 0;
+opts.animIn.top = 0;
+opts.cssBefore.top = 0;
+opts.cssBefore.left = 0;
+};
+
+$.fn.cycle.transitions.toss = function($cont, $slides, opts) {
+var w = $cont.css('overflow','visible').width();
+var h = $cont.height();
+opts.before.push(function(curr, next, opts) {
+$.fn.cycle.commonReset(curr,next,opts,true,true,true);
+
+ if (!opts.animOut.left && !opts.animOut.top)
+$.extend(opts.animOut, { left: w*2, top: -h/2, opacity: 0 });
+else
+opts.animOut.opacity = 0;
+});
+opts.cssBefore.left = 0;
+opts.cssBefore.top = 0;
+opts.animIn.left = 0;
+};
+
+$.fn.cycle.transitions.wipe = function($cont, $slides, opts) {
+var w = $cont.css('overflow','hidden').width();
+var h = $cont.height();
+opts.cssBefore = opts.cssBefore || {};
+var clip;
+if (opts.clip) {
+if (/l2r/.test(opts.clip))
+clip = 'rect(0px 0px '+h+'px 0px)';
+else if (/r2l/.test(opts.clip))
+clip = 'rect(0px '+w+'px '+h+'px '+w+'px)';
+else if (/t2b/.test(opts.clip))
+clip = 'rect(0px '+w+'px 0px 0px)';
+else if (/b2t/.test(opts.clip))
+clip = 'rect('+h+'px '+w+'px '+h+'px 0px)';
+else if (/zoom/.test(opts.clip)) {
+var top = parseInt(h/2,10);
+var left = parseInt(w/2,10);
+clip = 'rect('+top+'px '+left+'px '+top+'px '+left+'px)';
+}
+}
+opts.cssBefore.clip = opts.cssBefore.clip || clip || 'rect(0px 0px 0px 0px)';
+var d = opts.cssBefore.clip.match(/(\d+)/g);
+var t = parseInt(d[0],10), r = parseInt(d[1],10), b = parseInt(d[2],10), l = parseInt(d[3],10);
+opts.before.push(function(curr, next, opts) {
+if (curr == next) return;
+var $curr = $(curr), $next = $(next);
+$.fn.cycle.commonReset(curr,next,opts,true,true,false);
+opts.cssAfter.display = 'block';
+var step = 1, count = parseInt((opts.speedIn / 13),10) - 1;
+(function f() {
+var tt = t ? t - parseInt(step * (t/count),10) : 0;
+var ll = l ? l - parseInt(step * (l/count),10) : 0;
+var bb = b < h ? b + parseInt(step * ((h-b)/count || 1),10) : h;
+var rr = r < w ? r + parseInt(step * ((w-r)/count || 1),10) : w;
+$next.css({ clip: 'rect('+tt+'px '+rr+'px '+bb+'px '+ll+'px)' });
+(step++ <= count) ? setTimeout(f, 13) : $curr.css('display', 'none');
+})();
+});
+$.extend(opts.cssBefore, { display: 'block', opacity: 1, top: 0, left: 0 });
+opts.animIn = { left: 0 };
+opts.animOut = { left: 0 };
+};
+})(jQuery);
+
+
+(function($) {
+$.fn.touchwipe = function(settings) {
+var config = {
+min_move_x: 20,
+min_move_y: 20,
+wipeLeft: function(e) { },
+wipeRight: function(e) { },
+wipeUp: function(e) { },
+wipeDown: function(e) { },
+preventDefaultEvents: true
+};
+if (settings) $.extend(config, settings);
+this.each(function() {
+var startX;
+var startY;
+var isMoving = false;
+function cancelTouch() {
+this.removeEventListener('touchmove', onTouchMove);
+startX = null;
+isMoving = false;
+}
+function onTouchMove(e) {
+if(config.preventDefaultEvents) {
+e.preventDefault();
+}
+if(isMoving) {
+var x = e.touches[0].pageX;
+var y = e.touches[0].pageY;
+var dx = startX - x;
+var dy = startY - y;
+if(Math.abs(dx) >= config.min_move_x) {
+cancelTouch();
+if(dx > 0) {
+config.wipeLeft(e);
+}
+else {
+config.wipeRight(e);
+}
+}
+else if(Math.abs(dy) >= config.min_move_y) {
+cancelTouch();
+if(dy > 0) {
+config.wipeDown(e);
+}
+else {
+config.wipeUp(e);
+}
+}
+}
+}
+function onTouchStart(e)
+{
+if (e.touches.length == 1) {
+startX = e.touches[0].pageX;
+startY = e.touches[0].pageY;
+isMoving = true;
+this.addEventListener('touchmove', onTouchMove, false);
+}
+}
+if ('ontouchstart' in document.documentElement) {
+this.addEventListener('touchstart', onTouchStart, false);
+}
+});
+return this;
+};
+})(jQuery);
+
+
+
+
+(function ($) {
+
+ 
+ $.caretTo = function (el, index) {
+if (el.createTextRange) {
+var range = el.createTextRange();
+range.move("character", index);
+range.select();
+} else if (el.selectionStart != null) {
+el.focus();
+el.setSelectionRange(index, index);
+}
+};
+
+ 
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ $.fn.caretTo = function (index, offset) {
+return this.queue(function (next) {
+if (isNaN(index)) {
+var i = $(this).val().indexOf(index);
+if (offset === true) {
+i += index.length;
+} else if (offset) {
+i += offset;
+}
+$.caretTo(this, i);
+} else {
+$.caretTo(this, index);
+}
+next();
+});
+};
+
+ $.fn.caretToStart = function () {
+return this.caretTo(0);
+};
+
+ $.fn.caretToEnd = function () {
+return this.queue(function (next) {
+$.caretTo(this, $(this).val().length);
+next();
+});
+};
+}(jQuery));
+
+
+(function(b){b.support.touch="ontouchend" in document;if(!b.support.touch){return;}var c=b.ui.mouse.prototype,e=c._mouseInit,a;function d(g,h){if(g.originalEvent.touches.length>1){return;}g.preventDefault();var i=g.originalEvent.changedTouches[0],f=document.createEvent("MouseEvents");f.initMouseEvent(h,true,true,window,1,i.screenX,i.screenY,i.clientX,i.clientY,false,false,false,false,0,null);g.target.dispatchEvent(f);}c._touchStart=function(g){var f=this;if(a||!f._mouseCapture(g.originalEvent.changedTouches[0])){return;}a=true;f._touchMoved=false;d(g,"mouseover");d(g,"mousemove");d(g,"mousedown");};c._touchMove=function(f){if(!a){return;}this._touchMoved=true;d(f,"mousemove");};c._touchEnd=function(f){if(!a){return;}d(f,"mouseup");d(f,"mouseout");if(!this._touchMoved){d(f,"click");}a=false;};c._mouseInit=function(){var f=this;f.element.bind("touchstart",b.proxy(f,"_touchStart")).bind("touchmove",b.proxy(f,"_touchMove")).bind("touchend",b.proxy(f,"_touchEnd"));e.call(f);};})(jQuery);
+
+
+(function (factory) {
+if (typeof define === 'function' && define.amd) {
+
+ define(['jquery'], factory);
+} else {
+
+ factory(jQuery);
+}
+}(function ($) {
+$.timeago = function(timestamp) {
+if (timestamp instanceof Date) {
+return inWords(timestamp);
+} else if (typeof timestamp === "string") {
+return inWords($.timeago.parse(timestamp));
+} else if (typeof timestamp === "number") {
+return inWords(new Date(timestamp));
+} else {
+return inWords($.timeago.datetime(timestamp));
+}
+};
+var $t = $.timeago;
+$.extend($.timeago, {
+settings: {
+refreshMillis: 60000,
+allowFuture: false,
+localeTitle: false,
+format: function(date) { return date.toLocaleString() },
+formatTitle: function(date) { return this.format(date) },
+cutoff: 0,
+strings: {
+prefixAgo: null,
+prefixFromNow: null,
+suffixAgo: "ago",
+suffixFromNow: "from now",
+seconds: "less than a minute",
+minute: "about a minute",
+minutes: "%d minutes",
+hour: "about an hour",
+hours: "about %d hours",
+day: "a day",
+days: "%d days",
+month: "about a month",
+months: "%d months",
+year: "about a year",
+years: "%d years",
+wordSeparator: " ",
+numbers: []
+}
+},
+inWords: function(distanceMillis) {
+var $l = this.settings.strings;
+var prefix = $l.prefixAgo;
+var suffix = $l.suffixAgo;
+if (this.settings.allowFuture) {
+if (distanceMillis < 0) {
+prefix = $l.prefixFromNow;
+suffix = $l.suffixFromNow;
+}
+}
+var seconds = Math.abs(distanceMillis) / 1000;
+var minutes = seconds / 60;
+var hours = minutes / 60;
+var days = hours / 24;
+var years = days / 365;
+function substitute(stringOrFunction, number) {
+var string = $.isFunction(stringOrFunction) ? stringOrFunction(number, distanceMillis) : stringOrFunction;
+var value = ($l.numbers && $l.numbers[number]) || number;
+return string.replace(/%d/i, value);
+}
+var words = seconds < 45 && substitute($l.seconds, Math.round(seconds)) ||
+seconds < 90 && substitute($l.minute, 1) ||
+minutes < 45 && substitute($l.minutes, Math.round(minutes)) ||
+minutes < 90 && substitute($l.hour, 1) ||
+hours < 24 && substitute($l.hours, Math.round(hours)) ||
+hours < 42 && substitute($l.day, 1) ||
+days < 30 && substitute($l.days, Math.round(days)) ||
+days < 45 && substitute($l.month, 1) ||
+days < 365 && substitute($l.months, Math.round(days / 30)) ||
+years < 1.5 && substitute($l.year, 1) ||
+substitute($l.years, Math.round(years));
+var separator = $l.wordSeparator || "";
+if ($l.wordSeparator === undefined) { separator = " "; }
+return $.trim([prefix, words, suffix].join(separator));
+},
+parse: function(iso8601) {
+var s = $.trim(iso8601);
+s = s.replace(/\.\d+/,""); 
+ s = s.replace(/-/,"/").replace(/-/,"/");
+s = s.replace(/T/," ").replace(/Z/," UTC");
+s = s.replace(/([\+\-]\d\d)\:?(\d\d)/," $1$2"); 
+ return new Date(s);
+},
+datetime: function(elem) {
+var iso8601 = $t.isTime(elem) ? $(elem).attr("datetime") : $(elem).attr("data-isotime");
+return $t.parse(iso8601);
+},
+isTime: function(elem) {
+
+ return $(elem).get(0).tagName.toLowerCase() === "time"; 
+ }
+});
+
+ 
+ 
+ var functions = {
+init: function(){
+var refresh_el = $.proxy(refresh, this);
+refresh_el();
+var $s = $t.settings;
+if ($s.refreshMillis > 0) {
+setInterval(refresh_el, $s.refreshMillis);
+}
+},
+update: function(time){
+$(this).data('timeago', { datetime: $t.parse(time) });
+refresh.apply(this);
+}
+};
+$.fn.timeago = function(action, options) {
+var fn = action ? functions[action] : functions.init;
+if(!fn){
+throw new Error("Unknown function name '"+ action +"' for timeago");
+}
+
+ this.each(function(){
+fn.call(this, options);
+});
+return this;
+};
+function refresh() {
+var data = prepareData(this);
+var $s = $t.settings;
+if (!isNaN(data.datetime)) {
+if ( $s.cutoff == 0 || distance(data.datetime) < $s.cutoff) {
+$(this).text(inWords(data.datetime));
+} else {
+$(this).text($s.format(data.datetime));
+}
+}
+return this;
+}
+function prepareData(element) {
+element = $(element);
+if (!element.data("timeago")) {
+element.data("timeago", { datetime: $t.datetime(element) });
+var text = $.trim(element.text());
+if ($t.settings.localeTitle) {
+element.attr("title", $t.settings.formatTitle(element.data('timeago').datetime));
+} else if (text.length > 0 && !($t.isTime(element) && element.attr("title"))) {
+element.attr("title", text);
+}
+}
+return element.data("timeago");
+}
+function inWords(date) {
+return $t.inWords(distance(date));
+}
+function distance(date) {
+return (new Date().getTime() - date.getTime());
+}
+
+ document.createElement("abbr");
+document.createElement("time");
+}));
+
+
+
+;(function($, undefined){
+
+var ls = (typeof window.localStorage === 'undefined') ? undefined : window.localStorage;
+var supported;
+if (typeof ls == 'undefined' || typeof window.JSON == 'undefined'){
+supported = false;
+} else {
+supported = true;
+}
+
+$.totalStorage = function(key, value, options){
+return $.totalStorage.impl.init(key, value);
+};
+$.totalStorage.setItem = function(key, value){
+return $.totalStorage.impl.setItem(key, value);
+};
+$.totalStorage.getItem = function(key){
+return $.totalStorage.impl.getItem(key);
+};
+$.totalStorage.getAll = function(){
+return $.totalStorage.impl.getAll();
+};
+$.totalStorage.deleteItem = function(key){
+return $.totalStorage.impl.deleteItem(key);
+};
+
+$.totalStorage.impl = {
+init: function(key, value){
+if (typeof value != 'undefined') {
+return this.setItem(key, value);
+} else {
+return this.getItem(key);
+}
+},
+setItem: function(key, value){
+if (!supported){
+try {
+$.cookie(key, value);
+return value;
+} catch(e){
+console.log('Local Storage not supported by this browser. Install the cookie plugin on your site to take advantage of the same functionality. You can get it at https://github.com/carhartl/jquery-cookie');
+}
+}
+var saver = JSON.stringify(value);
+ls.setItem(key, saver);
+return this.parseResult(saver);
+},
+getItem: function(key){
+if (!supported){
+try {
+return this.parseResult($.cookie(key));
+} catch(e){
+return null;
+}
+}
+var item = ls.getItem(key);
+return this.parseResult(item);
+},
+deleteItem: function(key){
+if (!supported){
+try {
+$.cookie(key, null);
+return true;
+} catch(e){
+return false;
+}
+}
+ls.removeItem(key);
+return true;
+},
+getAll: function(){
+var items = [];
+if (!supported){
+try {
+var pairs = document.cookie.split(";");
+for (var i = 0; i<pairs.length; i++){
+var pair = pairs[i].split('=');
+var key = pair[0];
+items.push({key:key, value:this.parseResult($.cookie(key))});
+}
+} catch(e){
+return null;
+}
+} else {
+for (var j in ls){
+if (j.length){
+items.push({key:j, value:this.parseResult(ls.getItem(j))});
+}
+}
+}
+return items;
+},
+parseResult: function(res){
+var ret;
+try {
+ret = JSON.parse(res);
+if (typeof ret == 'undefined'){
+ret = res;
+}
+if (ret == 'true'){
+ret = true;
+}
+if (ret == 'false'){
+ret = false;
+}
+if (parseFloat(ret) == ret && typeof ret != "object"){
+ret = parseFloat(ret);
+}
+} catch(e){
+ret = res;
+}
+return ret;
+}
+};
+})(jQuery);
+
+
+(function() {
+var $, win;
+$ = this.jQuery || window.jQuery;
+win = $(window);
+$.fn.stick_in_parent = function(opts) {
+var doc, elm, enable_bottoming, inner_scrolling, manual_spacer, offset_top, outer_width, parent_selector, recalc_every, sticky_class, _fn, _i, _len;
+if (opts == null) {
+opts = {};
+}
+sticky_class = opts.sticky_class, inner_scrolling = opts.inner_scrolling, recalc_every = opts.recalc_every, parent_selector = opts.parent, offset_top = opts.offset_top, manual_spacer = opts.spacer, enable_bottoming = opts.bottoming;
+if (offset_top == null) {
+offset_top = 0;
+}
+if (parent_selector == null) {
+parent_selector = void 0;
+}
+if (inner_scrolling == null) {
+inner_scrolling = true;
+}
+if (sticky_class == null) {
+sticky_class = "is_stuck";
+}
+doc = $(document);
+if (enable_bottoming == null) {
+enable_bottoming = true;
+}
+outer_width = function(el) {
+var computed, w, _el;
+if (window.getComputedStyle) {
+_el = el[0];
+computed = window.getComputedStyle(el[0]);
+w = parseFloat(computed.getPropertyValue("width")) + parseFloat(computed.getPropertyValue("margin-left")) + parseFloat(computed.getPropertyValue("margin-right"));
+if (computed.getPropertyValue("box-sizing") !== "border-box") {
+w += parseFloat(computed.getPropertyValue("border-left-width")) + parseFloat(computed.getPropertyValue("border-right-width")) + parseFloat(computed.getPropertyValue("padding-left")) + parseFloat(computed.getPropertyValue("padding-right"));
+}
+return w;
+} else {
+return el.outerWidth(true);
+}
+};
+_fn = function(elm, padding_bottom, parent_top, parent_height, top, height, el_float, detached) {
+var bottomed, detach, fixed, last_pos, last_scroll_height, offset, parent, recalc, recalc_and_tick, recalc_counter, spacer, tick;
+if (elm.data("sticky_kit")) {
+return;
+}
+elm.data("sticky_kit", true);
+last_scroll_height = doc.height();
+parent = elm.parent();
+if (parent_selector != null) {
+parent = parent.closest(parent_selector);
+}
+if (!parent.length) {
+throw "failed to find stick parent";
+}
+fixed = false;
+bottomed = false;
+spacer = manual_spacer != null ? manual_spacer && elm.closest(manual_spacer) : $("<div />");
+if (spacer) {
+spacer.css('position', elm.css('position'));
+}
+recalc = function() {
+var border_top, padding_top, restore;
+if (detached) {
+return;
+}
+last_scroll_height = doc.height();
+border_top = parseInt(parent.css("border-top-width"), 10);
+padding_top = parseInt(parent.css("padding-top"), 10);
+padding_bottom = parseInt(parent.css("padding-bottom"), 10);
+parent_top = parent.offset().top + border_top + padding_top;
+parent_height = parent.height();
+if (fixed) {
+fixed = false;
+bottomed = false;
+if (manual_spacer == null) {
+elm.insertAfter(spacer);
+spacer.detach();
+}
+elm.css({
+position: "",
+top: "",
+width: "",
+bottom: ""
+}).removeClass(sticky_class);
+restore = true;
+}
+top = elm.offset().top - (parseInt(elm.css("margin-top"), 10) || 0) - offset_top;
+height = elm.outerHeight(true);
+el_float = elm.css("float");
+if (spacer) {
+spacer.css({
+width: outer_width(elm),
+height: height,
+display: elm.css("display"),
+"vertical-align": elm.css("vertical-align"),
+"float": el_float
+});
+}
+if (restore) {
+return tick();
+}
+};
+recalc();
+if (height === parent_height) {
+return;
+}
+last_pos = void 0;
+offset = offset_top;
+recalc_counter = recalc_every;
+tick = function() {
+var css, delta, recalced, scroll, will_bottom, win_height;
+if (detached) {
+return;
+}
+recalced = false;
+if (recalc_counter != null) {
+recalc_counter -= 1;
+if (recalc_counter <= 0) {
+recalc_counter = recalc_every;
+recalc();
+recalced = true;
+}
+}
+if (!recalced && doc.height() !== last_scroll_height) {
+recalc();
+recalced = true;
+}
+scroll = win.scrollTop();
+if (last_pos != null) {
+delta = scroll - last_pos;
+}
+last_pos = scroll;
+if (fixed) {
+if (enable_bottoming) {
+will_bottom = scroll + height + offset > parent_height + parent_top;
+if (bottomed && !will_bottom) {
+bottomed = false;
+elm.css({
+position: "fixed",
+bottom: "",
+top: offset
+}).trigger("sticky_kit:unbottom");
+}
+}
+if (scroll < top) {
+fixed = false;
+offset = offset_top;
+if (manual_spacer == null) {
+if (el_float === "left" || el_float === "right") {
+elm.insertAfter(spacer);
+}
+spacer.detach();
+}
+css = {
+position: "",
+width: "",
+top: ""
+};
+elm.css(css).removeClass(sticky_class).trigger("sticky_kit:unstick");
+}
+if (inner_scrolling) {
+win_height = win.height();
+if (height + offset_top > win_height) {
+if (!bottomed) {
+offset -= delta;
+offset = Math.max(win_height - height, offset);
+offset = Math.min(offset_top, offset);
+if (fixed) {
+elm.css({
+top: offset + "px"
+});
+}
+}
+}
+}
+} else {
+if (scroll > top) {
+fixed = true;
+css = {
+position: "fixed",
+top: offset
+};
+css.width = elm.css("box-sizing") === "border-box" ? elm.outerWidth() + "px" : elm.width() + "px";
+elm.css(css).addClass(sticky_class);
+if (manual_spacer == null) {
+elm.after(spacer);
+if (el_float === "left" || el_float === "right") {
+spacer.append(elm);
+}
+}
+elm.trigger("sticky_kit:stick");
+}
+}
+if (fixed && enable_bottoming) {
+if (will_bottom == null) {
+will_bottom = scroll + height + offset > parent_height + parent_top;
+}
+if (!bottomed && will_bottom) {
+bottomed = true;
+if (parent.css("position") === "static") {
+parent.css({
+position: "relative"
+});
+}
+return elm.css({
+position: "absolute",
+bottom: padding_bottom,
+top: "auto"
+}).trigger("sticky_kit:bottom");
+}
+}
+};
+recalc_and_tick = function() {
+recalc();
+return tick();
+};
+detach = function() {
+detached = true;
+win.off("touchmove", tick);
+win.off("scroll", tick);
+win.off("resize", recalc_and_tick);
+$(document.body).off("sticky_kit:recalc", recalc_and_tick);
+elm.off("sticky_kit:detach", detach);
+elm.removeData("sticky_kit");
+elm.css({
+position: "",
+bottom: "",
+top: "",
+width: ""
+});
+parent.position("position", "");
+if (fixed) {
+if (manual_spacer == null) {
+if (el_float === "left" || el_float === "right") {
+elm.insertAfter(spacer);
+}
+spacer.remove();
+}
+return elm.removeClass(sticky_class);
+}
+};
+win.on("touchmove", tick);
+win.on("scroll", tick);
+win.on("resize", recalc_and_tick);
+$(document.body).on("sticky_kit:recalc", recalc_and_tick);
+elm.on("sticky_kit:detach", detach);
+return setTimeout(tick, 0);
+};
+for (_i = 0, _len = this.length; _i < _len; _i++) {
+elm = this[_i];
+_fn($(elm));
+}
+return this;
+};
+}).call(this);
+(function($){
+
+var $w = $(window);
+$.fn.visible = function(partial,hidden,direction){
+if (this.length < 1)
+return;
+var $t = this.length > 1 ? this.eq(0) : this,
+t = $t.get(0),
+vpWidth = $w.width(),
+vpHeight = $w.height(),
+direction = (direction) ? direction : 'both',
+clientSize = hidden === true ? t.offsetWidth * t.offsetHeight : true;
+if (typeof t.getBoundingClientRect === 'function'){
+
+ var rec = t.getBoundingClientRect(),
+tViz = rec.top >= 0 && rec.top < vpHeight,
+bViz = rec.bottom > 0 && rec.bottom <= vpHeight,
+lViz = rec.left >= 0 && rec.left < vpWidth,
+rViz = rec.right > 0 && rec.right <= vpWidth,
+vVisible = partial ? tViz || bViz : tViz && bViz,
+hVisible = partial ? lViz || rViz : lViz && rViz;
+if(direction === 'both')
+return clientSize && vVisible && hVisible;
+else if(direction === 'vertical')
+return clientSize && vVisible;
+else if(direction === 'horizontal')
+return clientSize && hVisible;
+} else {
+var viewTop = $w.scrollTop(),
+viewBottom = viewTop + vpHeight,
+viewLeft = $w.scrollLeft(),
+viewRight = viewLeft + vpWidth,
+offset = $t.offset(),
+_top = offset.top,
+_bottom = _top + $t.height(),
+_left = offset.left,
+_right = _left + $t.width(),
+compareTop = partial === true ? _bottom : _top,
+compareBottom = partial === true ? _top : _bottom,
+compareLeft = partial === true ? _right : _left,
+compareRight = partial === true ? _left : _right;
+if(direction === 'both')
+return !!clientSize && ((compareBottom <= viewBottom) && (compareTop >= viewTop)) && ((compareRight <= viewRight) && (compareLeft >= viewLeft));
+else if(direction === 'vertical')
+return !!clientSize && ((compareBottom <= viewBottom) && (compareTop >= viewTop));
+else if(direction === 'horizontal')
+return !!clientSize && ((compareRight <= viewRight) && (compareLeft >= viewLeft));
+}
+};
+})(jQuery);
+</script>
+
+</body>
+</html>

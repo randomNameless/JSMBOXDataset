@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TextAD.html</title>
+</head>
+<body>
+
+<script>
+var TextAD = (function() {
+	if (!String.prototype.format) {
+		String.prototype.format = function() {
+			var args = arguments;
+			return this.replace(/{(\d+)}/g, function(match, number) { 
+				return typeof args[number] != 'undefined'
+				? args[number]
+				: match;
+			});
+		};
+	}
+
+	var setup = {
+		'TextAD001':{'id':'ButtonTextA111','exterior':'columns', 'render': 'insert'},
+		'TextAD002':{'id':'ButtonTextA142','exterior':'simpletext', 'render': 'insert'},
+		//'TextAD003':{'id':'ButtonTextA136','exterior':'image', 'render': 'insert'},
+		'TextAD004':{'id':'ButtonTextA256','exterior':'image', 'render': 'insert'},
+		'TextAD005':{'id':'ButtonTextA112','exterior':'simplecolumn', 'render': 'insert'},
+		'TextAD006':{'id':'ButtonTextA68','exterior':'simpletext', 'render': 'replace'},
+		'TextAD007':{'id':'ButtonTextA69','exterior':'simpletext', 'render': 'replace'},
+		'TextAD008':{'id':'ButtonTextA70','exterior':'simpletext', 'render': 'replace'},
+		'TextAD009':{'id':'ButtonTextA300','exterior':'simpletext', 'render': 'replace'},
+		'TextAD010':{'id':'ButtonTextA301','exterior':'simpletext', 'render': 'replace'},
+		'TextAD011':{'id':'ButtonTextA302','exterior':'simpletext', 'render': 'replace'},
+		'TextAD012':{'id':'ButtonTextA303','exterior':'simpletext', 'render': 'replace'},
+		'TextAD013':{'id':'ButtonTextA304','exterior':'simpletext', 'render': 'replace'},
+		'TextAD014':{'id':'ButtonTextA305','exterior':'simpletext', 'render': 'replace'},
+		//'TextAD015':{'id':'ButtonTextA113','exterior':'simplecolumn', 'render': 'insert'},
+		'TextAD016':{'id':'ButtonTextA121','exterior':'image', 'render': 'insert'},
+		'TextAD017':{'id':'ButtonTextA122','exterior':'image', 'render': 'insert'},
+	}
+
+	var textAD = function() {
+		var url = '/ads/getTextAD.aspx?Type={0}&adstype=json';
+		var ME = this;
+
+		this.config = {}
+		this.Template = {
+			'simpletext':'<a href=\'{1}\' target=\'{2}\'><span class=\'{0}\'>{3}</span></a>',
+			'image':'<table width=\'100%\' border=\'0\' cellspacing=\'0\' cellpadding=\'0\'><tr><td align=\'center\'><a href=\'{0}\' target=\'{1}\'><img src=\'{2}\' border=\'0\' ></a></td></tr></table>',
+			'columns':'<td align=\'left\' width=\'18\'></td><td align=\'left\'>{0}</td><td align=\'left\' width=\'17\'></td>',
+			'simplecolumn':'<td height=\'20\'>{0}</td>',
+			'table':'<table border=\'0\' cellpadding=\'0\' cellspacing=\'0\' width=\'100%\'><tr><td height="20"><span class=\'{0}\'><a href=\'{1}\' target=\'{2}\'>{3}</a></span></td></tr></table>'
+		}
+
+		this.readyToRender = [];
+
+		this.alreadyRequest = {};
+
+		var reloadADIntervalSec = 5;
+
+		this.Start = function(customConfig) {
+			var config = customConfig || ME.config;
+			ME.alreadyRequest = $.extend({},ME.alreadyRequest,config);
+			$.each(config, function (elmID, data) {
+				$.getJSON(url.format(data.id), function(json) {
+					var html = [];
+					$.each(json, function(j, item) {
+						if (item.v1 != '') {
+							if (item.v2 != '') {
+								html.push(ME.Template.image.format(item.v3, item.v5, item.v2));
+							}
+							else {
+								switch (data.exterior) {
+									case 'simpletext':
+										html.push(ME.Template.simpletext.format(data.id, item.v3, item.v5, item.v4));
+										break;
+									case 'image':
+										html.push(ME.Template.image.format(item.v3, item.v5, item.v2));
+										break;
+									case 'columns':
+										html.push(ME.Template.columns.format(ME.Template.simpletext.format(data.id, item.v3, item.v5, item.v4)));
+										break;
+									case 'simplecolumn':
+										html.push(ME.Template.simplecolumn.format(ME.Template.simpletext.format(data.id, item.v3, item.v5, item.v4)));
+										break;
+									case 'complexTable':
+										html.push(ME.Template.table.format(data.id, item.v3, item.v5, item.v4));
+								}
+							}
+						}
+					})
+					if (html.length > 0) {
+						var data_2 = null;
+						if (data.exterior == 'columns' || data.exterior == 'simplecolumn') {
+							data_2 = {
+								target: elmID, html: ME.Template.columns.format(html.join('')), render: data.render, styles: data.styles
+							}
+						}
+						else {
+							data_2 = {
+								target: elmID, html: html.join(''), render: data.render, styles: data.styles
+							}
+						}
+						if($('[id='+elmID+']').length) {
+							ME.handleCB(data_2);
+						} else {
+							ME.readyToRender.push(data_2);
+						}
+					}
+				});
+			});
+		}
+		this.handleCB = function(data) {
+			const $html = $(data.html);
+			if(data.styles) {
+				for(var i = 0; i < data.styles.length; i++) {
+					var element = data.styles[i];
+					$html.find(element.selector).css(element.style)
+				}
+			}
+			var $targetElement = $('[id='+data.target+']');
+			switch (data.render) {
+				case 'insert':
+					$targetElement.append($html);
+					break;
+				case 'replace':
+					$targetElement.replaceWith($html);
+					break;
+				default:
+					$targetElement.append($html);
+					break;
+			}
+		}
+		var JustADKey =  '';
+		this.reloadAD = function(config){
+			var cookieJustADKey = readCookie('JustADKey') + '';
+			if (cookieJustADKey != JustADKey){
+				if (JustADKey != 'null' || JustADKey != '' ) {						
+					$.each(config, function (elmID, data) {
+						$.getJSON(url.format(data.id), function(json) {});
+					});
+				} else {
+					JustADKey = cookieJustADKey;
+					setTimeout(function(){ME.reloadAD(ME.alreadyRequest)}, reloadADIntervalSec * 1000);
+				}
+			} else {
+				setTimeout(function(){ME.reloadAD(ME.alreadyRequest)}, reloadADIntervalSec * 1000);
+			}
+		}
+		this.init = function(cfg) {
+			$(document).ready(function(){
+				for(var i=0;i<ME.readyToRender.length;i++){
+					ME.handleCB(ME.readyToRender[i]);
+				}
+				ME.readyToRender.length = 0;
+				JustADKey = readCookie('JustADKey') +'';
+				setTimeout(function(){ME.reloadAD(ME.alreadyRequest)}, reloadADIntervalSec * 1000);
+			});
+			ME.config = cfg;
+			ME.Start();
+		}
+	}
+
+	var $textAD = new textAD();
+
+	return {
+		element: $textAD,
+		init: function(){$textAD.init(setup)}
+	};
+})();
+</script>
+
+</body>
+</html>

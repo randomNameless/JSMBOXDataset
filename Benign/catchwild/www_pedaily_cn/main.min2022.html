@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>main.min2022.html</title>
+</head>
+<body>
+
+<script>
+var topPath = "/top"; //
+var userhost="https://user.pedaily.cn";//http://localhost:56962/
+var searchhost="https://search.pedaily.cn";//http://search.pedaily.cn
+var loadmoreCon = "loadmore";
+function $t(x) { return document.getElementsByTagName(x)[0]; }
+function $obj() {
+    var elements = new Array();
+    for (var i = 0; i < arguments.length; i++) {
+        var element = arguments[i];
+        if (typeof element == 'string'){element = document.getElementById(element);}
+        if (arguments.length == 1){return element;}
+        elements.push(element);
+    }
+    return elements;
+}
+function isAppWebView() {
+	return typeof window.webkit !== 'undefined';
+}
+function IsMobile() { return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);}
+function MobileRedirect(url) {
+    if (url == undefined || url.length < 1) {return;}
+    if (IsMobile()) {window.location = url;}
+}
+function $c(className, element) {
+    var children = (element || document).getElementsByTagName('*');
+    var elements = new Array();
+    for (var i = 0; i < children.length; i++) {
+        var child = children[i];
+        var classNames = child.className.split(' ');
+        for (var j = 0; j < classNames.length; j++) {
+            if (classNames[j] == className) {
+                elements.push(child);
+                break;
+            }
+        }
+    }
+    return elements;
+}
+var $A = Array.from = function (iterable) {
+    if (!iterable) return [];
+    if (iterable.toArray) {
+        return iterable.toArray();
+    } else {
+        var results = [];
+        for (var i = 0; i < iterable.length; i++)
+            results.push(iterable[i]);
+        return results;
+    }
+};
+
+String.isEmpty = function () {
+    if (arguments.length == 0)
+        return true;
+    var str = arguments[0];
+    return str.replace(/^(\s)+|(\s)+$/i, '').length == 0;
+};
+String.format = function () {
+    if (arguments.length == 0){return null;}
+    var str = arguments[0];
+    if (!str) {return null;}
+    for (var i = 1; i < arguments.length; i++) {
+        var re = new RegExp('\\{' + (i - 1) + '\\}', 'gm');
+        str = str.replace(re, arguments[i]);
+    }
+    return str;
+};
+var ImportJs = function (url, before, cb, charset) {
+    var s = document.createElement("script");
+    s.src = url;
+    if (charset) {
+        s.charset = charset
+    }
+    s.onload = function () {
+        this.onload = this.onerror = null;
+        this.parentNode.removeChild(this);
+        if (cb) {
+            cb(true)
+        }
+    };
+    s.onerror = function () {
+        this.onload = this.onerror = null;
+        this.parentNode.removeChild(this);
+        if (cb) {
+            cb(false)
+        }
+    };
+    if (before) {
+        before();
+    }
+    $t('head').appendChild(s)
+};
+function stopBubble(e) {
+    if (e && e.stopPropagation)
+        e.stopPropagation();
+    else
+        window.event.cancelBubble = true;
+}
+
+function ShowPictures(_pics, _links, _width, _height, _src) {
+    if (_width == "" || typeof (_width) == "undefined" || _width == null)
+        _width = 300;
+    if (_height == "" || typeof (_height) == "undefined" || _height == null)
+        _height = 230;
+    if (_src == "" || typeof (_src) == "undefined" || _src == null)
+        _src = "/top/images/flash.swf"
+    var writeText = "";
+    writeText += "<embed id=\"focus_flash1\" src=\"" + _src + "\" wmode=\"opaque\" bgcolor=\"#FDD248\"";
+    writeText += " FlashVars=\"pics=";
+    writeText += _pics;
+    writeText += "&links=";
+    writeText += _links;
+    writeText += "&borderwidth=" + _width + "&borderheight=" + _height + "\" ";
+    writeText += "menu=\"false\" quality=\"high\" width=\"" + _width + "\" height=\"" + _height + "\" ";
+    writeText += " allowScriptAccess=\"sameDomain\" type=\"application/x-shockwave-flash\" ";
+    writeText += " pluginspage=\"http://www.macromedia.com/go/getflashplayer\" />";
+    document.write(writeText);
+}
+/*动态加载模块js*/
+function use(m, f) {
+    var modules = {'research': '/head/js/research.js','comment': '/top/js/comment.js', 'sha1': '/top/js/sha1.js'},
+    moduleUrl = modules[m],
+    list = window.moduleList || {};
+    if (moduleUrl && !list[m]) {
+		$.get(moduleUrl,function (b) {
+            list[m] = b;
+            window.moduleList = list;
+            if (f) { f(b); } /*如果b=false，可以直接提示，不调用f*/
+        });
+    }else{
+		if (f) { f(); }
+	}
+}
+
+function extend(des, src, override) {
+    if (src instanceof Array) {
+        for (var i = 0, len = src.length; i < len; i++)
+            extend(des, src[i], override);
+    }
+    for (var i in src) {
+        if (override || !(i in des)) {
+            des[i] = src[i];
+        }
+    }
+    return des;
+}
+
+var Cookies = {
+    Decode: function (str) {
+        var strArr = "ddd";
+        var strRtn = "";
+        if (str != null && str.indexOf("a") > 1) {
+            strArr = str.split("a");
+            for (var i = strArr.length - 1; i >= 0; i--) {
+                strRtn += String.fromCharCode(eval(strArr[i]));
+            }
+            return strRtn;
+        }
+        return null;
+    },
+    Code: function (str) {
+        var strRtn = "";
+        for (var i = str.length - 1; i >= 0; i--) {
+            strRtn += str.charCodeAt(i);
+            if (i) strRtn += "a";
+        }
+        return strRtn;
+    },
+    Get: function (name, key) {
+        var arr, reg = new RegExp("(^| )" + name + "=([^;]*)(;|$)");
+        if (arr = document.cookie.match(reg)) {
+            if (!key)
+                return unescape(decodeURI(arr[2]));
+            var values = arr[2].split('&');
+            for (var pair in values) {
+                if (values[pair] != 'undefined') {
+                    var tmparr = values[pair].toString().split('=');
+                    if (tmparr[0] == key) {
+                        return unescape(decodeURI(tmparr[1]));
+                    }
+                }
+            }
+            return null;
+        }
+        else {
+            return null;
+        }
+    },
+    GetInt: function (name, key) {
+        var value = Cookies.Get(name, key);
+        if (value) {
+            return parseInt(value, 10);
+        }
+        return 0;
+    },
+    GetF: function (fname, cname) {
+        var arr, reg = new RegExp("(^| )" + fname + "=([^;]*)(;|$)");
+        if (arr = document.cookie.match(reg)) {
+            var value = unescape(decodeURI(arr[2]));
+            var value1 = value.substring(value.indexOf(cname + '=') + cname.length + 1);
+            if (value1.indexOf('&') > -1) {
+                return value1.substring(0, value1.indexOf('&'));
+            }
+            return value1.substring(0);
+        }
+        else {
+            return null;
+        }
+    },
+    Set: function (name, value, expires, path, domain) {
+        var exp = new Date();
+        exp.setTime(exp.getTime() + expires * 24 * 60 * 60 * 1000);
+        document.cookie = name + "=" + encodeURI(value) +
+        ((expires) ? "; expires=" + exp.toGMTString() : "") +
+        ((path) ? "; path=" + path : "") +
+        ((domain) ? "; domain=" + domain : "");
+    },
+    Del: function (cookiesname) {
+        var exp = new Date();
+        exp.setTime(exp.getTime() - 1);
+        var cval = this.Get(cookiesname);
+        if (cval != null) document.cookie = cookiesname + "=" + "''" + ";expires=" + exp.toGMTString();
+    }
+};
+
+function getValueByName(name) {
+    var v = '';
+    var boxes = document.getElementsByName(name);
+    for (var i = 0; i < boxes.length; i++) {
+        if (boxes[i].checked) {
+            v += boxes[i].value + ",";
+        }
+    }
+    return v.replace(/^,+|,+$/g, "");
+}
+function SetValueByName(name, value) {
+    var v = '';
+    var boxes = document.getElementsByName(name);
+    for (var i = 0; i < boxes.length; i++) {
+        if (boxes[i].value == value) {
+            boxes[i].checked = true;
+            break;
+        }
+    }
+}
+function openwindow(url, name, iWidth, iHeight) {
+    var url;
+    var name;
+    var iWidth;
+    var iHeight;
+    var iTop = (window.screen.availHeight - 30 - iHeight) / 2;
+    var iLeft = (window.screen.availWidth - 10 - iWidth) / 2;
+    window.open(url, name, 'height=' + iHeight + ',innerHeight=' + iHeight + ',width=' + iWidth + ',innerWidth=' + iWidth + ',top=' + iTop + ',left=' + iLeft + ',toolbar=no,menubar=no,scrollbars=auto,resizeable=no,status=no');
+}
+
+var validator = {
+    isemail: function (v) { return /^(\w)+([\.\-]?\w)+@[\w\-]+((\.[\w\-]{2,3}){1,3})$/i.test(v); },
+    decimal: function (v) { return /^-?(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d+)?$/.test(v); },
+    decimal2: function (v) { return /^-?(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d{1,2})?$/.test(v); },
+    number: function (v) { return /^\d+$/.test(v); },
+    date: function (v) { return /^\d{4}[\/-]\d{1,2}[\/-]\d{1,2}$/.test(v); },
+    isbn: function (v) { return /^(?=.{13}$)\d{1,5}([-])\d{1,7}\1\d{1,6}\1(\d|X)$/.test(v); },
+    mobile: function (v) { return /^0{0,1}1(3|5|8)[0-9]{9}$/.test(v); },
+    nickname: function (v) { return /^[a-zA-Z0-9\u4E00-\u9FA5\-_]+$/.test(v); },
+    trim: function (v, s) { if (!s) { s = ' '; } var reg = new RegExp('^' + s + '+|' + s + '+$', 'g'); return (v || "").replace(reg, ""); },
+    min: function (a, b) { return a < b ? a : b; },
+    max: function (a, b) { return a > b ? a : b; },
+    tel: function (v) { return /^(0[0-9]{2,3}\-)?([2-9][0-9]{6,7})+(\-[0-9]{1,4})?$/.test(v); },
+    fax: function (v) { return /^[+]{0,1}(\d){1,3}[ ]?([-]?((\d)|[ ]){1,12})+$/.test(v); },
+    cnword: function (v) { return /^[^u4E00-u9FA5]$/.test(v); },
+    isnickname: function (v) { return /^[0-9a-zA-Z\u4e00-\u9fa5_]{2,10}$/ig.test(v); }
+};
+
+var Request = {
+    reqList: [],
+    getAjax: function () {
+        var xhr = null;
+        for (var i = 0; i < arguments.length; i++) {
+            var lambda = arguments[i];
+            try { xhr = lambda(); break; } catch (e) { }
+        }
+        return xhr;
+    },
+    GetHttp: function () {
+        return Request.getAjax(
+        function () { return new ActiveXObject('MSXML2.XMLHttp.6.0'); },
+        function () { return new ActiveXObject('MSXML2.XMLHttp.3.0'); },
+        function () { return new XMLHttpRequest(); },
+        function () { return new ActiveXObject('MSXML2.XMLHttp.5.0'); },
+        function () { return new ActiveXObject('MSXML2.XMLHttp.4.0'); },
+        function () { return new ActiveXObject('Msxml2.XMLHTTP'); },
+        function () { return new ActiveXObject('MSXML.XMLHttp'); },
+        function () { return new ActiveXObject('Microsoft.XMLHTTP'); }
+        ) || null;
+    },
+    send: function (url, method, callback, data, urlencoded, callback2) {
+        var req = Request.GetHttp();
+        req.onreadystatechange = function () {
+            if (req.readyState == 4) {
+                if (req.status < 400) {
+                    if (callback)
+                        callback(req, data);
+                }
+                else {
+                    if (callback2)
+                        callback2(req, data);
+                }
+                try {
+                    delete req;
+                    req = null;
+                } catch (e) { }
+            }
+        }
+        if (method == "POST") {
+            req.open("POST", url, true);
+            if (urlencoded)
+                req.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+            req.send(data);
+            Request.reqList.push(req);
+        }
+        else {
+            req.open("GET", url, true);
+            req.send(null);
+            Request.reqList.push(req);
+        }
+        return req;
+    },
+    clearReqList: function () {
+        var ln = Request.reqList.length;
+        for (var i = 0; i < ln; i++) {
+            var req = Request.reqList[i];
+            if (req) {
+                try {
+                    delete req;
+                } catch (e) { }
+            }
+        }
+        Request.reqList = [];
+    },
+    sendPOST: function (url, data, callback, clear, callback2) {
+        if (clear)
+            Request.clearReqList();
+        Request.send(url, "POST", callback, data, true, callback2);
+    },
+    sendGET: function (url, args, callback, clear, callback2) {
+        if (clear)
+            Request.clearReqList();
+        return Request.send(url, "GET", callback, args, false, callback2);
+    }
+};
+var win = {
+    tipsbase: 'https://www.pedaily.cn/top/images/',
+    tipsname: {bg: 'bg_x_1_0.png',ld: 'ajaxloader.gif', ok: 'ok.png',warn: 'dialog/b1.png',close: 'CloseDialog.gif'},
+    tips: function (n) { return win.tipsbase + win.tipsname[n]; },
+    consts: { ok: '__winbox_ok_btn', cancel: '__winbox_cancel_btn' },
+    objs: function (n) {
+        switch (n) {
+            case 'body': return $('#WinBox');
+            case 'bg': return $('#CoverBox');
+        }
+        return null;
+    },
+    __win_close_timeout: '',
+    __win_resize_timer: '',
+    wait: function () {
+        win.create({ cover: true, width: 300, html: '<span style="display:block;margin-left:50px;height:25px;line-height:25px;background:url(' + win.tips('ld') + ') left center no-repeat;padding-left:18px;">请稍后。。。</span>' });
+    },
+    close: function () {
+        $('#WinBox,#CoverBox').remove();
+        win.reset();
+    },
+    reset: function () {
+        window.clearTimeout(win.__win_close_timeout);
+        window.clearInterval(win.__win_resize_timer);
+    },
+    create: function (options) {
+        var winbody = $(document.body), winbox = $("#WinBox");
+        if ($("#CoverBox").length == 0 && options.cover == true) {
+            $('<div id="CoverBox"></div>').appendTo(winbody);
+            if (!options.modal)
+                $("#CoverBox").click(win.close);
+        }
+        if (winbox.length == 0)
+            winbox = $('<div id="WinBox"></div>').appendTo(winbody);
+        winbox.css({ width: options.width });
+        if (options.class1) {
+            winbox.addClass(options.class1);
+        }
+        if (options.html.responseText)
+            winbox.html(options.html.responseText);
+        else
+            winbox.html(options.html);
+        win.center();
+        $(document.body).unbind('keyup').keyup(function (e) { if (e.which == 27 && !options.modal) { win.close(); } });
+    },
+    center: function () {
+        var win = $('#WinBox');
+        if (win.length == 0) return;
+        var body = $(window), width = body.width(), height = body.height();
+        var win_width = win.width() + 20, win_height = win.height() + 30, rw = (width - win_width) / 2, rh = (height - win_height) / 2;
+        if (rw <= 0) rw = 0;
+        if (rh <= 0) rh = 0;
+        win.css({ 'left': rw + 'px', 'top': rh + 'px' });
+    },
+    settitle: function (title) {
+        return '<div class="td_head"><span class="btn-close" onclick="win.close()" title="关闭"><i class="iconfont icon-close"></i></span>' + title + '</div>';
+    },
+    alert: function (options) {
+        var defaults = { title: '提示', content: '', width: 300, cover: true, btntype: 'none', timeout: 0 };
+        if (typeof (arguments[0]) == 'string') {
+            defaults.content = arguments[0];
+        }
+        options = $.extend(defaults, options);
+        var html = '<div style="margin:5px 10px 5px 50px;line-height:30px;font-size:14px;background:url(' + win.tips('ok') + ') no-repeat;padding-left:36px;">' + options['content'] + '</div>';
+        win.show({ title: options.title, content: html, width: options.width, cover: options.cover, btntype: options.btntype, timeout: options.timeout, modal: options.modal,callback:options.callback});
+    },
+    warn: function (options) {
+        var defaults = { title: '提示', content: '', width: 300, cover: true, btntype: 'ok', timeout: 0 };
+        if (typeof (arguments[0]) == 'string') {
+            defaults.content = arguments[0];
+        }
+        options = $.extend(defaults, options);		
+        var html = '<div class="warn win-content"><i class="iconfont icon-information"></i> ' + options['content'] + '</div>';
+        win.show({ title: options.title, content: html, width: options.width, cover: options.cover, btntype: options.btntype, timeout: options.timeout, modal: options.modal });
+		$('#WinBox').addClass('winbox-warn');
+	},
+    confirm: function (options) {
+        if (arguments.length > 1) {
+            var data = {};
+            data.content = arguments[0];
+            data.ok = arguments[1];
+            options = data;
+        }
+        var defaults = { title: '请确认', content: '', width: 300, cover: true, btntype: 'confirm', timeout: 0 };
+        options = $.extend(defaults, options);
+        var html = '<div class="confirm win-content"><i class="iconfont icon-wenhao"></i> ' + options['content'] + '</div>';
+        options.content = html;
+        win.show(options);
+		$('#WinBox').addClass('winbox-confirm');
+    },
+    show: function (options) {
+        var defaults = { url: '', title: '', content: '', ready: null, ok: win.close, cancel: win.close, timeout: 0, btntype: 'ok', btns: null, width: 600, cover: true, modal: false,callback:win.close};
+        options = $.extend(defaults, options);
+        var url = options.url, content = options.content, title = options.title;
+
+        var doafter = function () {//当内容就绪后执行
+            if (title != '') {
+                content = win.settitle(title) + content;
+            }
+            if (options.btntype != 'none') {
+                content += '<div id="btnlist" class="btnlist">';
+                if (options.btntype != 'diy')
+                    content += '<input type="button" id="' + win.consts.ok + '" value="确定" class="submitbtn submitbtn1"/>';
+                if (options.btntype == 'confirm')
+                    content += '<input type="button" value="取消" id="' + win.consts.cancel + '" class="submitbtn submitbtn2"/>';
+                content += '</div>';
+            }
+            options.html = content;
+            win.create(options);
+            //添加附加按钮
+            if (options.btns != null) {
+                for (var i = 0; i < options.btns.length; i++) {
+                    var btn = options.btns[i];
+                    var input_btn = $('<input type="button"/>');
+                    for (var attr in btn) {
+                        if (attr != 'click')
+                            input_btn.attr(attr, btn[attr]);
+                    }
+                    input_btn.addClass('m_l_10');
+                    if (btn.click) {
+                        input_btn.click(btn.click);
+                    }
+                    $('#btnlist').append(input_btn);
+                }
+            }
+            if (options.ready) {
+                options.ready();
+            }
+            if (options.ok) {
+				if(options.callback){
+					$('#' + win.consts['ok']).click(options.callback);
+				}else{
+	                $('#' + win.consts['ok']).click(options.ok);
+				}
+
+            }
+            $('#' + win.consts['cancel']).click(options.cancel);
+            win.reset();
+            if (options.timeout > 0) {
+				if(options.callback){
+					win.__win_close_timeout = setTimeout(options.callback, options.timeout);
+				}else{
+	                win.__win_close_timeout = setTimeout(win.close, options.timeout);
+				}
+                
+            }
+            win.__win_resize_timer = window.setInterval(win.center, 100);
+        }
+        var via_ajax = false;
+        if (url != '') {
+            if (url.indexOf('#') > -1) {
+                content = $(url).html();
+            } else {
+                win.wait();
+                via_ajax = true;
+                $.get(url + (url.indexOf('?') > -1 ? "&t=" : "?t=" + Math.random()), function (data) {
+                    content = data;
+                    //console.log('html ready');
+                    doafter();
+                });
+            }
+        }
+        if (!via_ajax) { doafter(); }
+    }
+};
+
+function openlogin(name, c) {
+    if (arguments.length == 0) {
+        win.open('/top/apply/loginwin.html');
+        return;
+    }
+    var url = '/passport/app/' + name + 'app.aspx';
+    if (c) url += '?c=1';
+    var width = 800, height = 600;
+    if (name == 'sina' || name == 'renren') {
+        width = 650;
+        height = 450;
+    }
+    var win = openwindow(url, "loginwindow", width, height);
+    return false;
+}
+function onRegClick(o){	o.href='https://user.pedaily.cn/signup.aspx?url='+encodeURIComponent(document.location.href);}
+function initmenu(p, c, f1, f2) {
+    $(p).hover(function () {
+        var o = $(this);
+        o.find(c).show();
+        if (typeof (f1) == 'function') f1(o);
+    }, function () {
+        var o = $(this);
+        o.find(c).hide();
+        if (typeof (f2) == 'function') f2(o);
+    });
+}
+//合作网站登录
+function setCookie(cname, cvalue, exdays) {
+    var d = new Date();
+    d.setTime(d.getTime() + (exdays*24*60*60*1000));
+    var expires = "expires="+d.toUTCString();
+    document.cookie = cname + "=" + cvalue + ";path=/;domain=.pedaily.cn;" + expires;
+}
+function passlogin(){var loginsite=window.location.hostname;if(loginsite!='user.pedaily.cn' && loginsite!='newseed.pedaily.cn'){setCookie('loginsite',loginsite,1);setCookie('loginreffer',location.href,1);}};
+function sinalogin(c) { var url = userhost + '/passport/app/sinaapp.aspx'; if (c) url += '?do=' + c; passlogin(); document.location.href=url; return false;}
+function qqlogin(c) { var url = userhost + '/passport/app/qqapp.aspx'; if (c) url += '?c=1'; passlogin(); document.location.href=url; return false; }
+function pengyoulogin(c) { var url = userhost + '/passport/app/pengyouapp.aspx'; if (c) url += '?c=1';passlogin(); document.location.href=url; return false;}
+function renrenlogin(c) { var url = userhost + '/passport/app/renrenapp.aspx'; if (c) url += '?c=1'; passlogin(); document.location.href=url; return false;}
+function weixinlogin(c) { var url = userhost + "/passport/app/weixinpedaily.aspx"; if (c) url += "?c=1"; passlogin(); document.location.href=url; return false;}
+function suggest(){win.show({ url: '/head/apply/suggest.html', btntype: 'none'});}
+function openfocus(){win.show({ url: '/head/apply/weixin.html', btntype: 'none'});}
+
+var navhtml = '';
+var keystate,
+users = (function () {
+    var __rootKey = 'pedaily.cn', _get = function (s) { return Cookies.Get(__rootKey, s); }, d = {}, domain = 'https://user.pedaily.cn',
+    umenu = '<div class="code"><a href="{0}/usercenter/modify.aspx"><i class="iconfont icon-account"></i> 基本信息</a><a href="{0}/usercenter/pwdmodify.aspx"><i class="iconfont icon-Password"></i> 修改密码</a><a href="{0}/usercenter/favlist.aspx"><i class="iconfont icon-favorite"></i>  我的收藏</a><a href="javascript:users.logout();"><i class="iconfont icon-logout"></i>  安全退出</a></div>',
+    getinfo = function () {
+        return {
+            photo: _get('photo')||'https://pic.pedaily.cn/blog/1.gif',
+            uid: _get('uid')||0,
+            uname: _get('username')||'',
+            hiname: _get('hiname')||'投资界网友',
+            blog: _get('blogurl')||'',
+            logintype: _get('logintype')||0
+        }
+    };
+    umenu = String.format(umenu, domain);
+    d.logout =function(){
+		var url=escape(location.href);
+		location.href=domain+'/logout.aspx?url='+url;
+	};
+    d.loginhtml = '<a class="login" id="btn-login">登录</a>';
+    d.loginedhtml = function () { return '<div class="name"><a href="'+domain+'/usercenter/detail.aspx" class="login incon-dotdown ellipsis-1"><img src="'+d.photo+'" class="photo">'+d.hiname +'</a>' + '</div>' + umenu;};
+    d.init = function () {
+        d = extend(d, getinfo(), true);
+        d.logined = d.uid > 0;
+        if ($obj('login') != null && d.logined) {
+            $('#login').html(d.loginedhtml());
+        } else {
+            $('#login').html(d.loginhtml);
+        }
+    };
+    d.globalLogin = function (url) {
+		if(url !=undefined && url.length>0){
+			url=userhost +'/login.aspx?url='+url
+		}else{
+			url=userhost +'/login.aspx';
+		}
+		window.location.href= url;		
+    };
+    return d;
+	
+})();
+
+$(function () {
+    $('.box-tabs .tab-nav li').hover(function () {
+        var cur = $(this), tabul = cur.parent(), cont =cur.parents('.box-tabs').next(), i = tabul.children().index(cur);
+        tabul.children().removeClass('on');
+        cur.addClass('on');
+        cont.children().addClass('hide');
+        cont.children().eq(i).removeClass('hide');
+    });
+   use('research');
+	buildSearch();
+});
+
+function buildSearch() {
+    var search_txt = $("#top_searchkey"), search_btn = $("#top_searchbtn");
+    var search_func = function() {
+        var search_txt_val = $.trim(search_txt.val());
+        if (search_txt_val == "") return;
+        var url = searchhost + "?k=";
+        location.href = url + encodeURI(search_txt_val.replace("+", "``"));
+    };
+    search_btn.click(search_func);
+    search_txt.keypress(function(e) {
+        if (e.which == 13) {
+            search_func();
+        }
+    });
+}
+
+function BAIDU_CLB_fillSlot (){;}
+</script>
+
+</body>
+</html>

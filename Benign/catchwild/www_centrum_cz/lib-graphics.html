@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>lib-graphics.html</title>
+</head>
+<body>
+
+<script>
+/**
+ * Requirements loader and helper for graphics
+ *
+ * @author	Vaclav Barta <vaclav.barta@economia.cz>
+ * @version	1.0 2015-05-21
+ *
+ * Changelog:
+ * 	1.0
+ *	  + Utils.nodeToString() serializer helper, replaces $(node).html() which can fail on Android and IE < 9 browsers
+ *	0.9
+ *	  = init version
+ */
+(function (ns, $) {
+	var Utils, Graphics, Graphic, root;
+	var defaultXmlDoc = $.parseXML('<dummy></dummy>');
+	Utils = (new function () {
+		this.addEvent = function (obj, evt, callback) {
+			if (obj.addEventListener) {
+				obj.addEventListener(evt, callback, false);
+			} else if (obj.attachEvent) {
+				obj.attachEvent('on' + evt, callback);
+			}
+		};
+		this.extend = function (obj, ext) {
+			return $.extend(obj, ext);
+		};
+		this.clone = function (obj) {
+			return $.extend(true, {}, obj || {});
+		}
+		this.log = function () {
+			if (typeof console !== 'undefined' && console != null && typeof console.log !== 'undefined') {
+				var args = ([]).slice.call(arguments);
+				args.unshift(ns + ': ');
+				switch (typeof console.log) {
+					/* IEeeeee 8/9 */
+					case 'object':
+						console.log(args);
+						break;
+					case 'function':
+						console.log.apply(console, args);
+						break;
+				}
+			}
+		};
+		/* Use it with node.childNodes or $(node).contents() to equivalent of $(node).html() */
+		this.nodeToString = function (node, glue, fixImgTag) {
+			glue = glue || '';
+			var ret = [];
+			$(node).each(function (i, node) {
+				var str = '';
+				try {
+					/* Modern browsers */
+					if (typeof XMLSerializer !== 'undefined') {
+						str = (new XMLSerializer()).serializeToString(node);
+					/* IE < 9 browsers */
+					} else if ('xml' in node) {
+						str = node.xml;
+					/* Any other, but can fail */
+					} else {
+						str = $(node).html();
+					}
+				/* something wrong */
+				} catch (e) {
+					str = '';
+				}
+				if (fixImgTag) {
+					str = str.replace(/><\/img>/gi, '/>');
+				}
+				if (str != null) {
+					ret.push(str);
+				}
+			});
+			return ret.join(glue);
+		};
+		/* simple string replacer builder string => string only, do not use any quantifier */
+		this.buildReplacer = function (map) {
+			var strings = [];
+			for (var string in map) {
+				strings.push(string);
+			}
+			var reg = new RegExp('(' + strings.join('|') + ')', 'g');
+			return function (str) {
+				str = str || '';
+				return str.replace(reg, function () {
+					return map[arguments[0]];
+				});
+			};
+		};
+		this.filter = function (data, filterFunc, all, fromEnd) {
+			/* get from end or from start index */
+			fromEnd = fromEnd ? -1 : 0;
+			return $(data).filter(filterFunc).get(!all ? fromEnd : void(0));
+		};
+		this.htmlencode = this.buildReplacer({ '&': '&amp;', '>': '&gt;', '<': '&lt;', '\'': '&#039;', '"': '&quot;' });
+		/* is used to parse instance config XML or any other XML */
+		this.parseXml = function (xml, namespaces, charset, valid) {
+			namespaces = namespaces || ['xmlns:blackbox="dummy"'];
+			charset = charset || 'utf-8';
+			var ret = {
+				xmlDoc: defaultXmlDoc,
+				xmlError: null
+			};
+			if (xml) {
+				try {
+					if (!valid) {
+						/* needs handle namespaces */
+						xml = '<?xml version="1.0" encoding="' + charset + '" ?><root ' + namespaces.join(' ') + '>' + xml + '</root>';
+					}
+					ret.xmlDoc = $.parseXML(xml);
+				} catch (e) {
+					ret.xmlDoc = defaultXmlDoc;
+					ret.xmlError = e;
+				}
+			}
+			return ret;
+		};
+		this.addCss = function (cssCode) {
+			var styleElement = document.createElement('style');
+			styleElement.type = 'text/css';
+			if (styleElement.styleSheet) {
+				styleElement.styleSheet.cssText = cssCode;
+			} else {
+				styleElement.appendChild(document.createTextNode(cssCode));
+			}
+			document.getElementsByTagName('head')[0].appendChild(styleElement);
+			return styleElement;
+		};
+	});
+	/**
+	 * Graphic and instance container with config xml getter
+	 */
+	Graphic = function (id, instanceOptions) {
+		/**
+		 * id will contain couchDB id of graphics
+		 *
+		 * instanceOptions sets primary XML from BBX graphics model
+		 * {
+		 *   id: '<graphicsid>',
+		 *   name: '<wrapper-classname>', // must always exists if registerGraphic is called
+		 *   xml: '<some-configuration-xml-jsonencoded-string>'
+		 * }
+		 */
+		var options = {
+			id: id,
+			name: 'current-graphic-' + id
+		};
+		this.options = options;
+		this.instanceOptions = [];
+		this.log = Utils.log;
+		this.registerInstance = function (options) {
+			options = options || {};
+			this.instanceOptions.push(options);
+			Utils.extend(options, Utils.parseXml(options.xml));
+			if (options.xmlError) {
+				this.log('parse xml error for ' + this.options.name);
+			}
+			return !options.xmlError;
+		}
+		if (instanceOptions) {
+			this.registerInstance(instanceOptions);
+		}
+		this.getInstance = function (instanceId, all, fromStart) {
+			var filterFunc = function (i, g) {
+				return !instanceId || instanceId == g.id;
+			}
+			return Utils.filter(this.instanceOptions, filterFunc, all, !fromStart);
+		};
+		/**
+		 * @param options - object like $.ajax config - {success: function() {}, error: function() {}}
+		 * @param instanceId - string or false - getXml of exact instance or first found instance
+		 */
+		this.getXml = function (options, instanceId) {
+			/* options will be object with success and error function or */
+			var inst = this.getInstance(instanceId);
+			if (typeof options === 'function') {
+				options = {
+					success: options
+				}
+			}
+			options = options || {};
+			if (!inst) {
+				if (typeof options.error === 'function') {
+					options.error('Cannot find instanceId ' + instanceId);
+				}
+			} else if (inst.xmlError != null) {
+				if (typeof options.error === 'function') {
+					options.error(inst.xmlError);
+				}
+			} else if (typeof options.success === 'function') {
+				options.success(inst);
+			}
+		};
+	};
+	/**
+	 * All graphic container object with registration and device info
+	 */
+	Graphics = function (options) {
+		options = options || {};
+		/* some independant or useful plugins */
+		this.plugins = {};
+		this.graphics = [];
+		this.Graphic = Graphic;
+		this.utils = Utils;
+		this.debug = false;
+		this.log = Utils.log;
+		this.device = 'responsive';
+		this.embed = false;
+		this.onUserClickBuffer = [];
+		this.registerGraphic = function (options, instanceOptions) {
+			options = options || {};
+			instanceOptions = instanceOptions || {}
+			/* container object for user/developer custom data per graphic */
+			instanceOptions.customData = {};
+			var graphic = this.getGraphicByName(options.name);
+			if (!graphic) {
+				var graphic = new this.Graphic(options, instanceOptions);
+				this.graphics.push(graphic);
+			} else {
+				graphic.registerInstance(instanceOptions);
+			}
+			return graphic;
+		};
+		this.getGraphicByName = function (name, all) {
+			var filterFunc = function (i, g) {
+				return g.options.name == name;
+			};
+			return Utils.filter(this.graphics, filterFunc, all);
+		};
+		this.setDevice = function (device) {
+			this.device = device;
+		};
+		this.getDevice = function () {
+			return this.device;
+		};
+		this.setEmbed = function (embed) {
+			this.embed = embed;
+		};
+		this.isEmbed = function () {
+			return this.embed;
+		};
+		this.settings = function (options) {
+			this.utils.extend(this, options);
+		};
+		/* API point to collect user action, will reload Gemius/GA/_sashec */
+		this.userClick = function (options) {
+			options = options || {};
+
+			for (var i=0, len=this.onUserClickBuffer.length;i<len;i++) {
+				this.onUserClickBuffer[i]();
+			}
+
+            if(options.type === 'quiz' && options.interaction) {
+              window.ga4CommandsQueue = window.ga4CommandsQueue || [];
+              window.ga4CommandsQueue.push({action: 'actionQuiz', payload: options.interaction});
+            }
+		};
+		this.registerUserClickFnc = function (fnc) {
+			if (typeof fnc === 'function') {
+				this.onUserClickBuffer.push(fnc);
+			}
+		};
+		if (options.device) {
+			this.setDevice(options.device);
+		}
+		if (options.debug) {
+			this.debug = options.debug;
+		}
+	};
+	root = typeof exports !== 'undefined' && exports !== null ? exports : this;
+	root[ns] = new Graphics({
+		/* always return backreference syntax as array with two*/
+		debug: location.search.match(/(?:(?:\?|&)graphics-debug=(1|true|track))?/)[1] || false
+	});
+}('LIB_GRAPHICS', jQuery));
+
+</script>
+
+</body>
+</html>

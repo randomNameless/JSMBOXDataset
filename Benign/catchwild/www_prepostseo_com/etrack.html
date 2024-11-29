@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>etrack.html</title>
+</head>
+<body>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    function getLocalStorageSize() {
+        let totalSize = 0;
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            const value = localStorage.getItem(key);
+            totalSize += key.length + value.length;
+        }
+        return Math.round(totalSize / 1000000);
+    }
+
+    function getETrack() {
+        let storedUsers = localStorage.getItem('etrack-log');
+        if (storedUsers) {
+            return JSON.parse(storedUsers);
+        }
+        return {
+            "eTrackRecord": [],
+            "eTrackSave": false
+        };
+    }
+
+    if (getLocalStorageSize() < 3 && (getETrack()['eTrackSave'] ?? false) == false) {
+        if (document.querySelectorAll("body .eTrackSave").length > 0 && (getETrack()['eTrackSave'] ?? false) == false) {
+            function makePostRequest(user_id, record, eTracks) {
+                const route = '/emd/e-track';
+                const data = {
+                    user_id: user_id,
+                    record: record,
+                    _token: $("meta[name='_token']").attr("content")
+                };
+                fetch(route, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                })
+                    .then(response => {
+                        if (response.status == 200) {
+                            eTracks["eTrackSave"] = true;
+                            localStorage.setItem('etrack-log', JSON.stringify(eTracks));
+                        }
+                    });
+            }
+            const user_id = parseInt(document.querySelector("body .eTrackSave").innerText);
+            let eTracks = getETrack();
+            const record = eTracks['eTrackRecord'];
+            makePostRequest(user_id, record, eTracks);
+        }
+        function currentSlug() {
+            return window.location.pathname;
+        }
+
+        function currentDate() {
+            return new Date().toISOString().split('T')[0];
+        }
+
+        function addETrackPage() {
+            let eTracks = getETrack();
+            let eTrackRecords = getETrack()["eTrackRecord"];
+            let new_id = eTrackRecords.length + 1;
+            var eTrack = { id: new_id, route: currentSlug(), date: currentDate(), event: 'page', data: null, date_time: new Date() };
+            if (eTrackRecords.length > 0) {
+                last_record = eTrackRecords[eTrackRecords.length - 1];
+                if (last_record.route != currentSlug() || last_record.date != currentDate() || last_record.event != 'page') {
+                    eTrackRecords.push(eTrack);
+                    eTracks["eTrackRecord"] = eTrackRecords;
+                    localStorage.setItem('etrack-log', JSON.stringify(eTracks));
+                }
+            } else {
+                eTrackRecords.push(eTrack);
+                eTracks["eTrackRecord"] = eTrackRecords;
+                localStorage.setItem('etrack-log', JSON.stringify(eTracks));
+            }
+        }
+
+        addETrackPage();
+
+        document.addEventListener('click', function (event) {
+            let clickedElement = event.target;
+            // console.log(clickedElement);
+            let classes = clickedElement.classList;
+            let classArray = Array.from(classes);
+            let index = classArray.indexOf("eTrack");
+            if (index !== -1) {
+                addETrackClick(getTagAttr(clickedElement));
+            }
+
+            function getTagAttr() {
+                return event.target.getAttribute('e-track');
+            }
+
+            function addETrackClick(elem) {
+                let eTracks = getETrack();
+                let eTrackRecords = getETrack()["eTrackRecord"];
+                let new_id = eTrackRecords.length + 1;
+                var eTrack = { id: new_id, route: currentSlug(), date: currentDate(), event: 'click', data: elem, date_time: new Date() };
+                if (eTrackRecords.length > 0) {
+                    last_record = eTrackRecords[eTrackRecords.length - 1];
+                    if (last_record.route != currentSlug() || last_record.date != currentDate() || last_record.event != 'click' || last_record.data != elem) {
+                        eTrackRecords.push(eTrack);
+                        eTracks["eTrackRecord"] = eTrackRecords;
+                        localStorage.setItem('etrack-log', JSON.stringify(eTracks));
+                    }
+                } else {
+                    eTrackRecords.push(eTrack);
+                    eTracks["eTrackRecord"] = eTrackRecords;
+                    localStorage.setItem('etrack-log', JSON.stringify(eTracks));
+                }
+            }
+        });
+    }
+});
+
+</script>
+
+</body>
+</html>

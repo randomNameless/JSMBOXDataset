@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>top_chatbot_v2_jq3.html</title>
+</head>
+<body>
+
+<script>
+(function($) {
+  
+  var chatbot = (function(props) {
+    
+    // オプション設定
+    //=======================================
+    var option = {
+      mediaQuery: '(max-width: 767px)',
+      resizeEventDelay: 100,
+      scrollEventDelay: 100,
+      DOMcheckInterval: 200,
+      DOMcheckLimitCount: 300,
+      cookieMaxAge: 60 * 30,
+      launcherFadeDuration: 200,
+      launcherFadeDefaultWait: 2000,
+      launcherDefaultClass: 'defaultLauncher',
+      iframeID: 'bedore-webagent-inner',
+      embedConfig: [0, 10],
+      topKvClass: 'cardTopKv',
+    };
+    
+    // ランチャー呼び出しスクリプトの属性値
+    //=======================================
+    var scriptAttr = {
+      id: 'bedore-webagent',
+      src: 'https://webagent.bedore.jp/init.js',
+      token: 'ccb819e1-67bb-40b4-b855-975b17b4e9e6',
+      charset: 'utf-8',
+    };
+    
+    // 実行
+    //=======================================
+    $(function() {
+      init();
+    });
+    
+    // 初回実行関数
+    //=======================================
+    function init() {
+      props.$block = $('#chatbotBlock');
+      
+      if (!props.$block[0]) return false;
+      
+      // 各種変数の格納
+      props.cbpc = props.$block.data('cb-pc');
+      props.cbsp = props.$block.data('cb-sp');
+      props.name = props.$block.data('cb-name') || 'common';
+      props.wait = props.$block.data('cb-wait');
+      props.wait = props.wait ? props.wait * 1 : option.launcherFadeDefaultWait;
+      props.class = props.$block.data('cb-class') || option.launcherDefaultClass;
+      props.curMedia = window.matchMedia(option.mediaQuery).matches ? 'sp' : 'pc';
+      props.preMedia = props.curMedia;
+      
+      // 属性値チェック成功時 => チャットボット生成
+      var regex = /^\d+:(?:launcher|embed)$/;
+      if (regex.test(props.cbpc) && regex.test(props.cbsp)) {
+        props.pcConf = props.cbpc.split(':')[0] * 1;
+        props.spConf = props.cbsp.split(':')[0] * 1;
+        props.pcType = props.cbpc.split(':')[1];
+        props.spType = props.cbsp.split(':')[1];
+        props.cookieName = 'chatbotClosed_at_' + props.name;
+        resetChatbot();
+        addResizeEvent();
+      
+      // 属性値チェック失敗時 => 旧属性値チェック（後方互換）
+      } else {
+        props.oldPcConf = props.$block.data('chatbot-pcconfig');
+        props.oldSpConf = props.$block.data('chatbot-spconfig');
+        props.name = props.$block.data('chatbot-name') || 'common';
+        
+        // 旧属性値チェック成功時 => チャットボット生成
+        var oldRegex = /^(?:[0-9]|1[01])$/;
+        if (oldRegex.test(props.oldPcConf) && oldRegex.test(props.oldSpConf)) {
+          props.pcConf = props.oldPcConf * 1;
+          props.spConf = props.oldSpConf * 1;
+          props.pcType = option.embedConfig.indexOf(props.pcConf) !== -1 ? 'embed' : 'launcher';
+          props.spType = option.embedConfig.indexOf(props.spConf) !== -1 ? 'embed' : 'launcher';
+          props.cookieName = 'chatbotClosed_at_' + props.name;
+          resetChatbot();
+          addResizeEvent();
+        
+        // 旧チャットボット 属性値チェック失敗時 => 終了
+        } else {
+          console.error('#chatbotBlock 属性値に無効な値が含まれています');
+          return false;
+        }
+      }
+    }
+    
+    // リサイズイベント発行（PC・SP切り替え監視用）
+    //=======================================
+    function addResizeEvent() {
+      
+      // resizeイベント（リサイズ後に遅延して実行）
+      $(window).on('resize', function() {
+        if (props.resizeTimer) {
+          clearTimeout(props.resizeTimer);
+        }
+        
+        props.resizeTimer = setTimeout(function() {
+          props.preMedia = props.curMedia;
+          props.curMedia = window.matchMedia(option.mediaQuery).matches ? 'sp' : 'pc';
+          
+          // PC・SP表示切り替え時 => チャットボットを再生成
+          if (props.preMedia !== props.curMedia) {
+            resetChatbot();
+          }
+          
+          props.preMedia = props.curMedia;
+        }, option.resizeEventDelay);
+      });
+    }
+    
+    // チャットボット呼び出しスクリプトの初期化
+    //=======================================
+    function resetChatbot() {
+      removeChatbot();
+
+      // ランチャー型のとき and 非表示フラグOFF => 独自ランチャー生成
+      if (props[props.curMedia + 'Type'] !== 'embed' && !checkCookie()) {
+        addOriginalLauncher();
+      }
+
+      // 埋め込み型のとき or 非表示フラグOFF => チャットボット呼び出しスクリプトの生成
+      if (props[props.curMedia + 'Type'] === 'embed' || !checkCookie()) {
+        addScript();
+      }
+    }
+    
+    // Cookie（非表示フラグ）の存在チェック
+    //=======================================
+    function checkCookie() {
+      if (document.cookie) {
+        var cookieArr = document.cookie.split(';');
+        var cookieObj = {};
+        for (var i = 0, len = cookieArr.length; i < len; i++) {
+          var buffer = cookieArr[i].split('=');
+          cookieObj[buffer[0].trim()] = buffer[1].trim();
+        }
+        return cookieObj[props.cookieName] === 'yes';
+      } else {
+        return false;
+      }
+    }
+    
+    // チャットボットの削除
+    //=======================================
+    function removeChatbot() {
+      
+      // 独自ランチャーの削除
+      if (props.$lch && props.$lch[0]) {
+        props.$lch.remove();
+        props.$lch = false;
+      }
+      
+      // チャットボット呼び出しスクリプトの削除
+      if ($('#' + scriptAttr.id)[0]) {
+        $('#' + scriptAttr.id).remove();
+      }
+      
+      // iframeの削除, スクロールイベントの破棄
+      if ($('#' + option.iframeID)[0]) {
+        $('#' + option.iframeID).remove();
+        $(window).off('scroll.chatbot');
+      }
+    }
+    
+    // 独自ランチャーの生成
+    //=======================================
+    function addOriginalLauncher() {
+      props.$lch = $('<div id="chatbotLauncher" class=' + props.class + '></div>').appendTo('body');
+      props.$opn = $('<div id="chatbotLauncher__open"></div>').appendTo(props.$lch);
+      props.$cls = $('<div id="chatbotLauncher__close"></div>').appendTo(props.$lch);
+      
+      // ランチャーを閉じるボタン
+      props.$cls.on('click.chatbot', function() {
+        document.cookie = props.cookieName + '=yes; max-age=' + option.cookieMaxAge + ';';
+        removeChatbot();
+      });
+    }
+    
+    // チャットボット呼び出しスクリプトの生成
+    //=======================================
+    function addScript() {
+      var script = '<script id="' + scriptAttr.id + '" src="' + scriptAttr.src + '" data-token="' + scriptAttr.token + '" data-config-index="' + props[props.curMedia + 'Conf'] + '">';
+      props.$block.append(script);
+      
+      var checkCount = 0;
+      props.DOMcheckTimer = setInterval(function() {
+        
+        // 一定時間（option.DOMcheckInterval * option.DOMcheckLimitCount）経過後チェック停止
+        if (option.DOMcheckLimitCount < ++checkCount) clearInterval(props.DOMcheckTimer);
+        
+        // iframe要素 存在チェック
+        if ($('#' + option.iframeID)[0]) {
+          
+          // ランチャー型のとき
+          if (props[props.curMedia + 'Type'] === 'launcher') {
+            var $iframeBody = $('body', $('#' + option.iframeID)[0].contentWindow.document);
+            
+            // iframe内DOM要素 存在チェック
+            if ($iframeBody.find('#launcher')[0] && $iframeBody.find('.action-button')[0]) {
+              clearInterval(props.DOMcheckTimer);
+              
+              // 旧ランチャーを非表示
+              $iframeBody.find('#launcher').hide();
+              
+              // 追加のイベントを発行
+              launcherEvent($iframeBody);
+            }
+            
+          // 埋め込み型のとき
+          } else {
+            clearInterval(props.DOMcheckTimer);
+            
+            //チャットボットを表示
+            $('#' + option.iframeID).addClass('is-shown');
+          }
+        }
+
+      }, option.DOMcheckInterval);
+    }
+    
+    // ランチャー表示時の追加イベント発行
+    //=======================================
+    function launcherEvent($iframeBody) {
+      
+      // チャットボット開くボタン（旧ランチャーのclickイベントを強制的に発火）
+      props.$opn.on('click.chatbot', function() {
+        $('#' + option.iframeID).addClass('is-shown');
+        $iframeBody.find('#launcher').trigger('click');
+        props.$lch.addClass('is-hidden');
+      });
+      
+      // チャットボット閉じるボタン（チャットボット内の要素にclickイベントを追加）
+      $iframeBody.find('.action-button').on('click', function() {
+        $('#' + option.iframeID).removeClass('is-shown');
+        props.$lch.removeClass('is-hidden');
+      });
+
+      // トップページ判定用要素の取得
+      var $cardTopKv = $('.' + option.topKvClass);
+
+      // トップページのとき => video要素の判定へ
+      if ($cardTopKv[0]) {
+
+        // video要素の取得（Cookie名「blankMovie」が正のときは除去される）
+        var $video = $cardTopKv.find('video');
+
+        // 動画要素が存在 and 動画終了前のとき => 動画終了から指定時間経過後ランチャー表示
+        if ($video[0] && !$video[0].ended) {
+          $video.on('ended', function() {
+            setTimeout(function() {
+              props.$lch.stop(true, false).fadeIn(option.launcherFadeDuration);
+            }, props.wait);
+          });
+
+        // 動画要素なし or 動画再生終了後のとき => 指定時間経過後ランチャー表示
+        } else {
+          setTimeout(function() {
+            props.$lch.stop(true, false).fadeIn(option.launcherFadeDuration);
+          }, props.wait);
+        }
+
+      // トップページ以外の時 and PC時 => 指定時間経過後ランチャー表示
+      } else if (props.curMedia === 'pc') {
+        setTimeout(function() {
+          props.$lch.stop(true, false).fadeIn(option.launcherFadeDuration);
+        }, props.wait);
+
+      // トップページ以外の時 and SP時 => scrollイベント発行（スクロール時に遅延して実行）
+      } else {
+        $(window).on('scroll.chatbot', function() {
+          if (props.scrollTimer !== false) clearTimeout(props.scrollTimer);
+          
+          props.scrollTimer = setTimeout(function() {
+            props.scrollTimer = false;
+            scrollYCheck();
+          }, option.scrollEventDelay);
+        });
+
+        scrollYCheck();
+      }
+    }
+    
+    // スクロール量チェック（SP時のランチャー表示・非表示を制御）
+    //=======================================
+    function scrollYCheck() {
+      if (props.curMedia === 'pc') return false;
+      
+      if ($(window).scrollTop() > 0) {
+        props.$lch.stop(true, false).fadeIn(option.launcherFadeDuration);
+      } else {
+        props.$lch.stop(true, false).fadeOut(option.launcherFadeDuration);
+      }
+    }
+    
+  })({});
+  
+})(jQuery);
+</script>
+
+</body>
+</html>

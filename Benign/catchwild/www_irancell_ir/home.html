@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>home.html</title>
+</head>
+<body>
+
+<script>
+// const SetupNotification = (() => {
+//     document.getElementById('notification').checked = true;
+//     setTimeout(() => {
+//         document.getElementById('notification').checked = false;
+//     }, 5000);
+// })();
+
+const SetupForce = (() => {
+    const style = document.createElement('style');
+
+    style.innerHTML = `.home-page-1402 .home-slider-section .item { height: calc(${window.innerHeight}px - 32px) !important; }`;
+    document.head.appendChild(style);
+})();
+/*=====================================================================================================================
+Scroll To Slider
+=====================================================================================================================*/
+// const scrollSetup = scrollJs => {
+//     scrollJs.style.cssText = `margin: -${scrollJs.clientHeight}px 0 0 0;transition: all ${scrollJs.getAttribute('event-time')}s;`;
+//     setTimeout(() => {
+//         document.querySelector('html').style.cssText = 'overflow: auto';
+//         scrollJs.style.cssText = `display: none;`;
+//     }, scrollJs.getAttribute('event-time') * 1000);
+// }
+
+// const introVideoSetup = () => {
+//     const introVideo = document.querySelector('.animation-section video');
+
+//     if(window.innerWidth > 768) {
+//         if(window.innerWidth === window.innerHeight) introVideo.querySelector('source').src = introVideo.getAttribute('square');
+//         else if(window.innerWidth > window.innerHeight) introVideo.querySelector('source').src = introVideo.getAttribute('desktop-h');
+//         else if(window.innerWidth < window.innerHeight) introVideo.querySelector('source').src = introVideo.getAttribute('desktop-v');
+//     } else {
+//         if(window.innerWidth === window.innerHeight) introVideo.querySelector('source').src = introVideo.getAttribute('square');
+//         else if(window.innerWidth > window.innerHeight) introVideo.querySelector('source').src = introVideo.getAttribute('mobile-h');
+//         else if(window.innerWidth < window.innerHeight) introVideo.querySelector('source').src = introVideo.getAttribute('mobile-v');
+//     }
+//     if(Number(localStorage.getItem('scrollRepeat')) < 3) {
+//         localStorage.setItem('scrollRepeat', Number(localStorage.getItem('scrollRepeat')) + 1);
+//         localStorage.setItem('scroll', 'true');
+//     } else {
+//         localStorage.setItem('scroll', 'false');
+//     }
+//     if(localStorage.getItem('scroll') !== 'false') {
+//         document.querySelector('html').style.cssText = 'overflow: hidden';
+//         document.querySelector('.scroll-js').style.cssText = `display: flex;`;
+//         introVideo.load();
+//         introVideo.onended = () => {
+//             scrollSetup(document.querySelector('.scroll-js'));
+//         }
+//         localStorage.setItem('scroll', 'false');
+//         localStorage.setItem('scrollExpire', new Date().setDate(new Date().getDate() + 1));
+//     }
+//     if(Number(localStorage.getItem('scrollExpire')) <= new Date().setDate(new Date().getDate() + 0)) {
+//         localStorage.setItem('scroll', 'true');
+//     }
+// }
+
+// const scrollToSlider = () => {
+//     scrollSetup(document.querySelector('.scroll-js'));
+// }
+// window.addEventListener('load', introVideoSetup);
+/*=====================================================================================================================
+Personal Slider
+=====================================================================================================================*/
+const sliderOptions = () => {
+    return {
+        autoplay: true,
+        loop: true,
+        dots: true,
+        dotsData: true,
+        nav: false,
+        margin: 0,
+        rtl: themeLanguage ? true : false,
+        mouseDrag: false,
+        autoplayTimeout: 5000,
+        fluidSpeed: 0,
+        smartSpeed: 500,
+        responsive: {
+            0: {
+                items: 1,
+            }
+        }
+    }
+}
+
+let owlSlider = jQuery(".owl-main-slider").owlCarousel(sliderOptions());
+
+const checkSlideType = () => {
+    let activeSlide = document.querySelector('.owl-main-slider .owl-item.active');
+    if(activeSlide.querySelector('.item').classList.contains('slide-video')) {
+        activeSlide.querySelector('video').play();
+        activeSlide.querySelector('video').onended = () => {
+            owlSlider.trigger('next.owl.carousel');
+        }
+    } 
+    if(activeSlide.querySelector('.item').classList.contains('slide-image')) {
+        owlSlider.trigger('play.owl.autoplay');
+    }
+}
+
+const autoSetup = type => {
+    switch(type) {
+        case 'load':
+            checkSlideType();
+            break;
+        default:
+            owlSlider.trigger('stop.owl.autoplay');
+            setTimeout(() => {
+                checkSlideType();
+            }, 250);
+            break;
+    }
+}
+
+const videoDataSetup = () => {
+    document.querySelectorAll('.owl-home-slider video').forEach(element => {        
+        if(window.innerWidth >= 768) {
+            element.querySelector('source').setAttribute('src', element.getAttribute('desktop'));
+        } else {
+            element.querySelector('source').setAttribute('src', element.getAttribute('mobile'));
+        }
+        element.load();
+        element.pause();
+    });
+}
+
+const slideData = slides => {
+    if(document.querySelector('.owl-main-slider .item') !== null) {
+        owlSlider.trigger('destroy.owl.carousel');
+        owlSlider.html(owlSlider.find('.owl-stage-outer').html()).removeClass('owl-loaded');
+        jQuery('.owl-main-slider .wp-item-1').after(slides);
+        owlSlider.owlCarousel(sliderOptions());
+        videoDataSetup();
+        autoSetup('load');
+        owlSlider.on('translate.owl.carousel', function() {
+            autoSetup('change');
+        });
+    }
+}
+slideData('');
+
+const personalSlides = (latitude, longitude) => {
+    const xhrStatus = new XMLHttpRequest();
+    // Api Request
+    xhrStatus.open("GET", `/d/pc/content?${latitude ? 'latitude='+latitude : ''}${longitude ? '&longitude='+longitude : ''}${latitude && longitude ? '&permission=true' : ''}`, true);
+    
+    // Test Request
+    // xhrStatus.open("GET", `/wp-content/themes/mtn_personal/assets/json/personal-slide.json?${latitude ? 'latitude='+latitude : ''}${longitude ? '&longitude='+longitude : ''}${latitude && longitude ? '&permission=true' : ''}`, true);
+    xhrStatus.onreadystatechange = () => {
+        if (xhrStatus.readyState === XMLHttpRequest.DONE && xhrStatus.status === 200) {
+            let array = JSON.parse(xhrStatus.response);
+            let slides = '';
+            array.contents.forEach((element, index) => {
+                slides += `
+                    <div class="item full-screen p-item-${index} is-personal-slide" onclick="reportPersonalSlide('${element.id}');" data-dot="<button style='position: absolute;top: 0;left: 0;width: 100%;height: 100%;z-index: 24;'></button><button><svg x='0px' y='0px' width='201px' height='201px' viewBox='0 0 101 101' xml:space='preserve'><circle class='st0' cx='50.5' cy='50.5' r='48'></circle><circle class='st0' cx='50.5' cy='50.5' r='32'></circle></svg></button>">
+                        <style>
+                            .p-item-${index} video, .p-item-${index} img {
+                                object-position: center center;
+                            }
+                            @media (max-width: 768px) {
+                                .p-item-${index} video, .p-item-${index} img {
+                                    object-position: center center;
+                                }
+                            }
+                        </style>
+                        ${themeLanguage ? element.content_fa : element.content_en}
+                    </div>
+                `;
+            });
+            slideData(slides);
+        } else {
+            slideData('');
+        }
+    }
+    xhrStatus.send();
+}
+
+const getCurrentLocation = () => {
+    const showSuccess = position => {
+        personalSlides(position.coords.latitude, position.coords.longitude);
+    }
+
+    const showError = error => {
+        personalSlides('', '');
+
+        switch(error.code) {
+            case error.PERMISSION_DENIED:
+                console.log("Comments are only permitted when location sharing is enabled- you have denied the request for Geolocation.");
+            break;
+            case error.POSITION_UNAVAILABLE:
+                console.log("Comments are only permitted when location sharing is enabled- Location information is unavailable.");
+            break;
+            case error.TIMEOUT:
+                console.log("Comments are only permitted when location sharing is enabled- the request to get user location timed out.");
+            break;
+            case error.UNKNOWN_ERROR:
+                console.log("Comments are only permitted when location sharing is enabled- An unknown error occurred.");
+            break;
+        }
+    }
+
+    if(navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(showSuccess, showError);
+    } else {
+        personalSlides('', '');
+    }
+}
+window.addEventListener('load', getCurrentLocation);
+ 
+const reportPersonalSlide = id => {
+    const xhrStatus = new XMLHttpRequest();
+    xhrStatus.open("GET", `/d/pc/content?content_id=${id}`, true);
+    xhrStatus.onreadystatechange = () => {}
+    xhrStatus.send();
+}
+
+const reportWordpressSlide = element => {
+    let number, code;
+    Array.from(element.children).forEach(child => {
+        if(child.getAttribute('number')) number = child.getAttribute('number');
+        if(child.getAttribute('code')) code = child.getAttribute('code');
+    });
+    const formData = JSON.stringify({
+        "row_id": number,
+        "image_id": code,
+        "title": element.querySelector('h1') ? element.querySelector('h1').innerText : element.querySelector('h2').innerText
+    });
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", '/d/form/click-counter', true);
+    xhr.setRequestHeader('Accept', 'application/json'); 
+    xhr.setRequestHeader('Content-Type','application/json; charset=utf-8'); 
+    xhr.setRequestHeader("Accept-Language","fa-IR");
+    xhr.onreadystatechange = () => {}
+    xhr.send(formData);
+}
+document.querySelectorAll('.owl-main-slider .item.is-wp-slide').forEach(element => {
+    element.addEventListener('click', () => {
+        reportWordpressSlide(element);
+    });
+});
+/*=====================================================================================================================
+Suggestion Section
+=====================================================================================================================*/
+jQuery(".suggestion-carousel").owlCarousel({
+    autoplay: true,
+    loop: true,
+    nav: false,
+    center: true,
+    rtl: themeLanguage ? true : false,
+    autoplayTimeout: 5000,
+    autoplayHoverPause: true,
+    fluidSpeed: 0,
+    smartSpeed: 500,
+    responsiveClass: true,
+    responsive: {
+        0: {
+            items: 1,
+            dotsData: true,
+            dots: true,
+            stagePadding: 24,
+            margin: 8
+        },
+        576: {
+            items: 1.8,
+            dotsData: true,
+            dots: true,
+            stagePadding: 24,
+            margin: 8
+        },
+        768: {
+            items: 2,
+            dotsData: true,
+            dots: true,
+            stagePadding: 24,
+            margin: 16
+        },
+        992: {
+            items: 2.5,
+            dotsData: true,
+            dots: true,
+            stagePadding: 24,
+            margin: 24
+        },
+        1200: {
+            items: 3,
+            dotsData: false,
+            dots: false,
+            stagePadding: 16,
+            margin: 24
+        },
+        1400: {
+            items: 3,
+            dotsData: false,
+            dots: false,
+            stagePadding: 16,
+            margin: 24
+        }
+    }
+});
+const setProduct = (url, id) => {
+    localStorage.setItem('productId', id);
+    window.location.href = url;
+}
+/*=====================================================================================================================
+Latest Section
+=====================================================================================================================*/
+jQuery(".latest-carousel").owlCarousel({
+    loop: true,
+    margin: 16,
+    responsiveClass: true,
+    nav: false,
+    rtl: themeLanguage ? true : false,
+    center: true,
+    responsive: {
+        0: {
+            items: 1,
+            dotsData: true,
+            dots: true,
+            stagePadding: 24
+        },
+        768: {
+            dots: false,
+            items: 2
+        }
+    }
+});
+/*=====================================================================================================================
+Products Tab Search
+=====================================================================================================================*/
+const checkProductTab = status => {
+    // switch(status) {
+    //     case 'Yes Search':
+    //         document.querySelector('.sidebar-search').style.display = 'flex';
+    //         break;
+    //     default:
+    //         document.querySelector('.sidebar-search').style.display = 'none';
+    //         break;
+    // }
+}
+/*=====================================================================================================================
+Products Section
+=====================================================================================================================*/
+// Digital Products slideToRight & slideToLeft
+
+jQuery(".application-tabs .nav-item > a").on("click", function() {
+    jQuery(".application-tabs .nav-item > a").removeClass("active");
+    $y = 0;    
+});
+var $owlApp = jQuery('.app-tab-carousel');
+$owlApp.children().each( function( index ) {
+jQuery(this).attr( 'data-position', index );
+});
+$owlApp.owlCarousel({
+    loop: true,
+    rtl: themeLanguage ? true : false,
+    margin: 8,
+    responsiveClass: true,
+    dots: false,
+    items: 9,
+    center: true, 
+    touchDrag: true,
+    mouseDrag: true,
+    responsive: {
+        0: {
+            items: 3,
+            stagePadding: 10,
+            nav: false,
+        },
+        350: {
+            items: 2.9,
+            stagePadding: 20,
+            margin: 8,
+            nav: false,
+        },
+        400: {
+            items: 3,
+            stagePadding: 15,
+            nav: false,
+        },
+        576: {
+            items: 3,
+            stagePadding: 50,
+            nav: false,
+        },
+        768: {
+            items: 4.5,
+            nav: true,
+        },
+        992: {
+            items: 5.5,
+            nav: true,
+        },
+        1200: {
+            items: 7,
+            nav: true,
+        },
+        1400: {
+            items: 9,
+            nav: true,
+        },
+    },
+});
+jQuery(document).on('click', '.owl-item>div', function() {
+    var $speed = 300; 
+    $owlApp.trigger('to.owl.carousel', [jQuery(this).data( 'position' ), $speed] );
+});
+jQuery(".app-tab-carousel .nav-link").removeClass("active");
+setTimeout(function() {
+    jQuery(".owl-item.active.center").find(".nav-link").addClass("active");
+    var tabId = jQuery(".owl-item.active.center").find(".nav-link").attr("id");
+    jQuery('.tab-pane').removeClass("active show");
+    jQuery('.tab-pane[aria-labelledby='+tabId+']').addClass("active show");
+}, 250);
+jQuery(".app-tab-carousel").on('translate.owl.carousel', function (event) {
+    jQuery(".app-tab-carousel .nav-link").removeClass("active");
+    // Audio Button
+    if(document.getElementById("nyan") && document.getElementById('btnAudio')) {
+        var track0 = document.getElementById("nyan");
+        var controlBtn0 = document.getElementById('btnAudio');
+        track0.pause();
+        controlBtn0.className = "play";
+        // Audio Button phone
+        var trackphone0 = document.getElementById("nyan-phone");
+        var controlBtnphone0 = document.getElementById('btnAudioPhone');
+        trackphone0.pause();
+        controlBtnphone0.className = "play";
+    }
+    
+    setTimeout(function() {
+        jQuery(".owl-item.active.center").find(".nav-link").addClass("active");
+        var tabId = jQuery(".owl-item.active.center").find(".nav-link").attr("id");
+        jQuery('.tab-pane').removeClass("active show");
+        jQuery('.tab-pane[aria-labelledby='+tabId+']').addClass("active show");
+    }, 250);
+});
+jQuery(".app-tab-carousel .nav-link").on('click', function (event) {
+    jQuery(".app-tab-carousel .nav-link").removeClass("active");
+    jQuery(this).addClass("active");
+});
+
+var myItemCount = jQuery(".nav-filter-bar .nav-link").length;
+jQuery('.nav-filter-bar').owlCarousel({
+    loop:false,  
+    touchDrag  : false,
+    mouseDrag  : false,
+    dots: false,
+    navs: false,
+    URLhashListener:true,
+    rtl: themeLanguage ? true : false,
+    responsive:{
+        0:{ 
+            items:2.5,
+            loop: getLoop(3),
+            margin:12,
+            center: getLoop(3),
+            touchDrag  : getLoop(3),
+            mouseDrag  : getLoop(3),
+        },
+        576:{
+            items:2.5,
+            loop: getLoop(3),
+            margin:12,
+            center: getLoop(3),
+            touchDrag  : getLoop(3),
+            mouseDrag  : getLoop(3),
+        },
+        768:{
+            items:4,
+            loop: getLoop(5),
+            margin:12,
+            center: getLoop(5),
+            touchDrag  : getLoop(5),
+            mouseDrag  : getLoop(5),
+        },
+        992:{
+            items:5,
+            loop: getLoop(6),
+            margin:18,
+            center: getLoop(6),
+            touchDrag  : getLoop(6),
+            mouseDrag  : getLoop(6),
+        },
+        1300:{
+            items:5,
+            loop: getLoop(6),
+            margin:20,
+            center: getLoop(6),
+            touchDrag  : getLoop(6),
+            mouseDrag  : getLoop(6),
+        },
+        1600:{
+            items:5,
+            loop: getLoop(6),
+            margin:20,
+            center: getLoop(6),
+            touchDrag  : getLoop(6),
+            mouseDrag  : getLoop(6),
+        }
+    }
+});
+function getLoop(items) {
+    if (myItemCount < items) {
+        return false;
+    }
+    else {
+        return true;
+    }
+}
+
+// Tab Slider Store Section
+var cards = jQuery('.owl-fd-pack').clone();
+var cardLength = cards.children('.1').length
+!function(o,e) {
+    "object" == typeof exports?module.exports = e(o.jQuery):o.owlcarousel2_filter = e(o.jQuery);
+}
+(window, function(o,e) {
+    "use strict";
+    o.fn.owlcarousel2_filter = function(o,cl,e) {
+        this.trigger("destroy.owl.carousel"), this.oc2_filter_clone || (this.oc2_filter_clone = this.clone());
+        var l = this.oc2_filter_clone.children(o).clone();
+        this.empty().append(l).owlCarousel({
+            loop: false,
+            rtl: themeLanguage ? true : false,
+            margin: 20,
+            nav: false,
+            autoplay: true,
+            touchDrag: false,
+            mouseDrag: false,
+            autoplay: true,
+            responsive: {
+                0: {
+                    items: 1.2,
+                    margin: 15,
+                    touchDrag: true,
+                    mouseDrag: true,
+                    dotsData: true,
+                    dots: true,
+                },
+                576:{
+                    items: 2.5,
+                    touchDrag: true,
+                    mouseDrag: true,
+                    dotsData: true,
+                    dots: true,
+                },
+                768: {
+                    items: 2.5,
+                    touchDrag: true,
+                    mouseDrag: true,
+                    dots: false,
+                },
+                992: {
+                    items: 3,
+                    touchDrag: false,
+                    mouseDrag: false,
+                    dots: false,
+                },
+                1200: {
+                    items: 4,
+                    dots: false,
+                },
+                1400: {
+                    items: 4,
+                    dots: false,
+                },
+            },
+        });
+    }
+});
+
+var owlProduct = jQuery('.owl-carousel.owl-fd-pack').owlCarousel();
+jQuery(".fd-pack").css("display", "flex")
+owlProduct.owlcarousel2_filter('.1', cardLength);
+jQuery('.nav-filter-bar').on('click', '.nav-link', function() {
+    var $item = jQuery(this);
+
+    // jQuery('.is-all-base').css('display', 'none');
+    // if($item.data('type') == 'slider') {
+    //     jQuery('.is-slider-base').css('display', 'block');
+    // } else if($item.data('type') == 'content') {
+    //     jQuery('.is-content-base').css('display', 'block');
+    // } else {
+    //     jQuery('.is-all-base').css('display', 'block');
+    // }
+
+    jQuery('.nav-filter-bar .nav-link').removeClass("active");
+    $item.toggleClass("active");
+    var filter = $item.data('owl-filter');
+    jQuery('.is-content-base .content').css('display', 'none');
+    jQuery('.is-content-base .content'+filter).css('display', 'block');
+    if(filter==".2") {
+        jQuery(".store-section .sidebar-search").removeClass("d-none");
+        jQuery(".store-section .sidebar-search").addClass("d-block");
+    } else {
+        jQuery(".store-section .sidebar-search").addClass("d-none");
+        jQuery(".store-section .sidebar-search").removeClass("d-block");
+    }
+    cardLength = cards.children(filter).length
+    owlProduct.owlcarousel2_filter(filter, cardLength);
+});
+jQuery('.nav-filter-bar').on('change.owl.carousel', function(event) {
+    jQuery(".nav-filter-bar .nav-link").removeClass('active');
+    setTimeout(function() {
+        jQuery(".nav-filter-bar .owl-item.center .nav-link").addClass('active');
+        
+        var $item = jQuery(".nav-filter-bar .owl-item.center .nav-link");
+        jQuery('.is-all-base').css('display', 'none');
+        if($item.data('type') == 'slider') {
+            jQuery('.is-slider-base').css('display', 'block');
+        } else if($item.data('type') == 'content') {
+            jQuery('.is-content-base').css('display', 'block');
+        } else {
+            jQuery('.is-all-base').css('display', 'block');
+        }
+
+        var filter = jQuery(".nav-filter-bar .owl-item.center .nav-link").data('owl-filter');
+        jQuery('.is-content-base .content').css('display', 'none');
+        jQuery('.is-content-base .content'+filter).css('display', 'block');
+        if(filter==".2") {
+            jQuery(".store-section .sidebar-search").removeClass("d-none");
+            jQuery(".store-section .sidebar-search").addClass("d-block");
+        } else {
+            jQuery(".store-section .sidebar-search").addClass("d-none");
+            jQuery(".store-section .sidebar-search").removeClass("d-block");
+        }
+        cardLength = cards.children(filter).length
+        owlProduct.owlcarousel2_filter(filter, cardLength);
+    },25);
+})
+
+if(jQuery('.nav-link[data-owl-filter=".1"]').data('type') == 'slider') {
+    jQuery('.is-slider-base').css('display', 'block');
+} else if(jQuery('.nav-link[data-owl-filter=".1"]').data('type') == 'content') {
+    jQuery('.is-content-base').css('display', 'block');
+} else {
+    jQuery('.is-all-base').css('display', 'block');
+}
+
+jQuery(".owl-fd-pack .last-box").parent().addClass("order-1");
+jQuery('.nav-filter-bar').on('click', '.nav-link', function() {
+    jQuery(".owl-fd-pack .last-box").parent().addClass("order-1");
+})
+
+
+
+
+
+
+
+
+
+
+const owlBlog = jQuery(".blog-carousel");
+const blogOptions = () => {
+    return {
+        loop: true,
+        items: 3,
+        margin: 20,
+        stagePadding: 15,
+        responsiveClass: true,
+        rtl: themeLanguage ? true : false,
+        center: true,
+        autoplay: true,
+        responsive: {
+            0: {
+                items: 1,
+                margin: 8,
+                stagePadding: 15,
+                nav: false,
+                dotsData: true,
+                dots: true,
+            },
+            576: {
+                items: 1.8,
+                margin: 8,
+                nav: false,
+                dotsData: true,
+                dots: true,
+            },
+            768: {
+                items: 2,
+                margin: 15,
+                nav: false,
+                dotsData: true,
+                dots: true,
+            },
+            992: {
+                items: 2.5,
+                nav: true,
+                dots: false,
+            },
+            1200: {
+                items: 3,
+                nav: true,
+                dots: false,
+            },
+            1400: {
+                items: 3,
+                nav: true,
+                dots: false,
+            },
+        }
+    }
+}
+owlBlog.owlCarousel(blogOptions());
+const blogSync = (() => {
+    const xhrStatus = new XMLHttpRequest();
+    xhrStatus.open("GET", themeLanguage ? 'https://blog.irancell.ir/d/posts/fa' : 'https://blog.irancell.ir/d/posts/en');
+    xhrStatus.onreadystatechange = () => {
+        if (xhrStatus.readyState === XMLHttpRequest.DONE && xhrStatus.status === 200) {
+            const response = JSON.parse(xhrStatus.response);
+            let slides = '';
+            response.forEach((element, index) => {
+                slides += `
+                    <div onclick="setProduct('https://blog.irancell.ir${element.link}');" class="blog-box" data-dot="<button style='position: absolute;top: 0;left: 0;width: 100%;height: 100%;z-index: 24;'></button><button><svg x='0px' y='0px' width='201px' height='201px' viewBox='0 0 101 101' xml:space='preserve'><circle class='st0' cx='50.5' cy='50.5' r='48'></circle><circle class='st0' cx='50.5' cy='50.5' r='32'></circle></svg></button>">
+                        <div class="image">
+                            <picture>
+                                <source media="(min-width:0px)" srcset="https://blog.irancell.ir${element.image}">
+                                <img src="https://blog.irancell.ir${element.image}" alt="${element.title}" loading="lazy">
+                            </picture>
+                        </div>
+                        <div class="info">
+                            <div>
+                                <div class="date">${themeLanguage ? toPersianDate(element.date.split(' ')[0]) : toEnglishDate(element.date.split(' ')[0])} - ${themeLanguage ? toPersian(element.date.split(' ')[1]) : element.date.split(' ')[1]}</div>
+                                <h3 class="main-content">${element.title}</h3>
+                            </div>
+                            <div>
+                                <div class="summary">
+                                    <p>${element.content}</p>
+                                </div>
+                                <div class="align-items-center m-0">
+                                    <div class="view-count">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                            <g clip-path="url(#clip0_2368_8067)">
+                                                <path d="M3 12C3.00089 11.337 3.15345 10.683 3.446 10.088C4.25759 8.52836 5.48808 7.22593 6.99917 6.32712C8.51026 5.42831 10.2421 4.96873 12 5.00003C13.7579 4.96873 15.4897 5.42831 17.0008 6.32712C18.5119 7.22593 19.7424 8.52836 20.554 10.088C20.8474 10.6827 21 11.3369 21 12C21 12.6631 20.8474 13.3174 20.554 13.912C19.7424 15.4717 18.5119 16.7741 17.0008 17.6729C15.4897 18.5718 13.7579 19.0313 12 19C10.2421 19.0313 8.51026 18.5718 6.99917 17.6729C5.48808 16.7741 4.25759 15.4717 3.446 13.912C3.15345 13.3171 3.00089 12.663 3 12Z" stroke="#606060" stroke-linecap="round" stroke-linejoin="round"/>
+                                                <path d="M15 12C15 12.5933 14.8241 13.1734 14.4944 13.6667C14.1648 14.1601 13.6962 14.5446 13.1481 14.7716C12.5999 14.9987 11.9967 15.0581 11.4147 14.9424C10.8328 14.8266 10.2982 14.5409 9.87868 14.1213C9.45912 13.7018 9.1734 13.1672 9.05765 12.5853C8.94189 12.0033 9.0013 11.4001 9.22836 10.8519C9.45543 10.3038 9.83994 9.83524 10.3333 9.50559C10.8266 9.17595 11.4067 9 12 9" stroke="#606060" stroke-linecap="round" stroke-linejoin="round"/>
+                                            </g>
+                                            <defs>
+                                                <clipPath id="clip0_2368_8067">
+                                                    <rect width="24" height="24" fill="white"/>
+                                                </clipPath>
+                                            </defs>
+                                        </svg>
+                                        <span class="count">
+                                            ${toPersian(element.post_views)} 
+                                        </span>
+                                    </div>
+                                    <div class="like-count">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                            <path d="M7.99463 8.18966C7.90213 7.08945 6.30323 6.6461 5.52151 7.49056C5.36128 7.66364 5.25659 7.87346 5.21891 8.09702L4.37175 13.1232C4.04705 15.0497 4.85069 16.9906 6.4924 18.245C7.73207 19.1923 9.80134 19.4382 11.3008 19.3688" stroke="#606060" stroke-linejoin="round"/>
+                                            <path d="M18.4753 12.18L16.4395 14.5077M18.4753 12.18L20.0649 10.3624C20.4723 9.8965 20.4099 9.20119 19.9254 8.80937C19.441 8.41755 18.7179 8.47759 18.3105 8.94348M18.4753 12.18C18.883 11.7138 19.6065 11.6537 20.0913 12.0458C20.576 12.4379 20.6385 13.1336 20.2308 13.5998L16.7212 17.6128C14.7636 19.8511 11.2899 20.1396 8.96239 18.2571C7.49239 17.0682 6.77281 15.2286 7.06355 13.4028L7.8221 8.63908C7.85584 8.4272 7.94958 8.22834 8.09305 8.06429C8.79301 7.26393 10.15 7.68413 10.2329 8.72688L10.3594 10.3203C10.39 10.7053 10.8911 10.8605 11.1495 10.565L14.8269 6.36018C15.2005 5.93299 15.8635 5.87793 16.3077 6.23722C16.752 6.5965 16.8092 7.23407 16.4356 7.66127M18.3105 8.94348L15.187 12.515M18.3105 8.94348L18.7842 8.40182C19.1918 7.93579 19.1293 7.24026 18.6447 6.84831C18.1601 6.45636 17.4368 6.51642 17.0293 6.98246L16.4356 7.66127M16.4356 7.66127L13.1811 11.3826" stroke="#606060" stroke-linecap="round" stroke-linejoin="round"/>
+                                            <line x1="10.0963" y1="5.34825" x2="8.88664" y2="3.51069" stroke="#606060" stroke-width="0.8" stroke-linecap="round"/>
+                                            <line x1="11.7713" y1="4.62381" x2="11.2841" y2="2.47845" stroke="#606060" stroke-width="0.8" stroke-linecap="round"/>
+                                            <line x1="13.6311" y1="4.69483" x2="14.0427" y2="2.53367" stroke="#606060" stroke-width="0.8" stroke-linecap="round"/>
+                                        </svg>
+                                        <span class="count">
+                                            ${toPersian(element.post_rate)}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="see-more">
+                                    <a href="https://blog.irancell.ir${element.link}" class="visit-link">
+                                        <span>${themeLanguage ? 'مطالعه بیشتر' : 'Read More'}</span>
+                                        ${themeLanguage ? '<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M14.0381 4.53617C14.5705 5.07776 14.5629 5.94833 14.0213 6.48064L9.52078 10.904C9.52296 10.9357 9.52408 10.9677 9.52408 11C9.52408 11.0323 9.52296 11.0643 9.52078 11.096L14.0213 15.5194C14.5629 16.0517 14.5705 16.9222 14.0381 17.4638C13.5058 18.0054 12.6353 18.0129 12.0937 17.4806L5.5 11L12.0937 4.51936C12.6353 3.98705 13.5058 3.99458 14.0381 4.53617Z" fill="#202020"/></svg>' : '<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M6.81233 4.99515C6.28002 5.53675 6.28755 6.40732 6.82914 6.93963L11.3297 11.363C11.3275 11.3947 11.3264 11.4267 11.3264 11.459C11.3264 11.4912 11.3275 11.5232 11.3297 11.5549L6.82914 15.9783C6.28755 16.5107 6.28002 17.3812 6.81233 17.9228C7.34464 18.4644 8.21521 18.4719 8.7568 17.9396L15.3505 11.459L8.7568 4.97834C8.21521 4.44604 7.34464 4.45356 6.81233 4.99515Z" fill="#202020"/></svg>'}
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            document.querySelector(".blog-carousel").innerHTML = slides;
+            owlBlog.trigger('destroy.owl.carousel');
+            owlBlog.owlCarousel(blogOptions());
+        } else {
+            let response;
+            if(themeLanguage) {
+                response = [
+                    {
+                        "id": 15781,
+                        "date": "2022-04-13 23:48:53",
+                        "link": "/b/15781/remarketing",
+                        "image": "/wp-content/uploads/2022/04/cover-2.png",
+                        "title": "ریمارکتینگ یا ریتارگتینگ چیست و چرا باید در کسب و کارمان از آن استفاده کنیم؟",
+                        "content": "حتما برای شما هم پیش آمده که برای خرید یک محصول به وبسایتی مراجعه کنید؛ اما به هر دلیلی از خریدتان منصرف شوید و مثلا چند روز بعد، در وبسایت دیگری تبلیغ همان محصول را ببینید. بهتر است بدانید که این موضوع یک اتفاق ساده نیست بلکه یک روش موثر در تبلیغات آنلاین است که [&hellip;]",
+                        "post_views": "1070",
+                        "post_rate": "33"
+                    },
+                    {
+                        "id": 15766,
+                        "date": "2022-04-12 19:52:11",
+                        "link": "/b/15766/group-gaming-apps",
+                        "image": "/wp-content/uploads/2022/04/cover-1.png",
+                        "title": "8 تا از بهترین بازی‌های آنلاین که می¬توانید با دوستانتان بازی کنید",
+                        "content": "ما در این مطلب بازی‌های آنلاینی را به شما معرفی می‌کنیم که می‌توانید آن‌ها را روی موبایل خود نصب کرده و به صورت گروهی با دوستانتان بازی کنید. 8 تا از بهترین بازی‌های گروهی رایگان برای موبایل 1-Plato برای دوست داران بازی‌های صفحه‌ای هرچقدر هم تکنولوژی و صنعت گیم پیشرفت کند باز هم بازی‌های صفحه‌ای [&hellip;]",
+                        "post_views": "1949",
+                        "post_rate": "71"
+                    },
+                    {
+                        "id": 15759,
+                        "date": "2022-04-12 19:43:43",
+                        "link": "/b/15759/startup-accelerators",
+                        "image": "/wp-content/uploads/2022/04/cover.png",
+                        "title": "شتابدهنده‌های کسب و کار چه هستند؟ چگونه به استارتاپ‌ها در حوزه سرمایه‌گذاری کمک می‌کنند؟",
+                        "content": "موضوعات مالی همیشه یکی از دغدغه‌های مهم افرادی است که می‌خواهند برای خودشان کسب‌وکاری شخصی راه بیندازند، معمولا راه‌های رایج سرمایه‌گذاری مثل سرمایه‌گذاری شخصی یا کمک گرفتن از سرمایه‌گذاران&nbsp; برای این کار وجود دارد؛ اما مدتی است که راهکار جدیدی به نام شتابدهنده‌ها Accelerator) ) هم برای رشد کسب‌وکارهای نوپا یا استارت‌آپ‌ها، ایجاد شده که [&hellip;]",
+                        "post_views": "759",
+                        "post_rate": "19"
+                    },
+                    {
+                        "id": 15749,
+                        "date": "2022-03-15 14:38:09",
+                        "link": "/b/15749/what-is-nfc",
+                        "image": "/wp-content/uploads/2022/03/cover-5.png",
+                        "title": "9 شغل‌ خانگی با درآمد مناسب، برای افرادی که دور کاری را ترجیح می دهند",
+                        "content": "کرونا شرایط شغلی خیلی از افراد جامعه را تغییر داد و دورکاری را به یکی از گزینه‌های&nbsp; مناسب شغلی تبدیل کرد. دورکاری نشان داد که بسیاری از شغل‌ها را می‌شود در خانه انجام داد و بدون تحمل هزینه‌های رفت و آمد و نگرانی از بیماری کرونا، کسب درآمد کرد. کار در خانه یکی از انتخاب‌های [&hellip;]",
+                        "post_views": "1742",
+                        "post_rate": "52"
+                    },
+                    {
+                        "id": 15737,
+                        "date": "2022-03-14 11:07:20",
+                        "link": "/b/15737/innovation-center",
+                        "image": "/wp-content/uploads/2022/03/cover-4.png",
+                        "title": "روش فراهم کردن پشتوانه مالی برای یک استارت آپ (مرکز نوآوری چیست و چه تفاوت‌هایی با شتابدهنده دارد؟)",
+                        "content": "راه‌اندازی یک تیم استارت‌آپی بدون پشتوانه مالی لازم و تامین تجهیزات مورد نیاز تقریبا غیر ممکن است. یک تیم استارتاپی در زمان شروع فعالیت چند گزینه برای کسب حمایت دارد. استفاده از سرمایه‌های شخصی و خانوادگی پذیرش و عضویت در یک شتابدهنده گرفتن حمایت‌ از &nbsp;صندوق‌ها و شرکت‌های سرمایه‌گذاری مراکز&nbsp; نوآوری در بین این گزینه‌ها، [&hellip;]",
+                        "post_views": "1026",
+                        "post_rate": "33"
+                    }
+                ]
+            } else {
+                response = [
+                    {
+                        "id": 11552,
+                        "date": "2020-03-11 13:49:42",
+                        "link": "/en/b/11552/take-care-of-your-eyes-with-android-night-mode",
+                        "image": "/wp-content/uploads/2020/03/and-night01-1.jpg",
+                        "title": "Take care of your eyes with Android Night Mode",
+                        "content": "Many professionals say that blue spectrums of light are harmful to your eyes, particularly at night when you’re looking at your phones display in a dark environment. This situation also probably leads to poor sleep, which finally leads to poor health. Here’s how to contend that on your Android device. The thing is, many Android [&hellip;]",
+                        "post_views": "1511",
+                        "post_rate": "369"
+                    },
+                    {
+                        "id": 11534,
+                        "date": "2020-03-11 13:30:59",
+                        "link": "/en/b/11534/healthy-eyes-and-more-comfortable-sleep-with-ios-night-mode",
+                        "image": "/wp-content/uploads/2020/03/Night-shift01-1.jpg",
+                        "title": "Healthy eyes and more comfortable sleep with iOS Night Mode",
+                        "content": "Bright blue-white light blasting in your face at night isn’t so great for your sleep or general health, but there are few ways to mitigate it. iOS supports color shifting so you can warm up the light of your iPhone for easy nighttime reading. There is a growing body of research suggesting that exposure to [&hellip;]",
+                        "post_views": "581",
+                        "post_rate": "137"
+                    },
+                    {
+                        "id": 11506,
+                        "date": "2020-03-11 13:26:01",
+                        "link": "/en/b/11506/google-drive-a-valuable-tool-for-android-users",
+                        "image": "/wp-content/uploads/2020/03/GDriveAnd00-1.jpg",
+                        "title": "Google Drive, a valuable tool for Android users",
+                        "content": "Google Drive is pre-installed on every Android device, and it’s tempting to just use it as a primary cloud storage service. But still, there’s a lot more to it than that. Here we check top features of Google Drive for Android users. Back Up Your Phone One of the functions that Android still lacks is [&hellip;]",
+                        "post_views": "421",
+                        "post_rate": "96"
+                    },
+                    {
+                        "id": 11493,
+                        "date": "2020-03-11 13:19:08",
+                        "link": "/en/b/11493/why-our-photos-are-stored-in-a-dcim-folder",
+                        "image": "/wp-content/uploads/2020/03/DCIM-1.jpg",
+                        "title": "Why our photos are stored in a DCIM folder?",
+                        "content": "When you are using a digital camera, whether a dedicated camera, a smartphone&#8217;s camera or any other similar device, your photos will be stored in the DCIM folder on the memory card. But why there is such a common structure for storing photos and what can we do if there is a problem? In the [&hellip;]",
+                        "post_views": "493",
+                        "post_rate": "102"
+                    },
+                    {
+                        "id": 11486,
+                        "date": "2020-03-11 13:18:19",
+                        "link": "/en/b/11486/backup-whatsapp-data-to-dropbox",
+                        "image": "/wp-content/uploads/2020/03/1-2-1.jpg",
+                        "title": "Backup WhatsApp data to Dropbox",
+                        "content": "Making backups of all of your information is always a good idea because you never know when something might happen and you lose all your data. This also applies to WhatsApp chats, and if you do not backup them, you may lose important information. Based on the settings that have been made, the order to [&hellip;]",
+                        "post_views": "580",
+                        "post_rate": "138"
+                    }
+                ]
+            }
+            let slides = '';
+            response.forEach((element, index) => {
+                slides += `
+                    <div onclick="setProduct('https://blog.irancell.ir${element.link}');" class="blog-box" data-dot="<button style='position: absolute;top: 0;left: 0;width: 100%;height: 100%;z-index: 24;'></button><button><svg x='0px' y='0px' width='201px' height='201px' viewBox='0 0 101 101' xml:space='preserve'><circle class='st0' cx='50.5' cy='50.5' r='48'></circle><circle class='st0' cx='50.5' cy='50.5' r='32'></circle></svg></button>">
+                        <div class="image">
+                            <picture>
+                                <source media="(min-width:0px)" srcset="https://blog.irancell.ir${element.image}">
+                                <img src="https://blog.irancell.ir${element.image}" alt="${element.title}" loading="lazy">
+                            </picture>
+                        </div>
+                        <div class="info">
+                            <div>
+                                <div class="date">${themeLanguage ? toPersianDate(element.date.split(' ')[0]) : toEnglishDate(element.date.split(' ')[0])} - ${themeLanguage ? toPersian(element.date.split(' ')[1]) : element.date.split(' ')[1]}</div>
+                                <h3 class="main-content">${element.title}</h3>
+                            </div>
+                            <div>
+                                <div class="summary">
+                                    <p>${element.content}</p>
+                                </div>
+                                <div class="align-items-center m-0">
+                                    <div class="view-count">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                            <g clip-path="url(#clip0_2368_8067)">
+                                                <path d="M3 12C3.00089 11.337 3.15345 10.683 3.446 10.088C4.25759 8.52836 5.48808 7.22593 6.99917 6.32712C8.51026 5.42831 10.2421 4.96873 12 5.00003C13.7579 4.96873 15.4897 5.42831 17.0008 6.32712C18.5119 7.22593 19.7424 8.52836 20.554 10.088C20.8474 10.6827 21 11.3369 21 12C21 12.6631 20.8474 13.3174 20.554 13.912C19.7424 15.4717 18.5119 16.7741 17.0008 17.6729C15.4897 18.5718 13.7579 19.0313 12 19C10.2421 19.0313 8.51026 18.5718 6.99917 17.6729C5.48808 16.7741 4.25759 15.4717 3.446 13.912C3.15345 13.3171 3.00089 12.663 3 12Z" stroke="#606060" stroke-linecap="round" stroke-linejoin="round"/>
+                                                <path d="M15 12C15 12.5933 14.8241 13.1734 14.4944 13.6667C14.1648 14.1601 13.6962 14.5446 13.1481 14.7716C12.5999 14.9987 11.9967 15.0581 11.4147 14.9424C10.8328 14.8266 10.2982 14.5409 9.87868 14.1213C9.45912 13.7018 9.1734 13.1672 9.05765 12.5853C8.94189 12.0033 9.0013 11.4001 9.22836 10.8519C9.45543 10.3038 9.83994 9.83524 10.3333 9.50559C10.8266 9.17595 11.4067 9 12 9" stroke="#606060" stroke-linecap="round" stroke-linejoin="round"/>
+                                            </g>
+                                            <defs>
+                                                <clipPath id="clip0_2368_8067">
+                                                    <rect width="24" height="24" fill="white"/>
+                                                </clipPath>
+                                            </defs>
+                                        </svg>
+                                        <span class="count">
+                                            ${toPersian(element.post_views)} 
+                                        </span>
+                                    </div>
+                                    <div class="like-count">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                            <path d="M7.99463 8.18966C7.90213 7.08945 6.30323 6.6461 5.52151 7.49056C5.36128 7.66364 5.25659 7.87346 5.21891 8.09702L4.37175 13.1232C4.04705 15.0497 4.85069 16.9906 6.4924 18.245C7.73207 19.1923 9.80134 19.4382 11.3008 19.3688" stroke="#606060" stroke-linejoin="round"/>
+                                            <path d="M18.4753 12.18L16.4395 14.5077M18.4753 12.18L20.0649 10.3624C20.4723 9.8965 20.4099 9.20119 19.9254 8.80937C19.441 8.41755 18.7179 8.47759 18.3105 8.94348M18.4753 12.18C18.883 11.7138 19.6065 11.6537 20.0913 12.0458C20.576 12.4379 20.6385 13.1336 20.2308 13.5998L16.7212 17.6128C14.7636 19.8511 11.2899 20.1396 8.96239 18.2571C7.49239 17.0682 6.77281 15.2286 7.06355 13.4028L7.8221 8.63908C7.85584 8.4272 7.94958 8.22834 8.09305 8.06429C8.79301 7.26393 10.15 7.68413 10.2329 8.72688L10.3594 10.3203C10.39 10.7053 10.8911 10.8605 11.1495 10.565L14.8269 6.36018C15.2005 5.93299 15.8635 5.87793 16.3077 6.23722C16.752 6.5965 16.8092 7.23407 16.4356 7.66127M18.3105 8.94348L15.187 12.515M18.3105 8.94348L18.7842 8.40182C19.1918 7.93579 19.1293 7.24026 18.6447 6.84831C18.1601 6.45636 17.4368 6.51642 17.0293 6.98246L16.4356 7.66127M16.4356 7.66127L13.1811 11.3826" stroke="#606060" stroke-linecap="round" stroke-linejoin="round"/>
+                                            <line x1="10.0963" y1="5.34825" x2="8.88664" y2="3.51069" stroke="#606060" stroke-width="0.8" stroke-linecap="round"/>
+                                            <line x1="11.7713" y1="4.62381" x2="11.2841" y2="2.47845" stroke="#606060" stroke-width="0.8" stroke-linecap="round"/>
+                                            <line x1="13.6311" y1="4.69483" x2="14.0427" y2="2.53367" stroke="#606060" stroke-width="0.8" stroke-linecap="round"/>
+                                        </svg>
+                                        <span class="count">
+                                            ${toPersian(element.post_rate)}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="see-more">
+                                    <a href="https://blog.irancell.ir${element.link}" class="visit-link">
+                                        <span>${themeLanguage ? 'مطالعه بیشتر' : 'Read More'}</span>
+                                        ${themeLanguage ? '<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M14.0381 4.53617C14.5705 5.07776 14.5629 5.94833 14.0213 6.48064L9.52078 10.904C9.52296 10.9357 9.52408 10.9677 9.52408 11C9.52408 11.0323 9.52296 11.0643 9.52078 11.096L14.0213 15.5194C14.5629 16.0517 14.5705 16.9222 14.0381 17.4638C13.5058 18.0054 12.6353 18.0129 12.0937 17.4806L5.5 11L12.0937 4.51936C12.6353 3.98705 13.5058 3.99458 14.0381 4.53617Z" fill="#202020"/></svg>' : '<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M6.81233 4.99515C6.28002 5.53675 6.28755 6.40732 6.82914 6.93963L11.3297 11.363C11.3275 11.3947 11.3264 11.4267 11.3264 11.459C11.3264 11.4912 11.3275 11.5232 11.3297 11.5549L6.82914 15.9783C6.28755 16.5107 6.28002 17.3812 6.81233 17.9228C7.34464 18.4644 8.21521 18.4719 8.7568 17.9396L15.3505 11.459L8.7568 4.97834C8.21521 4.44604 7.34464 4.45356 6.81233 4.99515Z" fill="#202020"/></svg>'}
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            document.querySelector(".blog-carousel").innerHTML = slides;
+            owlBlog.trigger('destroy.owl.carousel');
+            owlBlog.owlCarousel(blogOptions());
+        }
+    }
+    xhrStatus.send();
+})();
+
+// Audio Button Phone
+var track1 = document.getElementById("nyan-phone");
+var controlBtn1 = document.getElementById('btnAudioPhone');
+if (controlBtn1) {
+    controlBtn1.addEventListener("click", playPausePhone);
+    track1.addEventListener("ended", function () {
+        controlBtn1.className = "play";
+    });
+}
+
+function playPausePhone() {
+    if (track1.paused) {
+        track1.play();
+        controlBtn1.className = "pause";
+    } else {
+        track1.pause();
+        controlBtn1.className = "play";
+    }
+}
+
+// Audio Button
+var track = document.getElementById("nyan");
+var controlBtn = document.getElementById('btnAudio');
+if (controlBtn) {
+    controlBtn.addEventListener("click", playPause);
+    track.addEventListener("ended", function () {
+        controlBtn.className = "play";
+    });
+}
+
+function playPause() {
+    if (track.paused) {
+        track.play();
+        //controlBtn.textContent = "Pause";
+        controlBtn.className = "pause";
+    } else {
+        track.pause();
+        //controlBtn.textContent = "Play";
+        controlBtn.className = "play";
+    }
+}
+</script>
+
+</body>
+</html>

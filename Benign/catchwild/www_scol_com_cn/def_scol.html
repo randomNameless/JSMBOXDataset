@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>def_scol.html</title>
+</head>
+<body>
+
+<script>
+//网站变黑
+/* document.writeln("<style>html,body,img{filter:progid:DXImageTransform.Microsoft.BasicImage(grayscale=1);-webkit-filter:grayscale(100%);-moz-filter:grayscale(100%);-ms-filter:grayscale(100%);-o-filter:grayscale(100%);filter:grayscale(100%);filter:gray;}</style>");
+document.write('<script type="text/javascript" src="//www.scol.com.cn/js/grayscale.js"><\/script>');
+window.onload = function(){
+	var navStr = navigator.userAgent.toLowerCase();
+	if(navStr.indexOf("msie 10.0")!==-1||navStr.indexOf("rv:11.0")!==-1){// 判断是IE10或者IE11
+		grayscale(document.body);
+        grayscale(document.getElementsByTagNa('img'));
+	}
+}; */
+
+//大背景展示
+document.write('<style>');
+//document.write('.scol_gdbg{position:fixed; z-index:99999; top:0; left:50%; margin-left:-700px;}.scol_gdbg img{width:100%; height:auto;}');
+document.write('.scol_topad p{margin:5px 0;}.scol_topad p img{width:100%; height:auto;}');
+document.write('.scol_ggad p{position:fixed; z-index:999;}.scol_ggad p:nth-of-type(2n){left:5px;}.scol_ggad p:nth-of-type(2n+1){right:5px;}.scol_ggad p img{width:80px; height:auto;}.scol_ggad p i{position:absolute; bottom:-15px; right:0; color:#fff; font-size:12px; line-height:16px; padding:0 4px; background-color:#000; cursor:pointer;}');
+document.write('</style>');
+
+$(function(){
+    //调用数据
+    $.ajax({
+        type:"get",
+        url:"https://www.scol.com.cn/index_data.js?callback=?",
+        dataType:"jsonp",
+        jsonpCallback:"scolData",
+        async:true,
+        success:function(data){
+            //console.log(data);
+
+            var nowTime = new Date();
+            var imgUrl="https://imgcdn.scol.com.cn";
+
+            //顶部通栏
+            $.each(data.top,function(i,item){
+                $('.scol_topad').append('<p><a href="'+item.url+'" target="_blank"><img src="'+imgUrl+''+item.sdpics+'"></a></p>');
+            });
+            console.log('---顶部通栏---',data.top);
+
+            //浮标公告
+            var ggArr = data.gg.filter(function(item){
+                var startTime = new Date(item.f1);
+                var endTime = new Date(item.f2);
+                return startTime <= nowTime && nowTime < endTime;
+            });//先过滤出符合的公告
+            console.log('---公告---',ggArr);
+            $.each(ggArr,function(i,item){
+                var bottomOffset = 50 + Math.floor(i / 2) * 120;
+                var linkUrl = item.url || item.href;
+                var linkTitle = htmlToText(item.title);
+                $('.scol_ggad').append('<p style="bottom:'+bottomOffset+'px;"><i>╳</i><a href="'+linkUrl+'" title="'+linkTitle+'" target="_blank"><img src="https://www.scol.com.cn/images/zb_'+i+'.gif"></a></p>');
+            });
+            $(document).on('click', '.scol_ggad i', function(e) {
+                e.preventDefault();
+                $(this).parent().hide();
+            });
+        }
+    });
+
+    //定时大背景
+    /* var currentTime = new Date();//获取当前时间
+    var setTime = new Date("2024-09-30 00:00:00");//设置指定时间
+    if (currentTime > setTime) {
+        $('.scol_topbg').html('<style>body{background:#fff url(https://www.scol.com.cn/images/2024/240930.jpg) no-repeat center 45px;}.scol_topbg{position:relative; display:block; margin:0 auto; width:1400px; height:200px; clear:both;}.scol_topbg img{width:100%; height:100%;}.top_bg{background:rgba(255,255,255,1); width:1420px; margin:0 auto;}</style><a href="https://topic.scol.com.cn/2024/24gq75/" target="_blank"><img src="https://www.scol.com.cn/images/spacer.gif"></a>');
+    }
+    console.log('当前时间：\n',currentTime,'\n指定时间：\n',setTime); */
+
+    //滚动背景
+    /* $('.scol_gdbg').html('<a><img src="https://www.scol.com.cn/images/pic/210210.jpg"></a>').show(300);
+    setTimeout(function(){
+        $('.scol_dbg').animate({top:'-700px'},500);
+    },4000); */
+});
+
+//html转纯文本
+function htmlToText(html) {
+    var tempDiv = document.createElement("div");
+    tempDiv.innerHTML = html;
+    return tempDiv.textContent || tempDiv.innerText || "";
+}
+
+//gif动画
+function gifAnimate($div,imgSrc,imgType,imgNum,n,type) {
+    var imgArr = [];
+    var count = 0;
+    var speed = 1000 / n;//每秒n张
+
+    for (var i = 1; i <= imgNum; i++) {
+        var img = new Image();
+        img.src = imgSrc + i + '.' + imgType;
+        imgArr.push(img);
+    }
+
+    function gif() {
+        var el = $($div);
+        setInterval(function() {
+            if (type === 'bg') {
+                el.css('background-image', 'url(' + imgArr[count].src + ')');
+            } else {
+                el.attr('src', imgArr[count].src);
+            }
+            count++;
+            if (count >= imgArr.length) {
+                count = 0;
+            }
+        }, speed);
+    }
+
+    gif();
+}
+</script>
+
+</body>
+</html>

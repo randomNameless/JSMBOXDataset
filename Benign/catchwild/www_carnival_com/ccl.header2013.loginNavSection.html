@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ccl.header2013.loginNavSection.html</title>
+</head>
+<body>
+
+<script>
+(function ($, Carnival) {
+    Carnival = Carnival || {};
+    Carnival.Header2013 = Carnival.Header2013 || {};
+    Carnival.Header2013.CCLHeader2013Personalizer = Carnival.Header2013.CCLHeader2013Personalizer || {};
+    Carnival.Header2013.savedOffImgUrl = Carnival.Header2013.savedOffImgUrl || window.savedOffImgUrl || "";
+    Carnival.Header2013.loginUrl = Carnival.Header2013.loginUrl || window.loginUrl || "";
+    Carnival.Header2013.signUpUrl = Carnival.Header2013.signUpUrl || window.signUpUrl || "";
+
+    var userName = "";
+    var emailAddress = "";
+    var loggedIn = false;
+    var authenticated = false;
+    var saveSwitch = getSaveSwitch();
+
+    var personalizer = {};
+    personalizer.init = function () {
+        var carnivalUser = Carnival.UserLogin.carnivalUser();
+        if (carnivalUser) {
+            userName = carnivalUser.userName;
+            emailAddress = carnivalUser.emailAddress;
+            loggedIn = carnivalUser.loggedIn;
+        }
+
+        var carnivalUserSession = Carnival.UserLogin.getCclSession();
+        authenticated = carnivalUserSession.authenticated;
+    };
+
+    personalizer.getSavedItineraryCount = function () {
+        var data = window.localStorage && window.localStorage.getItem("saved");
+
+        if (!data) {
+            data = window.sessionStorage && window.sessionStorage.getItem("saved");
+            if (!data) {
+                data = jQuery.cookie("saved");
+            }
+        }
+
+        if (data) {
+            var saved = JSON.parse(data) || {};
+
+            if (saved.itinerary) {
+                return saved.itinerary.length;
+            }
+        }
+        return 0;
+    };
+
+    personalizer.PersonalizeTopLoginLinksForHeader2013 = function () {
+        var $loginLink = $("#ccl_header_expand-login-link");
+        var $registerLink = $("#join");
+        var $flyOutRegisterLink = $("#flyoutJoin");
+        var $greeting = $("#greeting");
+        var domain = window.carnivalDomain || "";
+        if (domain) {
+            domain = domain.slice(-1) == "/" ? domain.slice(0, -1) : domain;
+        }
+
+        $flyOutRegisterLink.click(function () {
+            document.location = domain + "/profilemanagement/accounts/register";
+        });
+
+        $loginLink.off("click.logout");
+
+        if (loggedIn && authenticated) {
+            $greeting.show();
+            $registerLink.html(userName);
+            $registerLink.attr("href", domain + "/profilemanagement/profiles")
+                .removeClass("not-a-link")
+                .removeAttr("data-ccl-flyout")
+                .removeAttr("data-ccl-flyout-click");
+
+            if (emailAddress) {
+                $("#ccl_header_login-email").attr("value", emailAddress);
+            }
+
+            $loginLink.html("Logout");
+            $loginLink.removeClass("not-a-link")
+                .removeAttr("data-ccl-flyout")
+                .removeAttr("data-ccl-flyout-click")
+                .attr("href", domain + "/profilemanagement/accounts/logout")
+                .on('click', function (event) {
+                    event.preventDefault();
+                    $('<form>', {
+                        "method": "post",
+                        "action": domain + '/ProfileManagement/Accounts/Logout',
+                        "html": $('<input>', { "type": "hidden", "name": "redirectUrl", "value": document.location.href }),
+                    }).appendTo('body').submit();
+                });
+        }
+        if (loggedIn && !authenticated) {
+            $greeting.show();
+            $registerLink.html(userName);
+            $registerLink.removeAttr("href").addClass("not-a-link").click(function () {
+                return false;
+            });
+
+            if (emailAddress) {
+                $("#ccl_header_login-email").attr("value", emailAddress);
+            }
+
+            $loginLink.html("Log In");
+
+            var legacyUrl = domain + "/profilemanagement/accounts/logout?redirectUrl=" + encodeURIComponent("/profilemanagement/accounts/login");
+
+            $loginLink.attr("href", legacyUrl).removeClass("not-a-link").click(function () {
+                var result = Carnival.SSO.openLoginRegisterComponent('/login');
+                if (result === false) {
+                    return false;
+                }
+            });
+        }
+        if (!loggedIn && !authenticated) {
+            $loginLink.html("Log In");
+
+            var loginUrl = domain + "/profilemanagement/accounts/login?returnUrl=" + encodeURIComponent(document.location.href);
+
+            $loginLink.attr("href", loginUrl).removeClass("not-a-link").click(function () {
+                var result = Carnival.SSO.openLoginRegisterComponent('/login');
+                if (result === false) {
+                    return false;
+                }
+            });
+
+            var joinUrl = domain + "/profilemanagement/accounts/register";
+            $registerLink.attr("href", joinUrl).removeClass("not-a-link").click(function () {
+                var result = Carnival.SSO.openLoginRegisterComponent('/register');
+                if (result === false) {
+                    return false;
+                }
+            });
+        }
+
+        // --- end login/logout/register links personalization ---
+    };
+
+    personalizer.personlizeMangeTab = function () {
+        if (authenticated) {
+            var domain = window.carnivalDomain || "";
+            if (domain) {
+                domain = domain.slice(-1) == "/" ? domain.slice(0, -1) : domain;
+            }
+            var $mybooking = $("#mybooking"),
+                $planactivities = $("#planactivities"),
+                $funshops = $("#irgShopping"),
+                $checkin = $("#checkin"),
+                $vifp = $("#vifpClub");
+
+            $mybooking.attr("href", domain + "/booked/redirect?goal=mybooking&icid=CC_my-booking_1862");
+            $planactivities.attr("href", domain + "/booked/redirect?goal=PlanActivities");
+            $funshops.attr("href", domain + "/booked/redirect?goal=Funshops");
+            $checkin.attr("href", domain + "/booked/redirect?goal=checkin&icid=CC_check-in_1865");
+            $vifp.attr("href", domain + "/vifp.aspx?icid=CC_vifp-club_1866");
+        }
+    };
+
+    Carnival.Header2013.CCLHeader2013Personalizer = $.extend(personalizer, Carnival.Header2013.CCLHeader2013Personalizer);
+    window.Carnival = Carnival;
+
+    // initialize the personalizer into a global variable
+    Carnival.Header2013.CCLHeader2013Personalizer.init();
+    Carnival.Header2013.CCLHeader2013Personalizer.PersonalizeTopLoginLinksForHeader2013();
+
+    $(function () {
+        $("#ccl_header_login-email, #ccl_header_login-pw").bind("keypress", function (e) {
+            if (e.keyCode === 13) {
+                if ($("#ccl_header_login-email").val().length > 0 && $("#ccl_header_login-pw").val().length > 0) {
+                    $("#loginBttn").click();
+                }
+            }
+        });
+        Carnival.Header2013.CCLHeader2013Personalizer.PersonalizeNotificationFlag();
+    });
+
+    function getSaveSwitch() {
+        if (Carnival.SaveFavoritesSwitches && Carnival.SaveFavoritesSwitches.ActiveFlow)
+            return Carnival.SaveFavoritesSwitches.ActiveFlow;
+
+        var defaultSwitch = { isOn: false, isOff: true, isSave: false, isLegacy: false };
+        return defaultSwitch;
+    }
+
+})(jQuery, window.Carnival);
+
+
+</script>
+
+</body>
+</html>

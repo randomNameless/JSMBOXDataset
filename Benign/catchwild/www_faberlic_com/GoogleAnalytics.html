@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GoogleAnalytics.html</title>
+</head>
+<body>
+
+<script>
+class GoogleAnalyticsHelper {
+    constructor(page, event, currentPage) {
+        this.page = page;
+        this.event = event;
+        this.currentPage = currentPage;
+        this.options = {
+            'ecommerce.approved.order': this.setDataToConfirmOrder,
+            'ecommerce.viewing.productList': this.setDataViewGoodsList,
+            'ecommerce.click.productList': this.setDataToClickProductCard,
+            'ecommerce.viewing.detail': this.setDataViewGoodCard,
+            'ecommerce.add.cart': this.setDataToAddCart,
+        };
+        this.addMethodByContent = new CardAddMethodByContent();
+        this.addMethodByUrl = new CardAddMethodByPath();
+    }
+
+    getAddMethodProperty(type, option) {
+        switch (type) {
+            case 'content':
+                return this.addMethodByContent.resolveAddMethod(option);
+            default:
+                return this.addMethodByUrl.resolveAddMethod(option);
+        }
+
+    }
+
+    getCurrentPage() {
+        return this.currentPage;
+    }
+
+    getSessionInfo(type) {
+        return type === 'lang' ? currentUserLanguage : userCurrentCountry;
+    }
+
+    setDataToConfirmOrder(data) {
+        const {
+            eventCategory,
+            eventAction,
+            eventLabel,
+            products,
+            pagePart,
+            transactionId,
+            currency,
+            coupon,
+            shippingCost,
+            shipping,
+            value
+        } = data;
+        const totalPrice = Number(value);
+        const totalDeliveryPrice = Number(shippingCost);
+        const promocodeIds = coupon ? JSON.parse(coupon).join(',') : null;
+        dataLayer.push({
+            event: 'userEvent',
+            'eventCategory': eventCategory,
+            'eventAction': eventAction,
+            'eventLabel': eventLabel,
+            'eventContext':
+                `interactionPage:${window.currentPage};country:${this.getSessionInfo('country')};language:${this.getSessionInfo('lang')};transactionId:${transactionId};products:[${this._setProducts(products).join(',')}];shippingType:${shipping};total:${value};shippingCost:${totalDeliveryPrice || null};coupon:${promocodeIds || null}`
+            ,
+            ecommerceAction: 'purchase',
+            pagePart,
+            firingOptions: 'oncePerEvent',
+            ecommerce: {
+                items: this.getEcommerceData(products),
+                transaction_id: transactionId.toString(),
+                affiliation: 'faberlic',
+                value: totalPrice,
+                shipping: totalDeliveryPrice,
+                currency: currency,
+                coupon: promocodeIds || null,
+            },
+        });
+    }
+
+
+    setDataToClickProductCard(data) {
+        const {
+            pagePart,
+            eventCategory,
+            eventAction,
+            currentPage,
+            eventLabel,
+        } = data;
+        dataLayer.push({
+            "event": 'userEvent',
+            'eventCategory': eventCategory,
+            'eventAction': eventAction,
+            'eventLabel': eventLabel,
+            'eventContext': `interactionPage:${currentPage || window.currentPage};country:${this.getSessionInfo('country')};language:${this.getSessionInfo('lang')};products:[${this._setProducts(data).join(',')}]`,
+            'ecommerceAction': 'select_item',
+            'pagePart': pagePart,
+            'firingOptions': 'oncePerEvent',
+            'ecommerce': {
+                items: this.getEcommerceData(data),
+            }
+        });
+    }
+
+    deleteCurrencyFromProduct(productList) {
+        return productList.map((product) => {
+            delete product.currency;
+            return product;
+        })
+    }
+
+    setDataViewGoodCard(data) {
+        const {
+            pagePart,
+            eventAction,
+            eventLabel,
+            firingOptions,
+            currentPage,
+            product
+        } = data;
+        const ecommerceData = this.deleteCurrencyFromProduct(this.getEcommerceData(product))
+        dataLayer.push({
+            "event": 'userEvent',
+            'eventCategory': 'ecommerce',
+            'eventAction': eventAction,
+            'eventLabel': eventLabel,
+            'eventContext':
+                `interactionPage:${currentPage || window.currentPage};country:${this.getSessionInfo('country')};language:${this.getSessionInfo('lang')};products:[${this._setProducts(product).join(',')}]`,
+            'ecommerceAction': 'view_item',
+            'pagePart': pagePart,
+            'firingOptions': firingOptions,
+            'ecommerce': {
+                currency: window.currentCurrency,
+                value: this.getSumPriceByAllProducts(ecommerceData),
+                items: ecommerceData,
+            }
+
+        })
+
+    }
+
+    handleEvents(data) {
+        const eventKey = `${data.eventCategory}.${data.eventAction}.${data.eventLabel}`
+
+        if (this.options[eventKey]) {
+            const handler = this.options[eventKey].bind(this);
+            dataLayer.push({ecommerce: null});
+            handler(data);
+        } else {
+            console.error('event is not defined');
+        }
+
+    }
+
+    isCarouselPart(element) {
+        const isSlider = element.parents('.slick-slider').length;
+        return !!isSlider;
+    }
+
+    setDataToAddCart(data) {
+        const {
+            pagePart,
+            currentPage,
+            eventCategory,
+            eventAction,
+            eventLabel,
+            products,
+            transactionId,
+            addMethod,
+        } = data;
+        const ecommerceItems = this.getEcommerceData(products)
+        dataLayer.push({
+            event: "userEvent",
+            eventCategory: eventCategory,
+            eventAction: eventAction,
+            eventLabel: eventLabel,
+            eventContext:
+                `interactionPage:${currentPage || window.currentPage};country:${this.getSessionInfo('country')};language:${this.getSessionInfo('lang')};transactionId:${transactionId || null};products:[${this._setProducts(products).join(',')}];addMethod:${addMethod || null}`
+            ,
+            ecommerceAction: 'add_to_cart',
+            pagePart: pagePart,
+            firingOptions: 'oncePerEvent',
+            ecommerce: {
+                value: this.getSumPriceByAllProducts(ecommerceItems),
+                items: ecommerceItems,
+                currency: window.currentCurrency,
+            }
+        });
+
+    }
+
+    getSumPriceByAllProducts(products) {
+        return products.reduce((prev, next) => {
+            const price = next.price * next.quantity;
+            return prev + price;
+        }, 0)
+    }
+
+    _setProducts(list) {
+        if (Array.isArray(list)) {
+            return list.map((el, i) => {
+                return `{productId:${el.ID},list:${null},categoryMain:${null}}`
+            })
+        } else {
+            return [`{productId:${list.ID},list:${null},categoryMain:${null}}`]
+        }
+
+
+    }
+
+    prepareProductData(product) {
+        const {SCAPTION, ID, FSTORE, FCATALOG, index, NSTOCK} = product;
+        const productInfo = {
+            item_name: SCAPTION ? SCAPTION.trim() : null,
+            item_id: ID || null,
+            product_variant: ID || null,
+            price: Number(FSTORE) || null,
+            unit_price: Number(FCATALOG) || null,
+            item_list_name: null,
+            item_variant: ID || null,
+            quantity: Number(NSTOCK) || 1,
+            currency: window.currentCurrency || null, // из обьекта window см/fl_w/index.php
+            index: index,
+        }
+        return productInfo;
+
+    }
+
+    _isMatchingId(item, id) {
+        return Number(item.ID) === Number(id);
+    }
+
+    _findProductIndexInArray(id, list) {
+        for (let i = 0; i < list.length; i++) {
+            const listItem = list[i]; // Может быть {} или []
+            const isArrayListItem = Array.isArray(listItem);
+            if (isArrayListItem) {
+                const nestedIndex = this._findProductIndexInArray(id, listItem);
+                if (nestedIndex !== -1) {
+                    return nestedIndex;
+                }
+            } else if (this._isMatchingId(listItem, id)) {
+                return i + 1;
+            }
+        }
+        return -1;
+    }
+
+    isModalTemplateRequested() {
+        const urlParams = new URLSearchParams(window.location.search);
+        return urlParams.get('tpl') === 'modal';
+    }
+
+    _findProductIndex(id) {
+        const list = window.productList;
+        if (list) {
+            if (!Array.isArray(list)) {
+                const values = Object.values(list);
+                return this._findProductIndexInArray(id, values)
+            }
+            return this._findProductIndexInArray(id, list)
+        } else {
+            return 1; // если товара нет,то задать index 1
+        }
+    }
+
+    getEcommerceData(data) {
+        if (Array.isArray(data)) {
+            return data.map((el, i) => {
+                return this.prepareProductData({...el, index: i + 1})
+            })
+        } else {
+            if (!data.index) {
+                const getIndex = this._findProductIndex(data.ID);
+                const index = getIndex !== -1 ? getIndex : 1;
+                return [this.prepareProductData({...data, index: index})]
+            }
+            return [this.prepareProductData({...data, index: data.index})]
+        }
+
+    }
+
+    setDataViewGoodsList(data) {
+        const {
+            pagePart,
+            products,
+            eventCategory,
+            eventAction,
+            eventLabel,
+        } = data;
+        dataLayer.push({
+            event: 'userEvent',
+            eventCategory: eventCategory,
+            eventAction: eventAction,
+            eventLabel: eventLabel,
+            eventContext:
+                `interactionPage:${currentPage || window.currentPage};country:${this.getSessionInfo('country')};language:${this.getSessionInfo('lang')};products:[${this._setProducts(products).join(',')}]`
+            ,
+            ecommerceAction: 'view_item_list',
+            pagePart: pagePart,
+            firingOptions: 'oncePerEvent',
+            ecommerce: {
+                items: this.getEcommerceData(products)
+            },
+
+        })
+    }
+
+    setObserverViewingGoodsList(options, dataAttributeOptions = null, pagePart = null) {
+        const selector = options.viewElement;
+        const attributeOptions = dataAttributeOptions ? dataAttributeOptions : null;
+        const elements = document.querySelectorAll('.' + selector);
+        if (elements.length > 0) {
+            const myObserver = new IntersectionObserver((entries, observer) => {
+                entries.forEach((i) => {
+                    if (attributeOptions) {
+                        var productListType = i.target.getAttribute(`${attributeOptions}`);
+                    }
+                    if (i.isIntersecting) {
+                        const sendData = {
+                            eventCategory: 'ecommerce',
+                            eventAction: 'viewing',
+                            eventLabel: 'productList',
+                            ecommerceAction: 'view_item_list',
+                            pagePart: pagePart,
+                            products: attributeOptions ? productList[productListType] : productList, //productList из window
+                        }
+                        gt.handleEvents(sendData);
+                        observer.unobserve(i.target);
+                    }
+
+                })
+            }, {threshold: options.threshold});
+            elements.forEach((productList) => {
+                myObserver.observe((productList));
+            })
+        }
+
+    }
+}
+class CardAddMethodByPath {
+    constructor() {
+        this.path = {
+            seriesitem: 'collectionItems',
+            listgoods: 'categoryItems',
+            goods: 'itemCard',
+            promo: 'promoPersonal',
+            searchItems: 'searchItems',
+            promolist: 'promoCategory',
+            flippingbook: 'flashCatalog',
+            relatedpromogoods: 'promoCategory',
+            addFavorites: 'addFavorites',
+        }
+    }
+
+    resolveAddMethod(option = false) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const view = urlParams.get('view');
+        const addMehtod = this.path[option ? option : view];
+        return addMehtod
+    }
+
+}
+
+class CardAddMethodByContent  {
+    constructor() {
+        this.contentMethod = {
+            new: 'newArrivals',
+            hits: 'bestSellers',
+            vip: 'vip',
+            pairuse: 'combineWith',
+            quickOrder: 'quickOrder',
+            quickAdd: 'quickAdd',
+            addFavorites: 'addFavorites',
+            flippingbook: 'flashCatalog',
+            changeCart: 'changeCart'
+        }
+    }
+
+    resolveAddMethod(content) {
+        return this.contentMethod[content];
+    }
+
+}
+
+window.gt = new GoogleAnalyticsHelper('', '', window.currentPage);
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>dx.view.html</title>
+</head>
+<body>
+
+<script>
+
+/*
+ * @Author: 大图模板 
+ * @Date: 2020-10-16 10:33:33 
+ * @Last Modified by: 金刚狼
+ * @Last Modified time: 2021-09-05 20:05:32
+ * 模板核心js文件，高端模板定制【大图模板】http://www.datll.com
+ */
+class DX{
+   constructor(){
+      this.maccms = maccms;
+      this.Cookie = document.cookie;
+      this.roll();
+      this.datJSON = {};
+   };
+   user(){
+      var dx = this;
+      var url = maccms.path + '/index.php/user';
+      var loginUrl = maccms.path + '/index.php/login';
+      var IsLogin = document.getElementById('IsLogin');
+      if(!IsLogin){
+         return;
+      }
+      if(typeof(MAC.Cookie.Get('user_id')) != "undefined" && MAC.Cookie.Get('user_id') !=''){
+         var Portrait = MAC.Cookie.Get('user_portrait');
+         var GroupName = MAC.Cookie.Get('group_name');
+         IsLogin.innerHTML = `
+         <a href="${url}" class="u-link user-link">
+            <i class="login-state">${GroupName}</i>
+            <img class="user_portrait" src="${Portrait}" alt="">
+         </a> `;
+      }else{
+         IsLogin.onclick = function(){
+            if(!!navigator.userAgent.match(/AppleWebKit.*Mobile.*/)){
+                  window.location.href = loginUrl
+            }else{
+               MAC.User.Login();
+            }
+         }
+      }
+   }
+   addEvent(obj,type,fn){
+      if(obj.attachEvent){
+         obj.attachEvent('on'+type,function(){
+         fn.call(obj);
+      })
+      }else{
+         obj.addEventListener(type,fn,false);
+      }
+   };
+   roll(){
+      var DX = this;
+      this.addEvent(window,'scroll',()=>{
+         var scrollTop = document.documentElement.scrollTop||document.body.scrollTop;
+         let body = document.getElementsByTagName('body')[0],header = document.getElementsByTagName('header')[0],roll_top = document.getElementById('top-bar');
+         
+         if(!header){
+            return;
+         }
+         if(roll_top){
+            roll_top.onclick = ()=>{DX.ScrollTop(0,200);};
+            if(scrollTop > 600){body.classList.add("TopRoll");}else{body.classList.remove("TopRoll");}
+         }
+         if(scrollTop > 500){
+            header.style.backgroundColor = 'rgba(0, 0, 0, 0.8)'
+         }else{
+            header.style.backgroundColor = ''
+         }
+      });
+   }
+   ScrollTop(number = 0, time){
+      var douyin = this;
+      if (!time) {
+         document.body.scrollTop = document.documentElement.scrollTop = number;
+         return number;
+     };
+     const spacingTime = 20; 
+     let spacingInex = time / spacingTime; 
+     let nowTop = document.body.scrollTop + document.documentElement.scrollTop; 
+     let everTop = (number - nowTop) / spacingInex; 
+     let scrollTimer = setInterval(() => {
+         if (spacingInex > 0) {
+             spacingInex--;
+             douyin.ScrollTop(nowTop += everTop);
+         } else {
+             clearInterval(scrollTimer);
+         }
+     }, spacingTime);
+   }
+   tipText(el){
+      var text = el.attr("data-text") 
+      el.hover(function(e){
+         $(this).html(`<span class="tipText">${text}</span>`)
+      },function(){
+         $(this).html(``)
+     });
+   }
+   hover(self){
+      if(!!navigator.userAgent.match(/AppleWebKit.*Mobile.*/)){
+         return;
+      }
+      var dx = this;
+      var dx_list = document.getElementById('dx-hover');
+      self.hover(function(e){
+         var json = JSON.parse($(this).attr('data-json'));
+         var vid = $(this).attr('data-id');
+         dx.datJSON[json['id']] = json;
+         var offsetTop = e.currentTarget.offsetTop;
+         var offsetLeft = e.currentTarget.offsetLeft;
+         var clientWidth = e.target.clientWidth;
+         var html = ``;
+         for(let key in dx.datJSON){ 
+            var vo = dx.datJSON[key];
+            html += `
+            <div class="hover-card ${(vid == vo.id) ? 'hover':''}" style="top: ${offsetTop}px; left: ${offsetLeft-4}px; width:${clientWidth+8}px;">
+               <a class="cover-area" href="${vo.link}" style="background-image: url('${vo.pic}')"></a>
+               <div class="small_content">
+                  <div class="hover-tit">
+                     <a href="${vo.link}">${vo.name}</a> 
+                     <span class="hover-score">${vo.score}</span>
+                  </div>
+                  <p>简介：${vo.blurb}</p>
+               </div>
+            </div>
+            `
+         } 
+         dx_list.innerHTML = html;
+         $('.hover-card').hover(function(e){},()=>{dx_list.innerHTML = ''})
+      },function(){
+         
+      });
+     
+   }
+   search(){
+      var t = 0;
+      if(!!navigator.userAgent.match(/AppleWebKit.*Mobile.*/)){return};
+      $(".searchinput").focus(()=>$('.search-list').removeClass('hidden'));
+      $('.hot-search-list').hover(()=>t = 1,()=>t = 0);
+      $(".searchinput").blur(()=>{if(!t){$('.search-list').addClass('hidden')}  
+     });
+   }
+   swiper(){
+      return{
+         "index":function(){
+            var galleryThumbs = new Swiper('.gallery-thumbs', {
+              spaceBetween: 10,
+              slidesPerView: 'auto',
+              freeMode: true,
+              watchSlidesVisibility: true,
+              watchSlidesProgress: true,
+              navigation: {
+                nextEl: '.thumbs-button-next',
+                prevEl: '.thumbs-button-prev',
+              },
+            });
+            var galleryTop = new Swiper('.gallery-top', {
+               spaceBetween: 10,
+               autoplay: true,
+               initialSlide: 0,
+               autoplay: {
+                  disableOnInteraction: !1
+               },
+               /*effect: window.innerWidth < 750 ? "slide":"fade",*/ 
+               fadeEffect: !0,
+               speed: 700,
+               loop: !0,
+               thumbs: {
+                  swiper: galleryThumbs
+               }
+            });
+         },
+         'dxNav':function(){
+            
+            var eNav = new Swiper(".NavSwiper",{
+               init: false,
+               watchSlidesVisibility : true,
+               slidesPerView : 'auto',
+               centeredSlidesBounds: true,
+               observer:true, 
+               observeParents:true,
+               freeMode : true,
+               on:{
+               } 
+            });
+            
+             
+
+            if(!!navigator.userAgent.match(/AppleWebKit.*Mobile.*/)){
+               if(eNav.length){
+                  for(let i = 0; i < eNav.length; i++){
+                     eNav[i].init();
+                  }
+               }  
+            };
+            window.onresize = function(){
+               if(!!navigator.userAgent.match(/AppleWebKit.*Mobile.*/)){
+                  eNav.init();
+               }else{
+                  eNav.autoplay.stop();
+               }
+            };
+         },
+         
+      }
+   }
+   order(){
+      var order  = document.getElementsByClassName('order');
+      var objs = [`<i class="dx-icon desc"></i>倒序`,`<i class="dx-icon asc"></i>正序`];
+      var key = {};
+      for(let i = 0; i < order.length; i++){
+         key[order[i].dataset.id] = 0;
+         order[i].onclick = function(e){
+            var html = objs[key[this.dataset.id]];
+            key[this.dataset.id] = key[this.dataset.id] ? 0 : 1
+            this.innerHTML = html;
+            var list = document.getElementById(this.dataset.id).children[1];
+            var children = list.children;
+            for(let i = children.length-1;i>0;i--){
+               list.appendChild(children[i-1])
+            } 
+         }
+      }
+   }
+   history(){
+      return{
+         'json':{},
+         'Init':function(){
+            var btn = document.getElementsByClassName('history');
+            this.json = this.Get('history');
+            var timer = null;
+            var history = document.getElementById('dx-history');
+ 
+            if(btn.length){
+               if(!navigator.userAgent.match(/AppleWebKit.*Mobile.*/)){
+                  btn[0].onmouseenter = ()=>{
+                     history.classList.add('alpha');
+                     clearTimeout(timer);
+                  };
+                  btn[0].onmouseleave = function(){
+                     timer = setTimeout(()=>{
+                        history.classList.remove('alpha');
+                     },400)
+                  };
+               }else{
+                  // 手机端
+                  let body = document.getElementsByTagName('body')[0]
+                  btn[0].onclick = ()=> {
+                     history.classList.add('alpha');
+                     body.classList.add('overflow');
+                  };
+               }
+               let html =`<div class="hi-head"><a class="sClear" href="javascript:;" onclick="dx.history().mobileClear()"><i class="dx-icon back"></i></a><span>播放历史</span><a class="hi-Clear" href="javascript:;" onclick="dx.history().Clear()">清空记录</a></div><div class="clearfix"></div><ul>`;
+               Object.getOwnPropertyNames(this.json).forEach((key)=>{
+                  let vo = this.json[key];
+                  html+=`<li>
+                  <a href="${vo.link}">
+                     <div class="hs-pic"><img src="${vo.pic}"/></div>
+                     <div class="hs-info">
+                     <p class="ellipsis-txt">${vo.name}</p>
+                     <p>${vo.nid}</p>
+                     </div>
+                  </a>
+                  </li>`
+               });
+               
+               html+=`</ul>`;
+         
+               history.innerHTML = html;
+            }
+          
+            this.Set();
+         },
+         'Set':function(){
+            var $that = document.getElementById('history_Set');
+            if(!$that){
+               return;
+            };
+            let obj = {"id":$that.dataset.id,"name":$that.dataset.name,"pic":$that.dataset.pic,"link":$that.dataset.link,"sid":$that.dataset.sid,"nid":$that.dataset.nid};
+            let arr1 = {};
+            try {
+               const History = localStorage.getItem("history");
+               arr1 = History !==null ? JSON.parse(History) : {};  
+            } catch (e) {
+               /*error8*/ 
+            };
+            if(!obj.id){
+               alert('记录错误');
+               return;
+            }
+            let arr2 = {};
+            arr2[obj.id] = obj;
+            let str = this.arrayFun(arr1,arr2);
+            localStorage.setItem('history',JSON.stringify(str));
+         },
+         'Get':function(key){
+            let json = {};
+              try {
+                 const History = localStorage.getItem(key);
+                 json = History !==null ? JSON.parse(History) : {}; 
+              } catch (e) {
+                 /*error8*/ 
+              };
+              return json;
+         },
+         'Clear':function(){
+            var history = document.getElementById('dx-history');
+            if(confirm('确定要清空记录吗')){
+               localStorage.removeItem('history');
+               this.Init();
+            }
+          },
+         'arrayFun':function(arr1,arr2){
+            if(JSON.stringify(arr1) == "{}"){
+               arr1 = arr2;
+            };
+            for(let i in arr1){
+               for(let j in arr2){
+                  if(i==j){
+                     arr1[i] = arr2[j];
+                  }else{
+                     arr1[j] = arr2[j];
+                  }
+               }
+            };
+            return arr1
+         },
+         'mobileClear':function(e){
+            window.event? window.event.cancelBubble = true : e.stopPropagation();
+            let body = document.getElementsByTagName('body')[0];
+            let history = document.getElementById('dx-history');
+            history.classList.remove('alpha');
+            body.classList.remove('overflow');
+         }
+      }
+   }
+   tab(el,Container){
+      let TAB = document.getElementById(el).children;
+      let tabContainer = document.getElementById(Container).children;
+      let active = 'active';
+      for(let i = 0 ; i < TAB.length; i++){
+         TAB[i].onclick = function(){
+            for(let i = 0 ; i < TAB.length; i++){
+               TAB[i].classList.remove(active);
+               tabContainer[i].classList.remove(active);
+            };
+            this.classList.add(active);
+            let id = this.dataset.id;
+            document.getElementById(id).classList.add(active);
+         }
+      }
+   };
+   share(id,url,visit,fun){
+      var Dom = document.getElementById(id);
+      var user_id = MAC.Cookie.Get('user_id')||0;
+      var share_link =  window.location.protocol+'//'+document.domain+visit+'?uid='+user_id+'&url='+url;
+      Dom.setAttribute("data-clipboard-text",share_link);
+      fun();
+   };
+   clipboard(DOM,text){
+      this.Jsload(base64decode(this.maccms.tpl)+'assets/js/clipboard.min.js',()=>{
+         var btnCopy = new Clipboard(DOM);
+         btnCopy.on('success', function(e) {
+            alert(text);
+            e.clearSelection();
+         });
+      })
+   };
+   Jsload(sUrl,fCallback){
+      var _script = document.createElement("script");
+　　　　_script.setAttribute("type","text/javascript");
+　　　　_script.setAttribute("src",sUrl);
+　　　　document.getElementsByTagName("head")[0].appendChild(_script);
+　　　　if(/msie/.test(window.navigator.userAgent.toLowerCase())){
+　　　　　　_script.onreadystatechange=function(){
+　　　　　　　　if(this.readyState=="loaded"||this.readyState=="complete"){
+　　　　　　　　　　fCallback();
+　　　　　　　　}
+　　　　　　};
+　　　　}else if(/gecko/.test(window.navigator.userAgent.toLowerCase())){
+　　　　　　_script.onload=function(){
+　　　　　　　　fCallback();
+　　　　　　};
+　　　　}else{
+　　　　　　fCallback();
+　　　　}
+   };
+   qrcode(self){
+      var dx_list = document.getElementById('dx-hover');
+      self.hover(function(e){
+         var offsetTop = e.currentTarget.offsetTop;
+         var offsetLeft = e.currentTarget.offsetLeft;
+         var html = `
+         <div class="drop-qrcode" style="top: ${offsetTop - 166}px; left: ${offsetLeft - 50}px;">
+            <img src="${maccms.path}/index.php/qrcode/index.html?url=${MAC.Url}" alt="">
+            <div class="qrcode-name">
+               <p>使用 手机浏览器 扫码观看</p>
+               <strong>${$(this).attr('data-name')}</strong>
+            </div>
+         </div>
+         `;
+         if(e.type == "mouseenter"){
+            dx_list.innerHTML = html;
+         } 
+         if(e.type == "mouseleave"){
+            var t = 1
+            $('.drop-qrcode').hover((e)=>{t = 0
+            },(e)=>{
+               dx_list.innerHTML = ''
+            })
+            if(t){
+               dx_list.innerHTML = ''
+            }
+         }
+      })
+   }
+   showMenu(){
+      var name = ['getElementById','onclick','classList'],menu = document[name[0]]('showOpen'),row = document[name[0]]('showMenu'),objs = [`展开<i class="dx-icon open"></i>`,`收起<i class="dx-icon off"></i>`],on = ['remove','add'],key = 0;
+      if(!menu){
+         return;
+      }
+      menu[name[1]] = function(){
+         key = key ? 0 : 1,this.innerHTML = objs[key],row[name[2]][on[key]]("menu-open")
+      }
+   }
+};
+var dx = new DX()
+$(function(){
+   dx.search(),$(".lazy").lazyload(),dx.tipText($("#book-bar")),dx.tipText($("#top-bar")),dx.hover($('.dx-vod')),dx.swiper().index(),dx.order(),dx.history().Init(),dx.showMenu();
+   dx.swiper().dxNav(),dx.user();
+   $(".close-popup").click(function () {
+      $(".popup").addClass("none");
+   });
+   $(".domain").click(function () {
+      $(".popup-notice").removeClass("none").addClass("open");
+    });
+   $(".close-popup,.close-popup2").click(function () {
+      $(".popup").removeClass("open").addClass("none");
+    });
+   
+})
+ 
+ 
+</script>
+
+</body>
+</html>

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>pageservice.html</title>
+</head>
+<body>
+
+<script>
+$(function () {	
+	var pathArr = window.location.pathname.split('/');
+	var deptName = '';
+	if (pathArr.length == 2) { deptName = 'www'; }
+	else if (pathArr.length == 3) { deptName = pathArr[1]; }
+	else { return; }
+	var pathName = pathArr[pathArr.length - 1];
+	var paramArr = pathName.split('-');
+	var mpId = paramArr[paramArr.length - 1].replace('.html', '');
+	console.log(deptName + '/' + pathName + '/' + mpId);
+	$.ajax({
+		url: '/svcs-pagecounter.html',
+		type: "POST",
+		cache: false,
+		data: { deptName: deptName, mp: mpId, url: pathName },
+		datatype: "json",
+		success: function (data, status, xhr) {
+			try {
+				data = $.parseJSON(data);
+				if (data.Status == '1') {
+					var pageViewCount = data.PageViewCount;
+					if (mpId == '1') {
+						$('.visiters').text('瀏覽人次：' + pageViewCount);
+					}
+					else if (mpId == '204' || mpId == '205' || mpId == '206') {
+						$('.cp_info li:last span').text(pageViewCount);
+					}
+					else if ($('.people span').length > 0) {						
+						$('.people span').text(pageViewCount);
+					}									
+					console.log(pageViewCount);
+				}
+			} catch (e) { console.log(e); }
+		},
+		error: function ajaxError(e) { },
+		complete: function () { }
+	});
+});
+</script>
+
+</body>
+</html>

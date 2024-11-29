@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>carousel-v2.html</title>
+</head>
+<body>
+
+<script>
+/* carousel-v2.js */
+var carousel = carousel || {};
+
+(function($) {
+    'use strict';
+
+    /**
+    *
+    * ヒーローパネル用 slickオプション取得
+    *
+    * @param {JQueryElement} カルーセル
+    * @param {Object} slickオプション
+    * @param {String} カルーセルタイプ
+    * @returns {Object} slickオプション
+    */
+    function getHeroPanelSlickOptions($carousel, slickOptions, carouselType) {
+
+        slickOptions.appendArrows = $('.cmp-carousel__switcher', $carousel);
+        slickOptions.dots = true;
+        slickOptions.infinite = true;
+        slickOptions.responsive=[];
+
+        var responsiveSmp = {};
+        responsiveSmp.breakpoint = 767;
+        responsiveSmp.settings = {};
+        responsiveSmp.settings.centerMode = true;
+        responsiveSmp.settings.variableWidth = true;
+        slickOptions.responsive.push(responsiveSmp);
+
+        if (carouselType == 'heroPanel--card') {
+            slickOptions.variableWidth = true;
+            slickOptions.centerMode = true;
+        }
+
+        return slickOptions;
+    }
+
+    /**
+    *
+    * カルーセル用 slickオプション取得
+    *
+    * @param {JQueryElement} カルーセル
+    * @param {Object} slickオプション
+    * @param {Long} 同時表示数
+    * @returns {Object} slickオプション
+    */
+    function getCarouselSlickOptions($carousel, slickOptions, slidesToShow) {
+
+        slickOptions.appendArrows = $('.cmp-au-com-carousel__header__switcher', $carousel);
+        slickOptions.dots = false;
+        slickOptions.slidesToShow = slidesToShow;
+        slickOptions.responsive=[];
+
+        var responsiveTb = {};
+        responsiveTb.breakpoint = 979;
+        responsiveTb.settings = {};
+
+        var responsiveSmp = {};
+        responsiveSmp.breakpoint = 767;
+        responsiveSmp.settings = {};
+
+        var responsiveMiniSmp = {};
+        responsiveMiniSmp.breakpoint = 639;
+        responsiveMiniSmp.settings = {};
+
+
+        if (slidesToShow == 2) {
+            responsiveSmp.settings.slidesToShow = 1;
+
+        } else if (slidesToShow == 3) {
+            responsiveTb.settings.slidesToShow = 2;
+            responsiveSmp.settings.slidesToShow = 1;
+
+        } else if (slidesToShow == 4) {
+            responsiveTb.settings.slidesToShow = 3;
+            responsiveMiniSmp.settings.slidesToShow = 2;
+
+        } else if (slidesToShow == 5) {
+            responsiveTb.settings.slidesToShow = 4;
+            responsiveSmp.settings.slidesToShow = 3;
+            responsiveMiniSmp.settings.slidesToShow = 2;
+
+        }
+
+        if (responsiveTb.settings.slidesToShow) {
+            slickOptions.responsive.push(responsiveTb);
+        }
+
+        if (responsiveSmp.settings.slidesToShow) {
+            slickOptions.responsive.push(responsiveSmp);
+        }
+
+        if (responsiveMiniSmp.settings.slidesToShow) {
+            slickOptions.responsive.push(responsiveMiniSmp);
+        }
+
+        return slickOptions;
+    }
+
+    /**
+    *
+    * プライマリーバナー用 slickオプション取得
+    *
+    * @param {JQueryElement} カルーセル
+    * @param {Object} slickオプション
+    * @returns {Object} slickオプション
+    */
+    function getPrimaryBannerSlickOptions($carousel, slickOptions) {
+
+        slickOptions.arrows = false;
+        slickOptions.dots = true;
+        slickOptions.fade = true;
+        slickOptions.speed = 1000;
+
+        return slickOptions;
+    }
+
+    /**
+    *
+    * セカンダリーバナー用 slickオプション取得
+    *
+    * @param {JQueryElement} カルーセル
+    * @param {Object} slickオプション
+    * @returns {Object} slickオプション
+    */
+    function getSecondaryBannerSlickOptions($carousel, slickOptions) {
+
+        slickOptions.appendArrows = $('.cmp-carousel__switcher', $carousel);
+        slickOptions.centerMode = true;
+        slickOptions.centerPadding = '0%';
+        slickOptions.initialSlide = $('.cmp-carousel__item', $carousel).length == 3 ? 0 : 1;
+        slickOptions.slidesToShow = 3;
+        slickOptions.responsive=[];
+
+        var responsiveSmp = {};
+        responsiveSmp.breakpoint = 767;
+        responsiveSmp.settings = {};
+        responsiveSmp.settings.arrows = false;
+        responsiveSmp.settings.centerMode = true;
+        responsiveSmp.settings.centerPadding = '10%';
+        responsiveSmp.settings.initialSlide = 1;
+        responsiveSmp.settings.slidesToShow = 1;
+        slickOptions.responsive.push(responsiveSmp);
+
+        return slickOptions;
+    }
+
+    /**
+    *
+    * slickオプション取得
+    *
+    * @returns {Object} slickオプション
+    */
+    function getSlickOptions($carousel) {
+
+        // slickオプション設定
+        var autoplay = $carousel.data('cmp-autoplay') == true;
+        var delay = $carousel.data('cmp-delay');
+        var autopauseDisabled = $carousel.data('cmp-autopause-disabled');
+        var carouselType = $carousel.data('cmp-carouseltype');
+        var slidesToShow = $carousel.data('cmp-slidestoshow');
+        var slickOptions = {};
+
+        // 共通設定
+        if (autoplay) {
+            slickOptions.autoplay = autoplay;
+            slickOptions.autoplaySpeed = delay;
+            slickOptions.pauseOnFocus = !autopauseDisabled;
+            slickOptions.pauseOnHover = !autopauseDisabled;
+        }
+
+        // 個別設定
+        switch (carouselType) {
+            // ヒーローパネル
+            case 'heroPanel--categoryPanel':
+            case 'heroPanel--card':
+                slickOptions = getHeroPanelSlickOptions($carousel, slickOptions, carouselType);
+                break;
+            // カルーセル
+            case 'carousel':
+                slickOptions = getCarouselSlickOptions($carousel, slickOptions, slidesToShow);
+                break;
+            // プライマリーバナー
+            case 'primaryBanner':
+                slickOptions = getPrimaryBannerSlickOptions($carousel, slickOptions);
+                break;
+            // セカンダリーバナー
+            case 'secondaryBanner' :
+                slickOptions = getSecondaryBannerSlickOptions($carousel, slickOptions);
+                break;
+        }
+
+        return slickOptions;
+    }
+
+    /**
+    *
+    * カルーセル画像初期化
+    *
+    * @param {JQueryElement} カルーセルコンテンツ
+    * @param {JQueryElement} 画像
+    * @param {Object} imgStatus
+    * @returns {Object} slickオプション
+    */
+    function initialyzeCarouselImgs($carouselContent, $imgs, imgStatus) {
+        if (!imgStatus.readyAllImg) {
+            imgStatus.readyAllImg = responsiveImage.prepareLoadAll($imgs, true);
+        }
+        if (imgStatus.readyAllImg && !imgStatus.loadAllImg) {
+            imgStatus.loadAllImg = responsiveImage.confirmLoadAll($imgs);
+        }
+        if (imgStatus.loadAllImg && !imgStatus.matchedHeight) {
+            imgStatus.matchedHeight = $carouselContent.matchHeight();
+        }
+        return imgStatus;
+    }
+
+    /**
+    *
+    * カルーセル初期化
+    *
+    * @param {String} ID
+    *
+    */
+    var initialyzeCarousel = function (id) {
+        var $carousel = $('#' + id);
+        var $carouselContent = $('.cmp-carousel__content', $carousel);
+        var $carouselItems = $('.cmp-carousel__items', $carouselContent);
+        var $imgs = $('img.lazyload', $carouselItems);
+        responsiveImage.prepareLoadAll($imgs, true);
+        var slickOptions = getSlickOptions($carousel);
+        $carouselItems
+        .on('init refresh', function() {
+            var $imgs = $('img.lazyload', $carouselItems);
+            var imgStatus = {};
+            imgStatus.readyAllImg = false;
+            imgStatus.loadAllImg = false;
+            imgStatus.matchedHeight = false;
+            $imgs.on('img:load', function() {
+                imgStatus = initialyzeCarouselImgs($carouselContent, $imgs, imgStatus);
+            });
+            imgStatus = initialyzeCarouselImgs($carouselContent, $imgs, imgStatus);
+        });
+        var slickSlide = undefined;
+        $carouselItems.parent().on('inview', function(){
+            if ($carouselItems.parent().isVisible()) {
+                if (slickSlide) {
+                    $carouselItems.slick('slickRemove', slickSlide);
+                }
+                slickSlide = $carouselItems.not('.slick-initialized').slick(slickOptions);
+            }
+        });
+
+    }
+
+    carousel.v2 = {};
+    carousel.v2.init = initialyzeCarousel;
+
+})(jQuery);
+
+</script>
+
+</body>
+</html>

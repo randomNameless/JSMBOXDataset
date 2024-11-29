@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>common.html</title>
+</head>
+<body>
+
+<script>
+$(document).ready(function(){
+	$(".menu_button").click(function(){
+		if($(".sidebar").css("display") == "none"){
+			$(".sidebar").show();
+			$(".menu_button").addClass("change");
+			if($(".menu_button").css("display")=="block"){
+				$(".main").click(function(){
+					$(".sidebar").hide();
+					$(".menu_button").removeClass("change");
+				})
+			}
+		}else{
+			$(".sidebar").hide();
+			$(".menu_button").removeClass("change");
+		}
+	})
+	var s = document.location;
+	$("#menu_list a").each(function() {
+		if (this.href == s.toString().split("#")[0]) {
+			$(this).addClass("on");
+			return false;
+		}
+	});
+	$('.download').click(function(){
+        $("html,body").animate({scrollTop:$("#bdown").offset().top},1000);
+    });
+	$(function(){$(".backtotop").hide();$(window).on("scroll",function(){var b=$(document).scrollTop();if(b>0){$(".backtotop").fadeIn()}else{$(".backtotop").fadeOut()}});$(".backtotop").on("click",function(){$("html,body").animate({scrollTop:0},500)})});
+	$(function(){
+		$('.weixin').hover(function(){
+			$(".weixin span").css('display','block');
+		},function(){
+			$(".weixin span").css('display','none');
+		});
+	});
+
+	if($(".buy_books").length > 0){
+		$(".buy_books").append("<img src='/images/stamp.png'>");
+	}
+	
+	if(getCookie('yabook_night') == '1'){
+		$(".night_button").addClass('sun');
+	}
+	$(".night_button").click(function(){
+		if(getCookie('yabook_night') == '1' || $('body').hasClass('night')){
+		    setCookie('yabook_night', '0' );
+			$('body').removeClass('night');
+			$(".night_button").removeClass("sun");
+			console.log('关闭黑夜模式');
+		}else{
+			setCookie('yabook_night', '1' );
+			$('body').addClass('night');
+			$(".night_button").addClass("sun");
+			console.log('打开黑夜模式');
+		}
+	})
+	// ProgressBar
+	$(window).scroll(function() {
+		var s = $(window).scrollTop();
+		var d = Math.max(document.body.scrollHeight, document.body.offsetHeight, document.documentElement.clientHeight, document.documentElement.scrollHeight, document.documentElement.offsetHeight);
+		var h = $(window).height();
+		$('#progress').css('width',(s/(d-h))*100+'%');
+	});
+	// ShowBiLiVideo
+	$('.getread').on('click', function() {
+		var bvid = $(this).data('vid');
+		updateIframe(bvid);
+	});
+	function updateIframe(bvid){
+		var postDiv = $('.postintro');
+		var exIframe = $('.biliframe');
+		if (exIframe.length > 0) {
+			exIframe.attr('src', '//player.bilibili.com/player.html?bvid=' + bvid);
+			$("#postimg").hide();
+		} else {
+			$('<iframe>', {
+				src: '//player.bilibili.com/player.html?bvid=' + bvid,
+				scrolling: 'no',
+				class: 'biliframe'
+			}).prependTo(postDiv).show();
+			$("#postimg").hide();
+		}
+	}
+	
+});
+var path = window.location.pathname.split('/');
+if(path.length < 3){
+	$("#bdown").html("下载链接出错，请联系管理员处理！");
+}
+$.post("/e/DownSys/GetDown/ajax.php",{id:path[2]},function(data){
+	$("#bdown").html(data);
+});
+$.ajax({
+	type: 'GET',
+	url: "/e/member/login/loginaj.php",
+	error: function(){
+		console.log("请求出错")
+	},
+	success: function (data){
+		$(".user").html(data);
+	}
+});
+function addfav(classid,id){
+	var $this = $(this);
+	$.ajax({
+		type: 'GET',
+		url: "/e/extend/shelf/",
+		data: {enews: "AddFava", id: id, classid: classid},
+		error: function () {
+			console.log("请求出错")
+		},
+		dataType: 'json',
+		success: function (json) {
+			if (json.code == 200) {
+				alert('添加收藏成功')
+			} else if (json.code == 666) {
+				window.location = "/e/member/login/?from="+window.location.href;
+			} else {
+				alert(json.message)
+			}
+		}
+	});
+}
+// set cookie, get cookie
+// function setCookie(name, value) {
+// 	value = encodeURIComponent(value);
+// 	var date = new Date();
+// 	date.setDate( date.getDate() + 60 );// expiration date (+60 days)
+// 	document.cookie = name + '=' + value + '; Path=/; expires=' + date.toUTCString();
+// } //zh-cn-tw.js有相同冲突
+function getCookie(name) {
+	var matches = document.cookie.match( new RegExp(
+		"(?:^|; )" + name.replace(/([\.$?*|{}\(\)\[\]\\\/\+^])/g, '\\$1') + "=([^;]*)"
+	) );
+	return matches ? decodeURIComponent( matches[1] ) : undefined;
+}
+
+
+function updateAction() {
+    var selectedValue = document.getElementById('searchType').value;
+    if (selectedValue === 'ask') {
+        document.forms['search'].action = 'https://ask.yabook.blog/e/search/index.php';
+    } else {
+        document.forms['search'].action = '/e/search/index.php';
+    }
+}
+
+var addScript = document.createElement("script");
+addScript.src = "/skin/Yabook/script/sweetalert.min.js";
+document.getElementsByTagName("head")[0].appendChild(addScript);
+var http_request = false;
+function makeRequest(url, functionName, httpType, sendData) {
+	http_request = false;
+	if (!httpType) httpType = "GET";
+	if (window.XMLHttpRequest) { // Non-IE...
+		http_request = new XMLHttpRequest();
+		if (http_request.overrideMimeType) {
+			http_request.overrideMimeType('text/plain');
+		}
+	} else if (window.ActiveXObject) { // IE
+		try {
+			http_request = new ActiveXObject("Msxml2.XMLHTTP");
+		} catch (e) {
+			try {
+				http_request = new ActiveXObject("Microsoft.XMLHTTP");
+			} catch (e) {}
+		}
+	}
+	if (!http_request) {
+		alert('Cannot send an XMLHTTP request');
+		return false;
+	}
+	var changefunc="http_request.onreadystatechange = "+functionName;
+	eval (changefunc);
+	//http_request.onreadystatechange = alertContents;
+	http_request.open(httpType, url, true);
+	http_request.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+	http_request.send(sendData);
+}
+function getReturnedText () {
+	if (http_request.readyState == 4) {
+		if (http_request.status == 200) {
+			var messagereturn = http_request.responseText;
+			return messagereturn;
+		} else {
+			alert('There was a problem with the request.');
+		}
+	}
+}
+function EchoReturnedText () {
+	if (http_request.readyState == 4) {
+		if (http_request.status == 200) {
+			var messagereturn = http_request.responseText;
+			if(messagereturn!='isfail')
+			{
+				var r;
+				r=messagereturn.split('|');
+				if(r.length!=1)
+				{
+					if(r[0]!='')
+					{
+						document.getElementById(r[1]).innerHTML=r[0];
+					}
+					if(r[2]!='')
+					{
+				// 		alert(r[2]);
+						if(r[2]=='谢谢您的支持'){
+							swal("", r[2], "success", {button: "好的",});
+						}else{
+							swal("", r[2], "info", {button: "好的",});
+						}
+					}
+				}
+				else
+				{
+					document.getElementById('ajaxarea').innerHTML=messagereturn;
+				}
+			}
+		} else {
+			alert('There was a problem with the request.');
+		}
+	}
+}
+</script>
+
+</body>
+</html>

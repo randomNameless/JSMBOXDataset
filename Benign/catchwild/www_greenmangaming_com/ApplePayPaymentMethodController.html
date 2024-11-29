@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ApplePayPaymentMethodController.html</title>
+</head>
+<body>
+
+<script>
+angular.module('gmgApp').controller('ApplePayPaymentMethodController', [
+  '$scope', 'DESTROY_EVENT_NAME', 'paymentMethodsService', '$rootScope', 'ApplePayService', 'APPLE_PAY_CONSTANTS', 'ApiService',
+  '$filter', 'PAYMENT_EVENTS', 'paymentService', 'validationHandlerService',
+  function ($scope, DESTROY_EVENT_NAME, paymentMethodsService, $rootScope, ApplePayService,
+    APPLE_PAY_CONSTANTS, ApiService, $filter, PAYMENT_EVENTS, paymentService, validationHandlerService) {
+
+    $scope.transactionInfoObject = null;
+    $scope.transactionInfo = null;
+    $scope.allowedCardNetworks = null;
+    $scope.lineItems = null;
+    $scope.isSessionActive = false;
+    $scope.applePaySession = ApplePayService.getApplePaySession();
+
+    var isNotReadyToSubmit = function (method) {
+      return $scope.isPlaceOrderInProgess;
+    };
+
+    var selectingPaymentMethodOnGroupChangedListener =
+      paymentMethodsService
+        .selectingPaymentMethodOnGroupChangedListener($scope, isNotReadyToSubmit);
+
+    var paymentMethodDetailsSelectedListener =
+      paymentMethodsService
+        .paymentMethodDetailsSelectedListener($scope, isNotReadyToSubmit);
+
+    var resetSelectingPaymentMethodListener =
+      paymentMethodsService
+        .resetSelectedPaymentMethodGroupListener($scope);
+
+    $scope.init = function (paymentMethodsGroup) {
+      $scope.paymentMethodsGroup = paymentMethodsGroup;
+
+      if ($scope.paymentMethodsGroup === $scope.selectedPaymentMethodGroup && $scope.selectedPaymentMethod) {
+        paymentMethodsService.broadCastButtonValidationFunc(isNotReadyToSubmit);
+      }
+    };
+
+    var constructPostData = function () {
+      return {
+        paymentMethodId: $scope.selectedPaymentMethod.id,
+        paymentMethodCategory: $scope.selectedPaymentMethod.category
+      };
+    };
+
+    var proceedToApplePay = function () {
+      paymentService.placeOrderInProgressButton(true);
+      $scope.isSessionActive = true;
+      $scope.transactionInfoObject = ApplePayService.getApplePayTransactionInfo();
+
+      $scope.transactionInfo =
+        JSON.parse($scope.transactionInfoObject.ApplePayTransactionInfo);
+
+      $scope.allowedCardNetworks =
+        $scope.transactionInfoObject.AllowedCardNetworks.trim().split(/\s*,\s*/).filter(Boolean);
+
+      $scope.lineItems =
+        JSON.parse($scope.transactionInfoObject.LineItems);
+
+      var paymentRequest = {
+        currencyCode: $scope.transactionInfo.currencyCode,
+        countryCode: $scope.transactionInfo.countryCode,
+        total: {
+          label: APPLE_PAY_CONSTANTS.LABEL,
+          amount: $scope.transactionInfo.totalPrice
+        },
+        supportedNetworks: $scope.allowedCardNetworks,
+        merchantCapabilities: [APPLE_PAY_CONSTANTS.SUPPORTS_3DS]
+      };
+
+      var applePaySession = new ApplePaySession(1, paymentRequest);
+
+      applePaySession.onvalidatemerchant = function (event) {
+        var promise = ApiService.getApplePayMerchantSession($scope.transactionInfo.merchantIdentifier, $scope.transactionInfoObject.MerchantAccount);
+        promise.then(function (merchantSession) {
+          if (merchantSession.data.CheckoutSessionResponse) {
+            var jsonObj = JSON.parse(merchantSession.data.CheckoutSessionResponse);
+            applePaySession.completeMerchantValidation(jsonObj);
+          }
+        }, function (errorResponse) {
+          validationHandlerService.broadcastNewValidationModel(errorResponse);
+        });
+      };
+
+      applePaySession.onpaymentmethodselected = function (event) {
+        var newTotal = {
+          label: APPLE_PAY_CONSTANTS.LABEL,
+          amount: $scope.transactionInfo.totalPrice
+        };
+
+        applePaySession.completePaymentMethodSelection(newTotal, $scope.lineItems);
+      };
+
+      applePaySession.onpaymentauthorized = function (event) {
+        var postData = constructPostData();
+        var displayName = event.payment.token.paymentMethod.displayName;
+        postData.applePayToken = btoa(JSON.stringify(event.payment.token.paymentData));
+        postData.paymentIssuerId = event.payment.token.paymentMethod.network;
+        postData.last4Numbers = displayName.substr(displayName.length - 4);
+
+        $rootScope.$broadcast(PAYMENT_EVENTS.RETURN_CONSTRUCTED_ORDER_PAYMENT_DATA, postData);
+
+        applePaySession.completePayment(status);
+        $scope.isSessionActive = false;
+      };
+
+      applePaySession.oncancel = function (event) {
+        $scope.isSessionActive = false;
+        paymentService.placeOrderInProgressButton(false);
+        $rootScope.$broadcast(APPLE_PAY_CONSTANTS.EVENTS.APPLE_PAY_CANCEL);
+      };
+
+      applePaySession.begin();
+    };
+
+    var constructOrderPaymentListener =
+      $scope.$on(PAYMENT_EVENTS.CONSTRUCT_ORDER_PAYMENT_DATA,
+        function () {
+          if ($scope.selectedPaymentMethodGroup.uniqueBodyId === $scope.paymentMethodsGroup.uniqueBodyId) {
+            var selectedPaymentMethod =
+              $filter('filter')($scope.selectedPaymentMethodGroup.methods,
+                function (paymentMethod) { return paymentMethod.id === $scope.selectedPaymentMethod.id; })[0];
+
+            if (selectedPaymentMethod) {
+              proceedToApplePay();
+            }
+          }
+        });
+
+    var isPlaceOrderInProgressListener = paymentService.listenForPlaceOrderInProgress($scope);
+
+    $scope.$on(DESTROY_EVENT_NAME, function () {
+      resetSelectingPaymentMethodListener();
+      selectingPaymentMethodOnGroupChangedListener();
+      paymentMethodDetailsSelectedListener();
+      constructOrderPaymentListener();
+      isPlaceOrderInProgressListener();
+    });
+  }
+]);
+</script>
+
+</body>
+</html>

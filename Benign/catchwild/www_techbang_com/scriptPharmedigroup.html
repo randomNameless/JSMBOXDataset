@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>scriptPharmedigroup.html</title>
+</head>
+<body>
+
+<script>
+import { reactive } from 'https://unpkg.com/petite-vue?module';
+import {playerScript} from '/scripts/scriptPlayer.js';
+import {postMessageScript} from '/scripts/scriptPostMessage.js';
+import scriptHelpers from '/scripts/scriptHelpers.js';
+import {$store} from '/scripts/store.js';
+
+export const pharmedigroupScript = reactive({
+  /** Variable radio */
+  lastScheduleCall: undefined,
+  errorFetchSchedule: false,
+
+  /** Functions */
+  async initPharmedigroupCall(){
+    if(""!==miniplayerRequestParams.listenerId){
+      await this.fetchPharmedigroupSchedules();
+    }else{
+      this.errorFetchSchedule = true;
+    }
+    if(this.errorFetchSchedule && miniplayerRequestParams.autoplay){
+      playerScript.clickPlayRadio();
+    }
+  },
+  async fetchPharmedigroupSchedules(){
+    var now = new Date();
+    if(undefined===this.lastScheduleCall || (now-this.lastScheduleCall) > 28800000){
+      try {
+        const schedule = await scriptHelpers.makeRequest(
+          pharmedigroupUrl + "/hours/effective/" + miniplayerRequestParams.listenerId,
+          "GET",
+          false,
+        );
+        this.lastScheduleCall = now;
+        //const schedule = {"MONDAY":[{"begin":"08:28","end":"08:29"}, {"begin":"08:30","end":"08:31"}]};
+        const dayString = this.getDayString(now);
+        const todaySchedule  = schedule[dayString];
+        if(0===todaySchedule.length || "00:00"===todaySchedule[0].begin){
+          return;
+        }
+        for (let index = 0; index < todaySchedule.length; index++) {
+          var now = new Date();
+          const millisTillStart = this.transformHourStringToDate(todaySchedule[index].begin) - now;
+          const millisTillEnd = this.transformHourStringToDate(todaySchedule[index].end) - now;
+          if(millisTillEnd>0){
+            if(!$store.info[0].scheduleInfo.length){
+              if(millisTillStart>0){
+                $store.info[0].scheduleInfo = locales["start schedule"] + todaySchedule[index].begin.replace(":", "h") + ")";
+              }else{
+                $store.info[0].scheduleInfo = locales["end schedule"] + todaySchedule[index].end.replace(":", "h") + ")";
+              }
+            }
+            setTimeout(()=>{
+              $store.info[0].scheduleInfo = locales["end schedule"] + todaySchedule[index].end.replace(":", "h") + ")";
+              if($store.state[0].is_playing){
+                return;
+              }
+              console.log('Pharmedigroup start according to schedule');
+              playerScript.clickPlayRadio();
+              postMessageScript.postMessage({event :'octopus_schedule_play'});
+            }, millisTillStart);
+            setTimeout(()=>{
+              if(todaySchedule[index+1]){
+                $store.info[0].scheduleInfo = locales["start schedule"] + todaySchedule[index+1].begin.replace(":", "h") + ")";
+              }else{
+                $store.info[0].scheduleInfo = "";
+              }
+              if(!$store.state[0].is_playing){
+                return;
+              }
+              console.log('Pharmedigroup stop according to schedule');
+              playerScript.clickPlayRadio();
+              postMessageScript.postMessage({event :'octopus_schedule_stop'});
+            }, millisTillEnd);
+          }
+        }
+      } catch (error) {
+        this.errorFetchSchedule=true;
+        console.log('Error when getting schedule '+error);
+      }
+    }
+    this.definePharmedigroupProgrammedFetch();
+  },
+
+  definePharmedigroupProgrammedFetch(){
+    var now = new Date();
+    var millisTill8 = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 8, 0, 0, 0) - now;
+    if (millisTill8 < 0) {
+      millisTill8 += 86400000; // it's after 8am, try 8am tomorrow.
+    }
+    setTimeout(()=>{
+      this.fetchPharmedigroupSchedules();
+    }, millisTill8);
+  },
+  getDayString(now){
+    switch (now.getDay()) {
+      case 0: return "SUNDAY";
+      case 1: return "MONDAY";
+      case 2: return "TUESDAY";
+      case 3: return "WEDNESDAY";
+      case 4: return "THURSDAY";
+      case 5: return "FRIDAY";
+      case 6: return "SATURDAY";
+      default: return "";
+    }
+  },
+  transformHourStringToDate(hours){
+    const regexp = /(\d{2}):(\d{2})/g;
+    const matches = hours.matchAll(regexp);
+    var now = new Date();
+    for (const match of matches) {
+      now.setHours(parseInt(match[1]));
+      now.setMinutes(parseInt(match[2]));
+      now.setSeconds(0);
+    }
+    return now;
+  }
+  
+});
+
+
+</script>
+
+</body>
+</html>

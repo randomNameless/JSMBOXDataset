@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>rt_track_event.html</title>
+</head>
+<body>
+
+<script>
+var tag_image = "https://www.mizuhobank.co.jp/common/images/log.gif";
+var _host = document.location.hostname;
+var _path = document.location.pathname;
+var _search = document.location.search;
+var _protocol = document.location.protocol;
+var _referrer = document.referrer;
+var _cookie = document.cookie + ";";
+var abc = null;
+var count = 1;
+
+// AタグのOnClickイベントをセット
+set_OnClick();
+
+// ------------------------------------------------------------
+// rt_track処理
+// ------------------------------------------------------------
+function rt_track() {
+
+	if (count++ != 0) {
+		if (window.event == undefined) {
+			var e = arguments[0];
+			_path = e.target.toString();
+		}
+		else {
+			var ele = window.event.currentTarget;
+			_path = ele.href;
+		}
+		_referrer = document.location.pathname;
+	}
+
+	if (_path.indexOf("://") != -1) {
+		_protocol = _path.substring(0, _path.indexOf("://")+1);
+		_path = _path.substring(_path.indexOf("://")+3, _path.length);
+		_host = _path.substring(0, _path.indexOf("/"));
+		_path = _path.substring(_path.indexOf("/"), _path.length);
+	}
+
+	if (_path.indexOf("?") != -1) {
+		_search = _path.substring(_path.indexOf("?"), _path.length);
+		_path = _path.substring(0, _path.indexOf("?"));
+	}
+	else {
+		_search = "";
+	}
+
+	abc = new Image(1,1);
+	var now, utctime, i, path, rhost, rpath, param, cookie, tag_url;
+	now=new Date();
+	utctime=now.toGMTString();
+	rhost = "";
+	rpath = "";
+	i = _referrer.indexOf("://");
+	if (i > 0) {
+		_referrer = _referrer.substring(i + 3, _referrer.length);
+		i = _referrer.indexOf("/");
+		if (i > 0) {
+			rhost = _referrer.substring(0, i);
+			rpath = _referrer.substring(i, _referrer.length);
+		}
+	}
+
+	path = "";
+	i = _path.indexOf("/");
+	if (i >= 0) {
+		path = _path.substring(1, _path.length);
+	}
+
+	param = "";
+	if(_search.length > 1) {
+		param = _search.replace("?","&");
+	}
+	if(_search != null) {
+		param = "&" + _search.substring(1,_search.length);
+	}
+
+	cookie = getCookie("ASPSESSIONIDAQRTRDBC");
+
+	tag_url = tag_image + "?protocol=" + _protocol +
+				"&rthost=" + _host + "&rtpath=" + path + param +
+				"&rtrhost=" + rhost + "&rtrpath=" + escape(rpath) +
+				"&rtmemid=" + cookie +"&time=" + escape(utctime)+
+				"&rand=" + Math.random();
+
+	abc.src = tag_url;
+
+	return true;
+}
+
+// ------------------------------------------------------------
+// クッキー情報の取得
+// ------------------------------------------------------------
+function getCookie(keyname) {
+	var index1, index2, index3;
+
+	index1 = _cookie.indexOf(keyname,0);
+	if(index1 != -1) {
+		_cookie = _cookie.substring(index1,_cookie.length);
+		index2 = _cookie.indexOf("=",0)+1;
+		index3 = _cookie.indexOf(";",index2);
+		return(unescape(_cookie.substring(index2,index3)));
+	}
+	return("");
+}
+
+// ------------------------------------------------------------
+// Aタグのリンク先がPDF/CSV/TXTのどれかの場合、OnClickイベントに
+// rt_track処理をセットする。
+// ------------------------------------------------------------
+function set_OnClick() {
+	// 画面の全要素の取得
+	var aTags = document.getElementsByTagName("A");
+
+	// 画面の全要素の取得
+	var len = aTags.length;
+
+	// 画面の全要素の数分繰り返して処理する。
+	for (i = 0; i < len; i++) {
+
+		// 要素を取得
+		var el = aTags[i];
+
+		// hrefの値を取得
+		var href = new String(el.href);
+
+		// 拡張子(リンク先文字列の後方4文字)を取得
+		if (href.indexOf("?") != -1){
+			href = href.substring(0,href.indexOf("?"));
+		}
+		if (href.indexOf("#") != -1){
+			href = href.substring(0,href.indexOf("#"));
+		}
+		var extens = href.substr(href.length-4,4);
+
+		// 取得した文字列を比較する。
+		var isPdf = new Boolean(extens == ".pdf" || extens == ".PDF");
+		var isTxt = new Boolean(extens == ".txt" || extens == ".TXT");
+		var isCsv = new Boolean(extens == ".csv" || extens == ".CSV");
+
+		// PDF・TXT・CSVのいずれかの場合、OnClickイベントを設定する。
+		if (isPdf == true || isTxt == true || isCsv == true) {
+			el.onclick = rt_track;
+		}
+	}
+	return true;
+}
+
+</script>
+
+</body>
+</html>

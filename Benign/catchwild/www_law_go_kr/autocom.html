@@ -1,0 +1,1286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>autocom.html</title>
+</head>
+<body>
+
+<script>
+/***********************************************************************/
+var xmlHttp = null;	
+var viewlen = ""; 		/* 자동완성 출력 길이 설정 	*/
+var colname = ""		/* 자동완성 컬렉션 설정 		*/
+var inputField = null;	/* 자동완성 input box 	*/
+var toggleImg = null;	/* inpub box toggleImg id */ 
+var klistDiv = null;	/* 자동완성 리스트 DIV id(UL) */
+var bottomDiv = null;	/* 자동완성 기능끄기  DIV id	 */
+var autoComSearchForm;	/* 검색 submit 함수 */
+var beforeQry = "";		/* input box 이전 Data	*/
+var minQryLen = 2;			/* 자동완성 최소 한글자 이상부터 요청 	*/
+var tState = 0;			/* 자동완성 상태 */	
+var viewState = true;
+var bottomHtml = "";	/* bottom html */
+
+var resultViewArray = null; /* 화면출력용 자동완성 데이터 Array(말줄임표 포함) */
+var resultDataArray = null; /* 자동완성 원본 데이터 */
+var currItemIdx = -1;		/* 현재 화면에 출력중인 data의 index. -1은 텍스트 입력창. 0부터 resultDataArray의 idx */	
+
+var rowHeight = 22;		/* 자동완성 div 안에 들어있는 한개의 자동완성 데이터가 차지하는 높이. pixel */
+var maxCookie = 20;
+
+var mDivMOver = "";
+var imgAutocomHideDown = webRoot + "/images/main/ico_autosch_down.gif";		/* toggle img hidden down */
+var imgAutocomHideUp = webRoot + "/images/main/ico_autosch_top.gif";			/* toggle img hidden up */
+var imgAutocomShowUp = webRoot + "/images/button/btn_selupv11.gif";					/* toggle img up */
+var imgAutocomShowDown = webRoot + "/images/button/btn_seldownv11.gif";				/* toggle img down */
+var imgAutocomMainShowUp = webRoot + "/images/button/btn_mashcl.gif";					/* toggle img up */
+var imgAutocomMainShowDown = webRoot + "/images/button/btn_mashop.gif";				/* toggle img down */
+var altDown = "접힘";	/* toggle alt down */
+var altUp = "펼침";	/* toggle alt up */
+
+/* 자동완성 상태에 대한 상수 정의 */
+var BEFORE_SEARCH = 0;
+var HIDE_SEARCH = 1;
+var SHOW_SEARCH = 2;
+var STOP_SEARCH = 3;
+var HIDE_HISTORY = 4;
+var SHOW_HISTORY = 5;
+var RESTART_SEARCH = 6;
+var AFTER_SEARCH = 7;
+var STATIC_SEARCH = 8;
+
+/* 행정규칙 Iframe 설정 */
+var admiFrame =  "";
+/* 화면 구분 */
+var viewText = "";
+var clickQueryCnt = 0;
+/*************************************************************************/
+
+String.prototype.trim = function() {
+	return this.replace(/(^\s*)|(\s*$)|($\s*)/g, "");
+}
+
+function chgTargetColname(targetColname){
+	colname = targetColname;
+}
+function chgViewLen(targetViewlen){
+	viewlen = targetViewlen;
+}
+
+/* 자동완성 초기 로드 */
+function setAutoComplete(qryTxt, listDiv, tImg, bDiv, where, length, searchForm, imgGubun) {
+	inputField = document.getElementById(qryTxt);					/* qry Input box id */
+	toggleImg = document.getElementById(tImg);						/* inpub box toggleImg id*/ 
+	klistDiv = document.getElementById(listDiv);					/* 자동완성 리스트 DIV id(UL) */
+	bottomDiv = document.getElementById(bDiv);						/* 자동완성 기능끄기  DIV id	 */
+	bottomHtml = bottomDiv.innerHTML;
+	colname = where;												/* 자동완성 컬렉션명 */
+	viewlen = length;												/* 자동완성 출력 길이 설정 */
+	autoComSearchForm = searchForm;									/* 검색 submit 함수 */
+	
+	beforeQry = inputField.value;
+	tState = BEFORE_SEARCH;
+	viewText = imgGubun;
+	//if(imgGubun == "main" || imgGubun == "lstrm"){	//main 이미지가 서브 화면의 이미지와 다르기 때문 ..
+	if(imgGubun == "main"){	//main 이미지가 서브 화면의 이미지와 다르기 때문 ..
+		imgAutocomShowUp = imgAutocomMainShowUp;
+		imgAutocomShowDown = imgAutocomMainShowDown;
+	}
+	
+	//10ms 간격으로 doSearch() 함수를 지속적으로 호출
+	setInterval("doSearch()", 10);
+	
+	//이벤트 핸들러 등록. keydown, onfocus
+	if(navigator.appName == "Netscape") { 
+		inputField.onkeydown = autoOnKeyF;
+		inputField.onfocus = autoOnfocusF;	
+	} else {
+		inputField.onkeydown = autoOnKeyE;
+		inputField.onfocus = autoOnfocusE;
+	}
+}
+
+/********************* 이벤트 핸들러 관련 함수들 *********************/
+function autoOnKeyF(event) {
+	autoOnKey(event);
+}
+
+function autoOnfocusF(event) {
+	autoOnFocus();
+}
+
+function autoOnKeyE() {
+	autoOnKey(event);
+}
+
+function autoOnfocusE() {
+/*
+	if(focusGubun == true){ 
+		focusGubun = false;
+		return;
+	}
+*/
+	autoOnFocus();
+}
+
+function autoOnKey(event) {
+	if ( tState == BEFORE_SEARCH || tState == HIDE_HISTORY || tState == AFTER_SEARCH) {
+		changeAutocomState(HIDE_SEARCH);
+	}
+	
+	if(event.keyCode==40  && resultDataArray != null){ 
+		mvNextItem(); 
+	} else if(event.keyCode==38 && resultDataArray != null){ 
+		mvPrevItem(); 
+	} else if(event.keyCode==13) {
+	} else {
+		currItemIdx = -1;
+	}
+}
+
+function autoOnFocus() {
+	if(inputField.value.length == 1){
+		changeAutocomState(HIDE_SEARCH);
+		return;
+	}
+	if ( tState == HIDE_SEARCH) {
+		if ( resultDataArray != null && resultDataArray.length > 0 )
+				changeAutocomState(SHOW_SEARCH);
+	} else if ( tState == HIDE_HISTORY ) {
+		changeAutocomState(SHOW_HISTORY);
+	} else if ( tState == BEFORE_SEARCH ) {
+		printSchKeywordList();
+	} else if ( tState == AFTER_SEARCH ) {
+		//changeAutocomState(SHOW_SEARCH);
+		changeAutocomState(HIDE_SEARCH);
+		//autocomSearchRequest();
+	} else if( tState == STATIC_SEARCH){
+		//autocomSearchRequest();
+	}
+}
+
+/********************* 이벤트 핸들러 관련 함수들 끝 *********************/
+
+function doSearch(){
+	if( tState == STOP_SEARCH || tState == BEFORE_SEARCH || tState == AFTER_SEARCH || tState == STATIC_SEARCH) {
+		beforeQry = inputField.value;
+		return;
+	}
+	
+	/*	파이어폭스의 한글 key 이벤트 처리 오류로 인한 10ms 단위의 호출 감시
+		10ms 이전 호출에서의 text 창에서의 문자와 현재의 문자가 다를 경우 자동완성 실행
+	*/
+	
+	/* 한글자일때는 레이어 숨김 */
+	if(inputField.value.length == 1){
+		changeAutocomState(HIDE_SEARCH);
+		return;
+	}
+	
+	if (beforeQry != inputField.value && currItemIdx == -1 && inputField.value.length >= minQryLen) { 
+		beforeQry = inputField.value;
+		//자동완성 검색 호출
+		//autocomSearchRequest();
+	} else if( inputField.value.length == 0 && tState != SHOW_HISTORY ) {
+		if ( tState == HIDE_HISTORY ) return;
+		printSchKeywordList();
+	}
+}
+
+/* 웹서버에 통신할 객체 생성 (익스플로러, 사파리, 파이어폭스 등 구별) */
+function createXMLHttpRequest(){
+	try{
+		xmlHttp = new XMLHttpRequest();
+	} catch(trymicrosoft){
+		try{
+			xmlHttp = new ActiveXObject("Msxm12.XMLHTTP");
+		}catch(othermicrosoft){
+			try{
+				xmlHttp = new ActiveXObject("Microsoft.XMLHTTP");
+			}catch(failed){
+				xmlHttp = null;
+			}
+		}
+	}
+	if(xmlHttp == null) alert("Error creating XMLHttpRequest!");
+}
+
+/* ajax로 자동완성 검색 request 수행 */
+function autocomSearchRequest() {
+
+	createXMLHttpRequest();
+	
+	// 2012.4.12 자동완성은 de_kl_a7번과 de_kl_a8번에서 구동하게 설정 변경
+	var url = "/LSG/jsp/common/autocom.jsp?keyword=" + encodeURI(inputField.value) + "&viewlen=" + viewlen + "&colname=" + colname;
+	//var url = "/LSW/jsp/common/autocom.jsp?keyword=" + encodeURI(inputField.value) + "&viewlen=" + viewlen + "&colname=" + colname;
+	xmlHttp.open("GET", url, true);
+	xmlHttp.onreadystatechange = Auto_callback;
+	xmlHttp.send(null);
+
+}
+
+function Auto_callback() {
+	if (xmlHttp.readyState == 4) {
+		var data = xmlHttp.responseText.trim();
+		if (xmlHttp.status == 200 &&  data.length > 0) {
+			if ( tState == AFTER_SEARCH ) {
+				return;
+			}
+			changeAutocomState(SHOW_SEARCH);
+			setAutoComList(data);
+		} else if(data.length < 1){ //데이터가 존재하지 않을 경우
+			resultViewArray = null;
+            resultDataArray = null;
+            klistDiv.innerHTML = "";
+			setOffsets();
+            changeAutocomState(HIDE_SEARCH);
+		}
+	}
+}
+
+/**자동완성 목록 셋팅**/
+function setAutoComList(p_text){
+	var tmpArray = new Array();
+	
+	//검색어 강조된 데이터와 구문강조 없는 데이터 분리
+	tmpArray = p_text.split("\n");
+	
+	//각각의 데이터를 배열화 변환 전역변수로 저장
+	resultDataArray = new Array();
+	resultDataArray = tmpArray[0].split("|");
+	resultViewArray = new Array();
+	resultViewArray = tmpArray[1].split("|");
+	printAutocomList();
+}
+
+/**내가 찾은 검색어 목록 셋팅**/
+function printSchKeywordList() {
+	//var keywordList = getDatList("autocom" + colname);
+	var keywordList = getDatList("SearchHistory");
+	
+	if( keywordList.length == 0 ) return;
+	
+	var keywordCnt = keywordList.length;
+	var tmpArray = new Array(keywordCnt);
+	
+	keywordList.reverse();
+	
+	for(var i = 0; i < keywordCnt; i ++) {
+		if( keywordList[i].length > viewlen/2 ) {
+			tmpArray[i] = keywordList[i].substr(0, viewlen/2) + "...";
+		} else {
+			tmpArray[i] = keywordList[i];
+		}
+	}
+	
+	resultDataArray = keywordList;
+	resultViewArray = tmpArray;
+
+	changeAutocomState(SHOW_HISTORY);
+	
+	printAutocomList();
+}
+
+function printAutocomList() {
+	if( tState == BEFORE_SEARCH || tState == HIDE_SEARCH || tState == AFTER_SEARCH) return;
+	
+	var innerHtml = "";
+	var onClick = "";
+	var id = "";
+	var title = "";
+	var onMouseOver = " onMouseOver=\"this.className='on'\"";
+	var onMouseOut = " onMouseOut=\"this.className='off'\"";
+	var quot = "\"";
+	var replaceQuot = "&quot;";
+	var rowData = "";
+	
+	innerHtml += "<ul>";
+	for (var i = 0; i < resultViewArray.length ; i++) {
+		//onClick = " onMousedown=\"go_srch('" + resultDataArray[i].trim() + "');\"";
+		rowData = resultDataArray[i].trim().split(quot).join(replaceQuot);
+		rowData = rowData.replace(/\'/gi, "\\'");
+		onClick = " onMousedown=\"querySelect('" + rowData + "');\"";
+		id = " id=\"itemList_" +  i + "\"";
+		title = "";
+		if(resultViewArray[i].trim().indexOf("...") > 0)
+			title = " title=\"" + rowData  + "\"";
+		
+		innerHtml += "<li " + onClick + onMouseOver + onMouseOut + id + title + " style='cursor:pointer; '>";
+		// 키보드 포커스 이벤트 먹도록  <a> 태그 추가 11.08
+		innerHtml += "<a href=\"#AJAX\" onclick=\"querySelect('" + rowData + "');\">"		+resultViewArray[i].trim() + "</a>";
+		//innerHtml += resultViewArray[i].trim();
+		innerHtml += "</li>\n"
+	}
+	innerHtml += "</ul>";
+	
+	klistDiv.innerHTML = innerHtml;
+	
+	setOffsets();
+	currItemIdx = -1;
+	
+	if( tState == SHOW_HISTORY ) {
+		innerHtml = "<strong>내가 찾은 검색어</strong><div><a href=\"javascript:changeAutocomState(HIDE_HISTORY);closeAutocomList();\">닫기</a>";
+	} else {
+		//innerHtml = "<strong>법령명 검색어 자동완성</strong><div><a href=\"javascript:changeAutocomState(HIDE_SEARCH)\">닫기</a>";
+		innerHtml = bottomHtml;
+	}
+	
+	bottomDiv.innerHTML = innerHtml;
+	
+	setAutocomDisplay(true);
+}
+
+function mvNextItem() {
+	if(resultDataArray == null)	return false;
+
+	if(resultDataArray.length > 0 && currItemIdx < resultDataArray.length - 1) {
+		var itemId = "";
+		if(currItemIdx >= 0) {
+			itemId = "itemList_" + currItemIdx;
+		
+			if(document.getElementById(itemId) == null) return false;
+	
+			document.getElementById(itemId).className="off";
+		}
+		
+		currItemIdx ++;
+		itemId = "itemList_" + currItemIdx;
+		
+		if(document.getElementById(itemId) == null) return false;
+		
+		document.getElementById(itemId).className="on";
+		inputField.value = resultDataArray[currItemIdx];
+		
+		/* 스크롤바 이동 */
+		if(currItemIdx >= 10 && currItemIdx % 10 == 0)
+			klistDiv.scrollTop = (currItemIdx + 1) * rowHeight;
+
+	}
+}
+
+function mvPrevItem() {
+	if(resultDataArray == null)	return false;
+
+	if(resultDataArray.length > 0 && currItemIdx >= 0) {
+		var itemId = "";
+		itemId = "itemList_" + currItemIdx;
+		
+		if(document.getElementById(itemId) == null) return false;
+		
+		document.getElementById(itemId).className="off";
+		currItemIdx --;
+
+		if(currItemIdx >= 0) {
+			itemId = "itemList_" + currItemIdx;
+		
+			if(document.getElementById(itemId) == null) return false;
+	
+			document.getElementById(itemId).className="on";
+			inputField.value = resultDataArray[currItemIdx];
+		}
+		else if(currItemIdx < 0)
+			inputField.value = beforeQry;
+			
+		/* 스크롤바 이동 */	
+		if(currItemIdx % 10 == 9)
+			klistDiv.scrollTop = (currItemIdx - 9) * 20;
+	}
+}
+
+function querySelect(dataQry){
+	inputField.value = dataQry;
+	changeAutocomState(STATIC_SEARCH);
+}
+
+function go_srch(dataQry) {
+	inputField.value = dataQry;
+	autoComSearchForm();
+}
+
+/* 자동완성 div를 화면에 출력하거나 감춘다 */
+function setAutocomDisplay(flag){
+	try {
+		if ( flag == true ) {
+			bottomDiv.style.display = "block";
+			klistDiv.style.display = "block";
+			document.getElementById("autom").style.display = "block";
+			if(admiFrame != ""){
+				admiFrame.style.display = "block";
+			}
+		} else {
+			bottomDiv.style.display = "none";
+			klistDiv.style.display = "none";
+			document.getElementById("autom").style.display = "none";
+			if(admiFrame != ""){
+				admiFrame.style.display = "none";
+			}
+		}
+	} catch(e) {
+	}
+}
+
+/* 자동완성 div의 높이를 조절 */
+function setOffsets() {
+	if(resultDataArray != null){
+		var itemCount = resultDataArray.length;
+	
+		if(itemCount > 10)
+			itemCount = 10;
+	
+		klistDiv.style.height = (rowHeight * itemCount) + "px";
+		/*IE6에서 select 박스  위로 올라오는 문제 때문에 어쩔수 없이 만들었음..*/
+		if($.browser.isIE6 && el('autoIframe')){
+			el('autoIframe').style.height = (rowHeight * itemCount) + "px";
+			el('autoIframe').style.width = "300px";
+		}
+		
+		if(admiFrame != ""){
+			admiFrame.style.height = (rowHeight * itemCount) + 30 + "px";
+		}
+	}else{
+		klistDiv.style.height = "0px";
+		if($.browser.isIE6 && el('autoIframe')){
+			el('autoIframe').style.height = "0px";
+			el('autoIframe').style.width = "0px";
+		}
+	}
+}
+
+/* 화면내 클릭시 처리  */
+document.onclick = function() {
+	if(tState <= 5){
+		if(mDivMOver!= "" && mDivMOver == false) {
+			if( tState == SHOW_SEARCH ) {
+				changeAutocomState(HIDE_SEARCH);
+			} else if ( tState == SHOW_HISTORY) {
+				changeAutocomState(HIDE_HISTORY);
+			}
+		}
+		// 메인화면 입력박스 외 클릭시 창닫기 viewText를 설정 
+		if(mDivMOver == false && viewText == "main") {
+			if( tState == SHOW_SEARCH ) {
+				changeAutocomState(HIDE_SEARCH);
+			} else if ( tState == SHOW_HISTORY) {
+				changeAutocomState(HIDE_HISTORY);
+			}
+		}
+		// 법령용어
+		if(mDivMOver == false && viewText == "lstrm") {
+			if( tState == SHOW_SEARCH ) {
+				changeAutocomState(HIDE_SEARCH);
+			} else if ( tState == SHOW_HISTORY) {
+				changeAutocomState(HIDE_HISTORY);
+			}
+		}
+		// 기타
+		if(mDivMOver == false && viewText == undefined) {
+			if( tState == SHOW_SEARCH ) {
+				changeAutocomState(HIDE_SEARCH);
+			} else if ( tState == SHOW_HISTORY) {
+				changeAutocomState(HIDE_HISTORY);
+			}
+		}
+		
+	}
+	
+}
+
+/* 자동완성창 show <-> hide toggle */
+function toggleViewState(){
+	if(tState == SHOW_SEARCH) {
+		changeAutocomState(HIDE_SEARCH);
+	} else if(tState == HIDE_SEARCH || tState == AFTER_SEARCH) {
+		changeAutocomState(SHOW_SEARCH);
+		el("query").focus();	
+	} else if(tState == SHOW_HISTORY) {
+		changeAutocomState(HIDE_HISTORY);
+	} else if(tState == HIDE_HISTORY) {
+		changeAutocomState(SHOW_HISTORY);
+		el("query").focus();
+	} else if(tState == BEFORE_SEARCH) {
+		printSchKeywordList();
+	}
+}
+
+/* 자동완성 state 변경 함수 */
+function changeAutocomState(state) {
+	tState = state;
+	switch(tState) {
+		case BEFORE_SEARCH:
+			toggleImg.src = imgAutocomShowDown;
+			toggleImg.alt = altUp;
+			setAutocomDisplay(false);
+			break;
+		case HIDE_SEARCH:
+			toggleImg.src = imgAutocomShowDown;
+			toggleImg.alt = altUp;
+			clickQueryCnt = 0;
+			setAutocomDisplay(false);
+			break;
+		case SHOW_SEARCH:
+			toggleImg.src = imgAutocomShowUp;
+			toggleImg.alt = altDown;
+			setAutocomDisplay(true);
+			break;
+		case HIDE_HISTORY:
+			toggleImg.src = imgAutocomShowDown;
+			toggleImg.alt = altUp;
+			clickQueryCnt = 0;
+			setAutocomDisplay(false);
+			break;
+		case SHOW_HISTORY:
+			toggleImg.src = imgAutocomShowUp;
+			toggleImg.alt = altDown;
+			setAutocomDisplay(true);
+			break;
+		case STOP_SEARCH:
+			toggleImg.src = imgAutocomHideDown;
+			toggleImg.alt = altUp;
+			setAutocomDisplay(false);
+			break;
+		case RESTART_SEARCH:
+			toggleImg.src = imgAutocomShowDown;
+			toggleImg.alt = altUp;
+			setAutocomDisplay(false);
+			break;
+		case AFTER_SEARCH:
+			toggleImg.src = imgAutocomShowDown;
+			toggleImg.alt = altUp;
+			setAutocomDisplay(false);
+			break;
+		case STATIC_SEARCH:
+			toggleImg.src = imgAutocomShowDown;
+			toggleImg.alt = altUp;
+			setAutocomDisplay(false);
+			break;
+	}
+}
+
+/*
+	검색어를 쿠키에 저장한다.(중복제거, 20개까지)
+*/
+function setSchKeywordCookie(){
+	
+	var searchMessageTmp = new Array("주제어, 법령명, 공포번호, 공포일자를 입력하세요."
+			, "주제어, 행정규칙명, 발령번호, 발령일자를 입력하세요."
+			, "주제어, 자치법규명, 공포번호, 공포일자를 입력하세요."
+			, "제목, 주제어를 입력하세요."
+			, "주제어,사건명, 사건번호, 판결일자를 입력하세요."
+			, "주제어,사건명, 사건번호, 판결일자를 입력하세요."
+			, "주제어, 안건명, 해석일자를 입력하세요."
+			, "주제어, 사건명, 의결일자를 입력하세요."
+			);
+	
+	
+	var keyword = inputField.value;
+	//var dataId = "autocom" + colname;
+	var dataId = "SearchHistory";
+	if(keyword != "" && !searchMessageTmp.containsValue(keyword)){
+		//1.목록 가져오기 
+		/* getDatList() : /WEB/LSW/js/common/CookieUtil.js */
+		var datList = getDatList(dataId);
+		var tempData = "";
+		var uName = "";
+		var isFirst = true;
+		
+		if(datList.length > 0){
+			//2. 중복자료 검사
+			for(var i = 0; i < datList.length; i++){
+				if ( datList[i] == keyword ) continue;
+				
+				if(tempData == ""){
+						uName = "";
+				}else{
+						uName = "---";	
+				}
+				
+				if (navigator.appName.charAt(0) == 'N') {
+					tempData += uName + toUtf8(datList[i]);
+				} else if (navigator.appName.charAt(0) == 'M') {
+					tempData += uName + datList[i];
+				}
+			}
+			isFirst = false;
+		}
+		
+		if( isFirst == true ) {
+			uName = "";
+		} else {
+			uName = tempData + "---";
+		}
+		
+		/* setCookie() : /WEB/LSW/js/common/CookieUtil.js */
+		if (navigator.appName.charAt(0) == 'N') {
+			setCookie(dataId, uName + toUtf8(keyword));
+		} else if (navigator.appName.charAt(0) == 'M') {
+			setCookie(dataId, uName + keyword);
+		}
+		
+		/* delDatList() : /WEB/LSW/js/common/CookieUtil.js */
+		if(datList.length >= maxCookie){		// 저장 개수 설정 
+			delSchKeywordCookie(dataId);
+		}
+	}
+}
+
+/**
+  * 20개 이상 쿠키 삭제
+  */
+function delSchKeywordCookie(dataId){
+	var oldList = getDatList(dataId);
+	
+	if ( oldList.length <= maxCookie ) return;	
+	
+	var tmpData = "";
+	var isFirst = true;
+	var uName = "";
+	
+	
+	oldList.reverse();
+	
+	for(var i = 0; i < maxCookie; i ++) {
+		if ( i == 0 )
+			uName = "";
+		else
+			uName = "---";
+		if (navigator.appName.charAt(0) == 'N') {
+			tmpData = toUtf8(oldList[i]) + uName + tmpData;
+		} else if (navigator.appName.charAt(0) == 'M') {
+			tmpData = oldList[i] + uName + tmpData;
+		}
+	}
+	
+	// 삭제 리스트 제외한 리스트 저장 
+	setCookie(dataId,tmpData);
+}
+
+/* 형정규칙 IFrame 설정 */
+function setDistplayiframe(tiFrame){
+	admiFrame = document.getElementById(tiFrame);		
+}
+
+
+/**
+  * 20개 이상 쿠키 삭제
+  */
+function delBdySchKeywordCookie(dataId){
+	var oldList = getDatList(dataId);
+	
+	if ( oldList.length <= 4 ) return;	
+	
+	var tmpData = "";
+	var isFirst = true;
+	var uName = "";
+	
+	oldList.reverse();
+	
+	for(var i = 0; i < 4; i ++) {
+		if ( i == 0 )
+			uName = "";
+		else
+			uName = "---";
+		if (navigator.appName.charAt(0) == 'N') {
+			tmpData = toUtf8(oldList[i]) + uName + tmpData;
+			
+		} else if (navigator.appName.charAt(0) == 'M') {
+			tmpData = oldList[i] + uName + tmpData;
+		}
+	}
+	
+	// 삭제 리스트 제외한 리스트 저장 
+	setCookie(dataId,tmpData);
+}
+
+function closeAutocomList(){
+	// 닫기 버튼 눌렀을때 검색버튼으로 키보드 가게끔 포커스 이동
+	document.getElementById('sear').focus();
+}
+
+
+
+/*
+###############################################################################################
+*/
+
+
+/***********************************************************************/
+var xmlHttpWord = null;	
+var viewlenWord = ""; 		/* 자동완성 출력 길이 설정 	*/
+var colnameWord = ""		/* 자동완성 컬렉션 설정 		*/
+var inputFieldWord = null;	/* 자동완성 input box 	*/
+var toggleImgWord = null;	/* inpub box toggleImg id */ 
+var klistDivWord = null;	/* 자동완성 리스트 DIV id(UL) */
+var bottomDivWord = null;	/* 자동완성 기능끄기  DIV id	 */
+var autoComSearchFormWord;	/* 검색 submit 함수 */
+var beforeQryWord = "";		/* input box 이전 Data	*/
+var minQryLenWord = 2;			/* 자동완성 최소 한글자 이상부터 요청 	*/
+var tStateWord = 0;			/* 자동완성 상태 */	
+var viewStateWord = true;
+var bottomHtmlWord = "";	/* bottom html */
+
+var resultViewArrayWord = null; /* 화면출력용 자동완성 데이터 Array(말줄임표 포함) */
+var resultDataArrayWord = null; /* 자동완성 원본 데이터 */
+var currItemIdxWord = -1;		/* 현재 화면에 출력중인 data의 index. -1은 텍스트 입력창. 0부터 resultDataArray의 idx */	
+
+var rowHeightWord = 22;		/* 자동완성 div 안에 들어있는 한개의 자동완성 데이터가 차지하는 높이. pixel */
+var maxCookieWord = 20;
+
+var mDivMOverWord = "";
+var imgAutocomHideDownWord = webRoot + "/images/main/ico_autosch_down.gif";		/* toggle img hidden down */
+var imgAutocomHideUpWord = webRoot + "/images/main/ico_autosch_top.gif";			/* toggle img hidden up */
+var imgAutocomShowUpWord = webRoot + "/images/button/btn_selupv11.gif";					/* toggle img up */
+var imgAutocomShowDownWord = webRoot + "/images/button/btn_seldownv11.gif";				/* toggle img down */
+var imgAutocomMainShowUpWord = webRoot + "/images/button/btn_mashcl.gif";					/* toggle img up */
+var imgAutocomMainShowDownWord = webRoot + "/images/button/btn_mashop.gif";				/* toggle img down */
+var altDownWord = "접힘";	/* toggle alt down */
+var altUpWord = "펼침";	/* toggle alt up */
+
+/* 행정규칙 Iframe 설정 */
+var admiFrameWord =  "";
+/* 화면 구분 */
+var viewTextWord = "";
+var clickQueryCntWord = 0;
+/*************************************************************************/
+
+function chgTargetColnameWord(targetColname){
+	colnameWord = targetColname;
+}
+function chgViewLenWord(targetViewlen){
+	viewlenWord = targetViewlen;
+	
+}
+
+/* 자동완성 초기 로드 */
+function setAutoCompleteWord(qryTxt, listDiv, bDiv, where, length, searchForm, imgGubun) {
+	inputFieldWord = document.getElementById(qryTxt);					/* qry Input box id */
+	klistDivWord = document.getElementById(listDiv);					/* 자동완성 리스트 DIV id(UL) */
+	bottomDivWord = document.getElementById(bDiv);						/* 자동완성 기능끄기  DIV id	 */
+//	bottomHtmlWord = bottomDivWord.innerHTML;
+	colnameWord = where;												/* 자동완성 컬렉션명 */
+	viewlenWord = length;												/* 자동완성 출력 길이 설정 */
+	autoComSearchFormWord = searchForm;									/* 검색 submit 함수 */
+	
+//	beforeQryWord = inputFieldWord.value;
+	tStateWord = BEFORE_SEARCH;
+	viewTextWord = imgGubun;
+	
+	//10ms 간격으로 doSearch() 함수를 지속적으로 호출
+	setInterval("doSearchWord()", 10);
+	
+	//이벤트 핸들러 등록. keydown, onfocus
+	if(navigator.appName == "Netscape") { 
+		inputFieldWord.onkeydown = autoOnKeyFWord;
+		inputFieldWord.onfocus = autoOnfocusFWord;	
+	} else {
+//		inputFieldWord.onkeydown = autoOnKeyEWord;
+//		inputFieldWord.onfocus = autoOnfocusEWord;
+	}
+}
+
+/********************* 이벤트 핸들러 관련 함수들 *********************/
+function autoOnKeyFWord(event) {
+	autoOnKeyWord(event);
+}
+
+function autoOnfocusFWord(event) {
+	autoOnFocusWord();
+}
+
+function autoOnKeyEWord() {
+	autoOnKeyWord(event);
+}
+
+function autoOnfocusEWord() {
+/*
+	if(focusGubun == true){ 
+		focusGubun = false;
+		return;
+	}
+*/
+	autoOnFocusWord();
+}
+
+function autoOnKeyWord(event) {
+	if ( tStateWord == BEFORE_SEARCH || tStateWord == HIDE_HISTORY || tStateWord == AFTER_SEARCH) {
+		changeAutocomStateWord(HIDE_SEARCH);
+	}
+	
+	if(event.keyCode==40  && resultDataArrayWord != null){ 
+		mvNextItemWord(); 
+	} else if(event.keyCode==38 && resultDataArrayWord != null){ 
+		mvPrevItemWord(); 
+	} else if(event.keyCode==13) {
+	} else {
+		currItemIdxWord = -1;
+	}
+}
+
+function autoOnFocusWord() {
+	if(inputFieldWord.value.length == 1){
+		changeAutocomStateWord(HIDE_SEARCH);
+		return;
+	}
+	if ( tStateWord == HIDE_SEARCH) {
+		if ( resultDataArrayWord != null && resultDataArrayWord.length > 0 )
+				changeAutocomStateWord(SHOW_SEARCH);
+	} else if ( tStateWord == HIDE_HISTORY ) {
+		changeAutocomStateWord(SHOW_HISTORY);
+	} else if ( tStateWord == BEFORE_SEARCH ) {
+		printSchKeywordListWord();
+	} else if ( tStateWord == AFTER_SEARCH ) {
+		//changeAutocomState(SHOW_SEARCH);
+		//changeAutocomStateWord(HIDE_SEARCH);
+		autocomSearchRequestWord();
+		//printSchKeywordListWord();
+	} else if( tStateWord == STATIC_SEARCH){
+		autocomSearchRequestWord();
+		//printSchKeywordListWord();
+	}
+}
+
+/********************* 이벤트 핸들러 관련 함수들 끝 *********************/
+
+function doSearchWord(){
+	if( tStateWord == STOP_SEARCH || tStateWord == BEFORE_SEARCH || tStateWord == AFTER_SEARCH || tStateWord == STATIC_SEARCH) {
+//		beforeQryWord = inputFieldWord.value;
+		return;
+	}
+	
+	/*	파이어폭스의 한글 key 이벤트 처리 오류로 인한 10ms 단위의 호출 감시
+		10ms 이전 호출에서의 text 창에서의 문자와 현재의 문자가 다를 경우 자동완성 실행
+	*/
+	
+	/* 한글자일때는 레이어 숨김 */
+	if(inputFieldWord.value.length == 1){
+		changeAutocomStateWord(HIDE_SEARCH);
+		return;
+	}
+	
+	if (beforeQryWord != inputFieldWord.value && currItemIdxWord == -1 && inputFieldWord.value.length >= minQryLenWord) { 
+		beforeQryWord = inputFieldWord.value;
+		//자동완성 검색 호출
+		autocomSearchRequestWord();
+		
+		//printSchKeywordListWord();
+	} else if( inputFieldWord.value.length == 0 && tStateWord != SHOW_HISTORY ) {
+		if ( tStateWord == HIDE_HISTORY ) return;
+		printSchKeywordListWord();
+	}
+}
+
+/* 웹서버에 통신할 객체 생성 (익스플로러, 사파리, 파이어폭스 등 구별) */
+function createXMLHttpRequestWord(){
+	try{
+		xmlHttpWord = new XMLHttpRequest();
+	} catch(trymicrosoft){
+		try{
+			xmlHttpWord = new ActiveXObject("Msxm12.XMLHTTP");
+		}catch(othermicrosoft){
+			try{
+				xmlHttpWord = new ActiveXObject("Microsoft.XMLHTTP");
+			}catch(failed){
+				xmlHttpWord = null;
+			}
+		}
+	}
+	if(xmlHttpWord == null) alert("Error creating XMLHttpRequest!");
+}
+
+/* ajax로 자동완성 검색 request 수행 */
+function autocomSearchRequestWord() {
+
+	createXMLHttpRequestWord();
+	var url = "/jsp/common/autocom.jsp?keyword=" + encodeURI(inputFieldWord.value) + "&viewlen=26&colname=LicLsTrm";
+	xmlHttpWord.open("GET", url, true);
+	xmlHttpWord.onreadystatechange = Auto_callbackWord;
+	xmlHttpWord.send(null);
+
+}
+
+function Auto_callbackWord() {
+	if (xmlHttpWord.readyState == 4) {
+		var data = xmlHttpWord.responseText.trim();
+		if (xmlHttpWord.status == 200 &&  data.length > 0) {
+			if ( tStateWord == AFTER_SEARCH ) {
+				return;
+			}
+			changeAutocomStateWord(SHOW_SEARCH);
+			setAutoComListWord(data);
+		} else if(data.length < 1){ //데이터가 존재하지 않을 경우
+			resultViewArrayWord = null;
+            resultDataArrayWord = null;
+            klistDivWord.innerHTML = "";
+			setOffsetsWord();
+            changeAutocomStateWord(HIDE_SEARCH);
+		}
+	}
+}
+
+/**자동완성 목록 셋팅**/
+function setAutoComListWord(p_text){
+	var tmpArray = new Array();
+	
+	//검색어 강조된 데이터와 구문강조 없는 데이터 분리
+	tmpArray = p_text.split("\n");
+	
+	//각각의 데이터를 배열화 변환 전역변수로 저장
+	resultDataArrayWord = new Array();
+	resultDataArrayWord = tmpArray[0].split("|");
+	resultViewArrayWord = new Array();
+	resultViewArrayWord = tmpArray[1].split("|");
+	printAutocomListWord();
+}
+
+/**내가 찾은 검색어 목록 셋팅**/
+function printSchKeywordListWord() {
+	//var keywordList = getDatList("autocom" + colname);
+	var keywordListWord = getDatList("SearchHistoryWord");
+	
+	if( keywordListWord.length == 0 ) return;
+	
+	var keywordCnt = keywordListWord.length;
+	var tmpArray = new Array(keywordCnt);
+	
+	keywordListWord.reverse();
+	
+	for(var i = 0; i < keywordCnt; i ++) {
+		if( keywordListWord[i].length > viewlenWord/2 ) {
+			tmpArray[i] = keywordListWord[i].substr(0, viewlenWord/2) + "...";
+		} else {
+			tmpArray[i] = keywordListWord[i];
+		}
+	}
+	
+	resultDataArrayWord = keywordListWord;
+	resultViewArrayWord = tmpArray;
+
+	changeAutocomStateWord(SHOW_HISTORY);
+	
+	printAutocomListWord();
+}
+
+function printAutocomListWord() {
+	if( tStateWord == BEFORE_SEARCH || tStateWord == HIDE_SEARCH || tStateWord == AFTER_SEARCH) return;
+	
+	var innerHtml = "";
+	var onClick = "";
+	var id = "";
+	var title = "";
+	var onMouseOver = " onMouseOver=\"this.className='on'\"";
+	var onMouseOut = " onMouseOut=\"this.className='off'\"";
+	var quot = "\"";
+	var replaceQuot = "&quot;";
+	var rowData = "";
+	
+	innerHtml += "<ul>";
+	for (var i = 0; i < resultViewArrayWord.length ; i++) {
+		//onClick = " onMousedown=\"go_srchWord('" + resultDataArray[i].trim() + "');\"";
+		rowData = resultDataArrayWord[i].trim().split(quot).join(replaceQuot);
+		onClick = " onMousedown=\"querySelectWord('" + rowData + "');\"";
+		id = " id=\"itemList_" +  i + "\"";
+		title = "";
+		if(resultViewArrayWord[i].trim().indexOf("...") > 0)
+			title = " title=\"" + rowData  + "\"";
+		
+		innerHtml += "<li " + onClick + onMouseOver + onMouseOut + id + title + " style='cursor:pointer; '>";
+		// 키보드 포커스 이벤트 먹도록  <a> 태그 추가 11.08
+		innerHtml += "<a href=\"#AJAX\" onclick=\"querySelectWord('" + rowData + "');\">"		+resultViewArrayWord[i].trim() + "</a>";
+		//innerHtml += resultViewArray[i].trim();
+		innerHtml += "</li>\n"
+	}
+	innerHtml += "</ul>";
+	
+	klistDivWord.innerHTML = innerHtml;
+	
+	setOffsetsWord();
+	currItemIdxWord = -1;
+	
+	if( tStateWord == SHOW_HISTORY ) {
+		innerHtml = "<strong>내가 찾은 검색어</strong><div><a href=\"javascript:changeAutocomStateWord(HIDE_HISTORY);\">닫기</a>";
+	} else {
+		//innerHtml = "<strong>법령명 검색어 자동완성</strong><div><a href=\"javascript:changeAutocomState(HIDE_SEARCH)\">닫기</a>";
+		innerHtml = bottomHtmlWord;
+	}
+	
+	bottomDivWord.innerHTML = innerHtml;
+	
+	setAutocomDisplayWord(true);
+}
+
+function mvNextItemWord() {
+	if(resultDataArrayWord == null)	return false;
+
+	if(resultDataArrayWord.length > 0 && currItemIdxWord < resultDataArrayWord.length - 1) {
+		var itemId = "";
+		if(currItemIdxWord >= 0) {
+			itemId = "itemList_" + currItemIdxWord;
+		
+			if(document.getElementById(itemId) == null) return false;
+	
+			document.getElementById(itemId).className="off";
+		}
+		
+		currItemIdxWord ++;
+		itemId = "itemList_" + currItemIdxWord;
+		
+		if(document.getElementById(itemId) == null) return false;
+		
+		document.getElementById(itemId).className="on";
+		inputFieldWord.value = resultDataArrayWord[currItemIdxWord];
+		
+		/* 스크롤바 이동 */
+		if(currItemIdxWord >= 10 && currItemIdxWord % 10 == 0)
+			klistDivWord.scrollTop = (currItemIdxWord + 1) * rowHeightWord;
+
+	}
+}
+
+function mvPrevItemWord() {
+	if(resultDataArrayWord == null)	return false;
+
+	if(resultDataArrayWord.length > 0 && currItemIdxWord >= 0) {
+		var itemId = "";
+		itemId = "itemList_" + currItemIdxWord;
+		
+		if(document.getElementById(itemId) == null) return false;
+		
+		document.getElementById(itemId).className="off";
+		currItemIdxWord --;
+
+		if(currItemIdxWord >= 0) {
+			itemId = "itemList_" + currItemIdxWord;
+		
+			if(document.getElementById(itemId) == null) return false;
+	
+			document.getElementById(itemId).className="on";
+			inputFieldWord.value = resultDataArrayWord[currItemIdxWord];
+		}
+		else if(currItemIdxWord < 0)
+			inputFieldWord.value = beforeQryWord;
+			
+		/* 스크롤바 이동 */	
+		if(currItemIdxWord % 10 == 9)
+			klistDivWord.scrollTop = (currItemIdxWord - 9) * 20;
+	}
+}
+
+function querySelectWord(dataQry){
+	inputFieldWord.value = dataQry;
+	changeAutocomStateWord(STATIC_SEARCH);
+}
+
+function go_srchWord(dataQry) {
+	inputFieldWord.value = dataQry;
+	autoComSearchFormWord();
+}
+
+/* 자동완성 div를 화면에 출력하거나 감춘다 */
+function setAutocomDisplayWord(flag){
+	try {
+		if ( flag == true ) {
+			bottomDivWord.style.display = "block";
+			klistDivWord.style.display = "block";
+			document.getElementById("automWord").style.display = "block";
+			if(admiFrameWord != ""){
+				admiFrameWord.style.display = "block";
+			}
+		} else {
+			bottomDivWord.style.display = "none";
+			klistDivWord.style.display = "none";
+			document.getElementById("automWord").style.display = "none";
+			if(admiFrame != ""){
+				admiFrame.style.display = "none";
+			}
+		}
+	} catch(e) {
+	}
+}
+
+/* 자동완성 div의 높이를 조절 */
+function setOffsetsWord() {
+	if(resultDataArrayWord != null){
+		var itemCount = resultDataArrayWord.length;
+	    
+		if(itemCount > 10)
+			itemCount = 10;
+	    
+	    if((rowHeightWord * itemCount) == 220){
+	        klistDivWord.style.height = "160px";
+	        
+	    } else {
+	        klistDivWord.style.height = (rowHeightWord * itemCount) + "px";
+	    }
+	    
+		/*IE6에서 select 박스  위로 올라오는 문제 때문에 어쩔수 없이 만들었음..*/
+		if($.browser.isIE6 && el('autoIframe')){
+			el('autoIframe').style.height = (rowHeightWord * itemCount) + "px";
+			el('autoIframe').style.width = "300px";
+		}
+		
+		if(admiFrame != ""){
+			admiFrame.style.height = (rowHeightWord * itemCount) + 30 + "px";
+		}
+	}else{
+		klistDivWord.style.height = "0px";
+		if($.browser.isIE6 && el('autoIframe')){
+			el('autoIframe').style.height = "0px";
+			el('autoIframe').style.width = "0px";
+		}
+	}
+}
+
+/* 자동완성창 show <-> hide toggle */
+function toggleViewStateWord(){
+	if(tStateWord == SHOW_SEARCH) {
+		changeAutocomStateWord(HIDE_SEARCH);
+	} else if(tStateWord == HIDE_SEARCH || tStateWord == AFTER_SEARCH) {
+		changeAutocomStateWord(SHOW_SEARCH);
+	} else if(tStateWord == SHOW_HISTORY) {
+		changeAutocomStateWord(HIDE_HISTORY);
+	} else if(tStateWord == HIDE_HISTORY) {
+		changeAutocomStateWord(SHOW_HISTORY);
+	} else if(tStateWord == BEFORE_SEARCH) {
+		printSchKeywordListWord();
+	}
+}
+
+/* 자동완성 state 변경 함수 */
+function changeAutocomStateWord(state) {
+    tStateWord = state;
+	switch(tStateWord) {
+		case BEFORE_SEARCH:
+			setAutocomDisplayWord(false);
+			break;
+		case HIDE_SEARCH:
+			clickQueryCntWord = 0;
+			setAutocomDisplayWord(false);
+			break;
+		case SHOW_SEARCH:
+			setAutocomDisplayWord(true);
+			break;
+		case HIDE_HISTORY:
+			clickQueryCntWord = 0;
+			setAutocomDisplayWord(false);
+			break;
+		case SHOW_HISTORY:
+			setAutocomDisplayWord(true);
+			break;
+		case STOP_SEARCH:
+			setAutocomDisplayWord(false);
+			break;
+		case RESTART_SEARCH:
+			setAutocomDisplayWord(false);
+			break;
+		case AFTER_SEARCH:
+			setAutocomDisplayWord(false);
+			break;
+		case STATIC_SEARCH:
+			setAutocomDisplayWord(false);
+			break;
+	}
+}
+
+/*
+	검색어를 쿠키에 저장한다.(중복제거, 20개까지)
+*/
+function setSchKeywordCookieWord(){
+	var keyword = inputFieldWord.value;
+	//var dataId = "autocom" + colname;
+	var dataId = "SearchHistoryWord";
+	if(keyword != ""){
+		//1.목록 가져오기 
+		/* getDatList() : /WEB/LSW/js/common/CookieUtil.js */
+		var datList = getDatList(dataId);
+		var tempData = "";
+		var uName = "";
+		var isFirst = true;
+		
+		if(datList.length > 0){
+			//2. 중복자료 검사
+			for(var i = 0; i < datList.length; i++){
+				if ( datList[i] == keyword ) continue;
+				
+				if(tempData == ""){
+						uName = "";
+				}else{
+						uName = "---";	
+				}
+				
+				if (navigator.appName.charAt(0) == 'N') {
+					tempData += uName + toUtf8(datList[i]);
+				} else if (navigator.appName.charAt(0) == 'M') {
+					tempData += uName + datList[i];
+				}
+			}
+			isFirst = false;
+		}
+		
+		if( isFirst == true ) {
+			uName = "";
+		} else {
+			uName = tempData + "---";
+		}
+		
+		/* setCookie() : /WEB/LSW/js/common/CookieUtil.js */
+		if (navigator.appName.charAt(0) == 'N') {
+			setCookie(dataId, uName + toUtf8(keyword));
+		} else if (navigator.appName.charAt(0) == 'M') {
+			setCookie(dataId, uName + keyword);
+		}
+		
+		/* delDatList() : /WEB/LSW/js/common/CookieUtil.js */
+		if(datList.length >= maxCookieWord){		// 저장 개수 설정 
+			delSchKeywordCookieWord(dataId);
+		}
+	}
+}
+
+/**
+  * 20개 이상 쿠키 삭제
+  */
+function delSchKeywordCookieWord(dataId){
+	var oldList = getDatList(dataId);
+	
+	if ( oldList.length <= maxCookieWord ) return;	
+	
+	var tmpData = "";
+	var isFirst = true;
+	var uName = "";
+	
+	
+	oldList.reverse();
+	
+	for(var i = 0; i < maxCookieWord; i ++) {
+		if ( i == 0 )
+			uName = "";
+		else
+			uName = "---";
+		if (navigator.appName.charAt(0) == 'N') {
+			tmpData = toUtf8(oldList[i]) + uName + tmpData;
+		} else if (navigator.appName.charAt(0) == 'M') {
+			tmpData = oldList[i] + uName + tmpData;
+		}
+	}
+	
+	// 삭제 리스트 제외한 리스트 저장 
+	setCookie(dataId,tmpData);
+}
+
+/* 형정규칙 IFrame 설정 */
+function setDistplayiframeWord(tiFrame){
+	admiFrameWord = document.getElementById(tiFrame);		
+}
+
+function closeAutocomListWord(){
+	// 닫기 버튼 눌렀을때 검색버튼으로 키보드 가게끔 포커스 이동
+	document.getElementById('searWord').focus();
+}
+
+
+
+</script>
+
+</body>
+</html>

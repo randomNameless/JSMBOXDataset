@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>carnival.tracking.html</title>
+</head>
+<body>
+
+<script>
+if (typeof Carnival === "undefined") { Carnival = {}; }
+Carnival.Tracking = Carnival.Tracking || (function ($, window, undefined) {
+    var TrackableAction = (function() {
+
+        function TrackableAction(data) {
+            this.hash = data || {}; 
+        }
+
+        TrackableAction.prototype.prop = function(propertyName, propertyValue) {
+            if (!propertyName) {
+                throw new "propertyName is missing";
+            }
+            
+            propertyValue = propertyValue || "";
+
+            this.hash[propertyName] = $.trim(propertyValue);
+            return this;
+        };
+
+        TrackableAction.prototype.scEvents = function (events) {
+            var scEvents = {};
+            if (!$.isArray(events)) {
+                events = events.split(",");
+            }
+            for (var i = 0; i < events.length; i++) {
+                scEvents[events[i]] = 1;
+            }
+            this.hash["sc_events"] = scEvents;
+            return this;
+        };
+
+        TrackableAction.prototype.name = function(name, prefixPageName) {
+            this.hash["link_text"] = $.trim(name);
+            if (prefixPageName) {
+                this.hash["__prefixPageName__"] = "1";
+            }
+            return this;
+        };
+
+        TrackableAction.prototype.domElem = function(domElement) {
+            this.hash["link_obj"] = domElement;
+            return this;
+        };
+
+        TrackableAction.prototype.type = function(linkType) {
+            this.hash["link_type"] = linkType;
+            return this;
+        };
+
+        TrackableAction.prototype.fire = function () {
+            if (window.utag && window.utag.link) {
+                try {
+                    if (!this.hash["link_type"]) {
+                        this.hash["link_type"] = "o";
+                    }
+                    
+                    //go through the hash props to see if we have special-meaning props and execute them
+                    for (var propName in this.hash) {
+                        if (this.hash.hasOwnProperty(propName) &&
+                            propName.match(/^__[0-9a-zA-Z]+__$/) &&
+                            this[propName]) {
+                            this[propName](this.hash[propName]); //execute
+                            delete this.hash[propName]; //delete it, avoid passing for tracking.
+                        }
+                    }
+
+                    window.utag.link(this.hash);
+                } catch(e) {} 
+            }
+        };
+
+        TrackableAction.prototype.__prefixPageName__ = function(value) {
+            if (value === "1") {
+                //SiteCatalyst or UDO or "" in that precendence
+                var pageName = (s && s.pageName) || this.hash["pageName"] || "";
+                this.hash["link_text"] = pageName + (this.hash["link_text"] || "");
+            }
+        };
+
+        return TrackableAction;
+    })();
+
+    var ServiceBus = (function () {
+
+        function ServiceBus() {
+            this.subscriptions = {};
+        }
+
+        function isString(value) {
+            return Object.prototype.toString.call(value) === "[object String]";
+        }
+
+        ServiceBus.prototype.subscribe = function (topic, callback) {
+            if (!isString(topic)) {
+                throw Error("'topic' must be a string");
+            }
+            if (!callback || !$.isFunction(callback)) {
+                throw Error("'callback' must be a function and must be specified");
+            }
+
+            this.subscriptions[topic] = this.subscriptions[topic] || [];
+            this.subscriptions[topic].push(callback);
+            return this; //for chaining
+        };
+
+        ServiceBus.prototype.publish = function(topic, data) {
+            if (!isString(topic)) {
+                throw Error("'topic' must be a string");
+            }
+            var subscription = this.subscriptions[topic];
+            if (subscription && subscription.length) {
+                $.each(subscription, function () {
+                    try {
+                        this(data);
+                    } catch(e) {} 
+                });
+            }
+            
+            return this; //for chaining
+        };
+
+        return ServiceBus;
+    })();
+
+    function dataTagCommand(e) {
+        var data = $.parseJSON($(this).attr("data-tag")),
+            href = $(this).attr("href") || "#";
+
+        new TrackableAction(data).domElem(this).fire();
+
+        if (href !== "#") {
+            e.preventDefault();
+
+            //this timeout is needed to give time for the 
+            //tag to reach its server before the page unloads
+            setTimeout(function () {
+                window.location.href = href;
+            }, 300);
+        }
+    }
+
+    function initPlugin() {
+        var pluginName = "linkTracking";
+        $.fn[pluginName] = function () {
+            return this.each(function () {
+                if (!$.data(this, "plugin_" + pluginName)) {
+                    $(this).on("click", dataTagCommand).data("plugin_" + pluginName, 1);
+                }
+            });
+        };
+    }
+
+    function bootstrap() {
+        $(function () {
+            $(document).on("click", "[data-tag]", dataTagCommand);
+        });
+    }
+
+    bootstrap();
+    initPlugin();
+    return {
+        TrackableAction: TrackableAction,
+        bus: new ServiceBus()
+    };
+
+})(jQuery, window);
+</script>
+
+</body>
+</html>

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>acc.accountspecialcustomer.html</title>
+</head>
+<body>
+
+<script>
+function checkSpecialCustomer() {
+    $("#securityAndPassword").show();
+    $("#specialCustomerMessage").hide();
+    var frm = $('#epsonRegisterForm');
+    var data = {}
+    var isQualifiedCustomerUrl = "/register/verifySpecialCustomer";
+    var isValid = true;
+    //Gather Data also remove undefined keys(buttons)
+    $("#epsonRegisterForm :input").each(function () {
+        var input = $(this);
+        if (input.attr("name") == "email") {
+            if (!validateRegEmail(input)) {
+                $("#epsonRegisterForm :input[name='email']").val("");
+                $("#epsonRegisterForm :input[name='email']").parents('.form-group').removeClass('has-error');
+                isValid = false;
+            }
+        }
+        data[input.attr("name")] = input.val();
+        delete data["undefined"];
+    });
+    if (isValid) {
+        //document.getElementById('register.email').addClass('loadinggif');
+        $(".loaderGIF").show();
+        $.ajax({
+            type: "GET",
+            url: isQualifiedCustomerUrl,
+            contentType: 'application/json',
+            data: "email=" + data["email"],
+            success: function (response) {
+                if (response != null && response == true) {
+                    $("#epsonRegisterForm :input[name='isSpecialCustomer']").val("true");
+                    $("#securityAndPassword input").addClass('ignore');
+                    $("#securityAndPassword").hide();
+                    $("#specialCustomerMessage").show();
+                } else {
+                    $("#epsonRegisterForm :input[name='isSpecialCustomer']").val("false");
+                    $("#securityAndPassword input").removeClass('ignore');
+                }
+                //validateForm($('#epsonRegisterForm'));
+
+                ACC.globalid.bindSignInFormValidation();
+                $(".loaderGIF").hide();
+                //$("#securityAndPassword").hide();
+                //$("#specialCustomerMessage").show();
+                //validateRegisterButton();
+            },
+            error: function () {
+                console.log("Error!");
+                $(".loaderGIF").hide();
+            }
+        });
+    }
+}
+function validateRegEmail(input) {
+    if (input.val() == null || input.val() == "") {
+        input.parents('.form-group').addClass('has-error');
+        return false;
+    }
+    return true;
+}
+function checkSpecialCustomerUpdate() {
+    var isQualifiedCustomerUrl = "/register/verifySpecialCustomer";
+	var input = $('.email-field-wr input');
+	var email = input.val();
+	$('.chkemail-field-wr input').show();
+	if (email === null || email === '') {
+        input.val("");
+	} else {
+        $(".loaderGIF").show();
+        $.ajax({
+            type: "GET",
+            url: isQualifiedCustomerUrl,
+            contentType: 'application/json',
+            data: "email=" + email,
+            success: function (response) {
+                if (response != null && response == true) {
+                   	input.parents('.form-group').addClass('has-error');
+        			$('#error_email').html($('#original-email').data('specialcust-msg'));
+        			$('#error_email').show();
+					$('.chkemail-field-wr input').val('');
+					$('.chkemail-field-wr input').hide();
+                } else if($('#original-email').data('original-qualified') === 'true') {
+                    input.parents('.form-group').addClass('has-error');
+                    $('#error_email').html($('#original-email').data('specialcust-msg'));
+        			$('#error_email').show();
+					$('.chkemail-field-wr input').val('');
+					$('.chkemail-field-wr input').hide();
+                }
+                $(".loaderGIF").hide();
+            },
+            error: function () {
+                console.log("Error!");
+                $(".loaderGIF").hide();
+            }
+        });
+    }
+}
+window.addEventListener('DOMContentLoaded', function () {
+    if(document.getElementById('register.email') != null) {
+        document.getElementById('register.email').addEventListener('blur', checkSpecialCustomer);
+    }
+    if(document.getElementById('editEmailBtn') != null) {
+		$('#editEmailBtn button').on('click', function() {
+			document.getElementById('profile.email').addEventListener('blur', checkSpecialCustomerUpdate);
+		});
+    }
+});
+</script>
+
+</body>
+</html>

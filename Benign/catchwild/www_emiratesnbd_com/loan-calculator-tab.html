@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>loan-calculator-tab.html</title>
+</head>
+<body>
+
+<script>
+$(document).ready(function () {
+    LoanCalculatorTab.Init();
+    $(".js-click-event").on("click", function (ev) {
+        //ev.preventDefault();
+        LoanCalculatorTab.TrackClickEvent($(this));
+        //window.location.href = $(this).attr('href');
+    });
+});
+
+var loanType;
+var interestRate = 0;
+var amount = 0;
+var tenor = 0;
+var usedInterestRate = 0;
+var currentClass = "";
+var amountSlider = 0;
+var tenorSlider = 0;
+var monthlyPayment = 0;
+
+var LoanCalculatorTab = LoanCalculatorTab || {
+    UserInteraction: false,
+    FieldName: "",
+    Init: function () {
+
+        $('.loan-tabs a[data-toggle="tab"]').on('show.bs.tab', function (e) {
+            let target = $(e.target).data('target');
+            $(target)
+                .addClass('active show')
+                .siblings('.tab-pane.active')
+                .removeClass('active show');
+            loanType = $(this).attr("data-loantype");
+            interestRate = $(this).attr("data-interest-rate");
+            usedInterestRate = $(this).attr("data-used-interest-rate");
+            LoanCalculatorTab.GetFieldName();
+            LoanCalculatorTab.CalculateRewards(loanType);
+        });
+
+
+        $(".js-calculator-earn-range-slider").ionRangeSlider({
+            hide_min_max: true,
+            
+            onFinish: function () {
+                LoanCalculatorTab.UserInteraction = true;                
+                LoanCalculatorTab.CalculateRewards();
+                setTimeout(function () {
+                    LoanCalculatorTab.LoanCalculatorAdobeAnalytics();
+                    LoanCalculatorTab.UserInteraction = false;
+                    amountSlider = 0;
+                    tenorSlider = 0;
+                }, 20000);
+                
+            }
+        });
+        LoanCalculatorTab.GetFieldName();
+
+        $('.carused').click(function () {
+            LoanCalculatorTab.CalculateRewards();
+        });
+        $('.carnew').click(function () {
+            LoanCalculatorTab.CalculateRewards();
+        });
+        this.CalculateRewards();
+    },
+    CalculateRewards: function (loanType) {
+        if (loanType == undefined || loanType == '') {
+            loanType = $("ul.loan-tabs li a.active").data("loantype");
+        }
+        $("div.active input.js-calculator-earn-range-slider").each(function () {
+            if (interestRate == 0) {
+                interestRate = $("ul.loan-tabs li a.active").data('interest-rate');
+            }
+            if (usedInterestRate == 0) {
+                usedInterestRate = $("ul.loan-tabs li a.active").data('used-interest-rate');
+            }
+            if ($(this).data('istenor').includes('True')) {
+                if (tenor != parseFloat($(this).val()) && LoanCalculatorTab.UserInteraction) {
+                    tenorSlider += 1;
+                }
+                tenor = parseFloat($(this).val());
+            }
+            else {
+                if (amount != parseFloat($(this).val()) && LoanCalculatorTab.UserInteraction) {
+                    amountSlider += 1;
+                }
+                amount = parseFloat($(this).val());
+            }
+            
+        });
+
+        if (loanType && loanType.includes($("ul.loan-tabs li a.active").data("auto"))) {
+            LoanCalculatorTab.CalculateAL();
+        }
+        else {
+            LoanCalculatorTab.CalculateLoan(interestRate,loanType);
+        }
+        lastInteractedTime = new Date($.now());
+
+    },
+    CalculateLoan: function (interestRate,loan) {
+        var interest = interestRate / 12;
+        if (loan && loan.includes($("ul.loan-tabs li a.active").data("home"))) { tenor = parseFloat(tenor) * 12; }
+        var pmt = LoanCalculatorTab.PMT(interest, tenor, amount);
+        monthlyPayment = pmt;
+        loanType = loan;
+        $("div.active span.monthlyPayments").html(ENBD.ConvertAmount(pmt));
+        $("div.active span.totalPayments").html(ENBD.ConvertAmount(amount));
+    },
+    CalculateAL: function () {
+        var interest = parseFloat(amount) * interestRate / 1200;
+        if ($('.carused').is(':checked')) { interest = parseFloat(amount) * usedInterestRate / 1200; }
+        var total = (parseFloat(amount) + interest * parseInt(tenor)) / parseInt(tenor);
+        var result = Math.round(total * 100) / 100;
+        result = Math.abs(result.toFixed(0));
+        monthlyPayment = result;
+        loanType = "Auto Loan";
+        $("div.active span.monthlyPayments").html(ENBD.ConvertAmount(result));
+        $("div.active span.totalPayments").html(ENBD.ConvertAmount(amount));
+    },
+    PMT: function (ir, np, pv, fv, type) {
+        /*
+         * ir   - interest rate per month
+         * np   - number of periods (months)
+         * pv   - present value
+         * fv   - future value
+         * type - when the payments are due:
+         *        0: end of the period, e.g. end of month (default)
+         *        1: beginning of period
+         */
+        var pmt, pvif;
+        fv || (fv = 0);
+        type || (type = 0);
+        if (ir === 0)
+            return -(pv + fv) / np;
+        pvif = Math.pow(1 + ir, np);
+        pmt = - ir * pv * (pvif + fv) / (pvif - 1);
+        if (type === 1)
+            pmt /= (1 + ir);
+        pmt = Math.abs(pmt.toFixed(0));
+        return pmt;
+    },
+
+    LoanCalculatorAdobeAnalytics: function () {
+        if (LoanCalculatorTab.UserInteraction) {
+                var ctaCategory = $('.calculator #cta-category').data('ctacategory');
+                var ctaName = "calculator interaction";
+                var formData = {
+                    "event": "calculator",
+                    "web": pageData["web"],
+                    "_emiratesnbd": pageData["_emiratesnbd"]
+                };
+                var webInteraction = {
+                    "name": ctaName,
+                    "type": "other",
+                    "linkClicks": {
+                        "value": 1
+                    }
+                };
+                var linkInfo = {
+                    "ctatext": ctaName,
+                    "ctatype": "other",
+                    "ctacategory": ctaCategory
+                };
+
+                var calculatorInfo = {
+                    "calculatorName": loanType,
+                    "amountSlider": amountSlider,
+                    "tenureSlider": tenorSlider,
+                    "finalInputVal": amount + "|" + tenor + "|" + monthlyPayment,
+                    "interactedFieldName": LoanCalculatorTab.FieldName,
+                };
+
+                formData._emiratesnbd = { linkInfo, ...formData._emiratesnbd };
+                formData.web = { webInteraction, ...formData.web };
+                formData._emiratesnbd = { calculatorInfo, ...formData._emiratesnbd };
+                ENBD.PushAdobeDataLayer(formData);
+        }
+        
+    },
+    TrackClickEvent: function (link) {
+        var formData = {
+            "event": "ctaClick",
+            "web": pageData["web"],
+            "_emiratesnbd": pageData["_emiratesnbd"]
+        };
+        var webInteraction = {
+            "name": link.data('ctatext'),
+            "type": link.data('ctatype'),
+            "linkClicks": {
+                "value": 1
+            }
+        };
+        var linkInfo = {
+            "ctatext": link.data('ctatext'),
+            "ctatype": link.data('ctatype'),
+            "ctaregion": link.data('ctaregion'),
+            "ctacategory": link.data('ctacategory'),
+            "ctalink": link.data('ctalink'),
+            "ctaposition": link.data('ctaposition')
+        };
+
+        var calculatorInfo = {
+            "calculatorName": loanType,
+            "amountSlider": amountSlider,
+            "tenureSlider": tenorSlider,
+            "finalInputVal": amount + "|" + tenor + "|" + monthlyPayment,
+            "interactedFieldName": LoanCalculatorTab.FieldName,
+        };
+
+        formData._emiratesnbd = { linkInfo, ...formData._emiratesnbd };
+        formData.web = { webInteraction, ...formData.web };
+        formData._emiratesnbd = { calculatorInfo, ...formData._emiratesnbd };
+        ENBD.PushAdobeDataLayer(formData);
+    },
+    GetFieldName: function () {
+        $("div.active input.js-calculator-earn-range-slider").on('change', function () {
+            LoanCalculatorTab.FieldName = $(this).data('fieldname');
+        });
+    }
+};
+</script>
+
+</body>
+</html>

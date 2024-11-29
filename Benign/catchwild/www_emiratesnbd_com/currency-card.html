@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>currency-card.html</title>
+</head>
+<body>
+
+<script>
+$(document).ready(function () {
+    $('#currency-list').block();
+    $('#currency-card').unblock();
+    $('#transfercurrency').unblock();
+    $('#convertcurrency').unblock();
+
+    if ($(".currency-list-exchange-rate").length > 0) {
+        $.ajax({
+            type: 'POST',
+            url: '/enbdapi/v1/currency/getexchangerates',
+            data: {
+                SettingsId: $('#currency-list').data("settingsid"),
+                Language: ENBD.CurrentLanguage
+            },
+            success: function (result) {
+                if (result && result.CurrencyList && result.CurrencyList.length > 0) {
+                    result.CurrencyList.forEach(function (arrayItem) {
+                        arrayItem.CustomerBuy = arrayItem.CustomerBuy;
+                        arrayItem.CustomerSell = arrayItem.CustomerSell;
+                    });
+                    $('#currency-list').html('');
+                    var template = $('#exchange-rate-template').html();
+                    var templateScript = Handlebars.compile(template);
+                    var html = templateScript(result.CurrencyList);
+                    $('#currency-list').html(html);
+                    var $slideContainer = $('.js-forex-cards');
+                    var $slides = $('.js-forex-cards .swiper-slide');
+                    var containerWidth = $slideContainer.outerWidth();
+                    function calculateTotalSlideWidth() {
+                        var totalWidth = 0;
+                        $slideContainer.find('.swiper-slide').each(function () {
+                            totalWidth += $(this).outerWidth(true);
+                        });
+                        return totalWidth;
+                    }
+
+                    var totalSlideWidth = calculateTotalSlideWidth();
+
+                    while (totalSlideWidth < containerWidth) {
+                        $slides.clone().appendTo($('.js-forex-cards .swiper-wrapper'));
+                        totalSlideWidth = calculateTotalSlideWidth();
+                    }
+                    ENBD.LazyLoad();
+
+                    new Swiper('.js-forex-cards', {
+                        loop: true,
+                        autoplay: {
+                            delay: 1,
+                            disableOnInteraction: false
+                        },
+                        slidesPerView: 'auto',
+                        speed: 3000,
+                        grabCursor: true,
+                        mousewheelControl: true,
+                        keyboardControl: true,
+                        spaceBetween: 15
+
+                    });
+
+                    $('.marquee').marquee({
+                        pauseOnHover: true,
+                        duplicated: true,
+                        startVisible: true
+                    });
+                    $('.js-marquee-wrapper .js-marquee').clone().appendTo('.js-marquee-wrapper');
+                    $('#currency-list').unblock();
+                } else {
+                    $('#currency-list').unblock();
+                }
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                $('#currency-list').unblock();
+            }
+        });
+    }
+
+    $.ajax({
+        type: 'POST',
+        url: '/enbdapi/v1/currency/getexchangerates',
+        data: {
+            SettingsId: $('#currency-card').data("settingsid"),
+            Language: ENBD.CurrentLanguage
+        },
+        success: function (result) {
+            if (result && result.CurrencyList && result.CurrencyList.length > 0) {
+                $('#currency-card').html('');
+                $.each(result.CurrencyList, function (key, value) {
+                    result.CurrencyList[key]['ConvertedValue'] = formatCurrency((1 / parseFloat(value.CustomerSell)));
+                });
+                var template = $('#currency-exchange-rate-template').html();
+                var templateScript = Handlebars.compile(template);
+                var html = templateScript(result.CurrencyList);
+                $('#currency-card').html(html);
+                ENBD.LazyLoad();
+                tabbedContent();
+                $('#currency-card').unblock();
+            } else {
+                $('#currency-card').unblock();
+            }
+        },
+        error: function (jqXHR, textStatus, errorThrown) {
+            $('#currency-card').unblock();
+        }
+    });
+
+    $(".form-currency-enter").keyup(function () {
+        var cutomersellValue = formatCurrency($("#cutomerSellValue").val());
+        var transferValue = formatCurrency($(this).find('.enter-curreny').val());
+        var convertedValue = formatCurrency(transferValue * formatCurrency(cutomersellValue));
+        if (isNaN(convertedValue) || convertedValue==0)
+        {
+            $(this).closest('form').find('.convert-curreny').val("");
+           
+        }
+        else
+        {
+            $(this).closest('form').find('.convert-curreny').val(formatCurrency(convertedValue));
+        }
+       
+    });
+
+    $('.accept-numeric-only').keypress(function (e) {
+        var specialKeys = new Array();
+        specialKeys.push(8); //Backspace
+        var keyCode = e.which ? e.which : e.keyCode
+        if (((keyCode >= 48 && keyCode <= 57) || specialKeys.indexOf(keyCode) != -1)) {
+            return true;
+        }
+        return false
+    });
+    
+});
+(function ($) {
+    $(function () {
+        nbdForex();
+    });
+}(jQuery));
+
+
+    var tabbedContent = function () {
+        const tabWrapper = document.querySelector('.transfer-country__tabs'),
+            tab = document.querySelectorAll(".transfer-country__tab"),
+            tabContent = document.querySelectorAll(".transfer-country__content-item"),
+            closeTab = document.querySelectorAll('.transfer-country__content-close');
+
+        if (tabWrapper) {
+            for (let i = 0; i < tab.length; i++) {
+
+                tab[i].addEventListener('click', function () {
+
+                    $(this).find('.enter-curreny').val('');
+                    $(this).find('.convert-curreny').val('');
+                    var cutomersellValue = formatCurrency($(this).find('.customersell-value').val());
+                    var aedExchangeRate = formatCurrency($(this).find('.aed-exchangerate').val());
+                    var countryCode = $(this).find('.currencycode-value').val();
+                    $("#cutomerSellValue").val(formatCurrency(cutomersellValue));
+
+                    tabWrapper.classList.add('is-active');
+
+                    var conversionlabel = $('#aed_conversion_value').find('.js-aedexchangerate');
+                    conversionlabel.html((conversionlabel.data('text')).replace("{0}", formatCurrency(aedExchangeRate)).replace("{1}", countryCode));
+
+                    for (let i = 0; i < tab.length; i++) {
+                        tab[i].classList.remove('is-active');
+                    }
+
+                    for (let i = 0; i < tabContent.length; i++) {
+                        tabContent[i].classList.remove('is-active');
+                    }
+
+                    this.className += ' is-active';
+
+                    let matchingTab = this.getAttribute('data-tab');
+
+                    document.getElementById(matchingTab).className += ' is-active';
+
+                    $('html, body').animate({
+                        scrollTop: $('.transfer-country__content').offset().top - 150
+                    }, '800');
+
+                }, false);
+
+                closeTab.forEach(close => {
+                    close.addEventListener('click', () => {
+                        tabWrapper.classList.remove('is-active');
+                        tabContent.forEach(content => {
+                            content.classList.remove('is-active');
+                        })
+                    });
+                })
+            }
+        }
+}
+
+   
+
+
+var nbdForex = function () {
+    // forex cards
+    new Swiper('.swiper-forex-cards', {
+        slidesPerView: 'auto',
+        spaceBetween: 0,
+        pagination: {
+            el: '.swiper-forex-cards-pagination',
+            clickable: true,
+        },
+        breakpoints: {
+            1300: {
+                allowTouchMove: false,
+            },
+        }
+    });
+}
+
+var formatCurrency = function (value) {
+    if (!isNaN(value) && value != undefined && value != null && value != "" && value != "0.00") {
+        var valueArray = value.toString().split(".");
+
+        if (valueArray.length == 2) {
+            var digites = valueArray[0];
+            var decimals = valueArray[1];
+            var currency = digites + ".";
+            if (decimals != null && decimals != "" && decimals != undefined) {
+                var positiveCount = 0;
+                for (var i = 0; i < 5; i++) {
+
+                    if (positiveCount != 5) {
+                        if (decimals.charAt(i) == "0") {
+                            currency += decimals.charAt(i);
+                        }
+                        else {
+                            positiveCount += 1;
+                            currency += decimals.charAt(i);
+                        }
+                    }
+                }
+            }
+            return parseFloat(currency);
+        }
+        else {
+            return parseFloat(value);
+        }
+    }
+    if (value == "0.00") return value;
+    return 0;
+}
+
+</script>
+
+</body>
+</html>

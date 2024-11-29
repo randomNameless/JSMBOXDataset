@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>zyWebResourceManager.html</title>
+</head>
+<body>
+
+<script>
+window.require.define({"zyWebResourceManager": function(exports, require, module) {
+function zyWebResourceManager() {
+    // These differ between zyTool's and zyWeb's implementation.
+    this.baseUrl     = 'https://zytools.zybooks.com/54/';
+    this.resourceUrl = 'https://zytools.zybooks.com/54/vendor/';
+    this.getDependencyURL = function(dependencyPath) {
+        return (this.resourceUrl + dependencyPath);
+    }
+    // Legacy support: |getImageURL| should not be called by zyTools.
+    this.getImageURL = function(imagePath, toolName) {
+        console.error('getImageURL should not be called by zyTools. Instead, use getResourceURL. Also, instead of an img folder, use a folder named resource.');
+    }
+    this.getResourceURL = function(resourcePath, toolName) {
+        return ('https://zytools.zybooks.com/54/' + toolName + '/resource/' + resourcePath);
+    }
+    this.getPathToToolJS = function(resourceName) {
+        return (this.baseUrl + resourceName + '/' + resourceName + '.js');
+    }
+    this.getZydeHost = function() {
+        return '';
+    }
+    this.getImageContentResourceUrl = function(subject, filename) {
+        return '';
+    }
+
+    // Legacy support: |functionUsed| should not be called by zyTools.
+    this.legacySupportErrorForDependencies = function(functionUsed) {
+        console.error(functionUsed + ' should not be called by zyTools. Instead, use a dependencies.js file to declare dependencies.');
+    }
+    this.getResource = function(tool) {
+        this.legacySupportErrorForDependencies('getResource');
+    }
+
+    // "Sets" to prevent reloading of resources.
+    this.toolsCache     = {};
+    this.vendorJSCache  = {};
+    this.vendorCSSCache = {};
+
+    /*
+        Add |dependencies| that haven't loaded yet to |toolsToLoad|, |vendorJSToLoad|, and |vendorCSSToLoad|.
+        |dependencies| is an object containing:
+            * |tools| is an array of tool names.
+            * |vendorJS| is an array of vendor Javascript file paths.
+            * |vendorCSS| is an array of vendor CSS files.
+        |toolsToLoad| is an array of tool names.
+        |vendorJSToLoad| is an array of vendor Javascript file paths.
+        |vendorCSSToLoad| is an array of vendor CSS files.
+    */
+    this.addDependenciesToLoad = function(dependencies, toolsToLoad, vendorJSToLoad, vendorCSSToLoad) {
+        // If dependencies exist, then add them to be loaded.
+        if (dependencies) {
+            var tools     = dependencies.tools;
+            var vendorJS  = dependencies.vendorJS;
+            var vendorCSS = dependencies.vendorCSS;
+
+            var self = this;
+            if (tools) {
+                tools.forEach(function(tool) {
+                    // If the tool has not been loaded, then add tool to respective set.
+                    if (!(tool in self.toolsCache)) {
+                        toolsToLoad.push(tool);
+                    }
+                });
+            }
+
+            if (vendorJS) {
+                vendorJS.forEach(function(js) {
+                    // If the js has not been loaded, then add js to respective set.
+                    if (!(js in self.vendorJSCache)) {
+                        vendorJSToLoad.push(js);
+                    }
+                });
+            }
+
+            if (vendorCSS) {
+                vendorCSS.forEach(function(css) {
+                    // If the tool has not been loaded, then add tool to respective set.
+                    if (!(css in self.vendorCSSCache)) {
+                        vendorCSSToLoad.push(css);
+                    }
+                });
+            }
+        }
+    }
+
+    /*
+        Load vendor scripts, vendor style sheets, and tool resources stored in |dependencies|.
+        |dependencies| is a required object containing:
+            * |tools| is an array of tool names. Ex: ['progressionTool', 'utilities'].
+            * |vendorJS| is an array of vendor Javascript file paths. Ex: ['jquery.mousewheel.js', 'jquery-ui/jquery-ui.min.js'].
+            * |vendorCSS| is an array of vendor CSS files. Ex: ['normalize.css', 'jquery-ui/jquery-ui.css'].
+        |vendorJS|, |vendorCSS|, and |tools| are optional.
+
+        The dependency types load in sequence, from |tools| -> |vendorCSS| -> |vendorJS|.
+        A queue for each dependency type is maintained.
+        The tools queue is loaded first in order to collect all needed |tools|, |vendorCSS|, and |vendorJS| dependencies.
+        The vendor CSS queue is loaded second b/c there is no way to get a callback after a CSS file has loaded.
+        So, a zyTool may be rendered before a dependency vendor CSS file has downloaded, causing the zyTool to be in an unstyled initial state.
+    */
+    this.getDependencies = function(dependencies) {
+        // Legacy support: getDependencies should not be called by zyTools.
+        if (arguments.length > 1) {
+            this.legacySupportErrorForDependencies('getDependencies');
+        }
+
+        var toolsToLoad     = [];
+        var vendorJSToLoad  = [];
+        var vendorCSSToLoad = [];
+
+        this.addDependenciesToLoad(dependencies, toolsToLoad, vendorJSToLoad, vendorCSSToLoad);
+
+        var self = this;
+        return new Ember.RSVP.Promise(function(resolve, reject) {
+            function loadTool() {
+                // If no tools to load, then move on to loading |vendorJSToLoad|.
+                if (toolsToLoad.length === 0) {
+                    loadVendorCSS();
+                }
+                // Otherwise, load the next tool.
+                else {
+                    var tool = toolsToLoad[0];
+                    zyRequireJS([self.getPathToToolJS(tool)],
+                        function() {
+                            var moreDependenciesToLoad = require(tool).dependencies;
+                            self.addDependenciesToLoad(moreDependenciesToLoad, toolsToLoad, vendorJSToLoad, vendorCSSToLoad);
+
+                            // Remove first element from |toolsToLoad|.
+                            toolsToLoad.shift();
+
+                            // Add loaded tool to cache.
+                            self.toolsCache[tool] = true;
+
+                            loadTool();
+                        },
+                        function(error) {
+                            reject(error);
+                        }
+                    );
+                }
+            }
+
+            function loadVendorCSS() {
+                if (vendorCSSToLoad) {
+                    vendorCSSToLoad.forEach(function(css) {
+                        // Add the stylesheet to the page.
+                        $('head').append('<link rel="stylesheet" type="text/css" href="' + self.getDependencyURL(css) + '">');
+
+                        // Add loaded css to cache.
+                        self.vendorCSSCache[css] = true;
+                    });
+                }
+
+                loadVendorJS();
+            }
+
+            function loadVendorJS() {
+                // If no vendorJS to load, then move on to loading |vendorCSSToLoad|.
+                if (vendorJSToLoad.length === 0) {
+                    resolve();
+                }
+                else {
+                    var js       = vendorJSToLoad[0];
+                    var fullPath = self.resourceUrl + js;
+                    zyRequireJS([fullPath],
+                        function() {
+                            // Remove first element from |vendorJSToLoad|.
+                            vendorJSToLoad.shift();
+
+                            // Add loaded js to cache.
+                            self.vendorJSCache[js] = true;
+
+                            loadVendorJS();
+                        },
+                        function(error) {
+                            reject(error);
+                        }
+                    );
+                }
+            }
+
+            loadTool();
+        });
+    }
+}
+
+var manager = new zyWebResourceManager();
+
+module.exports = manager;
+}});
+
+
+</script>
+
+</body>
+</html>

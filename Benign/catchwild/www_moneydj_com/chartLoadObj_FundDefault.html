@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>chartLoadObj_FundDefault.html</title>
+</head>
+<body>
+
+<script>
+(function($){
+
+var globalReg=function(){
+    if(!window.chartLoadObj) window.chartLoadObj=T;//singleton
+    chartLoadObj.config = defaultParams;
+    chartLoadObj.iframeURL='ChartFrameSVC_FundDeault.htm';
+    
+    //ie8,iframe ready callback
+    chartLoadObj.readyFnName='chartLoadObj._viewReady';
+}
+
+var defaultParams={//預設參數
+    ZKC:{//K線
+        THEME:'K',
+        D:'2 1 1',
+        RANGE:60
+    },
+    PIE:{//派圖
+        THEME:'PIE'
+    },
+    SCATTERLIFE:{//象限圖
+        THEME:'SCATT'
+    },
+    STOCK:{
+        THEME:'STOCK'
+    },
+    LISTVIEW:{//查價連動圖
+    
+    },
+    '':{//其他
+        //LegendValsPos:'right'
+    }
+}
+var sZKC='ZKC',sPIE='PIE',sSCATT='SCATTERLIFE',sLISTVIEW='LISTVIEW',sSTOCK='STOCK',sHPB='HPB',sHPBNOCMD='HPB_NOCMD';
+
+//canvas processing object
+var T={
+    _timers:{},//resize timer collection by id
+    _views:{},//view cache by id
+    _cacheP:{},//cache params
+    _sSrc:{},//cache sSrc
+    _ready:{},//view init ready callback cache by id
+    _sFrame:'iframe_',
+    _debugIFrame:false,
+    _isIFrame:false,
+    _sH:{},//cache height
+    _sW:{},//cache width
+    _cacheDrawCall:{},
+    _isSetDrawCall:{},//check is draw callback set ready?
+    _paramStr2Obj:function(str,notNeed){
+        var obj={};
+        if(typeof str=='object'){
+            $.each(str,function(key,val){
+                obj[key.toString().toUpperCase()] = val;
+            });
+        } else {//string
+            var sb=str.toString().split('&');
+            notNeed = $.extend({},notNeed);
+            $.each(sb,function(i,p){
+                var pair=p.split('='),key=pair[0].toUpperCase();
+                if(pair.length>1&&!notNeed[key]){
+                    obj[key]=pair.slice(1).join('=');
+                }
+            });
+        }
+        return obj;
+    },
+    _setFrameHeight:function(id,W,H){
+        var me=T,frameID,$frame,h=0;
+		//alert(window.frameElement)
+        //if(window.frameElement) {//如果是其他的iframe
+        //    frameID=window.frameElement.id;
+        //    $frame=$(parent.document.getElementById(frameID));
+        //    h=$('body').height();
+		//    if($frame.length){
+		//        $frame.css("height",h + "px");
+		//    }
+	    //} else if(me._isIFrame){//如果是ChartFrameSVC的iframe
+	        frameID=me._sFrame+id;
+			//alert('#'+frameID)
+	        $frame=$('#'+frameID);
+			
+	        if($frame.length){
+                var body = $frame[0].contentWindow.document.body,
+                    $tar=$(body).find('.FundView');
+                if($tar.length===1){
+                    h=$tar.height();
+					//alert(h)
+                    if(h) $frame.css("height",h + 20 + "px");//不delay,為了解決poster時,iframe不會立刻稱開的問題
+                }else{//K線會有此情形
+                    setTimeout(function(){//K線不delay,高度會算錯
+                        clearTimeout(this);
+                        h=$(body).height();
+                        if(h) $frame.css("height",h + 5 + "px");
+                    },300);
+                } 
+	        }
+	    //}
+	    return frameID;
+    },
+    _setDrawCallBack:function(id){
+        var me=this,
+            view=me._views[id],
+            is=me._isSetDrawCall[id];
+        if(!view) return;
+        //set draw callback
+		//alert(view.setDrawCall)
+		//alert(!is)
+        if(view.setDrawCall&&!is){ //
+			
+            view.setDrawCall(function(){
+                var sW=me._sW[id],sH=me._sH[id],
+                    call=me._cacheDrawCall[id];
+                var frameID = me._setFrameHeight(id,sW,sH);
+                if($.isFunction(call)) call({frameID:frameID});
+            },'chartLoadObj');
+            me._isSetDrawCall[id]=true;
+        }
+    },
+    _resize:function(e){
+        var me=T;
+        for(var id in me._timers){
+            clearTimeout(me._timers[id]);
+            me._timers[id] = setTimeout(function(){
+		        if(me._views[id]&& me._views[id].resize) me._views[id].resize();
+		        if(CSD) CSD.hide();
+	        },100);
+        }
+    },
+    _viewReady:function(id,view){
+        var me=T;
+        me._views[id]=view;
+        //cache
+        if($.isFunction(me._ready[id])){
+            me._ready[id](view);
+        }
+    },
+    _createView:function(id,sSrc,W,H){
+        var me=this;
+        if(navigator.userAgent.toLowerCase().indexOf('msie') != -1 ||me._debugIFrame){//$.browser.msie
+            var userAgent = (document.documentMode)?document.documentMode:document.compatMode,
+                frameID=me._sFrame+id,
+                frameSrc=chartLoadObj.iframeURL+'?a='+sSrc+'&b='+chartLoadObj.readyFnName+'&c='+id,
+                sb=[];
+            if((userAgent==8||me._debugIFrame)&&parent.window==window){//is IE8 && not in iframe
+                if($('#'+frameID).length){
+                    $('#'+frameID).attr('src',frameSrc);
+                } else {
+					if(!W || isNaN(W)) W = $('#' + id).width();
+                    sb.push('<iframe id="',frameID,'" src="',frameSrc);
+                    sb.push('" marginWidth="0" marginHeight="0" frameBorder="0" scrolling="no" ');
+                    sb.push('style="height:',H,'px;width:',W,'px"></iframe>');
+                    $('#'+id).html(sb.join(''));
+                    me._isIFrame=true;
+                }
+            }
+        }
+        if(!me._isIFrame){
+            if(sSrc==sZKC) view = MbChart.FlashK('#'+id);
+            else if(sSrc == sPIE) view = MbChart.FlashPie('#'+id);
+            else if(sSrc == sSCATT) view = MbChart.FlashScatter('#'+id);
+            else if(sSrc == sLISTVIEW) view = MbChart.ListView('#'+id);
+            else if(sSrc == sSTOCK) view = MbChart.StockView('#'+id);
+            else if (sSrc == sHPB) {view = new HPB('#' + id, {
+										isCmd:true,
+										isLegend:true
+								  });}
+		    else if (sSrc == sHPBNOCMD) {view = new HPB('#' + id, {
+										isCmd:false,
+										isLegend:true
+								  });}
+            else view = MbChart.FlashView('#'+id);
+            me._viewReady(id,view);
+        }
+    },
+    //public
+    initView:function(id,sSrc,sW,sH,ready){
+        sW=parseInt(sW,10);
+        sH=parseInt(sH,10);
+        var me=this,view;
+        me._ready[id]=ready;
+        me._sSrc[id]=sSrc;
+        me._sW[id]=sW;
+        me._sH[id]=sH;
+        if(sSrc==sZKC){//為了取得預設的技術指標與參數,K線總是重建
+            if(me._views[id]) me._views[id].destroy();
+            me._createView(id,sSrc,sW,sH);
+        } else if(me._views[id]){//is create?
+            me._viewReady(id,me._views[id]);
+        } else {
+            me._createView(id,sSrc,sW,sH);
+        }
+    },
+	destroyDiv: function(id){//刪canvas的cache (同一個div畫2次要先destroy)
+		if(this._views[id]) {
+			this._views[id].destroy(); 
+			this._views[id]=null;
+			this._isSetDrawCall[id]=false; //強迫iframe重新計算高度
+			$("#"+id).remove();
+		}
+	},
+	destroyView: function(id){//刪canvas的cache (同一個div畫2次要先destroy)
+		if(this._views[id]) {
+			this._views[id].destroy(); 
+			this._views[id]=null;
+			this._isSetDrawCall[id]=false; //強迫iframe重新計算高度
+		}
+	},
+    addClass:function(id,css){
+        var me=this,
+            view=me._views[id];
+        if(css){
+            var elm=view.getElm();
+            $(elm).addClass(css);
+        }
+    },
+    setParams:function(id,params){
+        var me=this,view=me._views[id],
+            sSrc=me._sSrc[id],
+            sW=me._sW[id],
+            sH=me._sH[id],
+            setHnW=function(){
+                if(sW) params['WIDTH']= sW;
+	            if(sH) params['HEIGHT']= sH;
+            };
+        if(!view) return;
+        //param init
+        //alert(params);
+        if(!params) params = me._cacheP[id];// view.getParams();
+	    else params=me._paramStr2Obj(params);
+	    if(!params) params={};//一開始view.getParams()會是null
+        
+        //param modify
+        if(chartLoadObj.config[sSrc]){
+            $.each(chartLoadObj.config[sSrc],function(s,v){ params[s]=v; });
+        }else if(chartLoadObj.config['']) {
+            $.each(chartLoadObj.config[''],function(s,v){ params[s]=v; });
+        }
+        if(params['ADDCLASS']){
+            me.addClass(id,params['ADDCLASS']);
+        }
+        switch(sSrc){
+            case sZKC:
+                if(CSD2K) params['STBTN']=1; break;
+            case sLISTVIEW: break;
+            case sSTOCK: setHnW(); break;
+            case sSCATT: setHnW(); break;
+            case sPIE: setHnW(); break;
+            default:
+                setHnW();
+		        //將Legned的\b取代成%26nbsp
+		        var t=(params['T']||params['LEGEND']);
+		        if(t&&typeof t=='string'){
+		            t=t.split('\b').join('%26nbsp');
+		            if(params['T']) params['T']=t;
+		            else params['LEGEND']=t;
+		        }
+		        break;
+        }
+
+        //cache params
+        me._cacheP[id]=params;//cache default param
+        //set params        
+        view.setParams(params);
+        //set draw callback
+        me._setDrawCallBack(id);
+    },
+    poster:function(id,str,isAutoH){
+        var me=this,view=me._views[id];
+        if(view) {
+            //先設定set poster callback,解決poster後,沒有執行iframe稱開高度的問題
+            me._setDrawCallBack(id);
+            //解決在iframe下,poster無資料時,最上層id的min-height仍然有值的問題
+            if(isAutoH && $('#'+id).find('iframe').length){
+                $('#'+id).css('min-height',0);
+            }
+            //poster
+            if(me._sSrc[id]==sLISTVIEW){
+                if(isAutoH) view.poster(str,undefined,isAutoH);
+                else view.poster(str);
+            } 
+            else view.poster(str,isAutoH);
+        }
+    },
+    setData:function(id,data){
+	    if(!data||!this._views[id]) return;
+	    var me=this,view=me._views[id];
+        //set bcd
+        if(typeof data=='string' && data.substr(data.length-1)=='$'){
+            data=data.substr(0,data.length-1);
+        }
+        if(me._sSrc[id]==sLISTVIEW) view.setBCD(data[0],data[1]);
+	    else view.setBCD(data);
+        //bind resize
+        me._timers[id]=null;
+        var resizeEvent=(window.onorientationchange!==undefined)?'orientationchange':'resize';//iPad_resize:onorientationchange
+        $(window).unbind(resizeEvent,me._resize);
+        $(window).bind(resizeEvent,me._resize);
+	    //K線
+	    if(CSD2K) CSD2K(view);
+	    return view;
+    },
+    setLegendCall:function(id,call){
+        var me=this,view=me._views[id];
+        if($.isFunction(call)){
+            view.setLegendCall(call);
+        }
+    },
+    setDrawCall:function(id,call,is){
+        var me=this;
+        if($.isFunction(call)) me._cacheDrawCall[id]=function(obj){
+            var $el=$('#'+id),isNone=($el.css('display')=='none');
+            if(!isNone||is) call(obj);//如果divID被隱藏就不通知
+        };
+    }
+}
+
+globalReg();
+
+})(jQuery);
+</script>
+
+</body>
+</html>

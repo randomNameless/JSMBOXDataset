@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>user-profile.html</title>
+</head>
+<body>
+
+<script>
+/* globals KbbJS, KbbLoading */
+/**
+ * [[ user.profile script]]
+ * ga360.GA_Event 마이그레이션
+ * @see "src/main/resources/templates/common/fragments/onk/user/profile.html"
+ */
+;(function () {
+  // console.log('* [loaded] /assets/js/user-profile.js')
+  const anchorEl = document.querySelector('A[data-render="ssr"].profile-icon:not(.done)')
+  if (anchorEl == null) return
+  const listEl = anchorEl.parentElement
+  if (listEl != null && listEl.tagName === 'LI') {
+    // 상위 엘리먼트 ga360클릭 이벤트 제거
+    if (listEl.classList.contains('docker_item') && listEl.onclick) {
+      // 상위 엘리먼트(LI.docker_item) 클릭 이벤트 제거
+      listEl.removeAttribute('onclick')
+      // console.log('listEl.onclick:', listEl.onclick)
+    }
+  }
+  // const bMobile = KbbJS.getOption('ua.device.isMobile')
+  // const bAuth = KbbJS.getOption('loader.authorized')
+  // console.log('* auth.authorized:', bAuth)
+  const redirectHandler = function () {
+    KbbLoading.start()
+    const { authorized } = kbb.getOption('loader', {})
+
+    const host = KbbJS.getOption(`service.${!authorized ? 'member' : 'myroom'}.host`)
+    const suburl = host.includes('my')
+      ? 'main'
+      : 'login?continue=' + encodeURIComponent(window.location.href)
+    const url = [host, suburl].join('/')
+    window.location.href = url
+  }
+  anchorEl.addEventListener('click', evt => {
+    evt.preventDefault()
+    evt.stopPropagation()
+    return redirectHandler()
+  })
+  anchorEl.classList.add('done')
+}())
+
+</script>
+
+</body>
+</html>

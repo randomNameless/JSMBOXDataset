@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>kernel.html</title>
+</head>
+<body>
+
+<script>
+/**
+ * http://new-dev.ru/
+ * author GoldSoft <newdevexpert@gmail.com>
+ * Copyright (c) New-Dev.ru
+ */
+
+TELEGRAMLOGIN_KERNEL = {
+
+	__: function(text) {
+		return text;
+	},
+
+	callFunction: function(func) {
+		var dim = func.split(".");
+		if (dim.length > 1) {
+			return window[dim[0]][dim[1]]();
+		} else {
+			return window[func]();
+		}
+	},
+
+	redirectTo: function(url) {
+		window.location.href = url;
+	},
+
+	confirmDialog: function(dialogText, okFunc, cancelFunc, dialogTitle, options) {
+
+		var kernel = this,
+			btns = {};
+
+		btns[kernel.__("Нет")] = function() {
+			if (typeof (cancelFunc) == "function") {
+				setTimeout(cancelFunc, 50);
+			}
+			$(this).dialog("destroy");
+		};
+
+		btns[kernel.__("Да")] = function() {
+			if (typeof (okFunc) == "function") {
+				setTimeout(okFunc, 50);
+			}
+			$(this).dialog("destroy");
+		};
+
+
+		var defaults = {
+			modal: true,
+			resizable: false,
+			width: "auto",
+			minHeight: 75,
+			title: dialogTitle || kernel.__("Необходимо подтверждение"),
+			buttons: btns
+		};
+
+		$.extend(defaults, options);
+
+		$('<div style="padding: 10px; max-width: 100%; word-wrap: break-word;">' + (dialogText || kernel.__("Вы уверены, что хотите это сделать?")) + "</div>").dialog(defaults);
+	},
+
+	showAjaxError: function(data) {
+		var kernel = this;
+
+		kernel.confirmDialog(
+			data.responseText,
+			function() {
+				$(this).dialog("close");
+			},
+			null,
+			"Ajax error",
+			{buttons: null}
+		);
+	},
+
+	showResponse: function(data, sender) {
+		if (!data.redirect)
+			HideLoading();
+
+
+		if (data.msg) {
+			if (data.status == "ok") {
+				Growl.info({ title: data.msg.title, text: data.msg.text });
+			} else if (data.status == "error") {
+				DLEalert(data.msg.text, data.msg.title);
+				//Growl.error({ title: data.msg.title, text: data.msg.text });
+			}
+		}
+
+		if (data.container && data.func) {
+			var $target = (data.container == "sender") ? sender : $(data.container);
+			$target.html(data.response).fadeIn("slow",function() {
+				callFunction(data.func);
+			});
+		} else if (data.container) {
+			var $target = (data.container == "sender") ? sender : $(data.container);
+			$target.html(data.response);
+		} else if (data.append_container && data.func) {
+			$(data.append_container).append(data.response);
+			callFunction(data.func);
+		} else if (data.append_container) {
+			$(data.append_container).append(data.response);
+		} else if (data.func) {
+			callFunction(data.func);
+		}
+
+		if (data.redirect) {
+			setTimeout(function() {
+				if (data.redirect == "self")
+					window.location.reload();
+				else
+					window.location.href = data.redirect;
+			}, 1000);
+		}
+	},
+
+	doAjax: function(sender) {
+		if (typeof sender.data("busy") !== "undefined" && sender.data("busy") === 1) {
+			return false;
+		}
+
+		sender.data("busy", 1);
+		sender.prop("disabled", true);
+
+		var kernel = this,
+			url = sender.data("url"),
+				query_str = sender.data("vars").replace(/\|/g, "&");
+
+		if (query_str.indexOf("&user_hash=") == -1)
+			query_str += "&user_hash=" + TELEGRAMLOGIN_OPTIONS.USER_HASH;
+
+		if (typeof url === "undefined") {
+			url = TELEGRAMLOGIN_OPTIONS.IN_ADMINPANEL ? TELEGRAMLOGIN_OPTIONS.ADMIN_URL : TELEGRAMLOGIN_OPTIONS.SITE_AJAX_URL;
+		}
+
+		if (query_str.indexOf("&without_loader=1") === -1)
+			ShowLoading("");
+
+		$.ajax({
+			type: "POST",
+			url: url,
+			data: query_str,
+			dataType: "json",
+			success: function(data) {
+				if (!data.redirect) {
+					sender.data("busy", 0);
+					sender.prop("disabled", false);
+				}
+
+				kernel.showResponse(data, sender);
+			},
+			error: function(data) {
+				if (query_str.indexOf("&without_loader=1") === -1) {
+					HideLoading();
+					kernel.showAjaxError(data);
+				}
+			}
+		});
+
+		return false;
+	},
+
+	bindAjaxTelegramLogin: function() {
+		var kernel = this;
+
+		$(document).on("click", 'a[data-do="ajax-telegramlogin"], input[data-do="ajax-telegramlogin"]', function(event) {
+			var sender = $(this);
+
+			if (typeof sender.data("confirm") !== "undefined") {
+
+				kernel.confirmDialog(
+					sender.data("msg"),
+					function() {
+						kernel.doAjax(sender);
+					},
+					null,
+					sender.data("title")
+				);
+
+			} else {
+				kernel.doAjax(sender);
+			}
+
+			return false;
+		});
+	},
+
+
+};
+</script>
+
+</body>
+</html>

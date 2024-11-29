@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ondemand-novi.html</title>
+</head>
+<body>
+
+<script>
+if (typeof $j === 'undefined') {
+    if (typeof $ !== 'undefined') {
+        var $j = $;
+    }
+}
+
+function getCookie(cname) {
+    var name = cname + "=";
+    var ca = document.cookie.split(';');
+    for (var i = 0; i < ca.length; i++) {
+        var c = ca[i];
+        while (c.charAt(0) == ' ') {
+            c = c.substring(1);
+        }
+        if (c.indexOf(name) == 0) {
+            return c.substring(name.length, c.length);
+        }
+    }
+    return "";
+}
+
+function checkCookie($key) {
+    var socialCookie = getCookie($key);
+    if (socialCookie === "" || socialCookie === "no") {
+        return false;
+    } else {
+        return true;
+    }
+}
+
+
+
+let ondemandApi = (function foo($) {
+    /**PR */
+    prLogic();
+    /**PR */
+    if (typeof $ === 'undefined') {
+        console.log('missing $j global variable...');
+        return;
+    }
+
+    var version = 703;
+
+    var url = '//img.rtvslo.si/_static/r' + version;
+    if (window.location.href.indexOf('dev.rtvslo.si') > -1) {
+        url = '//img.dev.rtvslo.si/_static/r' + version;
+    }
+
+
+    var cc_social_set = checkCookie("cc_social");
+    var soccerJS = url + '/common/widgets/livescore/dist/socer_livescore_widget.min.js';
+    var commentsJS = url + '/novi/widgets/in-article-comments/single-comment-widget.min.js';
+    var mmcZivoJS = url + '/common/mmczivo/mmczivo.v2.min.js';
+    var mmcKlepetJS = url + '/common/mmczivo/mmcklepet.v1.min.js';
+    //var commercial = url + '/common/fullscreen-popover/2016/15let/commercial.js';
+    var rtvPolls = url + '/novi/widgets/rtv-polls/public/embed.js';
+    // var sportSchedule =  '//img.dev.rtvslo.si/_static/r20181108/novi/widgets/rtv-sport-schedule/public/embed.js'+ version;
+    var rtv360 = url + '/novi/widgets/image360/viewer/pannellum.js';
+    var cc_social = url + '/novi/widgets/social-consent/public/embed.js';
+    var nostradamusTourJS = url + '/novi/modules/nostradamus/js/nostradamus-tour.js';
+    var sportWidget = url + '/novi/widgets/rtv-sport-widget/public/embed.js';
+    var mgSchedule = url + '/novi/widgets/mg-schedule-rtv/public/embed.js';
+    //var scheduleInline = url + '/novi/widgets/rtv-schedule-inline/public/embed.js';
+    //var pr_block =  '//img.rtvslo.si/_static/r20181108/novi/widgets/rtv-pr-block/public/embed.js'+ version;
+    var sportScheduleWidget = url + '/novi/widgets/rtv-sport-schedule/public/embed.js';
+    var liffeCalendar = url + 'r20241910//novi/widgets/rtv-liffe-calendar/public/embed.js';
+    var volitve = '//img.rtvslo.si/_static/r202406093/novi/widgets/volitve-widget/public/build/bundle.js'; //url + 'r20212110//novi/widgets/rtv-liffe-calendar/public/embed.js'; 
+    var soundciteJS = url + '/novi/widgets/soundcite/soundcite.min.js';
+    var soundciteCSS = url + '/novi/widgets/soundcite/player.css';
+    var musicChartTableCSS = url + '/novi/widgets/rtv-styled-tables/music_chart_table.css';
+    var bookmark = url + '/common/widgets/news_bookmarks.js';
+    //  var rtv360 =  '//img.rtvslo.si/_static/r20181108/novi/widgets/image360/public/embed.js';
+    var instagramJS = '//instagram.com/static/bundles/es6/EmbedSDK.js/bf4a12bd69f3.js';
+    var twitterJS = '//platform.twitter.com/widgets.js';
+    var tiktokJS = 'https://www.tiktok.com/embed.js'
+    var photoOfTheDay = url + '/novi/widgets/foto-of-the-day-svelte3/public/build/photoOfTheDay.js?v=2';
+    var lokalneVolitve = '//img.rtvslo.si/_static/r20221205/novi/widgets/lokalne-volitve-widget/public/build/bundle.js';
+    var slovenia30 = url + '/novi/widgets/30-let-slovenija/public/embed.js';
+    const liveblog24 = 'https://v.24liveblog.com/24.js';
+
+    if (cc_social_set) {
+        var checkInstagram = document.querySelectorAll('[data-type="instagram"]');
+        if (checkInstagram.length > 0 && typeof window.instgrm === 'undefined') {
+            _loadJs(instagramJS);
+        }
+        _loadJs(twitterJS);
+    }
+    else {
+        _loadJs(cc_social);
+    }
+
+
+    function set360() {
+
+        let numberOfImages = document.querySelectorAll('[data-type="rtv-image360"]').length;
+        //var numberOfImages = $('[data-type="rtv-image360"]').length;
+        for (i = 0; i < numberOfImages; i++) {
+            var data = $($('[data-type="rtv-image360"]')[i])
+            var imageName = $($(data).html()).attr('id')
+            var url = $($(data).html()).attr('data-url')
+            pannellum.viewer(imageName, {
+                "type": "equirectangular",
+                "panorama": url,
+                "autoLoad": true,
+                "compass": false
+            });
+        }
+
+    }
+
+    function _loadCSS(url) {
+        var link = document.createElement('link');
+        link.setAttribute('rel', 'stylesheet');
+        link.setAttribute('type', 'text/css');
+        link.setAttribute('href', url);
+        document.getElementsByTagName("head")[0].appendChild(link);
+    }
+
+    function _loadJs(url, cb) {
+        var script = document.createElement('script');
+        script.setAttribute('src', url);
+        script.setAttribute('type', 'text/javascript');
+
+        var loaded = false;
+        var loadFunction = function () {
+            if (loaded) return;
+            loaded = true;
+            if ($.isFunction(cb)) {
+                cb();
+            }
+        };
+        script.onload = loadFunction;
+        script.onreadystatechange = loadFunction;
+        document.getElementsByTagName("head")[0].appendChild(script);
+    };
+
+    function getOiDate() {
+        var today = new Date();
+        var dd = today.getDate();
+
+        var start = new Date("2021-07-23");
+        if (today < start) {
+            today = start;
+            dd = start.getDate();
+        }
+
+        var mm = today.getMonth() + 1;
+        var yyyy = today.getFullYear();
+        if (dd < 10) {
+            dd = '0' + dd;
+        }
+
+        if (mm < 10) {
+            mm = '0' + mm;
+        }
+        return yyyy + '-' + mm + '-' + dd;
+    }
+
+
+    function _detectWidgets() {
+
+        var LB24_LIVE_CONTENT = $('#LB24_LIVE_CONTENT');
+
+        if (LB24_LIVE_CONTENT.length > 0) {
+            _loadJs(liveblog24);
+        }
+
+        var checkSoccer = document.getElementsByClassName('football-widget');
+        if (checkSoccer.length > 0) {
+            setTimeout(function () {
+                _loadJs(soccerJS);
+            }, 2000)
+        }
+
+        //var checkComment = $('.rtvslo-comment.raw');
+        //rewrite top line to vanilla js
+        let checkCommentVanilla = document.querySelectorAll('.rtvslo-comment.raw');
+
+        if (checkCommentVanilla.length > 0) {
+            _loadJs(commentsJS);
+        }
+
+        var checkBookmark = $('#bookmark-article-action');
+
+        if (checkBookmark.length > 0) {
+            _loadJs(bookmark);
+        }
+
+        var checkMMCzivo = $('#mmczivoinjectV2');
+
+        if (checkMMCzivo.length > 0) {
+            _loadJs(mmcZivoJS);
+            _loadJs(instagramJS);
+
+            /*function clickHandler(e) {
+                e.preventDefault();
+                var element = document.getElementById('mmczivoinjectV2');
+                var yOffset = -100;
+                var y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
+                window.scrollTo({ top: y, behavior: 'smooth' });
+            }
+
+            var documentData = document.querySelectorAll('script[type="application/ld+json"]');
+
+            documentData.forEach(function (itemData) {
+                if (itemData) {
+                    var parsedData = JSON.parse(itemData.innerText)
+
+                    if (typeof parsedData.dateModified !== 'undefined' || typeof parsedData.dateModified !== 'null') {
+
+                        var dateModified = Date.parse(new Date(parsedData.dateModified));
+                        var today = Date.parse(new Date())
+
+                        var compareDates = today - dateModified
+
+                        if ((compareDates / 1000) < 25200) {
+                            setLiveButton()
+                        }
+                    }
+                }
+
+            });
+
+
+            function setLiveButton() {
+                var checkContent = setInterval(function () {
+                    if (document.getElementById("rtvslo-mmczivo-content") !== null) {
+                        var newsToolbar = document.getElementsById("news-toolbar");
+                        if (newsToolbar) {
+                            newsToolbar.classList.add('justify-content-between');
+                        }
+                        
+                        var scrollToLive = document.getElementById("mmczivo-scroll-down-desktop");
+                        var scrollToMobile = document.getElementById("mmczivo-scroll-down-mobile");
+                        if (scrollToLive && scrollToMobile) {
+                            scrollToLive.classList.remove("d-none");
+                            scrollToMobile.classList.remove("d-none");
+                            scrollToLive.addEventListener("click", clickHandler);
+                            scrollToMobile.addEventListener("click", clickHandler);
+                        }
+
+                        clearInterval(checkContent);
+                    }
+                }, 300);
+            }
+            */
+
+        }
+
+
+        let checkGovVideoEmbed = document.querySelectorAll('[data-type="gov-si-video"]')
+        if (checkGovVideoEmbed.length > 0) {
+            checkGovVideoEmbed.forEach(function (itemData) {
+
+                var newNode = document.createElement('figure');
+                newNode.classList.add('c-figure-full');
+                newNode.attributes = "data-type='gov-si-video'";
+                newNode.innerHTML = '<figure class="c-figure-full"><video id="gov-si-video" class="video-js" poster="https://www.gov.si/assets/sistem/neposredniPrenos720.jpg" preload="auto" controls="controls" data-setup="{&quot;liveui&quot;: true}"><source src="https://prenos.mm.gov.si/hls/gov.m3u8" type="application/x-mpegURL" /></video></figure>'
+                itemData.replaceWith(newNode);
+
+            })
+
+            var style = document.createElement('style');
+            style.innerHTML = `
+            .article-container article figure video {
+                max-width: 100%;
+            }
+            `;
+            document.head.appendChild(style);
+            _loadCSS('https://www.gov.si/resources/themes/gov/css/video-js.min.css');
+            _loadJs('https://www.gov.si/resources/themes/gov/javascript/libs/video.min.js', function () {
+                _loadJs('https://www.gov.si/resources/themes/gov/javascript/libs/video-js-langs/sl.js');
+                videojs("gov-si-video", {
+                    controls: true,
+                    fluid: true,
+                    autoplay: false,
+                    textTrackSettings: false,
+                    preload: 'auto'
+                });
+            });
+
+        }
+
+        var checkKlepet = document.getElementById('mmc_klepet_widget_v1');
+        if (checkKlepet) {
+            _loadJs(mmcKlepetJS);
+        }
+
+        /*var isPortalDate = _checkDate('22. 12. 2016');
+        if (isPortalDate) {
+            _loadJs(commercial);
+        }*/
+
+        /** ankete */
+        var checkPolls = $('[data-type="rtv-polls"]');
+        if (checkPolls.length > 0) {
+            _loadJs(rtvPolls);
+        }
+
+
+        /** šprtne napovedi v novici */
+        /* var checkSportSchedule = $('.rtv-sport-schedule').length;
+         if (checkSportSchedule) {
+             _loadJs(sportSchedule);
+         }*/
+
+        /** šprtne napovedi v fp*/
+        var checksportWidget = $('.rtv-sport-widget');
+        if (checksportWidget.length > 0) {
+            _loadJs(sportWidget);
+        }
+
+        var checkMgSchedule = $('.mg-schedule-rtv');
+        if (checkMgSchedule.length > 0) {
+            _loadJs(mgSchedule);
+        }
+
+        var checkPhotoOfTheDay = document.getElementsByClassName('portal-foto-of-the-day-widget');
+        if (checkPhotoOfTheDay.length > 0) {
+            _loadJs(photoOfTheDay);
+        }
+
+        /*
+        var checkScheduleInline = $('.spored-rtv').length;
+        if (checkScheduleInline) {
+            _loadJs(scheduleInline);
+        }
+        */
+
+        /** Music Chart Table */
+        var checkMusicChartTableFigure = $('[data-type="rtv-music-chart-table"]');
+        var checkMusicChartTable = $('[data-type="rtv-music-chart-table"] table');
+        var checkMusicChartTableRow = $('[data-type="rtv-music-chart-table"] table tr');
+        var checkMusicChartTableHead = $('[data-type="rtv-music-chart-table"] table th');
+        var checkMusicChartTableData = $('[data-type="rtv-music-chart-table"] table td');
+        var checkMusicChartTableEditable = $('[data-type="rtv-music-chart-table"] .mceEditable');
+
+        if (checkMusicChartTableFigure.length > 0) {
+            checkMusicChartTableEditable.attr('contenteditable', false);
+
+            // Cleaning
+            checkMusicChartTable.removeClass('table-bordered');
+            checkMusicChartTableRow.css("height", "");
+            checkMusicChartTableData.css("height", "");
+            checkMusicChartTableHead.css("width", "");
+            checkMusicChartTableData.css("width", "");
+
+            _loadCSS(musicChartTableCSS);
+            checkMusicChartTableFigure.addClass("rtv-music-chart-table");
+        }
+
+
+
+        /* Soundcite JS - https://soundcite.knightlab.com/ */
+        var checkSoundcite = document.getElementsByClassName('soundcite');
+        if (checkSoundcite.length > 0) {
+            _loadCSS(soundciteCSS);
+            _loadJs(soundciteJS);
+        }
+
+        const checkBeforeAfter = document.querySelectorAll('[data-type="rtvslo-beforeafter"]');
+
+        if (checkBeforeAfter.length > 0) {
+            checkBeforeAfter.forEach(value => {
+                var beforeSrc = value.getAttribute('data-before-src');
+                var afterSrc = value.getAttribute('data-after-src');
+                var figcap = ""
+                if (value.querySelector('figcaption')) {
+                    figcap = value.querySelector('figcaption').textContent;
+                }
+                var beforeAfterTemplate = '<figure class="c-figure-full"><div class="ba-slider" data-before-src="' + beforeSrc + '" data-after-src="' + afterSrc + '"></div><figcaption>' + figcap + '</figcaption></figure>';
+                value.outerHTML = beforeAfterTemplate;
+            });
+
+            if (beforeAfterSlider) beforeAfterSlider.init();
+
+        }
+
+
+        var checkLiffeCalendarWidget = $('.rtv-liffe-calendar');
+        if (checkLiffeCalendarWidget.length > 0) {
+            _loadJs(liffeCalendar);
+        }
+
+        var checkVolitve = $('#elections-widget');
+        if (checkVolitve.length > 0) {
+            var timeArrayCheck = {}
+            var checkTime = document.querySelector('meta[name="generated-time"]').getAttribute('value')
+            checkTime = checkTime.split(' ')
+            timeArrayCheck.date = checkTime[0]
+            checkTime = checkTime[1].split(':')
+            timeArrayCheck.hour = parseInt(checkTime[0], 10)
+            timeArrayCheck.minute = parseInt(checkTime[1], 10)
+            timeArrayCheck.second = parseInt(checkTime[2], 10)
+            if (checkVolitve.length && checkVolitve.data('embed') === true) {
+                runElections();
+            } else {
+                if ((timeArrayCheck.date === "2024-06-09" && timeArrayCheck.hour >= 21) || 
+                    (timeArrayCheck.date === "2024-06-10" && timeArrayCheck.hour <= 6)) {
+                    runElections();
+                }
+            }
+
+
+        }
+
+
+    function runElections() {
+        var div = document.querySelector(".featured-articles");
+        if (div) {
+            div.style.display = "none";
+        }
+        var cssUrl = '//img.rtvslo.si/_static/r202406093/novi/widgets/volitve-widget/public/build/bundle.css';
+        _loadCSS(cssUrl);
+        _loadJs(volitve);
+    }
+
+
+        var checkLokalneVolitve = $('[data-type="lokalne-volitve"]')
+        if (checkLokalneVolitve.length > 0) {
+            var cssUrl = '//img.rtvslo.si/_static/r20221205/novi/widgets/lokalne-volitve-widget/public/build/bundle.css';
+            _loadCSS(cssUrl);
+            $(checkLokalneVolitve).replaceWith('<div id="elections-local-widget" data-enostavno="true"></div>')
+            _loadJs(lokalneVolitve);
+        }
+
+
+
+        /** dodal za fis */
+        var checkFis = $('[data-type="fis-widget"]');
+        if (checkFis.length > 0) {
+            checkFis.each(function (i, value) {
+                var link = $(value).attr('data-href');
+                link = link.replace(/http:\/\//g, "https://");
+                var fisTemplate = '<figure class="c-figure-full" data-type="fis-widget-link"><img src="https://img.rtvslo.si/_static/common/img/fis/rezultati.png" class="img-fluid" alt="Rezultati v živo" style="cursor:pointer;" onclick=fisFunction("' + link + '")></figure><script>function fisFunction(url) {var myWindow = window.open(url, "", "width=700,height=500");}</script>'
+                $(value).replaceWith(fisTemplate);
+            })
+        }
+
+        var checkYoutube = $('[data-type="youtube"]');
+        if (checkYoutube.length > 0) {
+            checkYoutube.each(function (i, value) {
+                var recordingId = $(value).attr('data-id');
+                var figureClass = $(value).attr('class');
+                var recordingFigcaption = $(value).find('figcaption');
+                if (recordingFigcaption.length > 0) recordingFigcaption = recordingFigcaption.html();
+                else recordingFigcaption = '';
+                var youtubeTemplate = '<figure class="' + figureClass + '"><div class="embed-responsive  container-16-9"> <iframe loading="lazy" src="https://www.youtube.com/embed/' + recordingId + '" class="embed-responsive-item" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe></div><figcaption itemprop="caption description"><span class="icon-video"></span>' + recordingFigcaption + '</figcaption></figure>'
+                $(value).replaceWith(youtubeTemplate);
+            })
+        }
+
+        var checkFisIframe = $('[data-type="fis-iframe"]');
+        if (checkFisIframe.length > 0) {
+            checkFisIframe.each(function (i, value) {
+                var link = $(value).attr('data-href');
+                link = link.replace(/http:\/\//g, "https://");
+                var fisTemplate = '<figure class="c-figure-full" data-type="fis-widget-link" style="overflow: hidden; padding-top: 100%; position: relative;"><iframe src="' + link + '" style="border: 0; left: 0; top: 0; position: absolute; z-index: 999; height: 100%; width: 100%; border: none" loading="lazy"></iframe></figure>'
+
+                $(value).replaceWith(fisTemplate);
+
+            })
+        }
+
+
+        var checkDict = $('[data-type="rtv-dictionary"]');
+        if (checkDict.length > 0) {
+            checkDict.each(function (i, value) {
+                console.log('value', value)
+                var spans = $(value).children('span');
+                var dicItem = $(spans[0]).text()
+                var dicId = $(spans[0]).attr('data-id')
+                var dicDesc = $(spans[1]).html()
+                var dicPassword = $(spans[1]).attr('data-password')
+                if (dicDesc) {
+                    dicDesc = dicDesc.replace(/'/g, "\&#039;")
+                    dicDesc = dicDesc.replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+                    dicDesc = dicDesc.replace(/a href/g, 'a aria-hidden="true" href')
+                }
+                //var dictTemplate = "<a href='javascript:void(0);' data-toggle='popover' data-placement='bottom' data-dismissible='true' data-trigger='click' data-title='"+dicPassword+"' data-content='"+dicDesc+"'>"+dicItem+"</a>"
+                var dictTemplate = '<a href="#dictionary-id-' + dicId + '"class="btn-slide-toggle">' + dicItem + '</a>' +
+                    '<div id="dictionary-id-' + dicId + '" class="slide-toggle-content">' +
+                    '<div class="popover show position-static mt-2" style="max-width: 100%;">' +
+                    '<h3 class="popover-header">' + dicPassword + '<button type="button" class="close" onclick="slideToggler.hide(this.parentElement.parentElement.parentElement);">×</button></h3>' +
+                    '<div class="popover-body">' + dicDesc + '</div></div>';
+
+                $(value).replaceWith(dictTemplate);
+
+
+            })
+            slideToggler.init()
+
+
+        }
+
+
+        /**gallery */
+        /*        var galleryHook = $('[data-type="rtv-gallery-hook"]');
+                console.log('galleryHook', galleryHook)
+                var galleryPresent = $('.gallery');
+                console.log('galleryPresent', galleryPresent)
+                if ((galleryHook.length > 0) && (galleryPresent.length > 0)) {
+                    $(galleryHook).replaceWith(galleryPresent);
+                }
+        */
+
+        var checkSlovenija30 = $('[data-type="slovenija-30"]');
+
+        if (checkSlovenija30.length > 0) {
+            checkSlovenija30.each(function (i, value) {
+                var slovenia30Template = '<div id="slovenija-30"></div>'
+                $(value).replaceWith(slovenia30Template);
+            })
+            _loadJs(slovenia30);
+
+        }
+
+        /** šprtne napovedi v novici*/
+        var checkSportScheduleWidget = $('[data-type="rtv-sport-schedule"]');
+
+        if (checkSportScheduleWidget.length > 0) {
+            checkSportScheduleWidget.each(function (i, value) {
+                var catagory = $(value).attr('data-catagory-id');
+                var round = $(value).attr('data-round-id');
+                var season = $(value).attr('data-season-id');
+                var sport = $(value).attr('data-sport-id');
+                var tournament = $(value).attr('data-tournament-id');
+                var livescores = $(value).attr('data-livescores');
+                var sportScheduleWidgetTemplate = '<div class="rtv-sport-schedule" data-catagory-id="' + catagory + '" data-round-id="' + round + '" data-season-id="' + season + '" data-sport-id="' + sport + '" data-tournament-id="' + tournament + '" data-livescores="' + livescores + '"></div>'
+                $(value).replaceWith(sportScheduleWidgetTemplate);
+
+            })
+            _loadJs(sportScheduleWidget);
+
+        }
+
+        var tiktokEmbed = $('[data-type="rtv-tiktok"]');
+
+        if (tiktokEmbed.length > 0) {
+            tiktokEmbed.each(function (i, value) {
+                var dataVideoId = $(value).attr('data-video-id');
+                var url = $($(value).html()).attr('href');
+                var title = $($(value).html()).html();
+                var tiktokTemplate = '<blockquote class="tiktok-embed" cite="' + url + '" data-video-id="' + dataVideoId + '" <section><p>' + title + '</p> <a target="_blank" href="' + url + '"></a> </section> </blockquote>';
+                $(value).replaceWith(tiktokTemplate);
+            })
+            _loadJs(tiktokJS);
+        }
+
+        var infogramCheck = $('[data-type="rtv-infogram"]');
+        if (infogramCheck.length > 0) {
+            infogramCheck.each(function (i, value) {
+                var dataId = $(value).attr('data-id');
+                var dataTitle = $(value).attr('data-title');
+                var dataSrcEnd = $(value).attr('data-src-end');
+                var infogramTemplate = '<script id="' + dataId + '" title="' + dataTitle + '" src="https://e.infogram.com/js/dist/embed.js?' + dataSrcEnd + '" type="text/javascript"></script>';
+                $(value).replaceWith(infogramTemplate);
+            })
+
+        }
+        var riddleCheck = $('[data-type="rtv-riddle"]');
+        if (riddleCheck.length > 0) {
+
+            riddleCheck.each(function (i, value) {
+                var dataRidId = $(value).attr('data-rid-id');
+                var dataFg = $(value).attr('data-fg');
+                var dataBg = $(value).attr('data-bg');
+                var riddleStyle = $(value).attr('data-riddle-style');
+                var riddleIframeStyle = $(value).attr('data-riddle-iframe-style');
+                var riddleIframeSrc = $(value).attr('data-riddle-iframe-src');
+                var riddleIframeTitle = $(value).attr('data-riddle-iframe-title');
+                var riddleIframeContent = $(value).attr('data-riddle-iframe-content');
+                var riddleTemplate = '<div class="riddle_target" data-rid-id="' + dataRidId + '" data-fg="' + dataFg + '" data-bg="' + dataBg + '" style="' + riddleStyle + '" data-auto-scroll="false" data-auto-scroll-offset="0"><script src="https://www.riddle.com/files/js/embed.js"></script><link href="https://www.riddle.com/files/css/embed.css" rel="stylesheet"><iframe style="' + riddleIframeStyle + '" src="' + riddleIframeSrc + '" title="' + riddleIframeTitle + '">' + riddleIframeContent + '</iframe></div>';
+                $(value).replaceWith(riddleTemplate);
+            })
+
+        }
+
+        var riddleCheck = $('[data-type="rtv-riddle-2"]');
+        if (riddleCheck.length > 0) {
+
+            riddleCheck.each(function (i, value) {
+                var dataRidId = $(value).attr('data-rid-id');
+                var dataFg = $(value).attr('data-fg');
+                var dataBg = $(value).attr('data-bg');
+                var riddleStyle = $(value).attr('data-riddle-style');
+                var riddleIframeSrc = $(value).attr('data-riddle-iframe-src');
+                var riddleIframeContent = $(value).attr('data-riddle-iframe-content');
+                var riddleTemplate = '<div class="riddle2-wrapper" data-rid-id="' + dataRidId + '" data-fg="' + dataFg + '" data-bg="' + dataBg + '" style="' + riddleStyle + '" data-auto-scroll="false" data-is-fixed-height-enabled="false"><script src="https://www.riddle.com/embed/build-embedjs/embedV2.js"></script><iframe src="' + riddleIframeSrc + '" allow="autoplay" referrerpolicy="strict-origin">' + riddleIframeContent + '</iframe></div>';
+                console.log('riddleTemplate', riddleTemplate)
+
+                $(value).replaceWith(riddleTemplate);
+            })
+
+        }
+
+        /** 360 image */
+        var check360image = $('[data-type="rtv-image360"]');
+        if (check360image.length > 0) {
+            var cssUrl = '//img.rtvslo.si/_static/novi/widgets/image360/viewer/pannellum.css';
+            _loadCSS(cssUrl);
+            _loadJs(rtv360, set360);
+        }
+
+
+
+        var checkRTVmedals = $('[data-type="rtvslo-medals"]');
+
+        if (checkRTVmedals.length > 0) {
+            checkRTVmedals.each(function (i, value) {
+                var dataRestore = parseInt($(value).attr('data-restore'), 10)
+                var medalFigureClass = $(value).attr('class')
+                medalFigureClass = medalFigureClass.replace('mceNonEditable', '')
+                var title = $(value).find('h5');
+                if (title) {
+                    title = $(title).html()
+                } else {
+                    title = ''
+                }
+
+                var newTableBody = '';
+                var thead = $(value).find('thead');
+                if (thead) {
+
+                    var trHead = $(thead).html()
+
+                } else {
+                    var trHead = ''
+                }
+
+                var tbody = $(value).find('tbody');
+                var trBody = $(tbody).find('tr')
+                trBody.each(function (index, itemTr) {
+                    $(itemTr).each(function (index, itemTd) {
+                        var td = $(itemTd).find('td');
+                        newTableBody = newTableBody + '<tr>'
+                        $(td).each(function (index, tableEntry) {
+                            var itemClass = $(tableEntry).attr('class') || false
+                            var medalData = $(tableEntry).attr('data-type') || false
+                            if (!itemClass) {
+                                newTableBody = newTableBody + '<td align="left">' + $(tableEntry).html() + '</td>'
+                            } else {
+                                switch (itemClass) {
+                                    case 'goldMedal':
+                                        newTableBody = newTableBody + '<td><img style="height: 1.2rem; width: auto;" src="https://img.rtvslo.si/_static/r20181108/novi/bootstrap/public/img/olympics/zlata-dark.svg"></td>'
+                                        break;
+                                    case 'silverMedal':
+                                        newTableBody = newTableBody + '<td><img style="height: 1.2rem; width: auto;" src="https://img.rtvslo.si/_static/r20181108/novi/bootstrap/public/img/olympics/srebrna-dark.svg"></td>'
+                                        break;
+                                    case 'bronzeMedal':
+                                        newTableBody = newTableBody + '<td><img style="height: 1.2rem; width: auto;" src="https://img.rtvslo.si/_static/r20181108/novi/bootstrap/public/img/olympics/bronasta-dark.svg"></td>'
+                                        break;
+                                    case 'otherPosition':
+                                        newTableBody = newTableBody + '<td>' + $(tableEntry).html() + '</td>'
+
+                                        break;
+                                    case 'result':
+                                        newTableBody = newTableBody + '<td>' + $(tableEntry).html() + '</td>'
+                                        break;
+                                    default:
+                                        break;
+                                }
+                            }
+                            if (medalData) {
+                                newTableBody = newTableBody + '<td><div class="flag ' + itemClass + ' lo-res circle d-inline-block mr-2" style="height: 1.3rem; width: 1.3rem; vertical-align: middle;" title="' + $(tableEntry).html() + '"></td>'
+
+                            }
+                        })
+                        newTableBody = newTableBody + '</tr>'
+                    })
+                });
+
+                var newTemplate =
+                    '<figure class="' + medalFigureClass.trim() + '">\n' +
+                    '<h5 class="figure-title center">' + title + '</h5>\n' +
+                    '<div class="table-box">\n' +
+                    '<div class="table-responsive">\n' +
+                    '<table class="table table-sm text-center">\n' +
+                    '<thead class="thead-dark">\n' +
+                    trHead +
+                    '</thead>\n' +
+                    '<tbody>\n' +
+                    newTableBody +
+                    ' </tbody>\n' +
+                    '</table>\n' +
+                    '</div>\n' +
+                    '</div>\n' +
+                    '</figure>'
+
+                $(value).replaceWith(newTemplate);
+            })
+
+        }
+
+
+        var checkNostradamusTour = $('#nostradamusTour');
+
+        if (checkNostradamusTour.length > 0) {
+            _loadJs("https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js");
+            _loadJs("https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js");
+            _loadJs(nostradamusTourJS);
+        }
+
+        try {
+            setTimeout(function () {
+                var needle = '[data-mce-href="#hash-' + getOiDate() + '"]'
+                var checkOI2020 = $(needle);
+                if (checkOI2020.length > 0) {
+                    checkOI2020[0].click();
+                }
+            }, 500);
+        } catch (e) { console.log('CARMA?', e) }
+    }
+
+
+    function _checkDate(date) {
+        var today = $('div#sitedate');
+        var retVal = false;
+        if (today) {
+            if (today.text().indexOf(date) > -1) {
+                retVal = true;
+            }
+        }
+        return retVal;
+    }
+
+
+    function prLogic() {
+        /**PR LOGIC */
+        var prBlocks = document.querySelectorAll(".pr-block");
+        if (prBlocks) {
+            $.map(prBlocks, function (element) {
+                if (element) {
+                    element.classList.remove('d-none');
+                }
+            });
+        }
+        /**End */
+    }
+
+    return {
+        detectWidgets: _detectWidgets
+    }
+
+
+})($j);
+
+
+document.addEventListener("DOMContentLoaded", function (event) {
+
+    ondemandApi.detectWidgets();
+
+});
+
+</script>
+
+</body>
+</html>

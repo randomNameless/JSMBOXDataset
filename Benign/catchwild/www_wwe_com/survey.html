@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>survey.html</title>
+</head>
+<body>
+
+<script>
+(function ( $ ) {
+
+  $.fn.wwesurvey = function(options) {
+
+    var settings = $.extend(true, {}, $.fn.wwesurvey.defaults, options);
+    var self = this;
+
+    var survey = {
+      page: 0, // Current page.
+      pages: 0, // Number of pages.
+      nextButtonText: '',
+      submitButtonText: '',
+
+      init: function() {
+        if (!self.hasClass('survey-processed')) {
+          var url = settings.service.base_url + settings.language + '/' + settings.service.request + settings.uuid + '.json';
+          $.getJSON(url).done(survey.build).fail();
+        }
+      },
+
+      fail: function() {
+        survey.debug(this);
+        self.text('Unable to load the survey information.').addClass('survey-fail');
+      },
+
+      isClosed: function(data) {
+        data.node_fields.date_closed_message = data.node_fields.date_closed_message || {};
+
+        if (data.node_fields.date_closed_message.hasOwnProperty('value') && data.node_fields.date_closed_message.hasOwnProperty('offset')) {
+          var closed_timestamp = Number(data.node_fields.date_closed_message.value);
+          var now_timestamp = new Date().getTime() / 1000;
+
+          return closed_timestamp < now_timestamp;
+        }
+
+        return false;
+      },
+
+      /*
+       * Validates if the survey has been already taken by the user.
+       *
+       * @param {object} data
+       * @returns {Boolean}
+       */
+      isCompleted: function(data) {
+        // Check if survey cookie exists.
+        if ($.cookie('wwe_survey_' + data.uuid)) {
+          try {
+            var cookie_data = JSON.parse($.cookie('wwe_survey_' + data.uuid));
+            if (cookie_data.hasOwnProperty('cnt') && cookie_data.hasOwnProperty('ts')) {
+              data.node_fields.date_reset = data.node_fields.date_reset || {};
+              data.node_fields.max_user_submissions = data.node_fields.max_user_submissions || {};
+              if (data.node_fields.date_reset.hasOwnProperty('value')) {
+                if (Number(cookie_data.ts) > Number(data.node_fields.date_reset.value)) {
+                  if (data.node_fields.max_user_submissions.hasOwnProperty('value')) {
+                    if (Number(cookie_data.cnt) >= Number(data.node_fields.max_user_submissions.value)) {
+                      return true;
+                    }
+                  }
+                }
+                else {
+                  // We have to delete the cookie to reset the user data about
+                  // survey submissions.
+                  $.cookie('wwe_survey_' + settings.uuid, null, { path: '/' });
+                }
+              }
+              else {
+                // If it's not reset, just check the number of attemps.
+                if (data.node_fields.max_user_submissions.hasOwnProperty('value')) {
+                  if (Number(cookie_data.cnt) >= Number(data.node_fields.max_user_submissions.value)) {
+                    return true;
+                  }
+                }
+              }
+            }
+          }
+          catch(ex) {
+          }
+        }
+        return false;
+      },
+
+      /*
+       * Show message when the survey was closed.
+       *
+       * @param {String} message.
+       */
+      closed: function(message) {
+        survey.debug(this);
+        self.html(message).addClass('survey-closed');
+      },
+
+      /*
+       * Show message when the survey has been already taken by the user.
+       *
+       * @param {String} message.
+       */
+      completed: function(message) {
+        survey.debug(this);
+        self.html(message).addClass('survey-completed');
+      },
+
+      /*
+       * Build the form.
+       *
+       * @param {Object} data.
+       */
+      build: function(data) {
+        settings.onDataLoaded.call(data);
+
+        data.node_fields = data.node_fields || {};
+
+        if (data.hasOwnProperty('components') && !survey.isClosed(data) && !survey.isCompleted(data)) {
+          var $form = $('<form>').addClass('survey-form');
+          $('<input>', {
+            'type': 'hidden',
+            'name': 'webform',
+            'value': settings.uuid
+          }).appendTo($form);
+
+          var pages = data.components || [];
+          survey.pages = Object.keys(pages).length;
+          survey.pageLabel = data.node_fields.hasOwnProperty('page_label') && data.node_fields.page_label.hasOwnProperty('value') ? data.node_fields.page_label.value : '%page_num / %page_total';
+
+          // Group progress.
+          survey.createGroupProgress(survey.pages).appendTo($form);
+
+          // Sort pages.
+          if (data.node_fields.hasOwnProperty('randomize') && data.node_fields.randomize.hasOwnProperty('value') && data.node_fields.randomize.value === '1') {
+            var sorted = [];
+            $.each(pages, function(index, page) {
+              sorted.push(page);
+            });
+            pages = sorted.sort(function (a, b) {
+              return Math.random() - 0.5;
+            });
+          }
+
+          $.each(pages, function(index, components) {
+            var $page = $('<div>').addClass('tab').hide().appendTo($form);
+            $.each(components, function() {
+              survey.createComponent(this).appendTo($page);
+            });
+          });
+
+          // Required fields message.
+          $('<p>').addClass('survey-required').html(settings.requiredMessage).appendTo($form);
+
+          // Navigation.
+          survey.backButtonText = data.node_fields.hasOwnProperty('back_button_text') && data.node_fields.back_button_text.hasOwnProperty('value') ? data.node_fields.back_button_text.value : settings.backButtonText;
+          survey.nextButtonText = data.node_fields.hasOwnProperty('next_button_text') && data.node_fields.next_button_text.hasOwnProperty('value') ? data.node_fields.next_button_text.value : settings.nextButtonText;
+          survey.submitButtonText = data.node_fields.hasOwnProperty('submit_button_text') && data.node_fields.submit_button_text.hasOwnProperty('value') ? data.node_fields.submit_button_text.value : settings.submitButtonText;
+          survey.createNavigation().appendTo($form);
+          survey.createIndicator(survey.pages).appendTo($form);
+
+          // 'Thank You' page.
+          data.node_fields.submitted_message = data.node_fields.submitted_message || {};
+          var message = data.node_fields.submitted_message.value || 'Survey successfully submitted.';
+          $('<div>').addClass('tab').html(message).hide().appendTo($form);
+
+          $form.appendTo(self);
+          self.addClass('survey-processed');
+
+          survey.showPage(survey.page);
+
+          settings.onSurveyReady.call(self);
+        }
+        else if (survey.isCompleted(data)) {
+          // Check if the survey has been already taken by the user.
+          data.node_fields.completed_message = data.node_fields.completed_message || {};
+          var message = data.node_fields.completed_message.value || 'You have already completed this survey.';
+          survey.completed(message);
+        }
+        else if (survey.isClosed(data)) {
+          // Check if the survey was closed.
+          data.node_fields.closed_message = data.node_fields.closed_message || {};
+          var message = data.node_fields.closed_message.value || 'This survey was closed.';
+          survey.closed(message);
+        }
+        else {
+          survey.fail();
+        }
+      },
+
+      /*
+       * Create a single component.
+       *
+       * @param {Object} component.
+       *
+       * @return {Object} DOM element.
+       */
+      createComponent: function(component) {
+        var $element = null;
+        switch(component.type) {
+          case 'textarea':
+            $element = survey.createTextarea(component);
+            break;
+          case 'select':
+            $element = survey.createRadios(component);
+            break;
+          default:
+            $element = $('<input>', {
+              'type': 'hidden',
+              'name': component.form_key
+            });
+        }
+
+        return $element;
+      },
+
+      /*
+       * Create survey navigation.
+       *
+       * @return {Object} DOM element.
+       */
+      createNavigation: function() {
+        var $element = $('<div>').css('overflow', 'auto').addClass('survey-navigation');
+        var $nav = $('<div>').addClass('survey-buttons').css('float', 'right').appendTo($element);
+        $('<button>', {
+          'type': 'button',
+          'class': 'navigation-back'
+        }).text(survey.backButtonText).click(survey.onNavigationBackButton).appendTo($nav);
+        $('<button>', {
+          'type': 'button',
+          'class': 'navigation-next'
+        }).text(survey.nextButtonText).click(survey.onNavigationNextButton).appendTo($nav);
+
+        return $element;
+      },
+
+      /*
+       * Create a page indicator.
+       *
+       * @param {Number} Pages.
+       *
+       * @return {Object} DOM element.
+       */
+      createGroupProgress: function(n) {
+        var pageLabel = survey.transformPageLabel(1, n);
+
+        var $element = $('<div>').css({
+          'float': 'right',
+          'text-align': 'right'
+        }).addClass('survey-gprogress');
+        $('<span>').text(pageLabel).appendTo($element);
+
+        return $element;
+      },
+
+      /*
+       * Create a step indicator.
+       *
+       * @param {Number} Pages.
+       *
+       * @return {Object} DOM element.
+       */
+      createIndicator: function(n) {
+        var $element = $('<div>').css({
+          'text-align': 'center',
+          'margin-top': '40px'
+        }).addClass('survey-indicator');
+
+        for (var i = 0; i < n; i++) {
+          $('<span>').addClass('step').appendTo($element);
+        }
+
+        return $element;
+      },
+
+      /*
+       * Create a radio button component.
+       *
+       * @param {Object} component
+       *
+       * @return {Object} DOM element.
+       */
+      createRadios: function(component) {
+        var $element = $('<div>', {
+          'aria-label': component.name,
+          'role': 'radiogroup'
+        }).addClass('survey-radiogroup-wrapper');
+
+        // Title.
+        var $child = $('<div>').addClass('title').appendTo($element);
+        $('<h2 class="survey-question">').text(component.name).appendTo($child);
+
+        // Radio group container.
+        var $radiogroup = $('<div>').addClass('radio-group').appendTo($element);
+
+        // Options.
+        var options = component.extra.items || [];
+        var is_first = true;
+        $.each(options, function(value, text) {
+          var radio_tabindex = -1;
+          if (is_first) {
+            radio_tabindex = 0;
+            is_first = false;
+          }
+          $child = $('<div>', {
+            'aria-checked': 'false',
+            'aria-hidden': 'false',
+            'aria-label': text,
+            'role': 'radio',
+            'tabindex': radio_tabindex
+          }).appendTo($radiogroup);
+          $child.on('focus', survey.onRadioFocus.bind($child));
+          $child.on('blur', survey.onRadioBlur.bind($child));
+          $child.on('keydown', survey.onRadioKeydown.bind($child));
+          $child.on('click', survey.onRadioClick.bind($child));
+          var identifier = 'r' + component.cid + '-' + component.pid + value;
+          var $radio = $('<input>', {
+            'id': identifier,
+            'aria-label': text,
+            'type': 'radio',
+            'tabindex': -1,
+            'name': 'submission[data][' + component.cid + '][values][' + component.pid + ']',
+            'value': value
+          }).data('cid', component.cid).appendTo($child);
+          if (component.required === '1') {
+            $radio.attr('required', 'required');
+            $element.addClass('field-required');
+          }
+          $('<label>').attr('for', identifier).text(text).appendTo($child);
+        });
+
+        // Description.
+        if ($.type(component.extra.description) === 'string' && component.extra.description.length > 0) {
+          $('<p>').text(component.extra.description).appendTo($element);
+        }
+
+        return $element;
+      },
+
+      /*
+       * Create a textarea component.
+       *
+       * @param {Object} component
+       *
+       * @return {Object} DOM element.
+       */
+      createTextarea: function(component) {
+        var $element = $('<div>').addClass('survey-textarea');
+        var $textarea = $('<textarea>', {
+          'name': 'submission[data][' + component.cid + '][values][' + component.pid + ']',
+          'placeholder': component.extra.placeholder || '',
+          'aria-label': component.extra.placeholder || '',
+          'maxlength': settings.maxlength
+        }).data('cid', component.cid).appendTo($element);
+
+        if (component.required === '1') {
+          $textarea.attr('required', 'required');
+          $textarea.attr('placeholder', $textarea.attr('placeholder') + ' (*)');
+        }
+
+        $('<p>').text('0 / ' + settings.maxlength).addClass('maxlength').appendTo($element);
+
+        if ($.type(component.extra.description) === 'string' && component.extra.description.length > 0) {
+          $('<p>').text(component.extra.description).addClass('description').appendTo($element);
+        }
+
+        $textarea.on("propertychange input", function(e) {
+          var maxlength = $(this).attr('maxlength');
+
+          if (this.value.length > maxlength) {
+            this.value = this.value.substring(0, maxlength);
+          }
+
+          $('p.maxlength', $(this).parent()).text(this.value.length + ' / ' + maxlength);
+        });
+
+        return $element;
+      },
+
+      /*
+       * Get survey submission data.
+       *
+       * @return {Array} Submission data.
+       */
+      getSubmissionData: function() {
+        var values = $('form', self).serializeArray();
+        var data = [];
+
+        $.each(values, function(index, option) {
+          var cid = $('[name="' + option.name + '"]', self).data('cid');
+
+          if (typeof(cid) !== 'undefined') {
+            data[cid] = option.value;
+          }
+        });
+
+        return data;
+      },
+
+      /*
+       * onSubmit callback.
+       *
+       * @param {Event} e.
+       */
+      onSubmit: function(e) {
+        e.preventDefault();
+
+        var data = survey.getSubmissionData();
+
+        // Skip survey submission if preview is true.
+        if (!settings.preview) {
+          survey.submit(data);
+        }
+
+        var tabs = $('.tab', self);
+        $(tabs[survey.page]).hide();
+        $('.survey-gprogress', self).hide();
+        $('.survey-required', self).hide();
+        $('.survey-navigation', self).hide();
+        $('.survey-indicator', self).hide();
+
+        // Show the 'Thank You' page.
+        survey.showPage(survey.pages);
+      },
+
+      /*
+       * onNavigationBackButton callback.
+       *
+       * @param {Event} e.
+       */
+      onNavigationBackButton: function(e) {
+        e.preventDefault();
+
+        // Hide the current page.
+        var tabs = $('.tab', self);
+        $(tabs[survey.page]).hide();
+
+        // Display the previous page.
+        survey.page--;
+        survey.showPage(survey.page);
+      },
+
+      /*
+       * onNavigationNextButton callback.
+       *
+       * @param {Event} e.
+       */
+      onNavigationNextButton: function(e) {
+        e.preventDefault();
+
+        // Exit the function if any field in the current page is invalid.
+        if (!survey.validate(survey.page)) {
+          return false;
+        }
+        // If have reached the end of the form, get the data.
+        else if (survey.page === survey.pages - 1) {
+          survey.onSubmit(e);
+          return false;
+        }
+
+        // Hide the current page.
+        var tabs = $('.tab', self);
+        $(tabs[survey.page]).hide();
+
+        // Display the next page.
+        survey.page++;
+        survey.showPage(survey.page);
+      },
+
+      /*
+       * onRadioClick callback.
+       *
+       * @param {Event} e.
+       */
+      onRadioClick: function(e) {
+        survey.radioSelect(this, false);
+      },
+
+      /*
+       * onRadioFocus callback.
+       *
+       * @param {Event} e.
+       */
+      onRadioFocus: function(e) {
+        this.addClass('focus');
+      },
+
+      /*
+       * onRadioBlur callback.
+       *
+       * @param {Event} e.
+       */
+      onRadioBlur: function(e) {
+        this.removeClass('focus');
+      },
+
+      /*
+       * onRadioKeydown callback.
+       *
+       * @param {Event} e.
+       */
+      onRadioKeydown: function(e) {
+        var prevent = false;
+        switch (e.keyCode) {
+          // Space and Enter.
+          case 13:
+          case 32:
+            survey.radioSelect(this, true);
+            prevent = true;
+            break;
+          // Up and Left.
+          case 37:
+          case 38:
+            survey.radioSelect(this.prev(), true);
+            prevent = true;
+            break;
+          // Down and Right.
+          case 39:
+          case 40:
+            survey.radioSelect(this.next(), true);
+            prevent = true;
+            break;
+        }
+
+        if (prevent) {
+          e.stopPropagation();
+          e.preventDefault();
+        }
+      },
+
+      /*
+       * Select a radio button.
+       *
+       * Set up all the attributes for a selected radio button.
+       *
+       * @param {Object} $radio
+       *   The div with role radio to select.
+       * @param {Boolean} fire_click
+       *   If true, fires a click on the underlying input radio.
+       */
+      radioSelect: function($radio, fire_click) {
+        $radio.attr('tabindex', 0);
+        $radio.attr('aria-checked', true);
+        $radio.focus();
+        $radio.siblings().attr('aria-checked', false);
+        $radio.siblings().attr('tabindex', -1);
+        if (fire_click) {
+          $('input[type="radio"]', $radio).click();
+        }
+      },
+      /*
+       * Handle survey submit.
+       *
+       * @param {Array} data.
+       */
+      submit: function(data) {
+        var body = {
+          "webform": settings.uuid,
+          "submission": {
+            "data": {},
+            "extra": settings.extra
+          }
+        };
+
+        for (var cid in data) {
+          body["submission"]["data"][cid] = {
+            "values": {
+              "0": data[cid]
+            }
+          };
+        }
+
+        $.ajax({
+          data: body,
+          success: function(data){
+            survey.debug(data);
+            var now_timestamp = new Date().getTime() / 1000;
+            var cookie_data = {
+              ts: now_timestamp,
+              cnt: 1
+            };
+            if ($.cookie('wwe_survey_' + settings.uuid)) {
+              try {
+                var old_data = JSON.parse($.cookie('wwe_survey_' + settings.uuid));
+                if (old_data.hasOwnProperty('cnt')) {
+                  cookie_data.cnt = old_data.cnt + 1;
+                }
+              }
+              catch(ex) {
+              }
+            }
+            $.cookie('wwe_survey_' + settings.uuid, JSON.stringify(cookie_data), { path: '/' });
+          },
+          error: function(jqXHR, textStatus, errorThrown){
+            survey.debug(jqXHR);
+            survey.debug(textStatus);
+            survey.debug(errorThrown);
+          },
+          dataType: 'json',
+          processData: true,
+          type: 'POST',
+          url: settings.service.base_url + settings.service.submission
+        });
+
+        settings.onFormSubmit.call(data);
+      },
+
+      /*
+       * Validate a single survey page.
+       *
+       * @param {Number} Page number.
+       *
+       * @return {Boolean} Valid or not.
+       */
+      validate: function(page) {
+        var tabs = $('.tab', self);
+        var current = $(tabs[page]);
+
+        // Get unique required element names on the current page.
+        var elements = $('input[required=required], select[required=required], textarea[required=required]', $(current));
+        var names = elements.map(function() {
+          return this.name;
+        }).get();
+        var unique = $.grep(names, function(v, i) {
+          return $.inArray(v, names) === i;
+        });
+
+        // Get required elements values.
+        var required = elements.serializeArray();
+        required = required.filter(function(v) {
+          return v.value !== '';
+        });
+
+        // 'Next' button will be disabled until required fields are complete.
+        var isValid = unique.length === required.length;
+
+        if (isValid) {
+          $('button.navigation-next', self).removeClass('disabled').removeAttr('disabled');
+        }
+        else {
+          $('button.navigation-next', self).addClass('disabled').attr('disabled', 'disabled');
+        }
+
+        return isValid;
+      },
+
+      /*
+       * Show a single survey page.
+       *
+       * @param {Number} Page number.
+       */
+      showPage: function(page) {
+        var tabs = $('.tab', self);
+        var current = $(tabs[page]);
+        $(current).show();
+
+        // Back button.
+        if (page === 0) {
+          $('button.navigation-back', self).hide();
+        }
+        else {
+          $('button.navigation-back', self).show();
+        }
+
+        // Next / Submit button.
+        if (page === (survey.pages - 1)) {
+          $('button.navigation-next', self).html(survey.submitButtonText);
+        }
+        else {
+          $('button.navigation-next', self).html(survey.nextButtonText);
+        }
+
+        $('input, select, textarea', $(current)).on('change keyup paste', function(e) {
+          survey.validate(survey.page);
+        });
+
+        var valid = survey.validate(survey.page);
+        if (valid) {
+          $('p.survey-required', self).hide();
+        }
+        else {
+          $('p.survey-required', self).show();
+        }
+
+        survey.setStepIndicator(page);
+        survey.setGroupProgress(page);
+      },
+
+      /*
+       * Set group progress indicator.
+       *
+       * @param {Number} Page number.
+       */
+      setGroupProgress: function(page) {
+        var pageLabel = survey.transformPageLabel(Number(page + 1), survey.pages);
+        $('.survey-gprogress span', self).text(pageLabel);
+      },
+
+      /*
+       * Replaces page label's tokens with pages numbers.
+       *
+       * @param {Number} Page number.
+       * @param {Number} Pages.
+       *
+       * @return {String} transformed Page label.
+       */
+      transformPageLabel: function(page, pages) {
+        var pageLabel = survey.pageLabel;
+        pageLabel = pageLabel.replace('%page_num', page);
+        pageLabel = pageLabel.replace('%page_total', pages);
+
+        return pageLabel;
+      },
+
+      /*
+       * Set step indicator.
+       *
+       * @param {Number} Page number.
+       */
+      setStepIndicator: function(page) {
+        var steps = $('.step', self).removeClass('active');
+        $(steps[page]).addClass('active');
+
+        survey.debug((survey.page + 1) + '/' + survey.pages);
+      },
+
+      /*
+       * Helper function to show debugging message on the console.
+       *
+       * @param {Object}
+       */
+      debug: function(obj) {
+        if (settings.debug === true && window.console && window.console.log) {
+          window.console.log(obj);
+        }
+      },
+
+      /*
+       * Destroy the survey instance.
+       *
+       */
+      destroy: function() {
+        self.empty();
+      }
+    };
+
+    // Initialize the survey.
+    survey.init();
+
+    return {
+      destroy: survey.destroy
+    };
+  };
+
+  // Plugin defaults.
+  $.fn.wwesurvey.defaults = {
+    uuid: '',
+    service: {
+      base_url: '',
+      request: 'api/wwe_survey_services/',
+      submission: 'api/submission/'
+    },
+    extra: {},
+    language: 'en',
+    preview: false,
+    debug: false,
+    maxlength: 255,
+    backButtonText: 'Back',
+    nextButtonText: 'Next',
+    submitButtonText: 'Submit',
+    requiredMessage: '<span class="required-mark">*</span> - required',
+    onDataLoaded: function() {},
+    onFormSubmit: function() {},
+    onSurveyReady: function() {}
+  };
+
+}( jQuery ));
+
+</script>
+
+</body>
+</html>

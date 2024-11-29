@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>script.html</title>
+</head>
+<body>
+
+<script>
+// Facebook Pixel Code
+!(function (f, b, e, v, n, t, s) {
+  console.log('loaded');
+  if (f.fbq) return;
+  n = f.fbq = function () {
+    n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments);
+  };
+  if (!f._fbq) f._fbq = n;
+  n.push = n;
+  n.loaded = !0;
+  n.version = '2.0';
+  n.queue = [];
+  t = b.createElement(e);
+  t.async = !0;
+  t.src = v;
+  s = b.getElementsByTagName(e)[0];
+  s.parentNode.insertBefore(t, s);
+})(
+  window,
+  document,
+  'script',
+  'https://connect.facebook.net/en_US/fbevents.js'
+);
+
+// Remove #google_vignette hash from url when the site loads
+window.onload = function () {
+  if (window.location.hash === '#google_vignette') {
+    var noHashURL = window.location.href.replace(/#.*$/, '');
+    window.history.replaceState(null, '', noHashURL);
+  }
+};
+
+// CAPI code
+function loadCAPI(PIXEL_ID, callback) {
+  function rootDomain(hostname) {
+    let parts = hostname.split('.');
+    if (parts.length <= 2) return hostname;
+
+    parts = parts.slice(-3);
+    if (
+      [
+        'co',
+        'com',
+        'org',
+        'news',
+        'net',
+        'in',
+        'etc',
+        'me',
+        'today',
+        'online',
+        'io',
+      ].indexOf(parts[1]) > -1
+    )
+      return parts.join('.');
+
+    return parts.slice(-2).join('.');
+  }
+
+  function getConversionApiUrl() {
+    const host = window.location.host;
+    const url = `https://c.${rootDomain(host)}/graphql`;
+
+    return url;
+  }
+
+  var CONVERSION_API = getConversionApiUrl();
+  var IP_API_1 =
+    'https://api.ipinfodb.com/v3/ip-city/?key=488691776a8356bed022e22910fbd7e43f6b26f0d2ef3181fd0c9b1b49514bf9&format=json';
+  var IP_API_2 = 'https://api.ip2location.io/';
+  var IP_API_3 = 'https://json.geoiplookup.io/';
+  var PUBLISH_EVENT_MUTATION =
+    'mutation publishEvent ($input: PublishEventInput!) {publishEvent (input: $input)}';
+  var CREATE_USER_DATA_MUTATION =
+    'mutation createUser ($input: CreateUserInput!) {createUser (input: $input) {cityName countryCode externalId ipAddress regionName timestamp zipCode}}';
+  var LABEL_FBC = '_fbc';
+  var LABEL_FBP = '_fbp';
+  var userLocalStorageKey = 'ad-user-data';
+
+  /*
+    geolocationData {
+      ipAddress
+      cityName
+      regionName
+      countryCode
+      zipCode
+    }
+  */
+  function createUserFetch(userData, geolocationData) {
+    var externalId =
+      userData && userData.externalId
+        ? userData.externalId
+        : 'EXID_' + uuid.v4();
+
+    const { ipAddress, cityName, regionName, countryCode, zipCode } =
+      geolocationData;
+
+    var userInput = {
+      externalId,
+      ipAddress,
+      cityName,
+      regionName,
+      countryCode,
+      zipCode,
+      timestamp: Date.now(),
+    };
+
+    return fetch(CONVERSION_API, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        query: CREATE_USER_DATA_MUTATION,
+        variables: {
+          input: {
+            ...userInput,
+          },
+        },
+      }),
+    })
+      .then((response) => {
+        return response.json();
+      })
+      .then((response) => {
+        var user = response.data.createUser;
+        localStorage.setItem(userLocalStorageKey, JSON.stringify(user));
+        return user;
+      })
+      .catch((error) => {
+        console.error('Error getting user data from Conversion API:', error);
+      });
+  }
+
+  function ipApiFetchFallback() {
+    return fetch(IP_API_1)
+      .then((response) => {
+        return response.json();
+      })
+      .then((data) => {
+        const geolocationData = {
+          ipAddress: data.ipAddress,
+          cityName: data.cityName,
+          regionName: data.regionName,
+          countryCode: data.countryCode,
+          zipCode: data.zipCode,
+        };
+
+        return Promise.resolve(geolocationData);
+      })
+      .catch(() => {
+        return fetch(IP_API_2)
+          .then((response) => {
+            return response.json();
+          })
+          .then((data) => {
+            const geolocationData = {
+              ipAddress: data.ip,
+              cityName: data.city_name,
+              regionName: data.region_name,
+              countryCode: data.country_code,
+              zipCode: data.zip_code,
+            };
+
+            return Promise.resolve(geolocationData);
+          })
+          .catch(() => {
+            return fetch(IP_API_3)
+              .then((response) => {
+                return response.json();
+              })
+              .then((data) => {
+                const geolocationData = {
+                  ipAddress: data.ip,
+                  cityName: data.city,
+                  regionName: data.region,
+                  countryCode: data.country_code,
+                  zipCode: data.postal_code,
+                };
+
+                return Promise.resolve(geolocationData);
+              })
+              .catch((error) => {
+                console.error('Error ipApiFetchFallback:', error);
+                throw error;
+              });
+          });
+      });
+  }
+
+  function getUserData() {
+    var userData = null;
+
+    try {
+      userData = JSON.parse(localStorage.getItem(userLocalStorageKey));
+    } catch (e) {
+      localStorage.removeItem(userLocalStorageKey);
+    }
+
+    var expirationTime = 10 * 24 * 60 * 60 * 1000; // 10 days
+
+    if (
+      userData &&
+      userData.timestamp &&
+      Date.now() - userData.timestamp < expirationTime
+    ) {
+      return Promise.resolve(userData);
+    } else {
+      return ipApiFetchFallback()
+        .then((geolocationData) => {
+          return createUserFetch(userData, geolocationData);
+        })
+        .catch((error) => {
+          console.error('Error fetching geolocation data:', error);
+          throw error;
+        });
+    }
+  }
+
+  function getCookie(label) {
+    var match = document.cookie.match(new RegExp('(^| )' + label + '=([^;]+)'));
+    if (match) return match[2];
+  }
+
+  function convertValueToString(value) {
+    if (value == null) return '';
+
+    if (typeof value === 'object') {
+      return JSON.stringify(value);
+    }
+
+    return String(value);
+  }
+
+  function formatCustomData(eventCustomData) {
+    if (!eventCustomData) {
+      return { customProperties: [] };
+    }
+
+    var properties = eventCustomData.customProperties || [];
+
+    var formattedProperties = properties.map(function (property) {
+      var propertyName = property.propertyName
+        ? property.propertyName
+        : property[0];
+      var rawValue = property.propertyName
+        ? property.propertyValue
+        : property[1];
+      var stringValue = '';
+
+      switch (propertyName) {
+        case 'content_ids':
+        case 'contents':
+          stringValue = Array.isArray(rawValue)
+            ? JSON.stringify(rawValue)
+            : convertValueToString(rawValue);
+          break;
+
+        case 'num_items':
+        case 'predicted_ltv':
+        case 'value':
+          stringValue =
+            typeof rawValue === 'number'
+              ? rawValue.toString()
+              : convertValueToString(rawValue);
+          break;
+
+        case 'status':
+          stringValue =
+            typeof rawValue === 'boolean'
+              ? rawValue.toString()
+              : convertValueToString(rawValue);
+          break;
+
+        default:
+          stringValue = convertValueToString(rawValue);
+      }
+
+      return {
+        propertyName: propertyName,
+        propertyValue: stringValue,
+      };
+    });
+
+    return {
+      customProperties: formattedProperties,
+    };
+  }
+
+  function fbcapi(
+    eventName,
+    eventCustomData = {},
+    eventIdentifiers = {},
+    userData = {},
+    testEventCode = null
+  ) {
+    var fbp = getCookie(LABEL_FBP) || '';
+    var fbc = getCookie(LABEL_FBC) || '';
+    if (!fbc && window.location.search.includes('fbclid=')) {
+      var fbclidIndex = window.location.search.indexOf('fbclid=');
+      var fbclidValue = window.location.search
+        .substring(fbclidIndex + 7)
+        .split('&')[0];
+      fbc = 'fb.1.' + +new Date() + '.' + fbclidValue;
+    }
+    var userAgent = navigator.userAgent || '';
+    var url = location.href || '';
+    if (fbp && userAgent) {
+      getUserData()
+        .then(function (data) {
+          var ipAddress = data.ipAddress;
+          var cityName = data.cityName;
+          var regionName = data.regionName;
+          var countryCode = data.countryCode;
+          var zipCode = data.zipCode;
+          var externalId =
+            userData && userData.externalId
+              ? userData.externalId
+              : data.externalId;
+
+          var formattedCustomData = formatCustomData(eventCustomData);
+
+          fetch(CONVERSION_API, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              query: PUBLISH_EVENT_MUTATION,
+              variables: {
+                input: {
+                  profileData: {
+                    fbc: fbc,
+                    externalId: externalId,
+                    fbp: fbp,
+                    ip: ipAddress,
+                    country: countryCode,
+                    region: regionName,
+                    city: cityName,
+                    zipCode: zipCode,
+                    userAgent: userAgent,
+                    email: userData.email || null,
+                    phoneNumber: userData.phoneNumber || null,
+                    fullName: userData.fullName || null,
+                  },
+                  eventData: {
+                    eventName: eventName,
+                    eventId:
+                      (eventIdentifiers && eventIdentifiers.eventID) || null,
+                  },
+                  customData: formattedCustomData, // eventCustomData => { customProperties: [ { propertyName, propertyValue } ] }
+                  url: url,
+                  testEventCode: testEventCode,
+                  pixelId: PIXEL_ID,
+                },
+              },
+            }),
+          })
+            .then(function () {
+              return console.log('Success!!!');
+            })
+            .catch(function (e) {
+              setTimeout(function () {
+                fbcapi(
+                  eventName,
+                  eventCustomData,
+                  eventIdentifiers,
+                  userData,
+                  testEventCode
+                );
+              }, 2000);
+              return console.log('API', JSON.stringify(e));
+            });
+        })
+        .catch(function (e) {
+          setTimeout(function () {
+            fbcapi(
+              eventName,
+              eventCustomData,
+              eventIdentifiers,
+              userData,
+              testEventCode
+            );
+          }, 2000);
+          return console.log('ipinfodb', e);
+        });
+    } else {
+      setTimeout(function () {
+        fbcapi(
+          eventName,
+          eventCustomData,
+          eventIdentifiers,
+          userData,
+          testEventCode
+        );
+      }, 2000);
+    }
+  }
+
+  function clickAds(clickAdsCallback) {
+    var adInterval = setInterval(function () {
+      let isShowingVignette = false;
+      let isVignetteClick = false;
+
+      window.addEventListener('hashchange', function () {
+        if (window.location.hash === '#google_vignette') {
+          isShowingVignette = true;
+        }
+
+        setTimeout(() => {
+          isShowingVignette = false;
+        }, 50);
+      });
+
+      document.addEventListener('visibilitychange', function () {
+        if (document.hidden && isVignetteClick) {
+          clickAdsCallback();
+        }
+      });
+
+      $(window).blur(function (e) {
+        if (
+          document.activeElement &&
+          document.activeElement.tagName == 'IFRAME' &&
+          !isShowingVignette
+        ) {
+          if (window.location.hash === '#google_vignette') {
+            isVignetteClick = true;
+          } else {
+            clickAdsCallback();
+          }
+
+          setTimeout(() => {
+            isVignetteClick = false;
+          }, 500);
+        }
+      });
+      $(document).mousemove(function (e) {
+        if (
+          document.activeElement &&
+          document.activeElement.tagName == 'IFRAME'
+        ) {
+          $(window).focus();
+        }
+      });
+
+      clearInterval(adInterval);
+    }, 1000);
+  }
+
+  function sendScheduleByScrollDepth() {
+    // Track scroll events
+    var scrollPercentages = [25, 50, 75, 90, 100];
+    var trackedPercentages = [];
+
+    $(window).on('scroll', function () {
+      var scrollTop = $(window).scrollTop();
+      var docHeight = $(document).height();
+      var winHeight = $(window).height();
+      var scrollPercent = (scrollTop / (docHeight - winHeight)) * 100;
+
+      scrollPercentages.forEach(function (percent) {
+        if (
+          scrollPercent >= percent &&
+          trackedPercentages.indexOf(percent) === -1
+        ) {
+          trackedPercentages.push(percent);
+
+          var eventID = uuid.v4();
+          const page = window.location.href;
+          const scrollDepthValue = `${percent}%`;
+
+          fbq(
+            'trackCustom',
+            'Schedule',
+            { Page: page, 'Scroll Depth': scrollDepthValue },
+            { eventID }
+          );
+          fbcapi(
+            'Schedule',
+            {
+              customProperties: [
+                { propertyName: 'Page', propertyValue: page },
+                {
+                  propertyName: 'Scroll Depth',
+                  propertyValue: scrollDepthValue,
+                },
+              ],
+            },
+            { eventID }
+          );
+        }
+      });
+    });
+  }
+
+  callback(getUserData, fbcapi, clickAds, sendScheduleByScrollDepth);
+}
+
+</script>
+
+</body>
+</html>

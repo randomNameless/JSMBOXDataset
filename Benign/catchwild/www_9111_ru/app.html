@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>app.html</title>
+</head>
+<body>
+
+<script>
+"use strict";
+document.addEventListener("DOMContentLoaded", () => {
+	const applicationServerKey = "BFBqqIuLzmm-aTDENt-lKpFn83fKfWvKzBb-qA0Rf1fNkQPqB57EN-gLbIJC3zGak5gsCENEFTLgTDg9sUs9h0A";
+	let isPushEnabled = false;
+
+	const pushButton_all = document.querySelectorAll('#push-subscription-button, #push-subscription-button_w');
+	const pushButton = document.querySelector('#push-subscription-button');
+	if (!pushButton_all || !pushButton) {
+		return;
+	}
+	/* обработчик события кнопки "подписаться" */
+	//pushButton.addEventListener('click', checkIsEnabled);
+	pushButton_all.forEach(
+		(item) => {
+			item.addEventListener('click', checkIsEnabled)
+		}
+	);
+
+
+	/**
+	 * действие на клик по кнопке
+	 * @returns {undefined}
+	 */
+	function checkIsEnabled(){
+		if (isPushEnabled) {
+			console.log('unsubscribe');
+			push_unsubscribe();
+		} else {
+			console.log('subscribe');
+			push_subscribe();
+		}
+	}
+
+
+	/* поддержка браузером пушей */
+	if (!('serviceWorker' in navigator)) {
+		console.warn("Service workers are not supported by this browser");
+		changePushButtonState('incompatible');
+		return;
+	}
+	/* поддержка браузером сервисворкеров */
+	if (!('PushManager' in window)) {
+		console.warn('Push notifications are not supported by this browser');
+		changePushButtonState('incompatible');
+		return;
+	}
+	/* поддержка браузером уведомлений */
+	if (!('showNotification' in ServiceWorkerRegistration.prototype)) {
+		console.warn('Notifications are not supported by this browser');
+		changePushButtonState('incompatible');
+		return;
+	}
+
+	/* проверка, не запретил ли пользователь пуши для нашего домена */
+	if (Notification.permission === 'denied') {
+		console.warn('Notifications are denied by the user');
+		changePushButtonState('incompatible');
+		return;
+	}
+	/* регистрируем сервисворкер */
+	navigator.serviceWorker.register("/sw.js", {scope: '/'})
+			.then(() => {
+				console.log('[SW] Service worker has been registered');
+//				push_updateSubscription();
+			}, e => {
+				console.error('[SW] Service worker registration failed', e);
+				changePushButtonState('incompatible');
+			});
+
+	/* обработчик кликов по кнопке */
+	function changePushButtonState(state) {
+		switch (state) {
+			case 'enabled':
+				pushButton.disabled = false;
+				pushButton.textContent = "Отключить пуш-уведомления";
+				isPushEnabled = true;
+				if ($('#push-subscribe-window').length > 0){
+					$('#push-subscribe-window').hide();
+				}
+//				pushButton.classList.add('text-as-link');
+				break;
+			case 'disabled':
+				pushButton.disabled = false;
+				pushButton.textContent = "Включить пуш-уведомления";
+				isPushEnabled = false;
+				if ($('#push-subscribe-window').length > 0){
+					$('#push-subscribe-window').show();
+				}
+//				pushButton.classList.add('text-as-link');
+				break;
+			case 'computing':
+				pushButton.disabled = true;
+				pushButton.textContent = "Загрузка...";
+//				pushButton.classList.remove('text-as-link');
+				break;
+			case 'incompatible':
+				pushButton.disabled = true;
+				pushButton.textContent = "Пуши-уведомления не поддерживаются браузером или браузер в приватном режиме";
+//				pushButton.classList.remove('text-as-link');
+				break;
+			default:
+				console.error('Unhandled push button state', state);
+				break;
+		}
+	}
+	/* сервисная функция */
+	function urlBase64ToUint8Array(base64String) {
+		const padding = '='.repeat((4 - base64String.length % 4) % 4);
+		const base64 = (base64String + padding)
+				.replace(/\-/g, '+')
+				.replace(/_/g, '/');
+
+		const rawData = window.atob(base64);
+		const outputArray = new Uint8Array(rawData.length);
+
+		for (let i = 0; i < rawData.length; ++i) {
+			outputArray[i] = rawData.charCodeAt(i);
+		}
+		return outputArray;
+	}
+	/* подписываем пользователя на пуши */
+	function push_subscribe() {
+		changePushButtonState('computing');
+		navigator.serviceWorker.ready
+				.then(serviceWorkerRegistration => serviceWorkerRegistration.pushManager.subscribe({
+						userVisibleOnly: true, //попытка не передавать или передать false вызовет ошибку
+						applicationServerKey: urlBase64ToUint8Array(applicationServerKey)
+					}))
+				.then(subscription => {
+					// успешная подписка, пишем в базу
+					return push_sendSubscriptionToServer(subscription, 'POST');
+				})
+				.then(subscription => subscription && changePushButtonState('enabled')) // update your UI
+				.catch(e => {
+					if (Notification.permission === 'denied') {
+						console.warn('Уведомления заблокированы пользователем.');
+						changePushButtonState('incompatible');
+					} else {
+						// Ошибка, возможно сеть или пользователь что-то отменил
+						console.error('Не смогли подписаться на пуш-уведомления', e);
+						changePushButtonState('disabled');
+					}
+				});
+	}
+
+	function push_updateSubscription() {
+		navigator.serviceWorker.ready.then(serviceWorkerRegistration => serviceWorkerRegistration.pushManager.getSubscription())
+				.then(subscription => {
+					changePushButtonState('disabled');
+
+					if (!subscription) {
+						// не смогли подписаться
+						return;
+					}
+
+					// Актуализируем данные по подписке
+					return push_sendSubscriptionToServer(subscription, 'PUT');
+				})
+				.then(subscription => subscription && changePushButtonState('enabled')) // Ставим на кнопке статус успешности
+				.catch(e => {
+					console.error('Ошибка обновления подписки', e);
+				});
+	}
+	/* отмена подписки */
+	function push_unsubscribe() {
+		changePushButtonState('computing');
+
+		// получаем объект подписки
+		navigator.serviceWorker.ready
+				.then(serviceWorkerRegistration => serviceWorkerRegistration.pushManager.getSubscription())
+				.then(subscription => {
+					// проверяем, есть ли подписка?
+					if (!subscription) {
+						// нет подписки
+						changePushButtonState('disabled');
+						return;
+					}
+
+					// удаляем подписку с сервера
+					return push_sendSubscriptionToServer(subscription, 'DELETE');
+				})
+				.then(subscription => subscription.unsubscribe())
+				.then(() => changePushButtonState('disabled'))//меняем надпись на кнопке
+				.catch(e => {
+					// ошибка при отписке. Хорошо бы удалить из базы
+					console.error('Ошибка при отписке', e);
+					changePushButtonState('disabled');
+				});
+	}
+	/* отправляем подписку на сервер */
+	function push_sendSubscriptionToServer(subscription, method) {
+		const key = subscription.getKey('p256dh');
+		const token = subscription.getKey('auth');
+//		console.log(subscription.endpoint);
+//		console.log(key);
+//		console.log(token);
+//		console.log(JSON.stringify({
+//			endpoint: subscription.endpoint,
+//			key: key ? btoa(String.fromCharCode.apply(null, new Uint8Array(key))) : null,
+//			token: token ? btoa(String.fromCharCode.apply(null, new Uint8Array(token))) : null
+//		}));
+		console.log('дёргаем сервер методом '+method);
+		/* отправляем на сервер данные указанным методом */
+		return fetch('/ajax_server/push/subscribe.php', {
+			method,
+			body: JSON.stringify({
+				endpoint: subscription.endpoint,
+				key: key ? btoa(String.fromCharCode.apply(null, new Uint8Array(key))) : null,
+				token: token ? btoa(String.fromCharCode.apply(null, new Uint8Array(token))) : null,
+				user_id: site_vars.current_user.id
+			})
+		}).then(() => subscription);
+	}
+
+	navigator.serviceWorker.ready.then(serviceWorkerRegistration => serviceWorkerRegistration.pushManager.getSubscription()).
+		then(subscription => {
+			if (!subscription) {
+				changePushButtonState('disabled');
+				if ($('#push-subscribe-window').length > 0){
+					$('#push-subscribe-window').show();
+				}
+			} else {
+				changePushButtonState('enabled');
+				push_sendSubscriptionToServer(subscription, 'PUT');
+				if ($('#push-subscribe-window').length > 0){
+					$('#push-subscribe-window').hide();
+				}
+			}
+	});
+});
+
+</script>
+
+</body>
+</html>

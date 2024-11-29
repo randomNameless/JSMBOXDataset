@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>index_consult.html</title>
+</head>
+<body>
+
+<script>
+/**
+ * Created by zhaotengfei
+ * date: 2016/5/10.
+ * intro: 首页 - 咨询模块js
+ */
+
+
+var medeor = medeor || {};
+medeor.tabSwitch = {
+    // 绑定切换选项卡
+    /*
+     * eleSelector - ul节点选择器
+     * cssClass - 选中时添加的类
+     */
+    bindTab: function(eleSelector, cssClass){
+        var _self = this;
+        $(eleSelector).each(function(index){
+            var __self = this;
+            $(this).bind("click", (function(cssClass){
+                // 上一次点击的tab节点
+                var preActive = __self.children[0];
+                return function(evt){
+                    var ev = evt || window.event;
+                    var target = ev.target || ev.srcElement;
+                    if(target.nodeName === "SPAN" && (target !== preActive)) {
+                        // 判断触发对象是否为 span 节点， 进行切换操作
+                        _self.tabChange(this, preActive, target, cssClass);
+                        preActive = target; //
+                    }
+                };
+            })(cssClass));
+            // 第一次选择初始化
+            _self.tabChange(this, false, this.children[0], cssClass);
+
+        });
+
+    },
+    // tab 切换
+    /*
+     * eleTabList - 事件绑定节点
+     * e - 事件触发对象 a 节点
+     * cssActive - 被点选节点添加的类
+     * aria-page - a节点属性，对应page的id
+     */
+    tabChange: function(eleTabList, preEle, e, cssActive){
+        var i = 0, l;
+        // 获取对应的page页;
+        var targetPage = document.getElementById( e.getAttribute("aria-page") );
+
+        // 标签选择设置
+        if(!!preEle){
+            $(preEle).removeClass(cssActive);
+            document.getElementById( preEle.getAttribute("aria-page") ).style.display = "none";
+        } else { // 第一次调用
+            var eleParentLis = eleTabList.children;
+            for(i = 0, l = eleParentLis.length; i < l; i++){
+                // 去除 a 链接上的 cssActive 类
+                $(eleParentLis[i].getElementsByTagName("span")[0]).removeClass(cssActive);
+            }
+        }
+        // 设置新的选中项
+        $(e).addClass(cssActive);
+        if(targetPage){
+            // 设置选中项对应的节点为显示
+            targetPage.style.display = "block";
+        }
+
+        // 轮播设置
+        var isSwiper = targetPage.getAttribute("data-lb");
+        var ids="#swiper"+isSwiper;
+        var pa='#pagination' + isSwiper;
+        if(isSwiper != "-1"){
+            window.setTimeout(function () {
+                new Swiper(ids,{
+                    mode : 'horizontal',
+                    autoplay : 3000, //
+                    loop: true,
+                    pagination : pa,
+                    paginationClickable :true,
+                    autoplayDisableOnInteraction: false,
+                    // calculateHeight  : true
+                });
+                targetPage.setAttribute("data-lb", "-1");
+                // 文章列表拉取
+                medeor.pullData.loadData($(targetPage).find(".loadDataDiv")[0], e.getAttribute("data-typeid"));
+            },2000)
+
+        }
+
+    }
+};
+// 数据拉取
+medeor.pullData = {
+
+    // 数据拉取参数及html模板
+    sectionConfig: {
+        // 查询url
+        getArticleUrl: "http://cmsdt.xdf.cn/get_main_article_for_js.php?typeids=",
+        // 查询栏目id
+        typeId: 0,
+        // 查询页
+        currentPage: 1,
+        // 文章数量
+        total: 3,
+        // li 拼字符串
+        /*
+         * {url} - 文章链接URL
+         * {title} - 文章标题title
+         * {info} - 文章简介
+         * {imgSrc} - 图片链接
+         * */
+        pageLi: '<li>' +
+                    '<a href="{url}"><img src="{imgSrc}" alt=""/></a>' +
+                    '<div class="consultPullArtList">' +
+                        '<h3><a href="{url}">{title}</a></h3>' +
+                        '<p>{info}...<a href="{url}">[详细]</a></p>' +
+                    '</div>' +
+                '</li>',
+        // html 字符串拼接
+        pageLiReplace: function(data){
+            //console.log(data);
+            // 循环变量
+            var i = 0, ele;
+            // 数组保存节点
+            var lisData = [];
+            // 遍历文章数目 - 模板填充
+            for(; (ele = data[i]); i++){
+                lisData[lisData.length] = medeor.pullData.strReplaceObj(this.pageLi, {
+                    url: ele.url,
+                    imgSrc: ele.litpic,
+                    title: ele.stitle !== "" ? ele.stitle : ele.title,
+                    info: ele.description.substring(0, 70)
+                });
+            }
+            return lisData.join(""); // 返回 拼接的字符串
+        }
+    },
+    /*
+     * str - string -  字符串模板
+     * obj - 对象{} 替换参数
+     */
+    strReplaceObj: function(str, obj){
+
+        // 替换相应的参数
+        for(var key in obj){
+            if(obj.hasOwnProperty(key)){
+                str = str.replace(new RegExp("\\{" + key + "\\}", "g"), obj[key]);
+            }
+        }
+
+        // 删除标签{delStart}...{delEnd}之间的内容 - 模拟if else
+        str = str.replace(new RegExp("\\{delStart\\}(\.*?)\\{delEnd\\}", "g"), "");
+
+        // 删除模板中未替换的参数 '{key}'
+        str = str.replace(new RegExp("\\{\\w+\\}", "g"), "");
+
+        return str;
+    },
+
+    // ajax 数据获取(typeId - 栏目id； pageId - 回调id)
+    ajaxPullData: function(typeId, currentPage, total, callbackFun, ele) {
+        var url = this.sectionConfig.getArticleUrl + typeId + "&pageid=" + currentPage + "&pic=1&row=" + total;
+        $.ajax({
+            url: url,
+            dataType: "jsonp",
+            timeout: 8000,
+            jsnop: "callback",
+            success: function (data) {
+                //console.log(data);
+                ele.innerHTML = callbackFun.pageLiReplace(data); // 回调，添加数据
+            },
+            error: function (xhr, type) {
+                w.alert("网络链接错误");
+            }
+        });
+    },
+
+    loadData: function(ele, typeId){
+        this.ajaxPullData(typeId, this.sectionConfig.currentPage, this.sectionConfig.total, medeor.pullData.sectionConfig, ele);
+    }
+};
+
+$(function(){
+
+    // tab 切换
+    medeor.tabSwitch.bindTab(".tabSwitchClass", "current");
+
+    // A 链接
+    $(".consultCon a").attr("target", "_blank");
+
+});
+
+</script>
+
+</body>
+</html>

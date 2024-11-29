@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>wem-messaging-min.html</title>
+</head>
+<body>
+
+<script>
+(function(_1){
+if((typeof _1.OT.wem.messaging!=="undefined")){
+return;
+}
+OT.wem.messaging={MESSAGING_CONTEXT_KEY:"wemMessagingContextKey",MESSAGING_CONTEXT_OLD_VALUE:"wemMessagingContextOldValue",MESSAGING_CONTEXT_NEW_VALUE:"wemMessagingContextNewValue",IS_WEM_MESSAGING_TYPE:"isWEMMessagingType",MESSAGE_EVENT:"message",post:function(_2,_3,_4){
+_4=_4||this.internal.getWindowUrl();
+if(_1.postMessage){
+var _5=JSON.stringify(this.internal.createMessage(_2,_3));
+_4=OT.wem.query.isArray(_4)?_4:[_4];
+for(var i=0;i<_4.length;i++){
+_1.postMessage(_5,_4[i]);
+}
+}else{
+var _7=OT.wem.messaging.Event();
+_7.eventType=_2;
+_7.data=_3;
+OT.wem.query(_1).trigger(OT.wem.messaging.MESSAGE_EVENT,_7);
+}
+},listen:function(_8,_9,_a,_b,_c){
+_a=_a||this.internal.getWindowUrl();
+if(_c&&this.internal.getListener(_8,_c)){
+return;
+}
+var _d=this.internal.createListener(_8,_9,_a,_b,_c);
+if(_d){
+OT.wem.query(_1).on(OT.wem.messaging.MESSAGE_EVENT,_d);
+}
+},removeListener:function(_e,_f){
+if(typeof _f==="function"){
+if(_f.wemMessagingWrapperFn){
+OT.wem.messaging.event.unsubscribe(_e,_f.wemMessagingWrapperFn);
+}
+}else{
+var _10=this.internal.getListener(_e,_f);
+OT.wem.messaging.event.unsubscribe(_e,_10);
+}
+},addContext:function(key,_12){
+if(key&&_12&&!OT.wem.messaging.context.exists(key)){
+OT.wem.messaging.context.set(key,_12);
+var _13={};
+_13[OT.wem.messaging.MESSAGING_CONTEXT_KEY]=key;
+_13[OT.wem.messaging.MESSAGING_CONTEXT_NEW_VALUE]=_12;
+OT.wem.messaging.post(OT.wem.messaging.event.CONTEXT_ADD,_13);
+OT.wem.messaging.post(OT.wem.messaging.event.CONTEXT_CHANGE,_13);
+}
+},removeContext:function(key){
+if(key&&OT.wem.messaging.context.exists(key)){
+var _15=OT.wem.messaging.context.get(key);
+OT.wem.messaging.context.remove(key);
+var _16={};
+_16[OT.wem.messaging.MESSAGING_CONTEXT_KEY]=key;
+_16[OT.wem.messaging.MESSAGING_CONTEXT_OLD_VALUE]=_15;
+OT.wem.messaging.post(OT.wem.messaging.event.CONTEXT_REMOVE);
+OT.wem.messaging.post(OT.wem.messaging.event.CONTEXT_CHANGE,_16);
+}
+},toggleContext:function(key,_18){
+if(key&&_18){
+var _19={};
+_19[OT.wem.messaging.MESSAGING_CONTEXT_KEY]=key;
+if(OT.wem.messaging.context.exists(key)){
+var _1a=OT.wem.messaging.context.get(key);
+OT.wem.messaging.context.set(key,_18);
+_19[OT.wem.messaging.MESSAGING_CONTEXT_NEW_VALUE]=_18;
+_19[OT.wem.messaging.MESSAGING_CONTEXT_OLD_VALUE]=_1a;
+OT.wem.messaging.post(OT.wem.messaging.event.CONTEXT_UPDATE,_19);
+}else{
+OT.wem.messaging.context.set(key,_18);
+_19[OT.wem.messaging.MESSAGING_CONTEXT_NEW_VALUE]=_18;
+OT.wem.messaging.post(OT.wem.messaging.event.CONTEXT_ADD,_19);
+}
+OT.wem.messaging.post(OT.wem.messaging.event.CONTEXT_CHANGE,_19);
+}
+},existsContext:function(key){
+return OT.wem.messaging.context.exists(key);
+},internal:{getWindowUrl:function(_1c){
+_1c=_1c||_1;
+var _1d=_1c.location;
+return _1d.protocol+"//"+_1d.hostname+(_1d.port?":"+_1d.port:"");
+},createMessage:function(_1e,_1f){
+return {isWEMMessagingType:true,eventType:_1e,data:_1f||{}};
+},getListener:function(_20,_21){
+var _22;
+if(OT.wem.query._data(_1,"events")&&OT.wem.query._data(_1,"events")[OT.wem.messaging.event.TOPIC+"/"+_20]){
+var _23=OT.wem.query._data(_1,"events")[OT.wem.messaging.event.TOPIC+"/"+_20];
+for(var i=0;i<_23.length;i++){
+if(_23[i].handler&&_23[i].handler.wemListenerId===_21){
+_22=_23[i].handler;
+break;
+}
+}
+}
+return _22;
+},getMessageWrapper:function(_25){
+var _26;
+if(OT.wem.query._data(_1,"events")&&OT.wem.query._data(_1,"events")[OT.wem.messaging.MESSAGE_EVENT]){
+var _27=OT.wem.query._data(_1,"events")[OT.wem.messaging.MESSAGE_EVENT];
+for(var i=0;i<_27.length;i++){
+if(_27[i].handler&&_27[i].handler.wemEventType===_25){
+_26=_27[i].handler;
+break;
+}
+}
+}
+return _26;
+},createListener:function(_29,_2a,_2b,_2c,_2d){
+var _2e=OT.wem.query.isArray(_2b)?_2b:[_2b];
+var _2f=function(_30,_31){
+_2a.wemMessagingWrapperFn=_2f;
+if(_2c){
+OT.wem.messaging.event.unsubscribe(_31.eventType,_2f);
+}
+_2a(_31);
+};
+_2f.wemListenerId=_2d;
+OT.wem.messaging.event.subscribe(_29,_2f);
+var _32=this.getMessageWrapper(_29);
+if(!_32){
+var _33=function(_34,_35){
+var _36,_37,_38,_39;
+if(_34.type===OT.wem.messaging.MESSAGE_EVENT){
+var _3a=OT.wem.messaging.internal.getWindowUrl(_34.source);
+if(OT.wem.query.inArray(_3a,_2e)===-1){
+return;
+}
+var _3b=JSON.parse(_34.originalEvent.data);
+if(!_3b[OT.wem.messaging.IS_WEM_MESSAGING_TYPE]){
+return;
+}
+_37=_3b.eventType;
+_36=_3b.data;
+_38=_34.origin;
+_39=_34.source;
+}else{
+_37=_35.eventType;
+_36=_35.data;
+}
+if(_37!==_29){
+return;
+}
+var _3c=new OT.wem.messaging.Event();
+_3c.eventType=_37;
+_3c.data=_36;
+_3c.source=_39;
+_3c.origin=_38;
+_3c.originalEvent=_34;
+_3c.context=OT.wem.messaging.context.getContext();
+if(_36[OT.wem.messaging.MESSAGING_CONTEXT_KEY]){
+_3c.contextKey=_36[OT.wem.messaging.MESSAGING_CONTEXT_KEY];
+}
+if(_36[OT.wem.messaging.MESSAGING_CONTEXT_OLD_VALUE]){
+_3c.contextOldValue=_36[OT.wem.messaging.MESSAGING_CONTEXT_OLD_VALUE];
+}
+if(_36[OT.wem.messaging.MESSAGING_CONTEXT_NEW_VALUE]){
+_3c.contextNewValue=_36[OT.wem.messaging.MESSAGING_CONTEXT_NEW_VALUE];
+}
+OT.wem.messaging.event.publish(_37,_3c);
+};
+_33.wemEventType=_29;
+return _33;
+}else{
+return undefined;
+}
+}}};
+OT.wem.messaging.context={getContext:function(){
+var ctx={};
+ctx=OT.wem.combine(ctx,this.internal.context);
+return ctx;
+},get:function(key){
+if(key&&OT.wem.messaging.context.exists(key)){
+return this.internal.context[key];
+}else{
+return undefined;
+}
+},set:function(key,_40){
+if(key&&_40){
+this.internal.context[key]=_40;
+return true;
+}else{
+return false;
+}
+},remove:function(key){
+if(key&&this.internal.context[key]){
+delete this.internal.context[key];
+return true;
+}else{
+return false;
+}
+},exists:function(key){
+return this.internal.context.hasOwnProperty(key);
+},internal:{context:{}}};
+OT.wem.messaging.event={TOPIC:"/ot/wem/messaging/event",RELOAD_COMPONENT:"RELOAD_COMPONENT",RELOAD_PAGE:"RELOAD_PAGE",CONTEXT_ADD:"CONTEXT_ADD",CONTEXT_REMOVE:"CONTEXT_REMOVE",CONTEXT_UPDATE:"CONTEXT_UPDATE",CONTEXT_CHANGE:"CONTEXT_CHANGE",subscribe:function(_43,_44){
+OT.wem.query(_1).on(OT.wem.messaging.event.TOPIC+"/"+_43,_44);
+},unsubscribe:function(_45,_46){
+OT.wem.query(_1).off(OT.wem.messaging.event.TOPIC+"/"+_45,_46);
+},clearSubscriptions:function(_47){
+OT.wem.query(_1).off(OT.wem.messaging.event.TOPIC+"/"+_47);
+},publish:function(_48,_49){
+var _4a=OT.wem.query.Event(OT.wem.messaging.event.TOPIC+"/"+_48);
+_4a.preventDefault();
+OT.wem.query(_1).trigger(_4a,_49);
+}};
+OT.wem.messaging.Event=function(){
+if((arguments.length==1)&&(typeof arguments[0]=="object")){
+OT.wem.combine(this,arguments[0]);
+}
+};
+OT.wem.extend(OT.wem.messaging.Event,{eventType:"",data:{},origin:"",source:null,contextKey:"",contextValue:"",originalEvent:null,ports:[]});
+})(window);
+
+
+</script>
+
+</body>
+</html>

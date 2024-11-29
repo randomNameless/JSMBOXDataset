@@ -1,0 +1,3410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ou.eep.html</title>
+</head>
+<body>
+
+<script>
+// ----------------------------------------------------------
+// OU.EEP
+// ----------------------------------------------------------
+// The Open University © Copyright 2014. All rights reserved
+// Written by Paul Liu
+// paul.liu@open.ac.uk
+// ----------------------------------------------------------
+
+
+window.OU = window.OU || {};
+
+(function ($, EEP, window, document) {
+    EEP.version = "OU.EEP | v0.32 | Fix for inpage stick tabs";
+
+    var $window = $(window),
+        $document = $(document),
+        $HTMLBody = $('html, body');
+
+
+
+
+    EEP.helpers = {
+        scrollPageTo: function(ele, scrollExtra) {
+            var $el = $(ele);
+            if ($el.length > 0) {
+                $HTMLBody.animate({ scrollTop: $el.offset().top + scrollExtra }, "slow");
+            }
+        },
+        getMQ: function() {
+            return window.getComputedStyle(document
+                    .body,
+                    ':after')
+                .getPropertyValue('content'); // returns xs, sm, md, lg - depending on screen size
+        },
+        isIE7: function() {
+            if (navigator.appVersion.indexOf("MSIE 7.") !== -1) return true;
+            return false;
+        },
+        imgSrcToBackground: function(imgSrc, imgDest) {
+            imgSrc = imgSrc || 'img';
+
+            $(imgSrc).each(function () {
+                var img = $(this);
+                var src = $(img).attr('src');
+                var dest = imgDest || img;
+
+                // Add Src to destionation
+                $(dest).css('background-image', 'url(' + src + ')');
+
+                // remove original src
+                $(img).attr('src','');
+            });
+
+            return true;
+        },
+        positionModal: function(target) {
+            var modal = $(target),
+                modalH = 0,
+                modalW = 0,
+                winH = $window.height(),
+                winW = $document.width(),
+                modalLeft,
+                modalTop = 15,
+                isOpen = modal.hasClass('int-active');
+            if (modal) {
+                // if modal is not active, quickly activate is to get dimensions
+                if (!isOpen) {
+                    modal.addClass('int-active');
+                }
+                modalH = modal.find('.int-modal-inner').height();
+                modalW = modal.width();
+                if (!isOpen) {
+                    modal.removeClass('int-active');
+                }
+                // position modal in the centre of the screen
+                modalLeft = ((winW - modalW) / 2) + 'px';
+                if (modalH < winH) {
+                    modalTop = ((winH - modalH) / 2) + 'px';
+                    modal.css('position', 'fixed');
+                } else {
+                    // if modal is taller than the screen set position to absolute allow user to scroll
+                    if (target !== "#int-study-plan") {
+                        modal.css('position', 'fixed')
+                            .css('height', (winH - (modalTop * 2)) + 'px')
+                            .find('.interaction')
+                            .css('padding-top', '15px')
+                            .find('.int-modal-inner')
+                            .css('height', (winH - (modalTop * 3)) + 'px')
+                            .css('overflow-y', 'scroll')
+                            .css('webkit-overflow-scroll', 'scroll');
+                        modal.css('bottom', modalTop);
+                    }
+                }
+                modal.css('top', modalTop).css('left', modalLeft);
+            }
+        },
+        displayFlexEvenHeight: function() {
+            return {
+                defaultOptions: {
+                    parentClass: '.int-flex > *[class*="int-grid"]',
+                    childClass: '.int-notice',
+                    useOnReady: true,
+                    useOnResize: true,
+                    minWindowWidth: 769,
+                    checkFlex: true
+        },
+                init: function(options) {
+                    $.extend(this.defaultOptions, options);
+
+                    if (this.defaultOptions.useOnReady)
+                        this.addOnReady();
+
+                    if (this.defaultOptions.useOnResize)
+                        this.addOnResize();
+
+                },
+                addOnReady: function() {
+                    var thisObj = this;
+                    $(document)
+                        .ready(function() {
+                            thisObj.displayFlex(thisObj.defaultOptions.parentClass,
+                                thisObj.defaultOptions.childClass,
+                                thisObj.defaultOptions.minWindowWidth, thisObj.defaultOptions.checkFlex);
+                        });
+                },
+                addOnResize: function() {
+                    var thisObj = this;
+                    $(window)
+                        .on('resize', function() {
+                            thisObj.displayFlex(thisObj.defaultOptions.parentClass,
+                                thisObj.defaultOptions.childClass,
+                                thisObj.defaultOptions.minWindowWidth, thisObj.defaultOptions.checkFlex);
+                        });
+                },
+                displayFlex: function (parentEl, childEl, minWindowWidth, checkFlex) {
+
+                    // check if flex is not supported and the window is greater then the min-width CSS property of the element
+                    if (((checkFlex && $('html').hasClass('no-flexbox')) || !checkFlex) && $(window).width() > minWindowWidth) {
+
+                        //Get the longest height
+                        var heightTop = 0;
+                        for (var p = 0; p < $(parentEl).length; p++) {
+                            var parentCtrl = $(parentEl)[p];
+
+                            //Reset height
+                            $(parentCtrl).find(childEl).height('auto');
+
+                            for (var i = 0; i < $(parentCtrl).find(childEl).length; i++) {
+
+                                var childCtrl = $(parentCtrl).find(childEl)[i];
+                                var childHeight = 0;
+                                $(childCtrl).children().each(function () {
+                                    childHeight += $(this).outerHeight(true);
+                                });
+                                if (childHeight > heightTop)
+                                    heightTop = childHeight;
+                            };
+
+                            //Set the height and width
+                            $(parentCtrl).find(childEl).height(heightTop);
+                        };
+
+                    } else if ($(window).width() < minWindowWidth) {
+
+                        //remove height property
+                        $(parentEl).find(childEl).height('');
+
+                    }
+                }
+            }
+        },
+        disableButton: function (el, wording) {
+            $(el).prop('disabled', true);
+            if (wording.length > 0)
+                $(el).val(wording);
+        },
+        getKeyByValue: function(object, value) {
+            for (var prop in object) {
+                if (object.hasOwnProperty(prop)) {
+                    if (object[prop] === value)
+                        return prop;
+                }
+            }
+        }
+    };
+    EEP.accessibility = (function () {
+        //Country Selector Dialog
+        var $countrySelectorDialog = $('#country_selection_dialog'),
+            $studyPlan = $('a[href="#int-study-plan"], #int-study-plan');
+
+        if ($countrySelectorDialog.length) {
+            $countrySelectorDialog.attr({
+                'aria-live': 'assertive',
+                'role': 'alert'
+            });
+        }
+
+        if ($studyPlan.length) {
+            $studyPlan.attr({
+                'aria-hidden': 'true'
+            });
+        }
+    })();
+
+    EEP.loopObject = function (object, callback) {
+        var key;
+
+        for (key in object) {
+            if (object.hasOwnProperty(key)) {
+                callback(key, object[key])
+            }
+        }
+    };
+    //Aria
+    var ariaEEP = {};
+    ariaEEP.hidden = function ($el) {
+        var isHidden = $el.is(':hidden');
+
+        $el.attr('aria-hidden', isHidden).attr('aria-expanded', !isHidden);
+    };
+
+    ariaEEP.Alert = function (options) {
+        var base = this;
+
+        base.opts = $.extend({}, base.defaults, options);
+
+        if (base.opts.init) {
+            base.init(options);
+        }
+    };
+    ariaEEP.Alert.prototype = {
+        defaults: {
+            init: true, //set as false to skip the automatic initialisation. Init manually.
+            message: '',
+            $alertTargetContainer: null, //Leave as null if you want to manually raise the alert by appending it to the DOM at a later time
+            destroyDelay: null, //leave as null to prevent automatic removal of alert from dom. Remember to manually remove when alert not needed anymore.
+            classes: 'int-hide int-screenReaderAlert',
+            attributes: {
+                'role': 'alert'
+            }
+        },
+        init: function () {
+            var base = this,
+                opts = base.opts;
+
+            base.buildAlert(opts.message, opts.classes, opts.attributes);
+            if (opts.$alertTargetContainer !== null) {
+                base.appendAlertToDOM(opts.$alertTargetContainer);
+            }
+            if (opts.destroyDelay !== null) {
+                base.removeAlertFromDOM(opts.destroyDelay);
+            }
+
+            return base;
+        },
+        buildAlert: function (message, classes, attributes) {
+            var base = this,
+                opts = base.opts;
+
+            //Build alert
+            base.$alert = $('<div>' + message + '</div>').addClass(classes);
+
+            //Add attributes
+            EEP.loopObject(attributes, function (key, value) {
+                base.$alert.attr(key.toString(), value.toString());
+            });
+
+            return base;
+        },
+        appendAlertToDOM: function ($container) {
+            var base = this;
+
+            $container.append(base.$alert);
+
+            return base;
+        },
+        removeAlertFromDOM: function (delay) {
+            var base = this;
+
+            if (delay) {
+                setTimeout(function () {
+                    base.$alert.remove();
+                }, delay);
+            } else {
+                base.$alert.remove();
+            }
+
+            return base;
+        }
+    };
+
+    EEP.spinner = (function () {
+        if (window.Spinner && window.OU.Widgets.Throbber) {
+            $('<style>#int-throbber { display: none; position: fixed !important; top: 50% !important; left: 50% !important; z-index: 999999;} .int-throbberOverlay { z-index: 9999999; background: #000; position: fixed; width: 100%; height: 100%; top: 0; left: 0; visibility: visible; opacity: .5; filter: alpha(opacity=50); }</style>').appendTo('head');
+
+            EEP.Throbber = new window.OU.Widgets.Throbber($('<div id="int-throbber" class="int-throbber"><div class="int-throbberOverlay"></div></div>').appendTo('body'), {
+                lines: 13, // The number of lines to draw
+                length: 0, // The length of each line
+                width: 8, // The line thickness
+                radius: 25, // The radius of the inner circle
+                corners: 1, // Corner roundness (0..1)
+                rotate: 0, // The rotation offset
+                color: '#fff', // #rgb or #rrggbb
+                speed: 1, // Rounds per second
+                trail: 60, // Afterglow percentage
+                shadow: true, // Whether to render a shadow
+                hwaccel: false, // Whether to use hardware acceleration
+                className: 'int-throbber', // The CSS class to assign to the spinner
+                zIndex: 2e9, // The z-index (defaults to 2000000000)
+                top: 'auto', // Top position relative to parent in px
+                left: 'auto' // Left position relative to parent in px
+            });
+
+            return true;
+        } else {
+            return false;
+        }
+    })();
+
+
+    $document.ready(function () {
+        if (window.OU.Widgets) {
+            $('#int-site').OUAlerts(); //Has to be hooked onto  int-site not int-content as the latter uses main as its tag which causes issues in ie8 and below
+        }
+    });
+
+    EEP.Tooltip = function ($el, options) {
+        this.options = $.extend({}, this.defaults, options);
+        this.$trigger = $el;
+        this.$context = this.options.contextSelector ? $(this.options.contextSelector) : $el;
+        this.$tooltip = $(this.options.tooltipSelector).addClass(this.options.tooltipClass);
+        this.$tooltipContent = this.$tooltip.find(this.options.tooltipContentContainerSelector);
+        this.$closeTooltipButton = this.$tooltip.find(this.options.closeTooltipButtonSelector);
+        this.init();
+    };
+    EEP.Tooltip.prototype = {
+        defaults: {
+            contextSelector: undefined,
+            tooltipSelector: undefined,
+            toggle: false,
+            tooltipClass: 'int-tooltip',
+            inputTooltip: false,
+            closeTooltipButtonSelector: '.close-tooltip',
+            tooltipContentContainerSelector: '.tooltip-content-container',
+            hideOtherOpenTooltips: true,
+            positionOptions: function (context) {
+                return {
+                    my: "left top+1",
+                    at: "right top+1",
+                    of: context,
+                    collision: "flip",
+                    within: '.int-container',
+                    using: function (obj, info) {
+
+                        //if top side add class tooltip_top and remove class tooltip_bottom, then visa virsa
+                        var tooltipBottom = (info.vertical !== "top" ? "top" : "bottom");
+                        $(this).addClass("tooltip_" + tooltipBottom);
+                        $(this).removeClass("tooltip_" + (tooltipBottom === "top" ? "bottom" : "top"));
+
+                        var tooltipSide = (info.horizontal !== "left" ? "left" : "right");
+
+                        //if left side add class tooltip_left and remove class tooltip_right, then visa virsa
+                        $(this).addClass("tooltip_" + tooltipSide);
+                        $(this).removeClass("tooltip_" + (tooltipSide === "left" ? "right" : "left"));
+
+                        //if tooltip is on the left then move it 20 pixels from location
+                        var posLeft = (tooltipSide === "left" ? (Number(obj.left) - 20) : (Number(obj.left) + 20));
+                        var posTop = (tooltipBottom === "top" ? (Number(obj.top) + 20) : (Number(obj.top) - 20));
+
+                        $(this).css({
+                            left: posLeft + "px",
+                            top: posTop + "px"
+                        });
+                    }
+                }
+            },
+            triggerATTR: {
+                'role': 'button',
+                'aria-controls': ''
+            },
+            tooltipATTR: {
+                'aria-live': 'assertive',
+                'aria-label': 'Button controlled tooltip',
+                'role': 'dialog'
+            },
+            tooltipContentATTR: {
+                'aria-label': 'Begin tooltip information'
+            },
+            tooltipContentCSS: {
+                'margin-top': '0'
+            },
+            closeTooltipButtonCSS: {
+                'position': 'absolute',
+                'top': '-.8em',
+                'right': '-.8em'
+            },
+            closeTooltipButtonATTR: {
+                'aria-label': 'Close tooltip',
+                'role': 'button',
+                'aria-controls': '',
+                'title': 'Close tooltip'
+            }
+        },
+        init: function () {
+            this.$tooltip.hide();
+
+            return this
+                .setTriggerClickHandler()
+                .setTriggerFocusBlurHandler()
+                .setCloseTooltipButtonClickHandler()
+                .setCloseTooltipEscape()
+                .aria();
+        },
+        setTriggerClickHandler: function () {
+            var base = this;
+
+            if (!base.options.inputTooltip) {
+                this.$trigger.on('click', function (e) {
+                    e.preventDefault();
+                    if (base.options.toggle) {
+                        base.$tooltip.toggle().filter(':visible').focus();
+                    } else {
+                        base.$tooltip.show().focus();
+                    }
+                    base.hideOtherTooltips();
+                    base.positionTooltip();
+                });
+            }
+
+            return this;
+        },
+        hideOtherTooltips: function () {
+            if (this.options.hideOtherOpenTooltips) {
+                $('.' + this.options.tooltipClass).not(this.$tooltip).hide();
+            }
+            return this;
+        },
+        setTriggerFocusBlurHandler: function () {
+            var base = this;
+
+            if (base.options.inputTooltip) {
+                this.$trigger.on({
+                    'focus': function () {
+                        base.$tooltip.show();
+                        base.positionTooltip();
+                    },
+                    'blur': function () {
+                        base.$tooltip.hide();
+                    }
+                });
+            }
+
+            return this;
+        },
+        positionTooltip: function () {
+            var base = this;
+
+            base.$tooltip.position(base.options.positionOptions(base.$context));
+
+            return this;
+        },
+        setCloseTooltipButtonClickHandler: function () {
+            var base = this;
+
+            if (!base.options.inputTooltip) {
+                this.$closeTooltipButton.on('click', function (e) {
+                    e.preventDefault();
+                    base.$tooltip.hide();
+                    base.$trigger.focus();
+                });
+                this.$closeTooltipButton.on('keydown', function (e) {
+                    e.preventDefault();
+                    if (e.which == 9 || e.which == 16) {
+                        this.focus();
+                    }
+                    if (e.key == "Escape" || e.which == 13) {
+                        base.$tooltip.hide();
+                        base.$trigger.focus();
+                    }
+                });
+            }
+
+            return this;
+        },
+        setCloseTooltipEscape: function () {
+            var base = this;
+            if (!base.options.inputTooltip) {
+                this.$tooltip.on('keyup', function (e) {
+                    e.preventDefault();
+                    if (e.key == "Escape") {
+                        base.$tooltip.hide();
+                        base.$trigger.focus();
+                    }
+                });
+                return this;
+            }
+        },
+        aria: function () {
+            var base = this,
+                o = base.options,
+                $tooltip = this.$tooltip.uniqueId(),
+                tooltipId = $tooltip.attr('id');
+
+            o.triggerATTR['aria-controls'] = tooltipId
+
+            this.$trigger.attr(o.triggerATTR);
+
+            $tooltip.attr(o.tooltipATTR);
+
+            this.$tooltipContent.attr(o.tooltipContentATTR).append('<div aria-label="End tooltip information"></div>');
+
+            if (this.$closeTooltipButton.length) {
+                this.$tooltipContent.css(o.tooltipContentCSS);
+
+                o.closeTooltipButtonATTR['aria-controls'] = tooltipId;
+
+                this.$closeTooltipButton.attr(o.closeTooltipButtonATTR).css(o.closeTooltipButtonCSS);
+            }
+
+            return this;
+        }
+    };
+
+    EEP.AccountsTab = function ($el, options) {
+        this.options = $.extend({}, this.defaults, options);
+        this.$container = $el;
+        this.$tabpanels = $el.children('section');
+        this.$tablist = $el.find('nav').find('ul');
+        this.$pills = this.$tablist.find('li');
+        this.$tabs = this.$pills.find('a');
+        this.$mobileNavToggle = $(this.options.mobileNavToggleSelector);
+        this.$accountTabsNav = $(this.options.accountTabsNavSelector);
+        this.$lastTabClicked = undefined;
+        this.init();
+    };
+    EEP.AccountsTab.prototype = {
+        defaults: {
+            isFormClean: undefined,
+            formHasChanged: undefined,
+            formHasChangedFunction: undefined,
+            mobileNavToggleSelector: '#account-tabs-toggle',
+            accountTabsNavSelector: '#account-tabs-nav',
+            navOpenClass: 'int-nav-open',
+            activeSectionClass: 'int-active-section'
+        },
+        init: function () {
+            return this
+                .showActiveTabSection()
+                .setTabClickHandler()
+                .enableMobileTabs()
+                .aria();
+        },
+        setTabClickHandler: function () {
+            var base = this;
+
+            this.$tabs.on('click', function (e) {
+                e.preventDefault();
+                base.$lastTabClicked = $(this);
+
+                var formIsClean = typeof base.options.isFormClean === 'function' ? base.options.isFormClean() : true;
+
+                if (formIsClean) {
+                    base.showLastClickedTabSection();
+                }
+            });
+            return this;
+        },
+        showLastClickedTabSection: function () {
+            var $lastTabClicked = this.$lastTabClicked;
+
+            if (typeof $lastTabClicked !== 'undefined') {
+                var $thisPill = $lastTabClicked.parent('li');
+
+                this.$pills.removeClass('active');
+                $thisPill.addClass('active');
+                this.hideInactiveTabSection();
+                this.showActiveTabSection();
+                this.updateAria();
+            }
+        },
+        showActiveTabSection: function () {
+            $(this.$pills.filter('.active').children('a').attr('href')).show();
+
+            return this;
+        },
+        hideInactiveTabSection: function () {
+            this.$pills.not('.active').children('a').each(function () {
+                $($(this).attr('href')).hide();
+            });
+
+            return this;
+        },
+        enableMobileTabs: function () {
+            var base = this,
+                navOpenClass = this.options.navOpenClass,
+                activeSectionSelector = '.' + this.options.activeSectionClass;
+
+            base.$mobileNavToggle.on('click', function (e) {
+                e.preventDefault();
+                base.$accountTabsNav.toggleClass(navOpenClass);
+            });
+
+            // set current active section title when it new tab is selected
+            base.$tabs.on('click', function (e) {
+                e.preventDefault();
+                base.$mobileNavToggle.find(activeSectionSelector).text($(this).text());
+                base.$accountTabsNav.removeClass(navOpenClass);
+            });
+
+            return this;
+        },
+        updateAria: function () {
+            //Aria Selected
+            this.$pills.each(function () {
+                var $this = $(this);
+
+                $this.children('a').attr('aria-selected', $this.hasClass('active').toString());
+            });
+            //Aria Hidden / Aria Expanded
+            this.$tabpanels.each(function () {
+                var $this = $(this),
+                    isHidden = $this.is(':hidden');
+
+                $this.attr({
+                    'aria-hidden': isHidden,
+                    'aria-expanded': !isHidden
+                })
+            });
+        },
+        aria: function () {
+            var base = this;
+
+            base.$tabs.each(function () {
+                var $this = $(this);
+                $this.uniqueId().attr({
+                    'role': 'tab',
+                    'aria-controls': $this.attr('href').slice(1).toString()
+                });
+            });
+
+            base.$tablist.attr('role', 'tablist');
+            base.$tabpanels.each(function () {
+                var $this = $(this);
+                $this.attr({
+                    'role': 'tabpanel',
+                    'aria-labelledby': $('a[href="#' + $this.attr('id') + '"]').attr('id').toString()
+                });
+            });
+
+            base.updateAria();
+
+            return base;
+        }
+    };
+
+    EEP.Toggler = function ($el, options) {
+        this.options = $.extend({}, this.defaults, options);
+        this.$container = $el;
+
+        this.$trigger = (
+            $el.has('.' + this.options.triggerClass).length > 0 ?
+                $el.find('.' + this.options.triggerClass) :
+                $el.find('.' + this.options.newTriggerClass)
+        );
+        this.triggerText = this.$trigger.text().replace(/^\s/g, '');
+        this.init();
+    };
+    EEP.Toggler.prototype = {
+        defaults: {
+            triggerClass: 'int-toggleTrigger',
+            togglerActiveClass: 'int-active',
+            newTriggerClass: 'int-textToggleTrigger',
+            currentState: {}
+        },
+        init: function () {
+            return this
+                .setTriggerHTML()
+                .setTriggerClickHandler()
+                .setContainerClickHandler()
+                .setInitialActive();
+        },
+        toggleGetState: function () {
+            return window.OU.EEP.currentToggleState;
+        },
+        toggleSetState: function (currentID) {
+            // Set current state ID
+            var currentState = {
+                'current': currentID,
+                toggleState: {}
+            }
+
+            // Get and set all states of all accordians
+            for (var i = 0; i < $('.' + this.options.triggerClass).length; i++) {
+                var item = $($('.' + this.options.triggerClass)[i]).parent().attr('id');
+                var itemState = $('#' + item).hasClass(this.options.togglerActiveClass);
+                currentState.toggleState[item] = itemState;
+            }
+
+            // place in global varible
+            window.OU.EEP.currentToggleState = currentState;
+        },
+        setInitialActive: function () {
+            // Get current State
+            var currentState = this.options.currentState;
+
+            //If not set then set index 0 to active and create State
+            if (typeof currentState === 'undefined' || currentState === null || $.isEmptyObject(currentState)) {
+                var parentToggle = $($('.' + this.options.triggerClass)[0]).parent();
+                $(parentToggle).addClass(this.options.togglerActiveClass);
+                this.toggleSetState($(parentToggle).attr('id'));
+            } else {
+                // loop each state item
+                for (var toggles in currentState.toggleState) {
+                    if (currentState.toggleState.hasOwnProperty(toggles)) {
+                        // If true then set active else inactive
+                        if (currentState.toggleState[toggles] === true || currentState.toggleState[toggles].toLowerCase() === 'true')
+                            $('#' + toggles).addClass(this.options.togglerActiveClass);
+                        else {
+                            $('#' + toggles).removeClass(this.options.togglerActiveClass);
+                        }
+                    }
+                }
+
+                $(document).ready(function () {
+                    //Give focus and scroll to position
+                    var h = $('#ou-header').outerHeight();
+                    OU.EEP.helpers.scrollPageTo($('#' + currentState.current), (h - (2 * h)));
+                    $('#' + currentState.current).focus();
+                });
+            }
+        },
+        setTriggerHTML: function () {
+
+            if (this.$trigger.attr("class") != this.options.newTriggerClass) {
+                this.$trigger.html('<a href="" aria-expanded="true" aria-label="' + this.triggerText + ', see all"><b class="int-icon-btn closed"><i class="int-icon int-icon-chevron-right"></i></b><b class="int-icon-btn open"><i class="int-icon int-icon-chevron-down"></i></b><span>' + this.triggerText + '</span></a>');
+            }
+            return this;
+        },
+        setTriggerClickHandler: function () {
+            var base = this;
+            // Click event for the toggle trigger
+            this.$trigger.on('click', function (e) {
+                e.preventDefault();
+                base.$container.toggleClass(base.options.togglerActiveClass);
+                //toggle text triggers content from more to less
+                var eContent = (typeof e.target.innerText != "undefined" ? e.target.innerText : e.target.textContent);
+                if (e.target.className == base.options.newTriggerClass) eContent.indexOf("more") > -1 ? $(this).text(eContent.replace("more", "less")) : $(this).text(eContent.replace("less", "more"));
+
+                // Adjust aria flag on expand and collapse
+
+                if ($(this).children('a').attr('aria-expanded') == "true") {
+                    $(this).children('a').attr('aria-expanded', false);
+                } else {
+                    $(this).children('a').attr('aria-expanded', true);
+                }
+                    
+
+                var currentID = $(this).parent().attr('id');
+                base.toggleSetState(currentID);
+
+
+            });
+            return this;
+        },
+        setContainerClickHandler: function () {
+            var base = this;
+            // Click event for any click inside the accrodian
+            this.$trigger.parent().on('click', function () {
+                var currentID = $(this).attr('id');
+                base.toggleSetState(currentID);
+            });
+            return this;
+        }
+    };
+
+    EEP.SkipToMainContentButton = function ($el, options) {
+        this.options = $.extend({}, this.defaults, options);
+        this.$button = $el;
+        this.$mainContentArea = $(this.options.mainContentAreaSelector);
+        this.$siteArea = $(this.options.siteAreaSelector);
+        this.init();
+    };
+    EEP.SkipToMainContentButton.prototype = {
+        defaults: {
+            siteAreaSelector: '#int-site',
+            mainContentAreaSelector: '#int-content'
+        },
+        init: function () {
+
+            return this
+                .setJumpLinkClickHandler()
+                .setSkipToMainContentButtonClickHandler();
+        },
+        setJumpLinkClickHandler: function () {
+            $('body').not('.fn-jumplinks').addClass('fn-jumplinks').on('click', 'a[href^="#"]', function () {
+                $('#' + $(this).attr('href').slice(1) + "").focus(); // give that id focus (for browsers that didn't already do so)
+            });
+            this.$mainContentArea.css("outline", "0");
+            this.$siteArea.css("outline", "0"); //Removes orange outline in chrome on focus.
+
+            return this;
+        },
+        setSkipToMainContentButtonClickHandler: function () {
+            var base = this;
+
+            this.$button.on('click', function () {
+                EEP.helpers.scrollPageTo(base.$mainContentArea);
+            });
+
+            return this;
+        }
+    };
+
+    EEP.BackToTopButton = function ($el, options) {
+        this.options = $.extend({}, this.defaults, options);
+        this.$button = $el;
+        this.$mainContentArea = $(this.options.mainContentAreaSelector);
+        this.$siteArea = $(this.options.siteAreaSelector);
+        this.$window = $(window);
+        this.init();
+    };
+    EEP.BackToTopButton.prototype = {
+        defaults: {
+            siteAreaSelector: '#int-site',
+            mainContentAreaSelector: '#int-content',
+            backToTopButtonSelector: '#int-btn-top',
+            mainContentTop: 0
+        },
+        init: function () {
+            return this
+                .setWindowScrollHandler()
+                .setBackToTopButtonClickHandler();
+        },
+        checkScrollPosition: function () {
+            if (this.$window.scrollTop() > this.options.mainContentTop) {
+                this.$button.addClass('scrollIn');
+            } else {
+                this.$button.removeClass('scrollIn');
+            }
+            return this;
+        },
+        setWindowScrollHandler: function () {
+            var base = this;
+
+            this.$window.on('scroll', function () {
+                base.checkScrollPosition();
+            });
+
+            return base;
+        },
+        setBackToTopButtonClickHandler: function () {
+            var base = this;
+
+            this.$button.on('click', function () {
+                EEP.helpers.scrollPageTo(base.$siteArea);
+            });
+
+            return base;
+        }
+    };
+
+    //TODO REFACTOR Courses form. Is this used?
+    EEP.CoursesForms = function ($el, options) {
+        this.options = $.extend({}, this.defaults, options);
+        this.init();
+    };
+    EEP.CoursesForms.prototype = {
+        defaults: {
+            feesFundingItems: ['credits', 'degree', 'income', 'employed'] // array of form items
+        },
+        init: function () {
+            return this.enableFeesFundingForm();
+        },
+        hideFeesOption: function () {
+            $('.int-fees-option').removeClass('int-fees-option-active');
+        },
+        showFeesOption: function () {
+            this.hideFeesOption();
+            $('#int-fees-option1').addClass('int-fees-option-active');
+            OUApp.Helpers.scrollPageTo('#int-fees-option1');
+        },
+        setButtonState: function (btn, enabled) {
+            var that = this,
+                btn = $('#' + btn);
+
+            if (enabled) {
+                btn.removeAttr('disabled').removeClass('int-button-disabled');
+                btn.on('click', function () {
+                    that.showFeesOption();
+                });
+            } else {
+                btn.attr('disabled', true);
+            }
+        },
+        checkFeesFundingForm: function () {
+            var i,
+                valid = true;
+            for (i = 0; i < this.feesFundingItems.length; i = i + 1) {
+                if (this.feesFundingItems[i] === "credits") { // credits is a selectbox
+                    if ($('#' + this.feesFundingItems[i]).val() === "") {
+                        valid = false;
+                    }
+                } else {
+                    if ($('input[name=' + this.feesFundingItems[i] + ']:checked').length < 1) {
+                        valid = false;
+                    }
+                }
+            }
+            this.setButtonState('int-btn-feesFunding', valid);
+        },// validate form items
+        enableFeesFundingForm: function () {
+            var that = this;
+            $('#int-fees-funding-form input[type=radio], #int-fees-funding-form select').on('change', function () {
+                that.checkFeesFundingForm();
+            });
+            this.setButtonState('int-btn-feesFunding', false);
+
+            return this;
+        } // validate form every time an item changes
+    };
+
+    //Old Tabs - Course Details Tab Infographics
+    EEP.InPageStickyTabs = function ($el, options) {
+        this.options = $.extend({}, this.defaults, options);
+        this.$stickyTabs = $el;
+        this.$tabs = $el.find('ul').find('a');
+        this.$mobileNavToggle = $el.find('.' + this.options.mobileNavToggleClass);
+        this.$activeSection = this.$mobileNavToggle.find('.' + this.options.activeSectionClass);
+        this.stickyNavTop = 0;
+        this.$courseTabs = $(this.options.courseTabsSelector);
+        this.$studyPlan = $(this.options.studyPlanSelector);
+        this.$studyPlanTabs = $(this.options.studyPlanTabsSelector);
+        this.init();
+    };
+    EEP.InPageStickyTabs.prototype = {
+        defaults: {
+            stickyClass: '',
+            activeSectionClass: 'int-active-section',
+            mobileNavToggleClass: 'int-sticky-toggle',
+            courseTabsSelector: '#int-course-detail-tabs',
+            studyPlanSelector: '#int-study-plan',
+            studyPlanTabsSelector: '#int-study-plan-tabs'
+        },
+        init: function () {
+            return this
+                .enableTabs()
+                .positionStickyNav()
+                .setWindowScrollHandler()
+                .setWindowResizeHandler()
+                .enableMenuToggle('int-course-nav') // enable mobile nav toggle
+                .setTabClickHandler()
+                .setMobileTabText();
+        },
+        stickyNav: function () {
+            var $stickyTabs = this.$stickyTabs,
+                stickyClass = this.options.stickyClass,
+                scrollTop = $window.scrollTop(); // check how far the window has scrolled
+
+            if (scrollTop > this.stickyNavTop) { // check if sticky item is passed top of screen
+                $stickyTabs.addClass(stickyClass);
+            } else {
+                $stickyTabs.removeClass(stickyClass);
+            }
+
+            return this;
+        },
+        positionStickyNav: function () {
+            var $stickyTabs = this.$stickyTabs;
+
+            if ($stickyTabs.length > 0) {
+                $stickyTabs.removeClass('int-sticky'); // put sticky back in original position
+                this.stickyNavTop = $stickyTabs.offset().top; // get top value of sticky item
+                this.stickyNav();
+            }
+
+            return this;
+        },
+        setWindowScrollHandler: function () {
+            var base = this;
+
+            $window.on('scroll', function () {
+                base.stickyNav(); // check nav pos on scroll
+            });
+
+            return base;
+        },
+        setWindowResizeHandler: function () {
+            var base = this;
+
+            $window.on('resize', function () {
+                base.positionStickyNav(); // reposition nav when window resizes
+            });
+
+            return base;
+        },
+        toggleMenu: function (target) {
+            $('#' + target).toggleClass('int-nav-open');
+
+            return this;
+        },
+        enableMenuToggle: function (target) {
+            var base = this;
+
+            this.$mobileNavToggle.on('click', function (e) {
+                e.preventDefault();
+                base.toggleMenu(target);
+            });
+
+            return this;
+        },
+        setTabClickHandler: function () {
+            var base = this;
+
+            // set current active section title when it new tab is selected
+            this.$tabs.on('click', function () {
+                base.$activeSection.text($(this).text());
+                base.toggleMenu('int-course-nav'); // close the menu
+            });
+
+            return this;
+        },
+        //Todo Refactor below, and decouple
+        setStudyPlanPanelHeight: function () {
+            var $studyPlanTabs = this.$studyPlanTabs,
+                tabHeight = $studyPlanTabs.height(),
+                headHeight = $studyPlanTabs.find('nav').height(),
+                winHeight = $window.height() - 30,
+                targetTab = $studyPlanTabs.find('.ui-tabs-active a').attr('href');
+
+            if (tabHeight > winHeight) {
+                $(targetTab).css('height', (winHeight - headHeight) + 'px');
+            }
+
+        },
+        enableTabs: function () {
+            var base = this,
+                $courseTabs = this.$courseTabs;
+
+            // enable tabs - jquery UI control
+            $courseTabs.tabs({
+                beforeActivate: function (event, ui) {
+                    window.location.hash = ui.newTab.find('a').attr('href');
+                    OUApp.Helpers.scrollPageTo('#int-course-detail-tabs');
+                }
+            });
+
+            this.$studyPlanTabs.tabs({
+                activate: function (event, ui) {
+                    base.setStudyPlanPanelHeight();
+                    EEP.helpers.positionModal(base.$studyPlan);
+                }
+            });
+
+            this.positionStickyNav();
+
+            // enable other tab initializing links
+            $('.loadTab').on('click', function (e) {
+                e.preventDefault();
+                var tab = $(this).attr('href'), // get target tabs
+                    tabIndex = $('section', $courseTabs).index($(tab)), // get tab index
+                    activeTab = $courseTabs.tabs("option", "active"); // get active tab index
+                if (tabIndex !== activeTab) {
+                    $courseTabs.tabs("option", "active", tabIndex); // activate tab
+                } else {
+                    EEP.helpers.scrollPageTo(base.options.courseTabsSelector);
+                }
+            });
+
+            return this;
+        },
+        setMobileTabText: function () {
+            var selectedTabText = $('.int-sticky-inpage ul .ui-state-active a').text(); // Get the selected tab text - DV
+            $('#int-course-nav-toggle').find('.int-active-section').text(selectedTabText); //Apply the selected tab text to header - DV
+
+            return this;
+        }
+    };
+
+    //Search Qualifications Object
+    EEP.searchObj = function (options) {
+        this.options = $.extend({}, this.defaults, options);
+        this.init();
+    }
+    EEP.searchObj.prototype = {
+        defaults: {
+            selectorKeywords: null,
+            txtSearchItem: ".searchTextarea",
+            btnSearchItem: ".searchBtn",           
+            redirectUrl: "/courses/find",
+            autocompleteUrl: "/courses/CMSPages/OU/CourseSearchService.asmx/GetKeywords",
+            ariaAutoCompleteLabel: ".autocomplete_label",
+            topCount:0
+},
+        init: function () {
+            this.setEvents();
+            this.setReSize();
+        },
+        setEvents: function() {
+            var base = this;
+            var options = base.options;
+
+            //Check if dax is loaded already
+            if (base.isScriptAlreadyIncluded() === false) {
+                var js = document.createElement("script");
+
+                js.type = "text/javascript";
+                js.src = "/courses/CMSScripts/Custom/OUJavaScriptFiles/OU-DAX-tracking.js";
+
+                document.body.appendChild(js);
+            }
+
+            //Add keydown event to textarea
+            $(options.txtSearchItem).on("keydown", function (e) {
+                if (e.keyCode == 13) {
+                    base.doSearch();
+                    return false;
+                }
+                return true;
+            });
+            //Add click event to button
+            $(options.btnSearchItem).on("click", function (e) {
+                base.doSearch();
+                return false;
+            });
+            //Add Autocomplete event to textarea
+            $(options.txtSearchItem).autocomplete({
+                minLength: 3,
+                source: function (request, response) {
+                    if (options.selectorKeywords == null) {
+                        // pass request to server, the return is a list of keyword to match the user input
+                        $.ajax({
+                            url: options.autocompleteUrl,
+                            contentType: "application/json",
+                            dataType: "json",
+                            success: function (data) {
+                                options.selectorKeywords = data.d;
+                                response = base.searchKeywordsList(options.selectorKeywords, request, response);
+                            }
+                        });
+                    } else {
+                        base.searchKeywordsList(options.selectorKeywords, request, response);
+                    }
+                },
+                select: function (event, ui) {
+                    if (ui.item.id != 0) {
+                        $(options.txtSearchItem).val(ui.item.label);
+                    }
+                    return false;
+                },
+                open: function (event, ui) {
+                    $('.ui-autocomplete').attr("aria-expanded", "true");
+                    $('.ui-helper-hidden-accessible').css({'display':'none'});
+                },
+                close: function (event, ui) {
+                    $('.ui-autocomplete').attr("aria-expanded", "false");
+                }
+            }).data("ui-autocomplete")._renderItem = function (ul, item) {
+
+                var reg = new RegExp("" + this.term, "i");
+
+                return $("<li class='ui-menu-item " + ($(ul).children().length === options.topCount && options.topCount !== 0 ? "ui-menu-divide" : "") + " ' role='option' >")
+                              .append("<a class='ui-corner-all' tabindex='-1'>" + item.value.replace(reg, "<span class='matched-highlight'>" + "$&" + "</span>") + "</a>")
+                              .appendTo(ul);
+            };
+            $(".ui-autocomplete").attr("role", "listbox");
+        },
+        setReSize: function () {
+            var base = this;
+            var options = base.options;
+            $(window).on('resize', function () {
+                var position = $(options.txtSearchItem).offset();
+                var properties = {
+                    left: position.left,
+                    top: position.top + $(options.txtSearchItem).outerHeight(),
+                    width: $(options.txtSearchItem).outerWidth()
+            };
+                $(".ui-autocomplete").css(properties);
+            });
+        },
+        isScriptAlreadyIncluded: function () {
+            var scripts = document.getElementsByTagName("script");
+            for (var i = 0; i < scripts.length; i++)
+                if (scripts[i].getAttribute("src") != null && scripts[i].getAttribute("src").indexOf("OU-DAX-tracking.js") > -1) return true;
+            return false;
+        },
+        searchKeywordsList: function (keywords, request, response) {
+            var options = this.options;
+            var matcher = new RegExp($.ui.autocomplete.escapeRegex(request.term), "i");
+            var matches = $.grep(keywords, function (item) {
+                return matcher.test(item);
+            });
+            if (matches == 0) {
+                matches.push({
+                    id: 0,
+                    label: "No matches found"
+                });
+                $(options.ariaAutoCompleteLabel).text("No matches found");
+                $('.ui-autocomplete').attr("aria-expanded", "false");
+            } else {
+                $(options.ariaAutoCompleteLabel).text(matches.length + " new suggestions shown below. Use the arrow keys to navigate them.");
+            }
+
+            //Get all terms that begin with search word and put them first
+            var topList = [];
+            var bottomList = [];
+            var searchTerm = request.term.toLowerCase();
+            if (typeof matches[0] != 'object') {
+                try {
+                    for (var i = 0; i < matches.length; i++) {
+                        (matches[i].toLowerCase().startsWith(searchTerm) ? topList.push(matches[i]) : bottomList.push(matches[i]));
+                    }
+                } catch (ex) {
+                    //console.error(ex);
+                    topList = matches;
+                }
+            } else {
+                topList = matches;
+            }
+            options.topCount = topList.length;
+            response(topList.concat(bottomList));
+        },
+        doSearch: function () {
+            var options = this.options;
+            var maxLength = 260;
+            var selectedItem = $(options.txtSearchItem).val();
+
+            selectedItem = selectedItem.replace(/ /g, '-');
+            selectedItem = selectedItem.replace(/\./g, '');
+            selectedItem = selectedItem.replace(/:/g, '');
+            selectedItem = selectedItem.replace(/\//g, '');
+            selectedItem = selectedItem.replace(/\&/g, '');
+            selectedItem = selectedItem.replace(/\%/g, '');
+            selectedItem = selectedItem.replace(/\*/g, '');
+            selectedItem = selectedItem.replace(/\+/g, '');
+            selectedItem = selectedItem.replace(/\</g, '');
+            selectedItem = selectedItem.replace(/\>/g, '');
+            selectedItem = selectedItem.replace(/\\/g, '');
+            selectedItem = selectedItem.replace(/\;/g, '');
+
+            selectedItem = selectedItem.substring(0, maxLength);
+
+            var redirectUrl = options.redirectUrl + "/" + selectedItem;
+
+            window.open(redirectUrl, "_self");
+        }
+    }
+
+    //SearchStudyLevel Qualifications Object
+    EEP.searchCourseObj = function (options) {
+        this.options = $.extend({}, this.defaults, options);
+        this.init();
+    }
+    EEP.searchCourseObj.prototype = {
+        defaults: {
+            selectorKeywords: null,
+            txtSearchItem: ".searchTextarea",
+            btnSearchItem: ".searchBtn",
+            studylevel: ".searchStudylevel:checked",
+            redirectUrl: "/courses/find",
+            //autocompleteUrl: "/courses/CMSPages/OU/CourseSearchService.asmx/GetKeywords",
+            ariaAutoCompleteLabel: ".autocomplete_label",
+            topCount: 0
+        },
+        init: function () {
+            this.setEvents();
+            this.setReSize();
+        },
+        setEvents: function () {
+            var base = this;
+            var options = base.options;
+
+            //Check if dax is loaded already
+            if (base.isScriptAlreadyIncluded() === false) {
+                var js = document.createElement("script");
+
+                js.type = "text/javascript";
+                js.src = "/courses/CMSScripts/Custom/OUJavaScriptFiles/OU-DAX-tracking.js";
+
+                document.body.appendChild(js);
+            }
+
+            //Add keydown event to textarea
+            $(options.txtSearchItem).on("keydown", function (e) {
+                if (e.keyCode == 13) {
+                    base.doSearch();
+                    return false;
+                }
+                return true;
+            });
+            //Add click event to button
+            $(options.btnSearchItem).on("click", function (e) {
+                base.doSearch();
+                return false;
+            });
+            $(".ui-autocomplete").attr("role", "listbox");
+        },
+        setReSize: function () {
+            var base = this;
+            var options = base.options;
+            $(window).on('resize', function () {
+                var position = $(options.txtSearchItem).offset();
+                var properties = {
+                    left: position.left,
+                    top: position.top + $(options.txtSearchItem).outerHeight(),
+                    width: $(options.txtSearchItem).outerWidth()
+                };
+                $(".ui-autocomplete").css(properties);
+            });
+        },
+        isScriptAlreadyIncluded: function () {
+            var scripts = document.getElementsByTagName("script");
+            for (var i = 0; i < scripts.length; i++)
+                if (scripts[i].getAttribute("src") != null && scripts[i].getAttribute("src").indexOf("OU-DAX-tracking.js") > -1) return true;
+            return false;
+        },
+        
+        doSearch: function () {
+            var options = this.options;
+            var maxLength = 260;
+            var selectedItem = $(options.txtSearchItem).val();
+            var studyLevelItem = $(options.studylevel).val();
+
+            selectedItem = selectedItem.replace(/\./g, '');
+            selectedItem = selectedItem.replace(/:/g, '');
+            selectedItem = selectedItem.replace(/\//g, '');
+            selectedItem = selectedItem.replace(/\&/g, '');
+            selectedItem = selectedItem.replace(/\%/g, '');
+            selectedItem = selectedItem.replace(/\*/g, '');
+            selectedItem = selectedItem.replace(/\+/g, '');
+            selectedItem = selectedItem.replace(/\</g, '');
+            selectedItem = selectedItem.replace(/\>/g, '');
+            selectedItem = selectedItem.replace(/\\/g, '');
+            selectedItem = selectedItem.replace(/\;/g, '');
+
+            selectedItem = selectedItem.substring(0, maxLength);
+
+            var encodeSelectedItem = encodeURI(selectedItem);
+
+            var redirectUrl = options.redirectUrl + "?keyword=" + encodeSelectedItem + "&study_level=" + studyLevelItem;
+
+            window.open(redirectUrl, "_self");
+        }
+    }
+
+
+
+    //Js tabs
+    EEP.Tabs = function ($element, options) {
+        if ($element.length) {
+            var base = this;
+            base.$element = $element;
+            base.$tabsContainer = $element.children('div.tabs');
+            base.$tabs = base.$tabsContainer.find('a');
+            base.$tabpanelsContainer = $element.children('div.panels');
+            var tabpanelsArr = [];
+            $(base.$tabsContainer.find('a')).each(function () {
+                tabpanelsArr.push($($(this).attr('href'))[0]);
+            });
+            base.$tabpanels = tabpanelsArr;
+            base.options = $.extend({}, base.defaults, options);
+            base.$activeTab = undefined;
+            base.$activePanel = undefined;
+            base.$aliasLinks = undefined;
+            base.$previousTab = undefined;
+            base.$lastTabClicked = undefined;
+            base.init();
+        }
+    };
+
+    EEP.Tabs.prototype = {
+        defaults: {
+            activeClass: 'active', //Set the active added to the tabs and panels when activated
+            setHash: true, //Set to false to prevent hash added after tab click
+            scrollToTabs: false, //Set to true to scroll to tabs
+            scrollPageToTabsTransition: "slow",
+            scrollPageToTabsExtraScroll: 0,
+            tabAliasLinks: false, //Set to true if you want other link to be able to activate the tab - set the href of the alias link to the same as the tab
+            tabAliasLinksSelector: '.int-tab-alias', //Set the selector that needs to be aliased
+            dax: false, //Set to true to allow function to be set for dax tracking
+            daxCallback: undefined,
+            isFormClean: undefined,
+            navBtns: false,
+            navBtnsCont: '.navBtnsContainer',
+            navBtnNextTxt: 'On to ',
+            navBtnNextClass: '.navBtnNext',
+            navBtnPrevTxt: 'Back to ',
+            navBtnPrevClass: '.navBtnPrev',
+            navBtnsTabTxtUsed: true
+        },
+        init: function () {
+            return this
+                .setActiveInitialActiveTabAndPanel()
+                .setTabsClickHandler()
+                .setTabAliasLinks()
+                .aria()
+                .setArrowHandler()
+                .setTabContainerSequence()
+                .navBtnsGenerator();
+        },
+        setTabContainerSequence: function () {
+            var base = this;
+            base.$tabsContainer.on('keyup', function (e) {
+                if (e.which == 9 || e.which == 16) {
+                    $(base.$tabsContainer.find('a')).each(function () {
+                        if ($(this).hasClass('active')) {
+                            $(this).focus();
+                            return false;
+                        }
+                    });
+                }
+
+            });
+            return base;
+        },
+        setArrowHandler: function () {
+            var base = this;
+            base.$tabs.on('keydown', function (e, tabTrigger) {
+                e.preventDefault();
+                if (e.which == 13 || e.which == 32) {
+                    e.preventDefault();
+                    base.$lastTabClicked = $(document.activeElement);
+                    var formIsClean = typeof base.options.isFormClean === 'function' ? base.options.isFormClean() : true;
+                    if (formIsClean) {
+                        base.showLastClickedTabSection(tabTrigger);
+                    }
+                }
+                else if (e.which == 39) {
+                    if ($(this).is(':last-child')) {
+                        base.$tabs.siblings().first().focus();
+                    }
+                    else {
+                        this.nextElementSibling.focus();
+                    } 
+                }
+                else if (e.which == 37) {
+                    if ($(this).is(':first-child')) {
+                        base.$tabs.siblings().last().focus();
+                    }
+                    else {
+                        this.previousElementSibling.focus();
+                    }       
+                }
+                else if (e.which == 9) {
+                    base.$tabpanelChildren = base.$tabpanelsContainer.children();
+                    $(base.$tabpanelChildren).each(function () {
+                        if ($(this).hasClass('active')) {
+                            e.preventDefault();
+                            $(this).attr("tabindex", "0");
+                            $(this).focus();
+                            return false;
+                        }
+                    });
+                }
+                else if (e.which == 16) {
+                    base.$elementParent = base.$element.parent().prev();
+                    base.$elementParent.find(':focusable').last().focus();
+                }
+            });
+
+            return base;
+        },
+        setTabAliasLinks: function () {
+            var base = this,
+                opts = base.options;
+
+            if (opts.tabAliasLinks) {
+                base.$aliasLinks = $(opts.tabAliasLinksSelector).on('click', function (e) {
+                    e.preventDefault();
+
+                    var $link = $(this);
+
+                    base.$tabs.filter('[href="' + $link.attr('href') + '"]').trigger('click');
+
+                });
+            }
+
+            return base;
+        },
+        setHash: function (hash, setHash) {
+            if (setHash) {
+                if (history.pushState) {
+                    history.pushState(null, null, hash);
+                }
+                else {
+                    //Prevents flickering
+                    var $panel = $(hash),
+                        id = $panel.attr('id');
+
+                    $panel.removeAttr('id'); //Remove id before location is set
+                    window.location.hash = hash; //Set the location
+                    $panel.attr('id', id); //Add id back in
+                }
+            }
+        },
+        setActiveInitialActiveTabAndPanel: function () {
+            var base = this,
+                active = base.options.activeClass,
+                hashes = (function () {
+                    var hashes = [];
+
+                    base.$tabs.each(function () {
+                        hashes.push($(this).attr('href'));
+                    });
+
+                    return hashes;
+                })(),
+                location = window.location.hash,
+                setHash = base.options.setHash;
+
+            //Set active tab from class or hash
+            if (location.length && ($.inArray(location, hashes) > 0 && setHash)) {
+                base.$activeTab = base.$tabs.removeClass(active).filter('[href="' + location + '"]').addClass(active);
+                //Scroll to page if activated
+                if (base.options.scrollToTabs) {
+                    $(document).ready(function() {
+                        var h = $('#ou-header').outerHeight();
+                        window.onload = function() { EEP.helpers.scrollPageTo(base.$activeTab, h - (2 * h)); }
+                    });
+                }
+            } else {
+                base.$activeTab = base.$tabs.filter('.' + active);
+            }
+
+            //Set tab to first tab if none set
+            if (base.$tabs.filter('.' + active).length === 0) {
+                base.$activeTab = base.$tabs.eq(0).addClass(active);
+            }
+
+            //Set initial active panel
+            base.$activePanel = $(base.$tabpanelsContainer).children(base.$activeTab[0].hash).addClass(active);
+            base.$previousTab = base.$activeTab;
+            return base;
+        },
+        setTabsClickHandler: function () {
+            var base = this;
+            //,
+            //                opts = base.options,
+            //                active = opts.activeClass,
+            //                setHash = opts.setHash,
+            //                dax = opts.dax && typeof opts.daxCallback === 'function',
+            //                $tab, $panel;
+
+            base.$tabsContainer.on('click', 'a', function (e, tabTrigger) {
+                e.preventDefault();
+
+                base.$lastTabClicked = $(this);
+
+                // added by MJP 20/04/2015
+                var formIsClean = typeof base.options.isFormClean === 'function' ? base.options.isFormClean() : true;
+
+                if (formIsClean) {
+                    base.showLastClickedTabSection(tabTrigger);
+                }
+                //**************************************
+                base.navBtnsGenerator();
+
+            });
+
+            return base;
+        },
+        showLastClickedTabSection: function (tabTrigger) {
+
+            var base = this,
+            opts = base.options,
+            active = opts.activeClass,
+            setHash = opts.setHash,
+            dax = opts.dax && typeof opts.daxCallback === 'function',
+            $tab, $panel;
+
+            //Remove active class from last active tabs and panels
+            base.$activePanel.removeClass(active);
+            base.$previousTab = base.$activeTab.removeClass(active);
+
+            ////Add active class to tab and panel
+            $tab = this.$lastTabClicked.addClass(active);
+            $panel = $(base.$tabpanelsContainer).children($tab[0].hash).addClass(active);
+
+            //Set window location
+            base.setHash($tab.attr('href'), setHash);
+
+            //Scroll to page if activated
+            if (opts.scrollToTabs) {
+                EEP.helpers.scrollPageTo(base.$element, opts.scrollPageToTabsExtraScroll);
+            }
+
+            //Broadcast events for aria to handle aria state tags
+            base.$activeTab = $tab.trigger('cl-tab-activated');
+            base.$activePanel = $panel.trigger('cl-tab-panel-activated');
+            //Broadcast data for use for dax
+            base.$element.trigger({
+                type: "cl-tab-clicked",
+                $activeTab: base.$activeTab,
+                $activePanel: base.$activePanel,
+                $previousTab: base.$previousTab,
+                $tabTrigger: tabTrigger === undefined ? 'tab-menu' : tabTrigger
+            });
+
+            //DAX Tracking function
+            if (dax) {
+                opts.daxCallback(base);
+            }
+
+        },
+        aria: function () {
+            var base = this,
+                ids = [];
+
+            base.$tabsContainer.attr('role', 'tablist');
+
+            $(base.$tabpanels).each(function () {
+                $(this).uniqueId()
+                    .attr('role', 'tabpanel')
+                    .each(function () {
+                        ids.push($(this).attr('id'));
+                        ariaEEP.hidden($(this));
+                    });
+
+            });
+
+            base.$tabs
+                .each(function () {
+                    $(this).attr({
+                        'aria-controls': ids[$(this).index()],
+                        'role': 'tab',
+                        'aria-selected': 'false'
+                    });
+                })
+                .filter('.' + this.options.activeClass)
+                .attr('aria-selected', 'true');
+
+            //Catch events to handle aria hidden/expanded for tab panels
+            base.$tabpanelsContainer.on('cl-tab-panel-activated', 'div', function () {
+                $(base.$tabpanels).each(function () {
+                    ariaEEP.hidden($(this));
+                });
+            });
+            //Catch events to handle aria selected for tabs
+            base.$tabsContainer.on('cl-tab-activated', 'a', function () {
+                base.$tabs.not('.' + base.options.activeClass).attr('aria-selected', 'false');
+                $(this).attr('aria-selected', 'true');
+            });
+
+            return base;
+        },
+        navBtnsGenerator: function () {
+
+            var base = this;
+            var removeFullstopRegex = /[.]/g;
+            var removeSpaceRegex = /[\s]/g;
+
+            //Continue if active
+            if (base.options.navBtns === false)
+                return true;
+
+            var nextBtn, prevBtn;
+
+            //Get next and prev tabs
+            for (var i = 0; i < base.$tabs.length; i++) {
+                if ($(base.$activeTab).attr('href') === $(base.$tabs[i]).attr('href')) {
+                    nextBtn = ((i === (base.$tabs.length - 1)) ? "" : base.$tabs[Number(i + 1)]);
+                    prevBtn = ((i === 0) ? "" : base.$tabs[Number(i - 1)]);
+                }
+            }
+
+            //reset html
+            $(base.options.navBtnsCont).html("");
+
+            //Add nav buttons
+            if (prevBtn != "") {
+                var tabTxt = base.options.navBtnsTabTxtUsed ? ' \'' + $(prevBtn).text() + '\'' : '';
+                $(base.options.navBtnsCont).append('<a class="tabNavButton ' +
+                    base.options.navBtnPrevClass.replace(removeFullstopRegex, "") +
+                    '" href="' +
+                    $(prevBtn).attr('href') +
+                    '" ><i class="int-icon int-icon-chevron-left"></i><span>' +
+                    base.options.navBtnPrevTxt +
+                    tabTxt +
+                    '</span> </a>');
+            }
+            if (nextBtn != "") {
+                var tabTxt = base.options.navBtnsTabTxtUsed ? ' \'' + $(nextBtn).text() + '\'' : '';
+                $(base.options.navBtnsCont).append('<a class="tabNavButton ' +
+                    base.options.navBtnNextClass.replace(removeFullstopRegex, "") +
+                    '" href="' +
+                    $(nextBtn).attr('href') +
+                    '" ><span>' +
+                    base.options.navBtnNextTxt +
+                    tabTxt +
+                    '</span><i class="int-icon int-icon-chevron-right"></i></a>');
+            }
+
+            //Add event to button
+            $(base.options.navBtnPrevClass.replace(removeSpaceRegex, '') + ',' + base.options.navBtnNextClass.replace(removeSpaceRegex, '')).on('click', function (e) {
+                e.preventDefault();
+                var $link = $(this);
+
+                base.$tabs.filter('[href="' + $link.attr('href') + '"]').trigger('click', ['next-prev-link']);
+
+            });
+        }
+    };
+
+    EEP.RadioSelect = function ($element, options) {
+        this.options = $.extend({}, this.defaults, options);
+        var o = this.options;
+        this.$container = $element.css(o.containerCSS);
+        this.$select = $('.' + o.selectClassName, $element).css(o.selectCSS).uniqueId();
+        this.$menu = $('.' + o.menuClassName, $element).css(o.menuCSS).uniqueId();
+        this.$labels = this.$menu.find('label');
+        this.$radios = this.$labels.find('input[type="radio"]');
+        this.$radio = this.$labels.find('input[type="radio"]').filter(':checked');
+        this.$labelWrapper = this.$menu.find('div');
+        this.init();
+    };
+    EEP.RadioSelect.prototype = {
+        version: 'EEP.RadioSelect | v0.6',
+        defaults: {
+            selectClassName: 'int-form__select-radio',
+            selectCSS: {},
+            selectClickCallback: undefined,
+            containerCSS: {},
+            menuDisplay: false,
+            menuHideAfterSelection: true,
+            menuCSS: {},
+            menuClassName: 'int-form__select-radio-menu',
+            menuHiddenEvent: 'window.OU.Widgets.int-form__select-radio-container.menu.hidden',
+            menuShownEvent: 'window.OU.Widgets.int-form__select-radio-container.menu.shown',
+            radioChangeCallback: undefined,
+            offClick: true,
+            selectActiveClass: 'active',
+            aria: true,
+            fieldLabelId: 'lblSelectAddress'
+        },
+        init: function () {
+            var base = this,
+                o = base.options;
+
+
+            if (o.menuDisplay) {
+                base.$menu.show();
+            }
+            return this
+                .setOptionClickHandler()
+                .setSelectText()
+                .setRadioChangeHandler()
+                .setSelectClickHandler()
+                .setMenuClickHandler()
+                .setDocumentClickHandler()
+                .aria()
+                .setLabelClickHandler();
+        },
+        setRadioChangeHandler: function () {
+            var base = this,
+                o = base.options;
+
+            base.$container.on('change', 'input[type="radio"]', function () {
+                base.$radio = $(this);
+                base.setSelectText();
+
+                if (o.radioChangeCallback) {
+                    o.radioChangeCallback(base);
+                }
+            });
+
+            return base;
+        },
+        setSelectText: function () {
+            if (this.$radio.length) {
+                this.$select.text(this.$radio.parent('label').text());
+            }
+
+            return this;
+        },
+        setLabelClickHandler: function () {
+            var base = this,
+                o = base.options;
+            $('#' + o.fieldLabelId).on('click', function () {
+                base.setMenuItemFocus();
+                base.$select.focus();
+                base.$select.addClass(o.selectActiveClass);
+            })
+            $('body').on('click', function (e) {
+                if (!$('#' + o.fieldLabelId).is(e.target)) {
+                    base.setMenuItemFocus();
+                    base.$select.blur();
+                    base.$select.removeClass(o.selectActiveClass);
+                }
+            })
+        },
+        setSelectClickHandler: function () {
+            var base = this,
+                o = base.options;
+
+            base.$select.on('click', function () {
+                if (base.$menu.is(':visible')) {
+                    base.hideMenu();
+                } else {
+                    base.showMenu();
+                }
+
+                if (o.selectClickCallback) {
+                    o.selectClickCallback(base);
+                }
+            });
+
+            return base;
+        },
+        setMenuClickHandler: function () {
+            var base = this,
+                o = base.options;
+
+            if (o.menuHideAfterSelection) {
+                base.$menu.on('click', function (e) {
+                    base.hideMenu(true);
+                });
+            }
+
+            return base;
+        },
+        setDocumentClickHandler: function () {
+            var base = this,
+                o = base.options;
+
+            if (o.offClick) {
+                $(document).on('click', function () {
+                    base.hideMenu();
+                });
+
+                //Stop the propagation of document click event when component clicked.
+                this.$select.on('click', function (e) {
+                    e.stopPropagation();
+                });
+                base.$menu.on('click', function (e) {
+                    e.stopPropagation();
+                });
+            }
+
+            return base;
+        },
+        setOptionClickHandler: function () {
+            //IE8 and below only
+            var ie = (function () {
+                var undef,
+                    v = 3,
+                    div = document.createElement('div'),
+                    all = div.getElementsByTagName('i');
+
+                while (div.innerHTML = '<!--[if gt IE ' + (++v) + ']><i></i><![endif]-->',
+                    all[0]);
+
+                return v > 4 ? v : undef;
+            })();
+
+            if (ie <= 8) {
+                this.$labelWrapper.on('click', function () {
+                    $(this).find('input[type="radio"]').prop('checked', true).trigger('change');
+                });
+            }
+
+            return this;
+        },
+        hideMenu: function (giveSelectFocus) {
+            var base = this,
+                o = base.options;
+
+            if (base.$menu.is(':visible')) {
+                base.$menu.hide();
+                base.$container.trigger(o.menuHiddenEvent);
+                base.$select.removeClass(o.selectActiveClass);
+                if (giveSelectFocus) {
+                    base.$select.focus();
+                }
+            }
+        },
+        showMenu: function () {
+            var base = this,
+                o = base.options;
+
+            if (base.$menu.is(':hidden')) {
+                base.$menu.show();
+                base.$container.trigger(o.menuShownEvent);
+                base.setMenuItemFocus();
+                base.$select.addClass(o.selectActiveClass);
+            }
+        },
+        setMenuItemFocus: function () {
+            if (this.$radios.filter(':checked').length) {
+                this.$radios.filter(':checked').closest('div').focus();
+            } else {
+                this.$labelWrapper.eq(0).focus();
+            }
+        },
+        aria: function () {
+            var base = this,
+                o = base.options;
+
+            if (o.aria) {
+                var k = {
+                    up: 38,
+                    down: 40,
+                    enter: 13,
+                    space: 32,
+                    tab: 9
+                },
+                    ar = [33, 34, 35, 36, 37, 38, 39, 40];
+
+                base.$container
+                    .keydown(function (e) {  //Prevent page scroll with arrow keys when container has focus.
+                        var key = e.which;
+
+                        if ($.inArray(key, ar) > -1) {
+                            e.preventDefault();
+                            return false;
+                        }
+                        return true;
+                    })
+                    .attr({
+                        'role': 'listbox',
+                        'aria-haspopup': 'true'
+                    })
+                    .on(o.menuHiddenEvent, function () {
+                        base.$menu.attr({
+                            'aria-hidden': 'true',
+                            'aria-expanded': 'false'
+                        });
+                    })
+                    .on(o.menuShownEvent, function () {
+                        base.$menu.attr({
+                            'aria-hidden': 'false',
+                            'aria-expanded': 'true'
+                        });
+                    });
+                base.$select
+                    .attr({
+                        'tabindex': '0',
+                        'role': 'button',
+                        'aria-controls': base.$menu.attr('id')
+                    })
+                    .keyup(function (e) {
+                        var key = e.which;
+
+                        if (key === k.enter || key === k.space) {
+                            base.$select.trigger('click');
+                        }
+                        if (key === k.up) {
+                            base.hideMenu(true);
+                        }
+                        if (key === k.down) {
+                            base.showMenu();
+                        }
+                    });
+                base.$labelWrapper.attr({
+                    'tabindex': '0',
+                    'role': 'option'
+                });
+                base.$menu
+                    .attr('role', 'listbox')
+                    .on('keyup', 'div', function (e) {
+                        var $this = $(this),
+                            key = e.which;
+
+                        if (key === k.enter || key === k.space) {
+                            $this.find('label').trigger('click');
+                        }
+                        if (key === k.tab) {
+                            base.giveFocusAndSetRadioState($(':focus'));
+                        }
+                    })
+                    .on('keydown', 'div', function (e) {
+                        var $this = $(this),
+                            key = e.which;
+
+                        if (key === k.up && $this.prev('div').length) {
+                            base.giveFocusAndSetRadioState($this.prev('div'));
+                        }
+                        if (key === k.down && $this.next('div').length) {
+                            base.giveFocusAndSetRadioState($this.next('div'));
+                        }
+                        if (key === k.tab && !e.shiftKey && $this.index() === base.$labelWrapper.length - 1) {
+                            base.hideMenu();
+                        }
+                    })
+                    .on('mouseover', 'div', function () {
+                        $(this).focus();
+                    });
+            }
+
+            return base;
+        },
+        giveFocusAndSetRadioState: function ($div) {
+            return $div.focus().find('input[type="radio"]').prop('checked', true).trigger('change');
+        },
+        getSelectedValue: function () {
+            return this.$radio.val();
+        },
+        getSelectedId: function () {
+            return this.$radio.attr('id');
+        }
+    };
+
+    if (window.OU.Widgets.Plugin) {
+        new window.OU.Widgets.Plugin(EEP.RadioSelect, { name: 'OURadioSelect' });
+    }
+
+    //Cookie control Methods
+    EEP.cookieJS = {
+        setCookie: function (cookieName, cookieValue, cookieDelay) {
+            var d = new Date();
+            d.setTime(d.getTime() + (cookieDelay * 24 * 60 * 60 * 1000));
+            var expires = "expires=" + d.toUTCString();
+            document.cookie = cookieName + "=" + cookieValue + "; " + expires;
+        },
+        getCookie: function (cookieName) {
+            var name = cookieName + "=";
+            var ca = document.cookie.split(';');
+            for (var i = 0; i < ca.length; i++) {
+                var c = ca[i];
+                while (c.charAt(0) == ' ') {
+                    c = c.substring(1);
+                }
+                if (c.indexOf(name) == 0) {
+                    return c.substring(name.length, c.length);
+                }
+            }
+            return "";
+        },
+        checkCookie: function (cookieName) {
+            var cookieItem = this.getCookie(cookieName);
+            if (cookieItem != "") {
+                return true;
+            } else {
+                return false;
+            }
+        }
+    }
+
+    //Sticky Bar and Navigation
+    EEP.StickyBar = function (options) {
+        this.options = $.extend({}, this.defaults, options);
+        this.init();
+    }
+
+    EEP.StickyBar.prototype = {
+        defaults: {
+            itemClass: ".sticky_title",
+            itemParent: ".sticky_parent",
+            stickyClass: "sticky_class",
+            closeBtnClass: ".sticky_closebtn",
+            scrollLink: ".sticky_scroll",
+            visibleOnLoad: true,
+            enterFade: true,
+            itemCookie: {
+                cName: "",
+                cDelay: 1
+            }
+        },
+        init: function () {
+            var base = this;
+            var options = base.options;
+            var runStickyBar;
+            if (typeof options.itemCookieName != "undefined" && typeof options.itemCookieName.cName != "undefined" && EEP.cookieJS.checkCookie(options.itemCookieName.cName)) {
+                runStickyBar = EEP.cookieJS.getCookie(options.itemCookieName.cName);
+            } else {
+                runStickyBar = true;
+            }
+            if (runStickyBar) {
+                base.startScroll();
+                base.closeSticky();
+                base.scrollToLinks();
+            } else {
+                $(options.itemParent).hide();
+            }
+        },
+        startScroll: function () {
+            var base = this;
+            var options = base.options;
+            if (!options.visibleOnLoad) {
+                base.showOptions($(options.itemClass), false);
+            }
+            $(window).on('scroll', function() {
+                $(options.itemClass).each(function() {
+                    if ($(window).scrollTop() >= $(this).parent(options.itemParent).offset().top) {
+                        base.showOptions($(this), false);
+                    } else {
+                        base.showOptions($(this), true);
+                    }
+                });
+            });
+        },
+        showOptions: function (scrollItem, directionIn) {
+            var options = this.options;
+            $(scrollItem).css({
+                'position': (typeof directionIn == "undefined" || directionIn === true ? 'relative' : 'fixed'),
+                'top': (($(window).width() <= '767') ? (typeof directionIn == "undefined" || directionIn === true) ? '0' : '47px' : '0')
+            });
+            $(scrollItem).parent(options.itemParent).css({
+                'height': (typeof directionIn == "undefined" || directionIn === true ? 'auto' : $(scrollItem).height())
+            });
+            if (directionIn) {
+                $(scrollItem).removeClass(options.stickyClass);
+                if (!options.visibleOnLoad)
+                (options.enterFade ? $(scrollItem).fadeOut() : $(scrollItem).hide());
+            } else {
+                $(scrollItem).addClass(options.stickyClass);
+                if (!options.visibleOnLoad)
+                (options.enterFade ? $(scrollItem).fadeIn() : $(scrollItem).show());
+            }
+        },
+        closeSticky: function () {
+            var options = this.options;
+            $(options.closeBtnClass).each(function() {
+                $(this).on('click', function() {
+                    EEP.cookieJS.setCookie(options.itemCookieName.cName, "false", options.itemCookieName.cDelay);
+                    $(options.itemParent).fadeOut();
+                });
+            });
+        },
+        scrollToLinks:  function() {
+            var base = this;
+            var options = base.options;
+            $(options.scrollLink).each(function() {
+                $(this).on('click', function () {
+                    var itemHref = $(this).attr('href');
+                    var h = $(options.itemClass).height();
+                    EEP.helpers.scrollPageTo($(itemHref), (h - (3 * h)));
+                });
+            });
+        }
+    }
+
+    // Headings stick to the element as you scroll
+    EEP.stickyHeading = function (options) {
+        this.init(options);
+    }
+
+    EEP.stickyHeading.prototype = {
+        defaults: {
+            el: null,
+            topSpaceEl: null,
+            bottomSpaceEl: null,
+            resetAtTop: true,
+            resetAtBottom: false,
+            extraSpacing: 15,
+            _prevPos: 0,
+            _scrollAction: function (fnObj) {
+                // Gap between top of the window and the containing relative element
+                var topGap = ($(window).scrollTop() - $(fnObj.el).parent().offset().top);
+                // the above gap plus the element above scrolling
+                var topGapPlusSpacingElement = (topGap +
+                    $(fnObj.base.defaults.bottomSpaceEl).outerHeight());
+                // add together plus any extra spacing
+                var topPos = topGapPlusSpacingElement + fnObj.base.defaults.extraSpacing;
+                $(fnObj.el).css({
+                    'z-index': 1,
+                    'top': topPos,
+                    'position': 'relative',
+                    'width': '100%'
+                });
+            },
+            _scrollStopAction: function (fnObj) {
+                $(fnObj.el).css({
+                    'z-index': 1,
+                    'top': 0,
+                    'position': 'relative',
+                    'width': 'auto'
+                });
+            }
+        },
+        init: function (options) {
+            $.extend(this.defaults, options);
+            var base = this;
+
+            $(window).on('scroll resize load', function (e) {
+
+                // If resizing the reset the UI
+                if (typeof e.type !== 'undefined' && e.type === 'resize') {
+                    base.resetHeadings(e);
+                }
+
+                $(base.defaults.el).each(function () {
+                    var parent = $(this).parent();
+                    // Check position
+                    var topSpace = $(base.defaults.topSpaceEl).length > 0 ? $(base.defaults.topSpaceEl).outerHeight() : 0;
+                    var topPos = base.fromTop(parent, topSpace);
+                    var bottomSpace = $(base.defaults.bottomSpaceEl).length > 0 ? $(base.defaults.bottomSpaceEl).outerHeight() : 0;
+                    var bottomPos = base.fromBottom(parent, this, bottomSpace);
+                    // functions object
+                    var fnObj = { el: this, base: base };
+
+                    // If between area then action scroll
+                    if (topPos && bottomPos) {
+                        base.defaults._scrollAction(fnObj);
+
+                        // If above start point and setting to reset is on then reset
+                    } else if (topPos === false && base.defaults.resetAtTop) {
+                        base.defaults._scrollStopAction(fnObj);
+
+                        // If below end point and setting to reset is on then reset
+                    } else if (bottomPos === false && base.defaults.resetAtBottom) {
+                        base.defaults._scrollStopAction(fnObj);
+                    }
+                });
+            });
+        },
+        resetHeadings: function () {
+            var base = this;
+            // If resizing the reset the UI
+            $(base.defaults.el).each(function () {
+                var fnObj = { el: this, base: base };
+                base.defaults._scrollStopAction(fnObj);
+            });
+        },
+        fromTop: function (el, space) {
+            return $(window).scrollTop() >= ($(el).offset().top - space);
+        },
+        fromBottom: function (el, child, space) {
+            return $(window).scrollTop() <= (($(el).offset().top + $(el).outerHeight()) - $(child).outerHeight()) - space;
+        },
+        scrollDirection: function (speed) {
+            var returnVal;
+            (this.defaults.prevPos > $(window).scrollTop()) ? returnVal = speed - (2 * speed) : returnVal = speed;
+            this.defaults.prevPos = $(window).scrollTop();
+            return returnVal;
+        }
+    }
+
+    EEP.seeMoreText = function (el, charLen) {
+            var showChar = charLen;
+            var ellipsestext = "";
+            var i = 1;
+
+        $(el).each(function () {
+                var content = $(this).html();
+
+                if (content.length > showChar) {
+                    if(charLen == 0) {
+                        //var c = (content.split(".")[0]) + ".";
+                        var c = "";
+                        if ($(this).children(":first").html().match(/[^\.\!\?]+[\.\!\?]+/g)) {
+                            c = $(this).children(":first").html().match(/[^\.\!\?]+[\.\!\?]+/g)[0];
+                        } else {
+                            c = $(this).children(":first").html();
+                        }
+                    } else {
+                        var c = content.substr(0, showChar);
+                        
+                    }
+                    var title = $(this).siblings('div').children('a').text();
+                    var h = content;
+                    var html =
+                        '<div class="truncate-text" style="display:block">' +
+                        c +
+                        '<span class="moreellipses">' +
+                        ellipsestext +
+                        '</p><a href="" class="moreless more" aria-expanded="false" aria-label="Read more about ' + title + '">Read more<i class="int-icon int-icon-angle-down"></i></a></span></span></div><div class="truncate-text" style="display:none">' +
+                        h +
+                        '<a href="" class="moreless less" aria-expanded="true" aria-label="Read less about ' + title + '">Show less<i class="int-icon int-icon-angle-up"></i></a></span></div>';
+                    i++;
+                    $(this).html(html);
+                }
+        });
+
+        $.fn.once = function (a, b) {
+            return this.each(function () {
+                $(this).off(a).on(a, b);
+            });
+        };
+
+            $(".moreless").once('click', (function () {
+                var thisEl = $(this);
+                var cT = thisEl.closest(".truncate-text");
+                var tX = ".truncate-text";
+
+                if (thisEl.hasClass("less")) {
+                    cT.prev(tX).toggle();
+                    cT.slideToggle();
+                } else {
+                    cT.toggle();
+                    cT.next(tX).slideToggle();
+                }
+                return false;
+            })
+            );
+            /* end iffe */
+        }
+
+})(jQuery, window.OU.EEP = window.OU.EEP || {}, window, document);
+
+
+// ----------------------------------------------------------
+// ui_refresh | Written by Paul Liu | paul.liu@open.ac.uk
+// ----------------------------------------------------------
+// The Open University © Copyright 2015. All rights reserved
+// ----------------------------------------------------------
+// Part of technical debt - to be moved into the above namespace.
+
+(function ($, ui) {
+    ui.version = 'ui_refresh | Written by Paul Liu | paul.liu@open.ac.uk | v1.28 Added check for if no tabs are set initially';
+    ui.dependencies = 'jQuery,jQueryUI';
+
+    var $body = $('body'),
+        $HTMLBody = $('html, body');
+
+    //Methods
+    ui.maxCharLengthReached = function ($input, maximumCharLength, removeAlertFromDOMDelay) {
+        var delay = removeAlertFromDOMDelay || 5000,
+            valueLength,
+            maxLength = maximumCharLength || $input.attr('maxlength'),
+            message = '<p>The maximum character length of ' + maxLength + ' has been reached on this field.</p>';
+
+        $input.keyup(function () {
+            valueLength = this.value.length;
+
+            if (valueLength == maxLength) {
+                var alert = new aria.Alert({
+                    message: message,
+                    $alertTargetContainer: $body,
+                    destroyDelay: delay
+                });
+            }
+        });
+    };
+    ui.checkFunction = function (fn, base) {
+        if (typeof fn === 'function') {
+            fn(base);
+        }
+    };
+    ui.matchChecker = function ($input1, $input2, event) {
+        $input2.keyup(function () {
+            var value = $(this).val(),
+                input1Value = $input1.val();
+
+            if (value === input1Value && input1Value.length > 0) {
+                $input2.trigger(event);
+            }
+        });
+    };
+    ui.loopObject = function (object, callback) {
+        var key;
+
+        for (key in object) {
+            if (object.hasOwnProperty(key)) {
+                callback(key, object[key])
+            }
+        }
+    };
+    ui.preventFormSubmit = function ($input, $button) {
+        $input.keydown(function (e) {
+            if (e.which === 13) {
+                e.preventDefault();
+                if ($button.length) {
+                    $button.focus().trigger('click');
+                }
+            }
+        });
+    };
+    ui.obscurePasswordOnBlur = function ($input) {
+        $input.on({
+            blur: function () {
+                $input.attr('type', 'password');
+            },
+            focus: function () {
+                $input.attr('type', 'text');
+            }
+        });
+    };
+    ui.scrollPageTo = function ($el, transition) {
+        if ($el.length > 0) {
+            $HTMLBody.animate({ scrollTop: $el.offset().top }, transition);
+        }
+    };
+
+    //Aria
+    var aria = {};
+    aria.hidden = function ($el) {
+        var isHidden = $el.is(':hidden');
+
+        $el.attr('aria-hidden', isHidden).attr('aria-expanded', !isHidden);
+    };
+
+    aria.Alert = function (options) {
+        var base = this;
+
+        base.opts = $.extend({}, base.defaults, options);
+
+        if (base.opts.init) {
+            base.init(options);
+        }
+    };
+    aria.Alert.prototype = {
+        defaults: {
+            init: true, //set as false to skip the automatic initialisation. Init manually.
+            message: '',
+            $alertTargetContainer: null, //Leave as null if you want to manually raise the alert by appending it to the DOM at a later time
+            destroyDelay: null, //leave as null to prevent automatic removal of alert from dom. Remember to manually remove when alert not needed anymore.
+            classes: 'int-hide int-screenReaderAlert',
+            attributes: {
+                'role': 'alert'
+            }
+        },
+        init: function () {
+            var base = this,
+                opts = base.opts;
+
+            base.buildAlert(opts.message, opts.classes, opts.attributes);
+            if (opts.$alertTargetContainer !== null) {
+                base.appendAlertToDOM(opts.$alertTargetContainer);
+            }
+            if (opts.destroyDelay !== null) {
+                base.removeAlertFromDOM(opts.destroyDelay);
+            }
+
+            return base;
+        },
+        buildAlert: function (message, classes, attributes) {
+            var base = this,
+                opts = base.opts;
+
+            //Build alert
+            base.$alert = $('<div>' + message + '</div>').addClass(classes);
+
+            //Add attributes
+            ui.loopObject(attributes, function (key, value) {
+                base.$alert.attr(key.toString(), value.toString());
+            });
+
+            return base;
+        },
+        appendAlertToDOM: function ($container) {
+            var base = this;
+
+            $container.append(base.$alert);
+
+            return base;
+        },
+        removeAlertFromDOM: function (delay) {
+            var base = this;
+
+            if (delay) {
+                setTimeout(function () {
+                    base.$alert.remove();
+                }, delay);
+            } else {
+                base.$alert.remove();
+            }
+
+            return base;
+        }
+    };
+
+    //Prototypes
+    ui.EventPreventDefault = function ($el, options) {
+        var base = this;
+
+        base.opts = $.extend({}, this.defaults, options);
+        base.$formEl = $el;
+        base.init();
+    };
+    ui.EventPreventDefault.prototype = {
+        defaults: {
+            events: 'paste cut copy',
+            ariaAlertsMarkup: {
+                'paste': 'Paste prevented on this field. Please retype.',
+                'cut': 'Cut prevented on this field.',
+                'copy': 'Copy prevented on this field.'
+            },
+            destroyDelay: 5000
+        },
+        init: function () {
+            return this.setEventHandler();
+        },
+        setEventHandler: function () {
+            var base = this,
+                o = base.opts,
+                events = o.events,
+                eventType;
+
+            base.$formEl.on(events, function (e) {
+                e.preventDefault();
+                eventType = e.type;
+
+                base.ariaAlert(o.ariaAlertsMarkup[eventType], o.destroyDelay);
+            });
+
+            return base;
+        },
+        ariaAlert: function (message, delay) {
+            var alert = new aria.Alert({
+                message: message,
+                $alertTargetContainer: $body,
+                destroyDelay: delay
+            });
+        }
+    };
+
+    ui.Tooltip = function ($input, $tooltipContainer, options) {
+        this.opts = $.extend({}, this.defaults, options);
+        this.$input = $input;
+        this.$tooltipContainer = $tooltipContainer;
+        this.$tooltip = $tooltipContainer.find('.int-inputFocusTooltip').uniqueId();
+        this.init(this.opts);
+    };
+    ui.Tooltip.prototype = {
+        defaults: {
+            alert: false,
+            aria: true,
+            customTrigger: false,
+            customTriggerShowEvent: undefined,
+            customTriggerHideEvent: undefined,
+            showTooltipCallback: undefined,
+            hideTooltipCallback: undefined
+        },
+        init: function (opts) {
+            var base = this;
+
+            if (opts.customTrigger) {
+                base.setCustomTriggerHandlers(opts);
+            } else {
+                base.setInputEventHandlers();
+            }
+            return base.aria();
+        },
+        setCustomTriggerHandlers: function (opts) {
+            var base = this,
+                eventHandlers = {};
+
+            eventHandlers[opts.customTriggerShowEvent] = function () {
+                base.showTooltip();
+            };
+            eventHandlers[opts.customTriggerHideEvent] = function () {
+                base.hideTooltip();
+            };
+
+            base.$input.on(eventHandlers);
+
+            return base.setEscapeHandler();
+        },
+        setInputEventHandlers: function () {
+            var base = this;
+
+            base.$input.on({
+                focus: function () {
+                    base.showTooltip();
+                },
+                blur: function () {
+                    base.hideTooltip();
+                }
+            });
+
+            return base.setEscapeHandler();
+        },
+        setEscapeHandler: function () {
+            var base = this;
+
+            base.$input.on({
+                keyup: function (e) {
+                    if (e.which == 27) {
+                        base.hideTooltip();
+                    }
+                }
+            });
+
+            return base;
+        },
+        showTooltip: function () {
+            var base = this,
+                o = base.opts,
+                $tooltip = base.$tooltip,
+                tooltipIsVisible = $tooltip.is(':visible');
+
+            if (!tooltipIsVisible) {
+                $tooltip.show();
+                base.setAriaHiddenExpanded();
+                ui.checkFunction(o.showTooltipCallback, base);
+            }
+        },
+        hideTooltip: function () {
+            var base = this,
+                o = base.opts,
+                $tooltip = base.$tooltip,
+                tooltipIsVisible = $tooltip.is(':visible');
+
+            if (tooltipIsVisible) {
+                $tooltip.hide();
+                base.setAriaHiddenExpanded();
+                ui.checkFunction(o.hideTooltipCallback, base);
+            }
+        },
+        setAriaHiddenExpanded: function () {
+            if (this.opts.aria) {
+                var $tooltip = this.$tooltip;
+
+                $tooltip.attr({
+                    'aria-hidden': $tooltip.is(':hidden'),
+                    'aria-expanded': $tooltip.is(':visible')
+                });
+            }
+        },
+        aria: function () {
+            if (this.opts.aria) {
+                var base = this,
+                    o = base.opts,
+                    tooltipId = base.$tooltip.attr('role', (o.alert ? 'alert' : 'tooltip')).attr('id');
+
+                base.$input.attr({
+                    'aria-haspopup': true,
+                    'aria-describedby': tooltipId,
+                    'aria-controls': tooltipId
+                });
+
+                base.setAriaHiddenExpanded();
+            }
+            return base;
+        }
+    };
+
+    ui.PasswordCheckList = function ($input, $checkList, options) {
+        var base = this;
+
+        base.opts = $.extend({}, this.defaults, options);
+        base.$input = $input;
+        base.$icons = $checkList.find('.int-passwordCheckListBullet');
+        base.$screenReaderAlertContainer = $('<div id="int-passwordCheckList-screenReaderAlert" ></div>').appendTo('body');
+        base.init();
+    };
+    ui.PasswordCheckList.prototype = {
+        defaults: {
+            regEx: {
+                length: [8,],
+                number: /[0-9]/,
+                upperCase: /[A-Z]/,
+                lowerCase: /[a-z]/
+                /*,
+                specialChar: /[!$%^&*\[\]@#\\\?\+\-_]/*/
+            },
+            iconsClasses: {
+                defaultClass: 'int-icon-circle',
+                checkedClass: 'int-icon-check-circle',
+                uncheckedClass: 'int-icon-times-circle'
+            },
+            numberOfConditions: 5,
+            alertConditions: [
+                'be minimum 8 characters in length',
+                'include a number',
+                'include a lower case letter',
+                'include an upper case letter'
+                /*,
+                'include a special character from the following, exclamation mark, dollar, percentage, caret, ampersand, ' +
+                'asterisk, left bracket, right bracket, at sign, number sign, question mark, plus, hyphen, underscore'*/
+            ],
+            conditionsMetPrefixMarkup: '<p>The following password conditions have been met, password must: </p>',
+            conditionsUnMetPrefixMarkup: '<p>Password conditions that still need to be met are, password must: </p>',
+            conditionsAllMetMarkup: '<p>All 5 password conditions have been met.</p>'
+        },
+        init: function () {
+            return this.setInputKeyUpHandler();
+        },
+        setInputKeyUpHandler: function () {
+            var base = this,
+                value,
+                conditionsArray,
+                o = base.opts,
+                re = o.regEx,
+                $input = base.$input,
+                numberOfConditions = o.numberOfConditions;
+
+            $input.keyup(function () {
+                value = $input.val();
+                conditionsArray = base.checkConditions(value, re);
+                base.setIcons(value, numberOfConditions, conditionsArray);
+
+                //if ((value.length > 0)) {
+                //    var alert = new aria.Alert({
+                //        message: base.getScreenReaderAlertMessage(value, numberOfConditions, conditionsArray),
+                //        $alertTargetContainer: base.$screenReaderAlertContainer.empty()
+                //    });
+                //}
+            });
+
+            return base;
+        },
+        setIcons: function (value, numberOfConditions, conditionsArray) {
+            var base = this,
+                iconsClasses = base.opts.iconsClasses;
+
+            if (value.length) {
+                for (var i = 0; i < numberOfConditions; i++) {
+                    base.$icons.eq(i)
+                        .removeClass(iconsClasses.defaultClass)
+                        .removeClass(iconsClasses.checkedClass)
+                        .removeClass(iconsClasses.uncheckedClass)
+                        .addClass((conditionsArray[i] ? iconsClasses.checkedClass : iconsClasses.uncheckedClass));
+                }
+            } else {
+                base.$icons
+                    .addClass(iconsClasses.defaultClass)
+                    .removeClass(iconsClasses.checkedClass)
+                    .removeClass(iconsClasses.uncheckedClass);
+            }
+        },
+        checkConditions: function (inputValue, regEx) {
+            var valueLength = inputValue.length;
+
+            //atleast 8 characters long
+            var reCharLength = (valueLength >= regEx.length[0]);
+            //A number
+            var reNumber = regEx.number.test(inputValue);
+            //An Upper Case
+            var reUpperCase = regEx.upperCase.test(inputValue);
+            //include one lowercase letter
+            var reLowerCase = regEx.lowerCase.test(inputValue);
+            //include one special-character from the following: ! $ % ^ & * [ ] @ # ? + - _
+            //var reSpecialChar = regEx.specialChar.test(inputValue);
+
+            return [reCharLength, reNumber, reLowerCase, reUpperCase];
+        },
+        listItem: function (str) {
+            return '<li>' + str + '</li>'
+        },
+        getScreenReaderConditionsMessage: function (conditionsArray) {
+            var numberOfConditions = conditionsArray.length,
+                listItems = '',
+                base = this;
+
+            if (numberOfConditions === 1) {
+                return '<p>' + conditionsArray[0] + '</p>'
+            } else {
+                for (var i = 0; i < numberOfConditions; i++) {
+                    listItems += base.listItem(conditionsArray[i]);
+                }
+
+                return '<ul>' + listItems + '</ul>';
+            }
+        },
+        getScreenReaderAlertMessage: function (value, numberOfConditions, conditionsArray) {
+            var base = this,
+                o = base.opts,
+                alertConditions = o.alertConditions,
+                conditionsAllMetMarkup = o.conditionsAllMetMarkup,
+                message,
+                conditions = {
+                    met: [],
+                    unmet: []
+                };
+
+            for (var i = 0; i < numberOfConditions; i++) {
+                conditions[(conditionsArray[i] ? 'met' : 'unmet')].push(alertConditions[i]);
+            }
+
+            if (conditions.met.length === numberOfConditions) {
+                message = conditionsAllMetMarkup;
+            } else {
+                message =
+                    o.conditionsMetPrefixMarkup + base.getScreenReaderConditionsMessage(conditions.met) +
+                    o.conditionsUnMetPrefixMarkup + base.getScreenReaderConditionsMessage(conditions.unmet);
+            }
+
+            return message;
+        }
+    };
+
+    ui.Modal = function ($container, options) {
+        var base = this, o, s;
+        base.$modalContainer = $container;
+        base.opts = $.extend({}, base.defaults, options);
+
+        o = base.opts;
+        s = base.opts.selectors;
+
+        base.$modal = $(s.modal, $container);
+        base.modalId = base.$modal.uniqueId().attr('id');
+        base.$overlay = $(s.overlay, $container);
+        base.$closeButton = $(s.closeButton, $container);
+        base.$background = $('html, body');
+        base.$modalOpener = o.$modalOpener;
+        base.$window = $(window);
+        base.$scrollableElement = $(o.scrollableElementSelector);
+        base.scrollPosition = undefined;
+        base.init();
+    };
+    ui.Modal.prototype = {
+        defaults: {
+            selectors: {
+                modal: '.int-modal',
+                overlay: '.int-modal-overlay',
+                closeButton: '.int-modal-close-button'
+            },
+            closeModalButtonCallback: undefined,
+            hideModalCallback: undefined,
+            showModalCallback: undefined,
+            $modalOpener: '',
+            rememberScrollPosition: true,
+            scrollableElementSelector: document,
+            init: undefined //Define functions to fire on init;
+        },
+        init: function () {
+            var base = this,
+                o = base.opts;
+
+            base.setCloseButtonClickHandler()
+                .setModalOpenerClickHandler()
+                .aria();
+
+            base.invokeCallback(o.init);
+
+            return base;
+        },
+        setCloseButtonClickHandler: function () {
+            var base = this,
+                callback = base.opts.closeModalButtonCallback,
+                $modalOpener = base.$modalOpener;
+
+            base.$closeButton.on('click', function () {
+                base.hideModal();
+                if ($modalOpener.length) {
+                    $modalOpener.focus();
+                }
+                base.invokeCallback(callback);
+            });
+
+            return base;
+        },
+        invokeCallback: function (callback) {
+            var base = this;
+
+            if (typeof callback === 'function') {
+                callback(base);
+            }
+        },
+        setWindowsResizeHandler: function (bool) {
+            var base = this,
+                $window = base.$window;
+
+            if (bool) {
+                $window.on('resize.int-modal', function () {
+                    base.positionModal();
+                });
+            } else {
+                $window.off('.int-modal');
+            }
+
+            return base;
+        },
+        showModal: function () {
+            var base = this,
+                callback = base.opts.showModalCallback;
+
+            base.$overlay.show(0, function () {
+                base.positionModal()
+                    .getBackgroundScrollPosition()
+                    .setWindowsResizeHandler(true)
+                    .setBackgroundScroll(false)
+                    .setModalTabbing(true)
+                    .setFocusToFirstTabbableElement()
+                    .invokeCallback(callback);
+            });
+
+            return base;
+        },
+        hideModal: function () {
+            var base = this,
+                callback = base.opts.hideModalCallback;
+
+            base.$overlay.hide(0, function () {
+                base.setWindowsResizeHandler(false)
+                    .setBackgroundScroll(true)
+                    .setBackgroundScrollPosition()
+                    .setModalTabbing(false)
+                    .invokeCallback(callback);
+            });
+
+            return base;
+        },
+        setFocusToFirstTabbableElement: function () {
+            var base = this;
+
+            base.$modal.find(':tabbable').filter(':first').focus();
+
+            return base;
+        },
+        positionModal: function () {
+            var base = this;
+
+            base.$modal.position({
+                my: "center",
+                at: "center",
+                of: base.$overlay
+            });
+
+            return base;
+        },
+        setBackgroundScroll: function (bool) {
+            var base = this,
+                css = (bool ? {
+                    'overflow': 'auto',
+                    'height': 'auto'
+                } : {
+                    'overflow': 'hidden',
+                    'height': '100%'
+                });
+
+            base.$background.css(css);
+
+            return base;
+        },
+        getBackgroundScrollPosition: function () {
+            var base = this,
+                o = base.opts;
+
+            if (o.rememberScrollPosition) {
+                base.scrollPosition = base.$scrollableElement.scrollTop();
+            }
+
+            return base;
+        },
+        setBackgroundScrollPosition: function () {
+            var base = this,
+                o = base.opts;
+
+            if (o.rememberScrollPosition) {
+                base.$scrollableElement.scrollTop(base.scrollPosition);
+            }
+
+            return base;
+        },
+        aria: function () {
+            var base = this;
+
+            base.$modal.attr({
+                'tabindex': -1,
+                'role': 'dialog'
+            });
+
+            base.$overlay.attr({
+                'tabindex': '-1'
+            });
+
+            base.$closeButton.attr({
+                'aria-label': 'Close modal'
+            });
+
+            return base;
+        },
+        setModalTabbing: function (bool) {
+            var base = this;
+
+            if (bool) {
+                base.$modal.on('keydown.int-modal', function (event) {
+                    if (event.keyCode !== 9) {
+                        return;
+                    }
+                    var tabbables = $(':tabbable', this),
+                        first = tabbables.filter(':first'),
+                        last = tabbables.filter(':last');
+
+                    if (event.target === last[0] && !event.shiftKey) {
+                        first.focus(1);
+                        return false;
+                    } else if (event.target === first[0] && event.shiftKey) {
+                        last.focus(1);
+                        return false;
+                    }
+                });
+            } else {
+                base.$modal.off('.int-modal');
+            }
+
+            return base;
+        },
+        setModalOpenerClickHandler: function () {
+            var base = this,
+                $modalOpener = base.$modalOpener;
+
+            if ($modalOpener.length) {
+                $modalOpener.on('click', function (e) {
+                    e.preventDefault();
+                    base.showModal();
+                }).attr('aria-controls', base.modalId);
+            }
+
+            return base;
+        }
+    };
+
+    //jQuery Methods
+    $.fn.autoFillChecker = function (callback, timeout) {
+        var $base = $(this),
+            lastValue = $(this).val(),
+            currentValue = '',
+            autoFillHasOccurred;
+        setTimeout(checkInputValueForAutoFill, timeout);
+
+        function checkInputValueForAutoFill() {
+            currentValue = $base.val();
+            autoFillHasOccurred = currentValue !== lastValue;
+
+            if (autoFillHasOccurred) {
+                lastValue = currentValue;
+                callback();
+            }
+            setTimeout(checkInputValueForAutoFill, timeout);
+        }
+
+        return $base;
+    };
+
+
+
+    $('.characterCount').on("change keyup blur", function () {
+        UpdateRemainingLetters();
+    });
+
+    $('.characterCount').on("paste", function () {
+        window.setTimeout(function () { UpdateRemainingLetters(); }, 100);
+    });
+
+    function UpdateRemainingLetters() {
+        var maxLength = $('.characterCount').attr('maxlength');
+
+        var query = $('.characterCount').val();
+
+        var remainingLetters = maxLength - query.length;
+
+        //Also count the line breaks
+        var newLines = query.match(/\r\n|\n|\r/g)
+
+        if (newLines != null) {
+            var remainingLetters = remainingLetters - newLines.length;
+        }
+
+        if (remainingLetters < 0) {
+            remainingLetters = 0;
+        }
+
+        $('#remainingLetters').text(remainingLetters);
+
+        //Revalidate the field.
+        $('form').validate().element($('.characterCount'));
+    }
+
+    //Optional Sign up on Contact Us and Call Me Back
+    $('#createAccountCheckbox').on('change', function () {
+        if (this.checked) {
+            $('#passwordRow').slideDown();
+        } else {
+            $('#passwordRow').slideUp(400, function () { removeSignUpValidationErrorMessages() });
+        }
+
+    }).attr('aria-controls', $('#passwordRow').attr('id'));
+
+    function removeSignUpValidationErrorMessages() {
+
+        // remove the red border
+        $('#password').removeClass("is-error");
+        $('#password_confirm').removeClass("is-error");
+        $('#terms').removeClass("is-error");
+
+        // remove items from the summary
+        $("#error-box ul li[for='password']").remove();
+        $("#error-box ul li[for='password_confirm']").remove();
+        $("#error-box ul li[for='terms']").remove();
+
+        // hide the summary
+        if ($("#error-box ul").find("li").length == 0) {
+            $('#error-box').hide();
+        }
+
+        //remove inline items
+        $("span.int-errorMessage[for='password']").remove();
+        $("span.int-errorMessage[for='password_confirm']").remove();
+        $("span.int-errorMessage[for='terms']").remove();
+
+    }
+
+    //Expose aria prototypes to global scope
+    ui.aria = aria;
+
+    //Create alias for ui_refresh
+    window.cl5976 = ui;
+})(jQuery, window.ui_refresh = window.ui_refresh || {});
+//Deprecated
+(function ($, window) {
+    "use strict";
+
+    window.OUApp = {
+        Modules: {},
+        Helpers: {},
+        Browser: {},
+        init: function () {
+            var x;
+            for (x in OUApp.Modules) {
+                if (OUApp.Modules.hasOwnProperty(x)) {
+                    OUApp.Modules[x].init();
+                }
+            }
+
+            // Crossbrowser fallbacks
+            $('input, textarea').placeholder();
+
+        }
+    };
+    window.OUApp.Helpers.getMQ = function () {
+        return window.OU.EEP.helpers.getMQ();
+    };
+    window.OUApp.Helpers.scrollPageTo = function (ele) {
+        window.OU.EEP.helpers.scrollPageTo(ele);
+    };
+    window.OUApp.Helpers.isIE7 = function () {
+        return window.OU.EEP.helpers.isIE7();
+    };
+    window.OUApp.Modules.ui_widgets = {
+        toggler: function () {
+            $('.int-toggler').each(function () {
+                new window.OU.EEP.Toggler($(this));
+            });
+        },
+        accordion: function () {
+            $('.int-accordion').accordion({
+                heightStyle: "content"
+            });
+            //$('.int-accordion .ui-accordion-header').prepend('<span class="int-icon-btn int-accordion-closed"><i class="int-icon int-icon-chevron-right"></i></span><span class="int-icon-btn int-icon-btn-active int-accordion-open"><i class="int-icon int-icon-chevron-down"></i></span>');
+        },
+        init: function () {
+            this.accordion();
+            this.toggler();
+        }
+    };
+    window.OUApp.Modules.backToTop = {
+        init: function () {
+            new window.OU.EEP.BackToTopButton($('#int-btn-top'));
+            new window.OU.EEP.SkipToMainContentButton($('#int-skip-link'))
+        }
+    };
+    window.OUApp.Modules.course_details = {
+        courseNav: {
+            init: function () {
+                new window.OU.EEP.InPageStickyTabs($('#int-study-plan-tabs'));
+                new window.OU.EEP.InPageStickyTabs($('#int-sticky-tabs'), { stickyClass: 'int-sticky' });
+            }
+        },
+        courseForms: {
+            feesFundingItems: ['credits', 'degree', 'income', 'employed'], // array of form items
+            hideFeesOption: function () {
+                $('.int-fees-option').removeClass('int-fees-option-active');
+            },
+            showFeesOption: function () {
+                this.hideFeesOption();
+                $('#int-fees-option1').addClass('int-fees-option-active');
+                OUApp.Helpers.scrollPageTo('#int-fees-option1');
+            },
+            setButtonState: function (btn, enabled) {
+                var that = this,
+                    btn = $('#' + btn);
+
+                if (enabled) {
+                    btn.removeAttr('disabled').removeClass('int-button-disabled');
+                    btn.on('click', function () {
+                        that.showFeesOption();
+                    });
+                } else {
+                    btn.attr('disabled', true);
+                }
+            },
+            // validate form items
+            checkFeesFundingForm: function () {
+                var i,
+                    valid = true;
+                for (i = 0; i < this.feesFundingItems.length; i = i + 1) {
+                    if (this.feesFundingItems[i] === "credits") { // credits is a selectbox
+                        if ($('#' + this.feesFundingItems[i]).val() === "") {
+                            valid = false;
+                        }
+                    } else {
+                        if ($('input[name=' + this.feesFundingItems[i] + ']:checked').length < 1) {
+                            valid = false;
+                        }
+                    }
+                }
+                this.setButtonState('int-btn-feesFunding', valid);
+            },
+            // validate form every time an item changes
+            enableFeesFundingForm: function () {
+                var that = this;
+                $('#int-fees-funding-form input[type=radio], #int-fees-funding-form select').on('change', function () {
+                    that.checkFeesFundingForm();
+                });
+                this.setButtonState('int-btn-feesFunding', false);
+            },
+            init: function () {
+                this.enableFeesFundingForm();
+            }
+        },
+        init: function () {
+            this.courseNav.init();
+            this.courseForms.init();
+        }
+    };
+    window.OUApp.Modules.modal = {
+        opener: null,
+        positionModal: function (target) {
+            var modal = $(target),
+                modalH = 0,
+                modalW = 0,
+                winH = $(window).height(),
+                winW = $(document).width(),
+                modalLeft,
+                modalTop = 15,
+                isOpen = modal.hasClass('int-active');
+            if (modal) {
+                // if modal is not active, quickly activate is to get dimensions
+                if (!isOpen) {
+                    modal.addClass('int-active');
+                }
+                modalH = modal.find('.int-modal-inner').height();
+                modalW = modal.width();
+                if (!isOpen) {
+                    modal.removeClass('int-active');
+                }
+                // position modal in the centre of the screen
+                modalLeft = ((winW - modalW) / 2) + 'px';
+                if (modalH < winH) {
+                    modalTop = ((winH - modalH) / 2) + 'px';
+                    modal.css('position', 'fixed');
+                } else {
+                    // if modal is taller than the screen set position to absolute allow user to scroll
+                    if (target !== "#int-study-plan") {
+                        modal.css('position', 'fixed').css('height', (winH - (modalTop * 2)) + 'px')
+                            .find('.interaction').css('padding-top', '15px')
+                            .find('.int-modal-inner').css('height', (winH - (modalTop * 3)) + 'px')
+                            .css('overflow-y', 'scroll')
+                            .css('webkit-overflow-scroll', 'scroll');
+                        modal.css('bottom', modalTop);
+                    }
+                }
+                modal.css('top', modalTop).css('left', modalLeft);
+            }
+        },
+        closeModal: function (e) {
+            var that = this;
+            e.preventDefault();
+            // prepare modal for close animation
+            $('.int-modal-window.int-active .interaction').css('overflow', 'hidden')
+                .removeAttr('tabindex')
+                .find('.int-btn-close').css('visibility', 'hidden');
+            // close modal and remove close event listeners
+            $('.int-modal-window.int-active').removeClass('int-active')
+                .find('.int-btn-close').off('click', this.closeModal);
+            $('.int-overlay.int-active').off('click', this.closeModal);
+            // after modal close animation, close overlay
+            setTimeout(function () {
+                $('.int-overlay.int-active').removeClass('int-active');
+                if (OUApp.Modules.modal.opener) {
+                    OUApp.Modules.modal.opener.focus();
+                }
+                OUApp.Modules.modal.opener = null;
+            }, 300);
+        },
+        openModal: function (target) {
+            this.positionModal(target);
+            // activate overlay
+            $('.int-overlay').addClass('int-active');
+            // when overlay animation is done open modal
+            setTimeout(function () {
+                $(target).addClass('int-active');
+                // when modal animation is done, show close btn
+                setTimeout(function () {
+                    $(target + ' .interaction').css('overflow', 'visible')
+                        .find('.int-btn-close').css('visibility', 'visible');
+                    if (target === "#int-study-plan") {
+                        //OUApp.Modules.course_details.courseNav.setStudyPlanPanelHeight();
+                    }
+                }, 0);
+            }, 300);
+            // set modal close events
+            //$('.int-overlay.int-active').on('click', this.closeModal);
+            $(target).find('.int-btn-close').on('click', this.closeModal);
+
+            setTimeout(function () {
+                try {
+                    $($(target))[0].focus();
+                } catch (ex) {
+
+                }
+                try {
+                    $(":tabbable")[0].focus();
+                } catch (ex) {
+
+                }
+            }, 750);
+        },
+        enableModalLinks: function () {
+            var that = this;
+            $('.int-open-modal').on('click', function (e) {
+                e.preventDefault();
+                var target = "#" + $(this).attr('href').split('#')[1];
+                OUApp.Modules.modal.opener = $(this);
+                that.openModal(target);
+            });
+        },
+        positionModalAlt: function (maxWidth) {
+            var $modal = $(id),
+                sizeMultiplier = 0.85,
+                windowWidth = $(window).width(),
+                windowHeight = $(window).height();
+        },
+        configureModal: function (id, cancelButtonText, actionButtons, dialogWidth, dialogHeight, undefined) {
+            var $modal = $(id),
+                paddingHeight = 15,
+                maxWidth = $modal.css('max-width').split('px')[0];
+
+            $modal.dialog({
+                autoOpen: true,
+                modal: true,
+                resizable: false,
+                draggable: true,
+                width: maxWidth,
+                height: dialogHeight,
+                zIndex: 999999
+            }).attr({ 'aria-live': 'assertive' });
+
+            $modal.dialog("open");
+            var dialogContentHeight = $modal.height(),
+                $tabs = $('.int-navPills', $modal),
+                tabHeight = 0;
+
+            if ($tabs.length) {
+                tabHeight = $tabs.height();
+            }
+            //$modal.dialog("close");
+
+            $(window).on('smartresize', function () {
+                var sizeMultiplier = 0.55;
+                var width = $(this).width() * sizeMultiplier;
+                var height = $modal.height() * sizeMultiplier;
+                var contentHeight = $modal.height();
+                var $tabs = $('.int-navPills', $modal);
+                var tabHeight = 0;
+
+                if ($tabs.length) {
+                    tabHeight = $tabs.height();
+                }
+                $modal.dialog('option', 'width', width);
+                $modal.dialog('option', 'height', height);
+                $('.int-dialogContent', $modal).height(contentHeight - paddingHeight - tabHeight);
+                $modal.dialog('option', 'position', $modal.dialog('option', 'position'));
+            });
+
+            $('.int-dialogContent', $modal).height(dialogContentHeight - paddingHeight - tabHeight);
+            $(".int-dialogWrap", $modal).height(dialogContentHeight - tabHeight);
+        },
+        configureResponsiveModal: function (id, cancelButtonText, actionButtons, undefined) {
+            var $modal = $(id);
+            var sizeMultiplier = 0.85;
+            var windowWidth = $(window).width();
+            var windowHeight = $(window).height();
+            var dialogWidth = windowWidth * sizeMultiplier;
+            var dialogHeight = windowHeight * sizeMultiplier;
+
+            this.configureModal(id, cancelButtonText, actionButtons, dialogWidth, dialogHeight, undefined);
+
+            $(window).on('smartresize', function () {
+                var width = $(this).width() * sizeMultiplier;
+                var height = $(this).height() * sizeMultiplier;
+                var contentHeight = $modal.height();
+                var $tabs = $('.int-navPills', $modal);
+                var tabHeight = 0;
+                if ($tabs.length) {
+                    tabHeight = $tabs.height();
+                }
+                $modal.dialog('option', 'width', width);
+                $modal.dialog('option', 'height', height);
+                $('.int-dialogContent', $modal).height(contentHeight - paddingHeight - tabHeight);
+                $modal.dialog('option', 'position', $modal.dialog('option', 'position'));
+            });
+        },
+        init: function () {
+            var that = this;
+            this.enableModalLinks();
+            /* reposition modal window when the window resizes */
+            $(window).on('smartresize', function () {
+                if ($('.int-modal-window.int-active').length > 0) {
+                    that.positionModal('#' + $('.int-modal-window.int-active').attr('id'));
+                }
+            });
+        }
+    };
+
+}(jQuery, window));
+
+// ----------------------------------------------------------
+// Notes
+// ----------------------------------------------------------
+// Throbber
+// OU.EEP.Throbber.Start(); //To start the throbber
+// OU.EEP.Throbber.Stop(); //To stop the throbber
+// ----------------------------------------------------------
+</script>
+
+</body>
+</html>

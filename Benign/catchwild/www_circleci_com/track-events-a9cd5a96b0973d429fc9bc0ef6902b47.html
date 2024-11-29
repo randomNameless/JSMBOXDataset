@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>track-events-a9cd5a96b0973d429fc9bc0ef6902b47.html</title>
+</head>
+<body>
+
+<script>
+// analytics.track wrapper
+var trackEvent = function (name, properties, callback) {
+  if (!window.analytics) {
+    return;
+  }
+
+  analytics.track(name, properties, { integrations: { Amplitude: { session_id: generateSessionId() } } }, function() {
+    if (callback) {
+      callback();
+    }
+  });
+};
+
+// compiles an object of parameters relevant for analytics event tracking.
+// takes an optional DOM element and uses additional information if present.
+window.analyticsTrackProps = function (el, obj) {
+  var trackOpts = {
+    path:      document.location.pathname,
+    url:       document.location.href,
+    referrer:  document.referrer,
+    title:     document.title,
+    sender:    'webapp',
+    team_name: 'web_opt',
+    page_type: 'outer',
+    is_growth_analytics: false,
+    user_id:  sessionStorage.getItem('analytics_id') || null,
+    organization_id: null,
+    circleci_anonymous_id: localStorage.getItem('circleciAnonymousId') || generateCircleciAnonymousId()
+  };
+
+  var anonymousId = localStorage.getItem('ajs_anonymous_id');
+  if (anonymousId) {
+    // slice removes containing quote marks
+    if (anonymousId.at(0) == '"') {
+      trackOpts['anonymous_id'] = anonymousId.slice(1, -1);
+    } else {
+      trackOpts['anonymous_id'] = anonymousId;
+    }
+  }
+
+  var userLogin = sessionStorage.getItem('login');
+  if (userLogin) {
+    trackOpts['user'] = userLogin;
+  }
+
+  if (analyticsPageProperties) {
+    var pageCategory = analyticsPageProperties.pageCategory;
+    var pageName     = analyticsPageProperties.pageName;
+    var combinedName = analyticsPageProperties.singleEvent || pageCategory + ' ' + pageName;
+
+    trackOpts['page_name'] = combinedName;
+  }
+
+  if (el) {
+    var action = el.getAttribute('data-analytics-action');
+    if (action) {
+      if (action.includes('click') || action === 'authentication-button') {
+        trackOpts['action'] = 'clicked';
+      } else if (action.includes('view')) {
+        trackOpts['action'] = 'viewed';
+      }
+    }
+
+    var location = el.getAttribute('data-analytics-location');
+    if (location) {
+      trackOpts['page_location'] = location;
+    }
+
+    var category = el.getAttribute('data-analytics-category');
+    if (category) {
+      trackOpts['category'] = category;
+    }
+
+    var subcategory = el.getAttribute('data-analytics-subcategory');
+    if (subcategory) {
+      trackOpts['subcategory'] = subcategory;
+    }
+
+    var content = el.getAttribute('data-analytics-content');
+    if (content) {
+      trackOpts['content'] = content;
+    }
+
+    var text = el.getAttribute('data-analytics-cta-text') || el.textContent.trim();
+    if (text) {
+      trackOpts['cta_text'] = text;
+    }
+
+    var customProperties = JSON.parse(el.getAttribute('data-analytics-properties'));
+
+    if (customProperties) {
+      Object.assign(trackOpts, customProperties);
+    }
+  }
+
+  // adding support for an additional object of properties with an indefinite size
+  if (obj) {
+    for (var each in obj) {
+      trackOpts[each] = obj[each];
+    }
+  }
+
+  return trackOpts;
+};
+
+// analytics tracking for CTA button clicks
+window.addEventListener('load', function () {
+  var buttons = Array.from(document.querySelectorAll('[data-analytics-action]'));
+
+  buttons.forEach(function (button) {
+    button.addEventListener('click', function () {
+      var action = this.getAttribute('data-analytics-action');
+      if (!action) { return; }
+      trackEvent(action, analyticsTrackProps(this));
+    });
+  });
+});
+
+</script>
+
+</body>
+</html>

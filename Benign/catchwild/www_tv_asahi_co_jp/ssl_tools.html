@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ssl_tools.html</title>
+</head>
+<body>
+
+<script>
+/**
+ * LUIDを返す
+ * ローカルにcookieを持っていればそれを返し、
+ * 持っていなければサーバから取得したものをcookieにセットしてから返す
+ *
+ * @param type LUIDを使用する案件名（英数字）-- 2018年8月頃から廃止
+ * @param sucess 成功した場合の無名関数 第一引数にLUIDを返す
+ * @param error $.ajaxのerror
+ */
+function get_luid(type, success, error) {
+
+	var optout_value, luid_value;
+
+	// オプトアウト済み
+	optout_value = getTvaCookie('optout');
+	if (optout_value == 1) return success(null);
+
+	// 過去に発行済み(cookieに有る)
+	luid_value = getTvaCookie('luid');
+	if (luid_value) return success(luid_value);
+
+	// 発行した直後
+	luid_value = getTvaGlobalID();
+	if (luid_value) return success(luid_value);
+
+	// 重複リクエストを防止するため、まとめてluidを発行
+	return setTvaDuplicateRequest(success, error);
+};
+
+var __ex_global_trigger__;
+var __ex_global_callback__;
+function setTvaDuplicateRequest(success, error) {
+
+	// callbackの登録
+	__ex_global_callback__ = [success, error];
+
+	// リクエストの制御
+	if (__ex_global_trigger__) {
+		return false;
+	}
+	__ex_global_trigger__ = true;
+
+	// luidを発行
+	var tools = new tvasahiTools();
+	tools.ajax({
+		url: 'https://link.tv-asahi.co.jp/luid',
+		timeout: 3000,
+		dataType: 'text',
+		withCredentials: true,
+		success: function (data) {
+
+			// global変数に保存(直後の再取得用)
+			setTvaGlobalID(data);
+
+			// cookieに保存
+			/* 2020/01 SameSite対応でクライアントから保存しないように変更
+			var location_host = '.tv-asahi.co.jp';
+			if (location.hostname.indexOf('tva.asial-project.com') != -1) {
+				location_host = '.tva.asial-project.com';
+			} else if (location.hostname.indexOf('tvasahi.jp') != -1) {
+				location_host = '.tvasahi.jp';
+			}
+			setTvaCookie('luid', data, location_host, '/', 31390);
+			*/
+
+			// callbackの実行
+			if (typeof __ex_global_callback__ === 'object' && 0 in __ex_global_callback__) {
+				if (typeof __ex_global_callback__[0] === 'function') {
+					__ex_global_callback__[0](data);
+				}
+			}
+
+		},
+		error: function (err) {
+			if (typeof __ex_global_callback__ === 'object' && 1 in __ex_global_callback__) {
+				if (typeof __ex_global_callback__[1] === 'function') {
+					__ex_global_callback__[1](err);
+				}
+			}
+		}
+	});
+
+};
+
+function setTvaCookie(key, value, domain, path, expiredays) {
+	if (!path) {
+		var path = location.pathname;
+		// for ie
+		var paths = new Array();
+		paths = path.split("/");
+		if (paths[paths.length - 1] != "") {
+			paths[paths.length - 1] = "";
+			path = paths.join("/");
+		}
+	}
+	var exdate = '';
+	if (expiredays) {
+		var extime = new Date().getTime();
+		var cltime = new Date(extime + (60 * 60 * 24 * 1000 * expiredays));
+		exdate = cltime.toUTCString();
+	}
+	var s = "";
+	s += key + "=" + encodeURIComponent(value);
+	if (domain) {
+		s += "; domain=" + domain;
+	}
+	s += "; path=" + path;
+	if (exdate) {
+		s += "; expires=" + exdate + "; ";
+	} else {
+		s += "; ";
+	}
+	document.cookie = s;
+};
+
+function getTvaCookie(name) {
+	var result = null;
+
+	var cookieName = name + '=';
+	var allcookies = document.cookie;
+
+	var position = allcookies.indexOf(cookieName);
+	if (position != -1) {
+		var startIndex = position + cookieName.length;
+		var endIndex = allcookies.indexOf(';', startIndex);
+		if (endIndex == -1) {
+			endIndex = allcookies.length;
+		}
+		result = decodeURIComponent(allcookies.substring(startIndex, endIndex));
+	}
+	return result;
+};
+
+var __ex_global_luid__;
+function setTvaGlobalID(luid) {
+	__ex_global_luid__ = luid;
+};
+function getTvaGlobalID() {
+	if (typeof __ex_global_luid__ === undefined) {
+		return false;
+	} else {
+		return __ex_global_luid__;
+	}
+};
+</script>
+
+</body>
+</html>

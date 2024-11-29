@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>syfClient.html</title>
+</head>
+<body>
+
+<script>
+var syfClient = function( options){
+    if( typeof options !== 'object' || !options.dApplyOpener || !options.dApplyUrl){
+        console.log('syfClient not passed required parameters') ;
+        return;
+    }
+    if( typeof options.dApplyOpener !== 'string' &&  !Array.isArray(options.dApplyOpener)){
+        console.log('syfClient options.dApplyOpener must either be a string or an array');
+        return;
+    }
+    if( typeof options.dApplyUrl !== 'string' &&  typeof options.dApplyUrl !== 'function'){
+        console.log('syfClient options.dApplyUrl must either be a string or a function');
+        return;
+    }
+    
+   if( options.closureCallback && typeof options.closureCallback !== 'function'){
+	   console.log('syfClient options.closureCallback must be of type function, ignoring');
+   }
+
+   	var sdpStoreServerBaseUrl = 'https://apply.syf.com/sdp-store-server';
+	var dApplyOpener = Array.isArray(options.dApplyOpener) ? options.dApplyOpener: new Array(options.dApplyOpener);
+	var dApplyUrl = options.dApplyUrl;
+	var closureCallback = typeof options.closureCallback === 'function' ? options.closureCallback : null;
+	var opaqueClient;
+	var childCloser;
+	var dApplyWindow;
+	var childPollInterval;
+	var fetchSdp = closureCallback && options.fetchSdp !== undefined && options.fetchSdp;
+	var form =options.form;
+	var postBackRefId = null;
+	
+	var injectHtml = function(){		
+		opaqueClient = document.createElement('div');
+		opaqueClient.className = 'idle';
+		opaqueClient.id = 'syf-opaque-client';
+        opaqueClient.insertAdjacentHTML( 'afterbegin', 
+        		'<div id="syf-parent-wrapper">' + 
+        			'<div class="syf-parent" id=syf-parent-logo-wrapper>' +
+		        		'<svg version="1.1" id="syf-parent-image" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"  viewBox="0 0 671.9 143.8" enable-background="new 0 0 671.9 143.8" xml:space="preserve">' +
+			        		'<path fill="#FAC610" d="M68.5,143.5H40.8c0-3.5,0-139.6,0-143.5h27.7C68.5,3.1,68.5,139.7,68.5,143.5z M27.7,71.7H0 	c0,4.7,0,68.7,0,71.8h27.7C27.7,139.5,27.7,76.1,27.7,71.7z M109.2,0H81.5c0,3.2,0,69.5,0,71.8h27.7C109.2,67.9,109.2,2.9,109.2,0z" 	/>' +
+			        		'<path fill="#000000" d="M310.5,64.8v38.6h-8.9V64.7c0-11.8-4.8-17.2-15.1-17.2c-12.3,0-18.7,9.1-18.7,18v37.9h-8.9V40h8.9v6.9 	c4.4-4.4,11-7.8,19.2-7.8C302.2,39.1,310.5,48.2,310.5,64.8z M415.7,39.1c-8.3,0-14.9,3.4-19.2,7.8V12h-8.9v91.4h8.9V65.5 	c0-8.9,6.4-18,18.7-18c10.3,0,15.1,5.5,15.1,17.2v38.7h8.9V64.8C439.1,48.2,430.8,39.1,415.7,39.1z M547.7,71.2v0.9 	c0,18.4-13.1,32.3-30.5,32.3c-17,0-30.4-14.1-30.4-32.1v-0.9c0-18.3,13.1-32.1,30.6-32.1C535,39.2,547.7,52.7,547.7,71.2z 	 M538.7,72.1v-0.9c0-14-8.7-23.7-21.2-23.7c-12.5,0-21.6,10-21.6,23.8v0.9c0,13.7,9,23.7,21.5,23.7C530,95.9,538.7,86.1,538.7,72.1z 	 M585.8,39.1c-8.3,0-14.9,3.4-19.2,7.8V40h-8.9v63.5h8.9V65.5c0-8.9,6.4-18,18.7-18c10.3,0,15.1,5.5,15.1,17.2v38.7h8.9V64.8 	C609.3,48.2,601,39.1,585.8,39.1z M349.7,95.9c-12.4,0-21.5-10-21.5-23.7v-0.9c0-13.8,9.1-23.8,21.6-23.8c8.7,0,15.5,4.7,18.9,12.2 	h9.5c-4.1-12.4-14.8-20.5-28.5-20.5c-17.4,0-30.6,13.8-30.6,32.1v0.9c0,18,13.3,32.1,30.4,32.1c14.7,0,26.4-10,29.6-24.3H370 	C367.3,89.7,359.7,95.9,349.7,95.9z M480.2,39.1c-8.3,0-14.9,3.4-19.2,7.8V40h-8.9v63.5h8.9V65.5c0-8.9,6.4-18,18.7-18 	c2.4,0,4.4,0.3,6.2,0.9v-8.8C484.1,39.2,482.2,39.1,480.2,39.1z M167.8,66.7c-14.1-2.3-16.6-4.9-16.6-10c0-5.5,5.7-9.2,14-9.2 	c8.6,0,13.5,3.1,14.9,9.9l0.1,0.4h9.3l-0.2-1.2c-1.9-11.2-10.4-17.3-23.9-17.3c-13.4,0-23.2,7.4-23.2,17.5 	c0,13.3,11.3,16.3,23.8,18.4c11.8,2,15.4,3.7,15.4,10.7c0,6.4-5.8,10.4-14.8,10.4c-12.3,0-16.1-6.5-17.1-12.2h-9.5 	c1.1,12.7,11.3,20.5,26.5,20.5c14.2,0,24.2-7.8,24.2-19C190.6,71.7,179.8,68.8,167.8,66.7z M662.8,40l-19.3,52.2L621.1,40h-9.2 	l26.8,63.2l-8.4,24.8h9.3l32.3-88H662.8z M242.3,40l-19.3,52.2L200.6,40h-9.2l26.8,63.2l-8.4,24.8h9.3l32.3-88H242.3z"/>' +
+		        		'</svg>' +
+	        		'</div>' +
+	        		'<div class="syf-parent" id="syf-parent-text-wrapper">' +
+						'<div class="syf-parent-text" id="syf-parent-text1"><br>Don\'t see the secure Synchrony window?  Click anywhere to relaunch.<br><br><b>You may need to turn OFF the "Block Pop-ups" setting in your browser.</b></div>' +
+						'<div class="syf-parent-text" id="syf-parent-text2"><br><br><br>Return to secure window</div>' +
+					'</div>' +
+				'</div>'
+		);
+
+
+		childCloser = document.createElement('div');
+		childCloser.className = 'idle';
+		childCloser.id = 'syf-child-closer';
+		childCloser.insertAdjacentHTML( 'afterbegin',
+				'<svg xmlns="http://www.w3.org/2000/svg" height="18" width="18" version="1" viewBox="0 0 18 18">' +
+					'<path fill="#ffffff" d="M10.414 9l5.293-5.293c.391-.391.391-1.023 0-1.414s-1.023-.391-1.414 0l-5.293 5.293-5.293-5.293c-.391-.391-1.023-.391-1.414 0s-.391 1.023 0 1.414l5.293 5.293-5.293 5.293c-.391.391-.391 1.023 0 1.414.195.195.451.293.707.293.256 0 .512-.098.707-.293l5.293-5.293 5.293 5.293c.195.195.451.293.707.293.256 0 .512-.098.707-.293.391-.391.391-1.023 0-1.414l-5.293-5.293"/>' +
+				'</svg>'
+		);
+
+		document.body.appendChild(opaqueClient);
+		document.body.appendChild(childCloser);
+	}
+
+
+	var closeDapply = function(){
+		if( dApplyWindow){
+			dApplyWindow.close();
+		}
+		opaqueClient.className = 'idle';
+		opaqueClient.removeEventListener('click',recenterDapply);
+		childCloser.className = 'idle';
+		childCloser.removeEventListener('click',closeDapply);
+	}
+
+	var recenterDapply = function(){
+		if( dApplyWindow){
+			dApplyWindow.postMessage('syf-re-center', '*');
+			dApplyWindow.focus();
+		}
+
+	}
+	
+	var pollChild = function(){
+		if( dApplyWindow && dApplyWindow.closed ) {
+			window.clearInterval(childPollInterval);
+			opaqueClient.className = 'idle';
+			opaqueClient.removeEventListener('click',recenterDapply);
+			childCloser.className = 'idle';
+			childCloser.removeEventListener('click',closeDapply);
+			if( closureCallback){
+				if( postBackRefId){
+                    fetch(sdpStoreServerBaseUrl + '/sdp/' + postBackRefId).then(response=>response.text()).then(sdp=>closureCallback(sdp));
+                  }else{
+                    closureCallback();
+                  }
+			}
+		}
+		
+	}
+
+    var messageRecevied = function(event){
+        if( event.data == 'syf-child-handshake' && dApplyWindow){
+            dApplyWindow.postMessage('syf-parent-handshake', '*');
+        } else if( event.data == 'syf-close-me') {
+            closeDapply();
+        } else {
+            console.log("Unrecognized message:  " + event.data);
+        }
+    }
+
+	var openDapplyInner = function (refId){
+	    // The child window will post a message when loaded
+	    window.addEventListener('message', messageRecevied);
+
+		let width = Math.max(100, Math.min(700, window.outerWidth * 3 / 4));
+		let height = Math.max(100, Math.min(800, window.outerHeight * 3 / 4));
+		let posX = (window.outerWidth - width) / 2 + window.screenX;
+		let posY = (window.outerHeight - height) / 2 + window.screenY;
+		let windowFeatures = 'menubar=no,toolbar=no,location=no,personalbar=no,scrollbars=yes';
+		windowFeatures += ',width=' + width;
+		windowFeatures += ',height=' + height;
+		windowFeatures += ',left=' + posX;
+		windowFeatures += ',top=' + posY;
+
+        let url = typeof dApplyUrl === 'function' ? dApplyUrl() : dApplyUrl;
+        if( refId){
+            postBackRefId = refId;
+            url += '&postBackRefId=' + refId;
+        }
+        
+		dApplyWindow = window.open(url, 'dApplyWindow', windowFeatures);
+		if( dApplyWindow){
+			childPollInterval = window.setInterval(pollChild, 500);
+		}
+		
+		if(form!=null){
+			form.setAttribute("target", "dApplyWindow");
+			form.submit();
+		}
+		opaqueClient.className = 'active';
+		opaqueClient.addEventListener('click', recenterDapply);
+		childCloser.className = 'active';
+		childCloser.addEventListener('click', closeDapply);
+	}
+	 var openDapply = function (){
+	        if( fetchSdp){
+	            postBackRefId = null;
+	            fetch(sdpStoreServerBaseUrl + '/refId').then(response=>response.text()).then(refId=>openDapplyInner(refId));
+	        } else{
+	            openDapplyInner(null);
+	        }
+	    }
+
+	injectHtml();
+	
+	if(!options.addlistener && options.addlistener==false){
+		openDapply();
+		return;
+	}
+	
+	dApplyOpener.forEach(function(opener){
+		document.getElementById(opener).addEventListener('click', openDapply);
+
+	})
+
+};
+
+
+</script>
+
+</body>
+</html>

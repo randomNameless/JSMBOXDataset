@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>region_footer.html</title>
+</head>
+<body>
+
+<script>
+(function($, CropManager, wgsdk) {
+    'use strict';
+
+    var REGION_HOLDER_SELECTOR = '.js-region-selector',
+        CHANGE_REGION_SELECTOR = '.js-change-region',
+        CLOSE_REGION_SELECTOR = '.js-close-region',
+        CURRENT_REGION_SELECTOR = '.js-current-region',
+        EVENT_NAMESPACE = '.regionselector';
+
+    $(function() {
+        var $changeRegion = $(CHANGE_REGION_SELECTOR),
+            $regionHolder = $(REGION_HOLDER_SELECTOR),
+            $closeRegionBtn = $(CLOSE_REGION_SELECTOR),
+            $currentRegion = $(CURRENT_REGION_SELECTOR).first(),
+            linkOpenedClass = $changeRegion.data('openedClass'),
+            holderOpenedClass = $regionHolder.data('openedClass'),
+            isOpen = false,
+            currentRegionName = $.trim($currentRegion.data('regionName')),
+            currentLanguageText = $.trim($currentRegion.text()),
+            changeRegionText = currentRegionName + ((!wgsdk.vars.CN_ENABLED && currentLanguageText) ? ' (' + currentLanguageText + ')' : '');
+
+        /* Apply correct language */
+        $changeRegion
+            .text(changeRegionText)
+            .addClass($changeRegion.data('langClassPrefix') + window.get_lang());
+
+        $changeRegion.on('click' + EVENT_NAMESPACE, function(e) {
+            e.preventDefault();
+
+            if (isOpen) {
+                close();
+                return;
+            }
+            open();
+        });
+
+        $closeRegionBtn.on('click' + EVENT_NAMESPACE, function(e) {
+            e.preventDefault();
+
+            close();
+        });
+
+        function open() {
+            $regionHolder.addClass(holderOpenedClass);
+            $changeRegion.addClass(linkOpenedClass);
+            $(document).on('click' + EVENT_NAMESPACE, documentOnClickHandler);
+
+            isOpen = true;
+            CropManager.requestMobileSmallCrop('region-selector');
+        }
+
+        function close() {
+            $regionHolder.removeClass(holderOpenedClass);
+            $changeRegion.removeClass(linkOpenedClass);
+            $(document).off('click' + EVENT_NAMESPACE);
+
+            isOpen = false;
+            CropManager.revoke('region-selector');
+        }
+
+        function documentOnClickHandler(e) {
+            var target = e.target,
+                isRegionBoxChild = Boolean($(target).closest(REGION_HOLDER_SELECTOR).length),
+                isChangeRegionBtn = (target === $changeRegion.get(0));
+
+            if (!isRegionBoxChild && !isChangeRegionBtn) {
+                close();
+            }
+        }
+
+    });
+
+})(window.jQuery, CropManager, wgsdk);
+
+</script>
+
+</body>
+</html>

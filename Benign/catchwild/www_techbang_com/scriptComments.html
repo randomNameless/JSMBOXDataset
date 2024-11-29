@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>scriptComments.html</title>
+</head>
+<body>
+
+<script>
+import { reactive } from 'https://unpkg.com/petite-vue?module';
+import loadScript from '/scripts/scriptLoad.js';
+let isIniSock = false;
+export const commentsScript = reactive({
+  /** Variables Comments Websocket */
+  minimumTimeComment: 15000,
+  websocket: Array.apply(null, {length: listPodcasts.length || 1}).map(()=>{return {
+    clientSockJs: undefined,
+    pile: [],
+    timer: undefined,
+    lastFiredComment: null,
+    actualComment: { name: "", content: "" },
+  }}),
+
+  /** Functions */
+  async initWebsocket(i){
+    if (
+      document.getElementById(
+        "comments-container-podcast" + listPodcasts[i].podcastId,
+      )
+    ) {
+      if (!isIniSock) {
+        await loadScript.lazyLoadScript('https://cdn.jsdelivr.net/npm/sockjs-client@1.6.1/dist/sockjs.min.js');
+        await loadScript.lazyLoadScript('https://cdn.jsdelivr.net/npm/@stomp/stompjs@7.0.0/bundles/stomp.umd.min.js');
+        isIniSock = true;
+      }
+      const sock = new SockJS(commentUrl + "/websocket");
+      this.websocket[i].clientSockJs = StompJs.Stomp.over(sock);
+      this.websocket[i].clientSockJs.onConnect = () => {
+        this.websocket[i].clientSockJs.subscribe(
+          "/topic/comment."+listPodcasts[i].organisation.id+"." + listPodcasts[i].podcastId,
+          (message)=>this.receiveWebsocketMessage(i, message),
+        );
+      };
+      this.websocket[i].clientSockJs.activate();
+    }
+  },
+  lessThanMinimumTime(i) {
+    if (
+      null == this.websocket[i].lastFiredComment ||
+      !this.websocket[i].lastFiredComment
+    )
+      return false;
+    return (
+      this.websocket[i].lastFiredComment >
+      new Date().getTime() - this.minimumTimeComment
+    );
+  },
+  /* Message format {comment: CommentPodcast;type: string;} CREATE / UPDATE / DELETE */
+  receiveWebsocketMessage(i, message) {
+    const toHandle = null !== message ? message : this.websocket[i].pile.shift();
+    const commentMessage = JSON.parse(toHandle.body);
+    if ("CREATE" !== commentMessage.type || "VALIDATED" !== commentMessage.comment.state) {
+      return;
+    }
+    /* if (
+      ("Create" !== commentMessage.type && "Update" !== commentMessage.type) ||
+      "Valid" !== commentMessage.comment.status
+    ) {
+      return;
+    } */
+    const now = new Date().getTime();
+    clearTimeout(this.websocket[i].timer);
+    if (this.lessThanMinimumTime(i)) {
+      if (message) {
+        this.websocket[i].pile.push(message);
+      } else {
+        this.websocket[i].pile.unshift(toHandle);
+      }
+      this.websocket[i].timer = setTimeout(
+        this.receiveWebsocketMessage(i, null),
+        this.websocket[i].lastFiredComment - now + this.minimumTimeComment,
+      );
+    } else {
+      this.websocket[i].actualComment.name = commentMessage.comment.poster.userName;
+      this.websocket[i].actualComment.content = commentMessage.comment.content;
+      this.websocket[i].lastFiredComment = now;
+    }
+  },
+});
+
+</script>
+
+</body>
+</html>

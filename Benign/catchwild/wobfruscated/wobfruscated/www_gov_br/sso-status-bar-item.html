@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>sso-status-bar-item.html</title>
+</head>
+<body>
+<script>import { loadDocumentFragment, setAttribute } from './wc.js';
+
+const
+    assets = {
+        template: (new URL('../html/sso-status-bar-item.html', import.meta.url)).toString(),
+        ssoStatusBarItemStyleSheet: (new URL('../css/sso-status-bar-item.css', import.meta.url)).toString(),
+    };
+
+let templateDocument;
+
+async function main() {
+    templateDocument = await loadDocumentFragment(assets.template, 'template');
+
+    templateDocument.getElementById('sso-status-bar-item-stylesheet').setAttribute('href', assets.ssoStatusBarItemStyleSheet);
+
+    window.customElements.define('sso-status-bar-item', SsoStatusBarItem);
+    return 'sso-status-bar-item'; //return the tag name.
+}
+
+class SsoStatusBarItem extends HTMLElement {
+    constructor() {
+        super();
+
+        const root = templateDocument.cloneNode(true);
+        this._elements = {
+            root,
+            body: root.getElementById('sso-status-bar-item'),
+            link: root.getElementById('link')
+        };
+        this.attachShadow({ mode: 'open' });
+        this.shadowRoot.append(this._elements.root);
+    }
+
+    get title() {
+        return this.getAttribute('title');
+    }
+
+    set title(value) {
+        setAttribute(this, 'title', value);
+    }
+
+    get href() {
+        return this.getAttribute('href');
+    }
+
+    set href(value) {
+        setAttribute(this, 'href', value);
+    }
+
+    static get observedAttributes() {
+        return ['title', 'href'];
+    }
+
+    attributeChangedCallback(attrName, oldVal, newVal) {
+        if (attrName === 'title') { 
+            this._elements.link.textContent = newVal;
+            return;
+        }
+        if (attrName === 'href') { 
+            setAttribute(this._elements.link, 'href', newVal);
+            return;
+        }
+    }
+}
+
+main();</script>
+</body>
+</html>

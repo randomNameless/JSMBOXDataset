@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>cludo-404.html</title>
+</head>
+<body>
+
+<script>
+var base64;
+var Cludo404 = /** @class */ (function () {
+    function Cludo404() {
+        var _this = this;
+        this._fofId = "cludo-404";
+        this._fofScriptId = "cludo-404-script";
+        /**
+         * Indicates debug mode and expects you to pass in a url rather than it looking at the url
+         */
+        this._debug = false;
+        this.locateAndInit();
+        // determine access to 404
+        this._api.GetWebsiteSettings(function (response) {
+            var hasAccess = _this.has404Access(response);
+            if (hasAccess) {
+                _this.initializeMarkup();
+                // retrieve settings. This must be called after locateAndInit and initializeMarkup have been called
+                _this._api.GetSettings(function (response, request) {
+                    _this.updateSettings(response);
+                });
+                // if debugging, let's wait for the handle call. else, let's go with the current url
+                if (!_this._debug) {
+                    _this.handle404(window.location.href);
+                }
+            }
+        });
+    }
+    /**
+     * Initializes all of the property values and pulls in any parameters passed in through data attributes
+     */
+    Cludo404.prototype.locateAndInit = function () {
+        this._fofScriptElement = document.getElementById(this._fofScriptId);
+        // required parameters
+        this._customerId = parseInt(this._fofScriptElement.getAttribute("data-cid"));
+        this._engineId = parseInt(this._fofScriptElement.getAttribute("data-eid"));
+        // optional parameters
+        this._collapseResult = (this._fofScriptElement.getAttribute("data-collapse-result") === "true");
+        this.configureLanguage();
+        // optional parameters
+        this._suggestTitle = this.readOrDefault("data-suggestion-title", this._translator.title);
+        //this._notFoundTitle = this.readOrDefault("data-no-results-title", this._translator.noResults);
+        this._useQueryParameter = this.readOrDefault("data-query-parameter", this._useQueryParameter);
+        this._suggestDescription = this.readOrDefault("data-description-field", '');
+        this.checkSetDebug();
+        // initialize api
+        var api = new CludoAPI(this._customerId, this._engineId);
+        this._api = api;
+    };
+    Cludo404.prototype.updateSettings = function (settings) {
+        this._settings = settings;
+        if (settings.NoBranding === true) {
+            // Do nothing. We are already hiding branding until proven otherwise.
+        }
+        else {
+            // show branding
+            this._fofContainerElement.classList.remove("hide-powered-by");
+        }
+    };
+    Cludo404.prototype.has404Access = function (websiteSettings) {
+        if (websiteSettings
+            && websiteSettings.subscriptionDigest
+            && websiteSettings.subscriptionDigest.features
+            && websiteSettings.subscriptionDigest.features.indexOf('basic 404') !== -1) {
+            return true;
+        }
+        return false;
+    };
+    Cludo404.prototype.readOrDefault = function (parameter, defaultValue) {
+        var val = this._fofScriptElement.getAttribute(parameter);
+        if (val)
+            return val;
+        return defaultValue;
+    };
+    Cludo404.prototype.configureLanguage = function () {
+        this._language = this.readOrDefault("data-language", "en");
+        switch (this._language.toLowerCase()) {
+            case "da":
+                this._translator = new DanishTranslations();
+                break;
+            case "en":
+            default:
+                this._translator = new EnglishTranslations();
+                break;
+        }
+    };
+    /**
+     * Adds the pre-search markup to the page. After this call, the markup is in the DOM.
+     */
+    Cludo404.prototype.initializeMarkup = function () {
+        var divContainer = document.createElement("div");
+        divContainer.id = this._fofId;
+        divContainer.className = "override hide-powered-by";
+        this._fofContainerElement = divContainer;
+        this._fofScriptElement.parentElement.appendChild(divContainer);
+        this._fofContainerElement.innerHTML = CLUDO_404_STYLES + "\n            <div class=\"loader\"></div>\n            <div id=\"cludo-404-results\"></div>\n            <a class=\"powered-by\" href=\"https://www.cludo.com/intelligent-404/\" target=\"_blank\"><img src=\"https://customer.cludo.com/img/cludo-overlay-search-powered-by-Cludo.png\" alt=\"Powered by Cludo (opens in new window)\" /></a>\n        ";
+        this._fofElement = document.getElementById("cludo-404-results");
+    };
+    /**
+     * Sets the debug property if debug is set to true
+     */
+    Cludo404.prototype.checkSetDebug = function () {
+        this._debug = (this.readOrDefault("data-debug", "false") === "true");
+    };
+    Cludo404.prototype.hide404Container = function () {
+        this._fofContainerElement.classList.add("hide-module");
+    };
+    Cludo404.prototype.handle404 = function (urlToSearch) {
+        var _this = this;
+        // Turn on loader
+        this.startLoading();
+        var query = this.getQueryFromUrl(urlToSearch);
+        this._api.Search(query, urlToSearch, function (response, request) {
+            // output some results
+            var view = new ResultsView();
+            if (response.TypedDocuments.length > 0) {
+                for (var _i = 0, _a = response.TypedDocuments; _i < _a.length; _i++) {
+                    var doc = _a[_i];
+                    var showDescription = !!(_this._suggestDescription);
+                    var descriptionField = _this._suggestDescription;
+                    view.AddResultItem(new ResultItemView(TypedDocumentHelper.GetTitle(doc), TypedDocumentHelper.GetDescription(doc, descriptionField, false), doc.Fields.Url.Value, doc.ResultIndex, showDescription, _this._collapseResult));
+                }
+                _this.render404Results(view);
+                _this.addEventHandlers();
+            }
+            else {
+                _this.hide404Container();
+            }
+            _this.doneLoading();
+        });
+    };
+    Cludo404.prototype.getQueryFromUrl = function (urlToParse) {
+        // strip out domain and schema
+        var url = this.removeSchemaDomain(urlToParse);
+        var parseUrl = this.parseUrl(url);
+        var runningQuery = "";
+        // for now let's join the whole query into one
+        for (var _i = 0, parseUrl_1 = parseUrl; _i < parseUrl_1.length; _i++) {
+            var arr = parseUrl_1[_i];
+            for (var _a = 0, arr_1 = arr; _a < arr_1.length; _a++) {
+                var str = arr_1[_a];
+                runningQuery += str + " ";
+            }
+        }
+        return runningQuery;
+    };
+    Cludo404.prototype.addEventHandlers = function () {
+        var _this = this;
+        var anchors = this._fofElement.getElementsByTagName("a");
+        var _loop_1 = function () {
+            var a = anchors[i];
+            a.addEventListener("click", function (event) {
+                event.preventDefault();
+                var dataPath = a.attributes.getNamedItem("data-cludo-url").value;
+                var dataIndex = a.attributes.getNamedItem("data-cludo-index").value;
+                var destination = a.attributes.getNamedItem("href").value;
+                if (dataPath && dataIndex) {
+                    if (window.location.href.indexOf("cludo-no-track=1") == -1 && window.location.href.indexOf("cludo-no-track=true") == -1) {
+                        _this._api.PushClickStat(dataPath, +dataIndex, function () {
+                            window.location.href = destination;
+                        });
+                    }
+                    else {
+                        window.location.href = destination;
+                    }
+                }
+                return false;
+            });
+        };
+        for (var i = 0; i < anchors.length; i++) {
+            _loop_1();
+        }
+    };
+    Cludo404.prototype.startLoading = function () {
+        this.addClass(this._fofContainerElement, "animate");
+    };
+    Cludo404.prototype.doneLoading = function () {
+        var _this = this;
+        this.addClass(this._fofContainerElement, "loaded");
+        setTimeout(function () {
+            _this.removeClass(_this._fofContainerElement, "animate");
+        }, 1000);
+    };
+    Cludo404.prototype.render404Results = function (resultsView) {
+        this._fofElement.innerHTML = resultsView.GetResultsMarkup(this._suggestTitle);
+    };
+    /// Returns array of array of strings to based on the url\
+    ///   Example:  /cludo.com/features/site-search
+    ///   Returns:  [["site", "search"], ["features"]]
+    Cludo404.prototype.parseUrl = function (url) {
+        var slashSplitArray = [];
+        var returnArray = [];
+        if (this._useQueryParameter) {
+            var queryParameterValue = Http.GetQueryStringValue(url, this._useQueryParameter);
+            if (queryParameterValue.trim()) {
+                slashSplitArray.push(queryParameterValue);
+            }
+        }
+        if (slashSplitArray.length == 0) {
+            var questionSplitArray = url.split("?");
+            var baseUrl = questionSplitArray[0];
+            // Handle params separated by a slash
+            slashSplitArray = baseUrl.split("/");
+            // Add back in the stuff after question mark
+            if (questionSplitArray.length > 1) {
+                slashSplitArray.push(questionSplitArray[1]);
+            }
+        }
+        for (var i = slashSplitArray.length - 1; i >= 0; i--) {
+            returnArray.push(this.parseUrlPiece(slashSplitArray[i]));
+        }
+        // Handle params after question mark
+        return returnArray;
+    };
+    Cludo404.prototype.removeSchemaDomain = function (url) {
+        var slashIndex = url.indexOf("//");
+        var thirdSlash = url.indexOf("/", slashIndex + 3);
+        if (thirdSlash > 0) {
+            var returnUrl = url.substr(thirdSlash + 1);
+            if (returnUrl.indexOf("cludo-no-track=1") >= 0) {
+                returnUrl = returnUrl.replace("cludo-no-track=1", "");
+            }
+            else if (returnUrl.indexOf("cludo-no-track=true") >= 0) {
+                returnUrl = returnUrl.replace("cludo-no-track=true", "");
+            }
+            return returnUrl;
+        }
+        else {
+            return "";
+        }
+    };
+    Cludo404.prototype.parseUrlPiece = function (urlPiece) {
+        var tempVal = decodeURIComponent(urlPiece);
+        return tempVal.split(/[\W_]+/g);
+    };
+    Cludo404.prototype.getRelativeUrl = function () {
+        return window.location.href.replace(window.location.origin + "/", "");
+    };
+    // workaround wrapper for classlist .add 
+    Cludo404.prototype.addClass = function (ele, className) {
+        if (ele.className.indexOf('className') == -1) {
+            ele.className += " " + className;
+        }
+    };
+    Cludo404.prototype.removeClass = function (ele, className) {
+        var classIndex = ele.className.indexOf(className);
+        if (classIndex > -1) {
+            ele.className = ele.className.split(className).join("");
+        }
+    };
+    return Cludo404;
+}());
+var ResultsView = /** @class */ (function () {
+    function ResultsView() {
+        this.ResultItems = [];
+    }
+    ResultsView.prototype.AddResultItem = function (item) {
+        this.ResultItems.push(item);
+    };
+    ResultsView.prototype.GetResultsMarkup = function (title) {
+        return "<div class=\"cludo-results\">\n                <h3 class=\"cludo-result-item-title\">\n                    " + title + "\n                </h3>\n                <ul>\n                    " + this.getResultItemsMarkup() + "\n                </ul>\n            </div>";
+    };
+    ResultsView.prototype.getResultItemsMarkup = function () {
+        var runningMarkup = "";
+        for (var _i = 0, _a = this.ResultItems; _i < _a.length; _i++) {
+            var resultItem = _a[_i];
+            runningMarkup += resultItem.GetMarkup();
+        }
+        return runningMarkup;
+    };
+    return ResultsView;
+}());
+var ResultItemView = /** @class */ (function () {
+    function ResultItemView(title, description, path, index, showDescription, collapseResult) {
+        if (showDescription === void 0) { showDescription = false; }
+        if (collapseResult === void 0) { collapseResult = false; }
+        this.Title = title;
+        this.Description = description;
+        this.Path = path;
+        this.Index = index;
+        this._showDescription = showDescription;
+        this._collapseResult = collapseResult;
+    }
+    ResultItemView.prototype.GetMarkup = function () {
+        if (this._showDescription) {
+            return "<li class=\"cludo-result-item\">\n                    <h4 class=\"cludo-result-item-title\">\n                        <a href=\"" + this.Path + "\" class=\"cludo-result-item-path\" " + this._getStatsAtts() + ">" + this.Title + "</a>\n                    </h4>\n                    <p class=\"cludo-result-item-description\">" + this.Description + "</p>\n                    <a href=\"" + this.Path + "\" class=\"cludo-result-item-path\" aria-label=\"" + this.Title + "\" " + this._getStatsAtts() + ">" + this.Path + "</a>\n                </li>";
+        }
+        else if (this._collapseResult) {
+            return "\n                <li class=\"cludo-result-item\">\n                    <a href=\"" + this.Path + "\" aria-label=\"" + this.Title + "\" " + this._getStatsAtts() + ">\n                        <h4 class=\"cludo-result-item-title\">\n                            " + this.Title + "\n                        </h4>\n                        <span class=\"cludo-result-item-path\">" + this.Path + "</span>\n                    </a>\n                </li>";
+        }
+        else {
+            return "<li class=\"cludo-result-item\">\n                    <h4 class=\"cludo-result-item-title\">\n                        <a href=\"" + this.Path + "\" class=\"cludo-result-item-path\" " + this._getStatsAtts() + ">" + this.Title + "</a>\n                    </h4>\n                    <a href=\"" + this.Path + "\" class=\"cludo-result-item-path\" aria-label=\"" + this.Title + "\" " + this._getStatsAtts() + ">" + this.Path + "</a>\n                </li>";
+        }
+    };
+    ResultItemView.prototype._getStatsAtts = function () {
+        return "data-cludo-index=\"" + this.Index + "\" data-cludo-url=\"" + this.Path + "\"";
+    };
+    return ResultItemView;
+}());
+var TypedDocumentHelper;
+(function (TypedDocumentHelper) {
+    function GetTitle(document) {
+        var value = "";
+        if (document.FieldNames.indexOf("Title") != -1) {
+            value = document.Fields["Title"].Value;
+        }
+        else if (document.FieldNames.indexOf("fc_Title") != -1) {
+            value = document.Fields["fc_Title"].Value;
+        }
+        else {
+            value = "";
+        }
+        if (value.indexOf(" | ") > 0) {
+            value = value.split(" | ")[0];
+        }
+        return value;
+    }
+    TypedDocumentHelper.GetTitle = GetTitle;
+    function GetDescription(document, descriptionFieldName, useHighlights) {
+        if (useHighlights === void 0) { useHighlights = true; }
+        var descField;
+        if (descriptionFieldName && document.FieldNames.indexOf(descriptionFieldName) != -1) {
+            descField = document.Fields[descriptionFieldName];
+        }
+        else if (document.FieldNames.indexOf("Description") != -1) {
+            descField = document.Fields.Description;
+        }
+        else if (document.FieldNames.indexOf("fc_Content") != -1) {
+            descField = document.Fields.fc_Content;
+        }
+        else {
+            return "";
+        }
+        if (useHighlights || !descField.Value) {
+            return getHighlights(descField);
+        }
+        return descField.Value;
+    }
+    TypedDocumentHelper.GetDescription = GetDescription;
+    function getHighlights(field) {
+        if (!field || !field.Highlights) {
+            return '';
+        }
+        return field.Highlights.join("... ");
+    }
+})(TypedDocumentHelper || (TypedDocumentHelper = {}));
+var Category = /** @class */ (function () {
+    function Category() {
+    }
+    return Category;
+}());
+var Facets = /** @class */ (function () {
+    function Facets() {
+    }
+    return Facets;
+}());
+var CludoAPI = /** @class */ (function () {
+    function CludoAPI(cid, engine) {
+        this._apiEuBase = "https://api.cludo.com";
+        this._apiUsBase = "https://api-us1.cludo.com";
+        this._apiDevLocal = "http://search.local";
+        this._searchSiteKey = "SearchKey";
+        if (cid > 100000) {
+            this._apiBaseUrl = this._apiUsBase;
+        }
+        else {
+            this._apiBaseUrl = this._apiEuBase;
+        }
+        // comment this out if not local
+        // this._apiBaseUrl = this._apiDevLocal;
+        this._initEndpoints();
+        this._cid = cid.toString();
+        this._engine = engine.toString();
+        this._searchEndpoint = this._searchEndpoint.replace('{CustomerId}', this._cid);
+        this._searchEndpoint = this._searchEndpoint.replace('{EngineId}', this._engine);
+        this._fofPushStatEndpoint = this._fofPushStatEndpoint.replace('{CustomerId}', this._cid);
+        this._fofPushStatEndpoint = this._fofPushStatEndpoint.replace('{EngineId}', this._engine);
+        this._fofSettingsEndpoint = this._fofSettingsEndpoint.replace('{CustomerId}', this._cid);
+        this._fofSettingsEndpoint = this._fofSettingsEndpoint.replace('{EngineId}', this._engine);
+        this._websiteSettingsEndpoint = this._websiteSettingsEndpoint.replace('{CustomerId}', this._cid);
+        this._websiteSettingsEndpoint = this._websiteSettingsEndpoint.replace('{EngineId}', this._engine);
+    }
+    CludoAPI.prototype._initEndpoints = function () {
+        this._searchEndpoint = this._apiBaseUrl + "/api/v3/{CustomerId}/{EngineId}/search";
+        this._fofPushStatEndpoint = this._apiBaseUrl + "/api/v3/{CustomerId}/{EngineId}/404/pushstat";
+        this._fofSettingsEndpoint = this._apiBaseUrl + "/api/v3/{CustomerId}/{EngineId}/404/settings";
+        this._websiteSettingsEndpoint = this._apiBaseUrl + "/api/v3/{CustomerId}/{EngineId}/websites/publicsettings";
+    };
+    CludoAPI.prototype._getPushStatEndpoint = function (type) {
+        return this._fofPushStatEndpoint + "/" + type;
+    };
+    CludoAPI.prototype.GetSettings = function (successCallback) {
+        var header = [
+            {
+                key: "authorization",
+                value: "SiteKey " + this.getAuthorizationKey()
+            },
+            {
+                key: "content-type",
+                value: "application/json; charset=utf-8"
+            }
+        ];
+        Http.GetRequest(this._fofSettingsEndpoint, function (response, request) {
+            successCallback(response, request);
+        }, this.Error, header);
+    };
+    /** Get customer subscription information */
+    CludoAPI.prototype.GetWebsiteSettings = function (successCallback) {
+        var _this = this;
+        Http.GetRequest(this._websiteSettingsEndpoint, function (response) {
+            _this._websiteSettings = response;
+            successCallback(response);
+        }, this.Error, []);
+    };
+    CludoAPI.prototype.Search = function (query, srcPage, successCallback) {
+        var _this = this;
+        var header = [
+            {
+                key: "authorization",
+                value: "SiteKey " + this.getAuthorizationKey()
+            },
+            {
+                key: "content-type",
+                value: "application/json; charset=utf-8"
+            }
+        ];
+        var body = {
+            ResponseType: "Json",
+            query: query,
+            operator: "or",
+            perPage: 5,
+            SearchContext: "Search404"
+        };
+        Http.PostRequest(this._searchEndpoint, function (response, request) {
+            _this._lastQuery = srcPage;
+            var optOutCookieTracking = (_this._websiteSettings && _this._websiteSettings.optOutCookieTracking) || !_this._websiteSettings;
+            _this._lastSessionId = SessionIdProvider.getSessionId(optOutCookieTracking);
+            _this._lastQueryId = response.QueryId;
+            _this._lastQuerySessionId = SessionIdProvider.getQuerySessionId();
+            if (window.location.href.indexOf("cludo-no-track=1") == -1 && window.location.href.indexOf("cludo-no-track=true") == -1) {
+                _this.PushQueryStat(response.TotalDocument, response.ResponseTime, function () { });
+            }
+            successCallback(response, request);
+        }, this.Error, header, body);
+    };
+    CludoAPI.prototype.PushQueryStat = function (resultCount, responseTime, successCallback) {
+        var query = this._lastQuery;
+        var queryId = this._lastQueryId;
+        var sessionId = this._lastSessionId;
+        var querySessionId = this._lastQuerySessionId;
+        var header = [
+            {
+                key: "authorization",
+                value: "SiteKey " + this.getAuthorizationKey()
+            },
+            {
+                key: "content-type",
+                value: "application/json; charset=utf-8"
+            }
+        ];
+        var body = this._buildLogObject(query, queryId, sessionId, querySessionId);
+        body["rc"] = resultCount;
+        body["rt"] = responseTime;
+        body["swr"] = query;
+        body["fquery"] = "";
+        body["ban"] = 0;
+        body["ql"] = "";
+        var url = this._buildUrlParams(this._getPushStatEndpoint("404querylog"), body);
+        Http.PostRequest(this._getPushStatEndpoint("404querylog"), successCallback, this.Error, header, body);
+    };
+    CludoAPI.prototype.PushClickStat = function (url, index, successCallback) {
+        var query = this._lastQuery;
+        var queryId = this._lastQueryId;
+        var sessionId = this._lastSessionId;
+        var querySessionId = this._lastQuerySessionId;
+        var header = [
+            {
+                key: "authorization",
+                value: "SiteKey " + this.getAuthorizationKey()
+            },
+            {
+                key: "content-type",
+                value: "application/json; charset=utf-8"
+            }
+        ];
+        var body = this._buildLogObject(query, queryId, sessionId, querySessionId);
+        body["clurl"] = url;
+        body["cli"] = index;
+        //body["title"] = title;
+        Http.PostRequest(this._getPushStatEndpoint("404clicklog"), successCallback, this.Error, header, body);
+    };
+    CludoAPI.prototype._buildLogObject = function (query, queryId, sessionId, querySessionId) {
+        var ref = "";
+        if (document.referrer) {
+            ref = document.referrer;
+        }
+        return {
+            sz: this._getScreenResolution(),
+            ua: navigator.userAgent,
+            refurl: ref,
+            refpt: this.getURLParam("cludo" + "refpt"),
+            sw: query,
+            brl: window.navigator.language,
+            pn: 1,
+            hn: window.location.hostname,
+            enid: this._engine,
+            qid: queryId,
+            sid: sessionId,
+            qsid: querySessionId,
+            a: this._getTimestamp()
+        };
+    };
+    CludoAPI.prototype.Error = function () {
+        console.log("ERROR!");
+    };
+    CludoAPI.prototype.getAuthorizationKey = function () {
+        var key = this._cid + ":" + this._engine + ":" + this._searchSiteKey;
+        var base64key = base64.encode(key);
+        // var base64key = btoa(key);
+        return base64key;
+    };
+    // Param: sz
+    CludoAPI.prototype._getScreenResolution = function () {
+        return screen.width + "x" + screen.height;
+    };
+    CludoAPI.prototype._getTimestamp = function () {
+        return new Date().getTime();
+    };
+    CludoAPI.prototype._buildUrlParams = function (url, parameters) {
+        var urlWithParams = url + '?';
+        var isFirst = true;
+        for (var key in parameters) {
+            var value = parameters[key] === null ? "" : parameters[key];
+            urlWithParams += (isFirst ? "" : "&") + key + "=" + encodeURIComponent(value);
+            isFirst = false;
+        }
+        return urlWithParams;
+    };
+    CludoAPI.prototype.getURLParam = function (param) {
+        var hash = window.location.hash;
+        return decodeURIComponent(hash.replace(new RegExp("^(?:.*[&\\?]" + encodeURIComponent(param).replace(/[\.\+\*]/g, "\\$&") + "(?:\\=([^&]*))?)?.*$", "i"), "$1"));
+    };
+    return CludoAPI;
+}());
+var Http = /** @class */ (function () {
+    function Http() {
+    }
+    Http.PostRequest = function (url, callback, onerror, headers, body) {
+        var request = new XMLHttpRequest();
+        request.onload = function () {
+            if (request.status === 200) {
+                var jsonObject = JSON.parse(request.responseText);
+                var responseObject = jsonObject;
+                callback(responseObject, body);
+            }
+            else {
+                onerror(new Error(request.statusText));
+            }
+        };
+        request.onerror = function () {
+            onerror(new Error('XMLHttpRequest Error: ' + request.statusText));
+        };
+        request.open('POST', url);
+        for (var i = 0; i < headers.length; i++) {
+            request.setRequestHeader(headers[i].key, headers[i].value);
+        }
+        request.send(JSON.stringify(body));
+    };
+    Http.GetRequest = function (url, callback, onerror, headers) {
+        var request = new XMLHttpRequest();
+        request.onload = function () {
+            if (request.status === 200) {
+                var jsonObject = JSON.parse(request.responseText);
+                var responseObject = jsonObject;
+                callback(responseObject);
+            }
+            else {
+                onerror(new Error(request.statusText));
+            }
+        };
+        request.onerror = function () {
+            onerror(new Error('XMLHttpRequest Error: ' + request.statusText));
+        };
+        request.open('GET', url);
+        // for (var i = 0; i < headers.length; i++) {
+        //     request.setRequestHeader(headers[i].key, headers[i].value);
+        // }
+        request.send();
+    };
+    Http.GetQueryStringValue = function (url, key) {
+        return decodeURIComponent(url.replace(new RegExp("^(?:.*[&\\?]" + encodeURIComponent(key).replace(/[\.\+\*]/g, "\\$&") + "(?:\\=([^&]*))?)?.*$", "i"), "$1"));
+    };
+    return Http;
+}());
+var CLUDO_404_STYLES;
+var EnglishTranslations = /** @class */ (function () {
+    function EnglishTranslations() {
+        this.title = "Recommended pages";
+    }
+    return EnglishTranslations;
+}());
+var DanishTranslations = /** @class */ (function () {
+    function DanishTranslations() {
+        this.title = "Anbefalede sider";
+    }
+    return DanishTranslations;
+}());
+var SessionIdProvider = /** @class */ (function () {
+    function SessionIdProvider() {
+    }
+    SessionIdProvider.getSessionId = function (optOutCookieTracking) {
+        if (optOutCookieTracking) {
+            return this.generateUUID();
+        }
+        var sessionId = sessionStorage.getItem('sessionId');
+        if (!sessionId) {
+            sessionId = this.generateUUID();
+            sessionStorage.setItem('sessionId', sessionId);
+        }
+        return sessionId;
+    };
+    SessionIdProvider.getQuerySessionId = function () {
+        return this.generateUUID();
+    };
+    SessionIdProvider.generateUUID = function () {
+        var d = new Date().getTime();
+        if (window.performance && typeof window.performance.now === "function") {
+            d += performance.now(); // use high-precision timer if available
+        }
+        var uuid = 'xxxxxxxxxxxx4xxxyxxxxxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+            var r = (d + Math.random() * 16) % 16 | 0;
+            d = Math.floor(d / 16);
+            return (c == 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+        });
+        return uuid;
+    };
+    return SessionIdProvider;
+}());
+
+/*
+ * Copyright (c) 2010 Nick Galbreath
+ * http://code.google.com/p/stringencoders/source/browse/#svn/trunk/javascript
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/* base64 encode/decode compatible with window.btoa/atob
+ *
+ * window.atob/btoa is a Firefox extension to convert binary data (the "b")
+ * to base64 (ascii, the "a").
+ *
+ * It is also found in Safari and Chrome.  It is not available in IE.
+ *
+ * if (!window.btoa) window.btoa = base64.encode
+ * if (!window.atob) window.atob = base64.decode
+ *
+ * The original spec's for atob/btoa are a bit lacking
+ * https://developer.mozilla.org/en/DOM/window.atob
+ * https://developer.mozilla.org/en/DOM/window.btoa
+ *
+ * window.btoa and base64.encode takes a string where charCodeAt is [0,255]
+ * If any character is not [0,255], then an DOMException(5) is thrown.
+ *
+ * window.atob and base64.decode take a base64-encoded string
+ * If the input length is not a multiple of 4, or contains invalid characters
+ *   then an DOMException(5) is thrown.
+ */
+var base64 = {};
+base64.PADCHAR = '=';
+base64.ALPHA = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+
+base64.makeDOMException = function() {
+    // sadly in FF,Safari,Chrome you can't make a DOMException
+    var e, tmp;
+
+    try {
+        return new DOMException(DOMException.INVALID_CHARACTER_ERR);
+    } catch (tmp) {
+        // not available, just passback a duck-typed equiv
+        // https://developer.mozilla.org/en/Core_JavaScript_1.5_Reference/Global_Objects/Error
+        // https://developer.mozilla.org/en/Core_JavaScript_1.5_Reference/Global_Objects/Error/prototype
+        var ex = new Error("DOM Exception 5");
+
+        // ex.number and ex.description is IE-specific.
+        ex.code = ex.number = 5;
+        ex.name = ex.description = "INVALID_CHARACTER_ERR";
+
+        // Safari/Chrome output format
+        ex.toString = function() { return 'Error: ' + ex.name + ': ' + ex.message; };
+        return ex;
+    }
+}
+
+base64.getbyte64 = function(s,i) {
+    // This is oddly fast, except on Chrome/V8.
+    //  Minimal or no improvement in performance by using a
+    //   object with properties mapping chars to value (eg. 'A': 0)
+    var idx = base64.ALPHA.indexOf(s.charAt(i));
+    if (idx === -1) {
+        throw base64.makeDOMException();
+    }
+    return idx;
+}
+
+base64.decode = function(s) {
+    // convert to string
+    s = '' + s;
+    var getbyte64 = base64.getbyte64;
+    var pads, i, b10;
+    var imax = s.length
+    if (imax === 0) {
+        return s;
+    }
+
+    if (imax % 4 !== 0) {
+        throw base64.makeDOMException();
+    }
+
+    pads = 0
+    if (s.charAt(imax - 1) === base64.PADCHAR) {
+        pads = 1;
+        if (s.charAt(imax - 2) === base64.PADCHAR) {
+            pads = 2;
+        }
+        // either way, we want to ignore this last block
+        imax -= 4;
+    }
+
+    var x = [];
+    for (i = 0; i < imax; i += 4) {
+        b10 = (getbyte64(s,i) << 18) | (getbyte64(s,i+1) << 12) |
+            (getbyte64(s,i+2) << 6) | getbyte64(s,i+3);
+        x.push(String.fromCharCode(b10 >> 16, (b10 >> 8) & 0xff, b10 & 0xff));
+    }
+
+    switch (pads) {
+    case 1:
+        b10 = (getbyte64(s,i) << 18) | (getbyte64(s,i+1) << 12) | (getbyte64(s,i+2) << 6);
+        x.push(String.fromCharCode(b10 >> 16, (b10 >> 8) & 0xff));
+        break;
+    case 2:
+        b10 = (getbyte64(s,i) << 18) | (getbyte64(s,i+1) << 12);
+        x.push(String.fromCharCode(b10 >> 16));
+        break;
+    }
+    return x.join('');
+}
+
+base64.getbyte = function(s,i) {
+    var x = s.charCodeAt(i);
+    if (x > 255) {
+        throw base64.makeDOMException();
+    }
+    return x;
+}
+
+base64.encode = function(s) {
+    if (arguments.length !== 1) {
+        throw new SyntaxError("Not enough arguments");
+    }
+    var padchar = base64.PADCHAR;
+    var alpha   = base64.ALPHA;
+    var getbyte = base64.getbyte;
+
+    var i, b10;
+    var x = [];
+
+    // convert to string
+    s = '' + s;
+
+    var imax = s.length - s.length % 3;
+
+    if (s.length === 0) {
+        return s;
+    }
+    for (i = 0; i < imax; i += 3) {
+        b10 = (getbyte(s,i) << 16) | (getbyte(s,i+1) << 8) | getbyte(s,i+2);
+        x.push(alpha.charAt(b10 >> 18));
+        x.push(alpha.charAt((b10 >> 12) & 0x3F));
+        x.push(alpha.charAt((b10 >> 6) & 0x3f));
+        x.push(alpha.charAt(b10 & 0x3f));
+    }
+    switch (s.length - imax) {
+    case 1:
+        b10 = getbyte(s,i) << 16;
+        x.push(alpha.charAt(b10 >> 18) + alpha.charAt((b10 >> 12) & 0x3F) +
+               padchar + padchar);
+        break;
+    case 2:
+        b10 = (getbyte(s,i) << 16) | (getbyte(s,i+1) << 8);
+        x.push(alpha.charAt(b10 >> 18) + alpha.charAt((b10 >> 12) & 0x3F) +
+               alpha.charAt((b10 >> 6) & 0x3f) + padchar);
+        break;
+    }
+    return x.join('');
+}
+
+CLUDO_404_STYLES = "<style>"
++ "#cludo-404 {"
++ "  display: block;"
++ "  margin: 0 auto;"
++ "  padding-bottom: 21px;"
++ "  position: relative;"
++ "  transition: min-height 0.15s ease-in-out;"
++ "}"
++ "#cludo-404.hide-module-final {"
++ "  display: none;"
++ "}"
++ "#cludo-404 .loader {"
++ "  transition: all 0.3s ease-in-out;"
++ "  border: 3px solid #b73fa0;"
++ "  border-right-color: transparent !important;"
++ "  border-radius: 50%;"
++ "  display: inline-block;"
++ "  height: 80px;"
++ "  width: 80px;"
++ "  position: absolute;"
++ "  left: 0;"
++ "  right: 0;"
++ "  margin: 0 auto;"
++ "  top: 50%;"
++ "  transform: translateY(-50%);"
++ "}"
++ "#cludo-404.animate {"
++ "  min-height: 250px;"
++ "}"
++ "#cludo-404.animate.loaded {"
++ "  min-height: auto;"
++ "}"
++ "#cludo-404.animate .loader {"
++ "  animation: spinner 1s linear 0s infinite;"
++ "}"
++ "#cludo-404.animate .powered-by {"
++ "  opacity: 0;"
++ "}"
++ "#cludo-404.loaded {"
++ "  min-height: auto;"
++ "}"
++ "#cludo-404.hide-module {"
++ "  padding-bottom: 0;"
++ "}"
++ "#cludo-404.hide-module .powered-by {"
++ "  display: none;"
++ "}"
++ "#cludo-404.hide-powered-by .powered-by {"
++ "  display: none !important;"
++ "}"
++ "#cludo-404.loaded .loader {"
++ "  opacity: 0;"
++ "}"
++ "@keyframes spinner {"
++ "  0% {"
++ "    transform: rotate(0deg) translateY(-50%);"
++ "    transform-origin: 50% 0;"
++ "  }"
++ "  100% {"
++ "    transform: rotate(360deg) translateY(-50%);"
++ "    transform-origin: 50% 0;"
++ "  }"
++ "}"
++ "#cludo-404 .cludo-results {"
++ "  position: relative;"
++ "}"
++ "#cludo-404 .powered-by {"
++ "  opacity: 1;"
++ "  transition: opacity 0.15s ease-in-out;"
++ "  position: absolute;"
++ "  right: 0;"
++ "  bottom: 0;"
++ "}"
++ "#cludo-404 ul {"
++ "  margin: 0;"
++ "}"
++ "#cludo-404 ul li {"
++ "  list-style-type: none;"
++ "  margin-bottom: 15px;"
++ "}"
++ "#cludo-404 ul li p {"
++ "  margin: 0;"
++ "}"
++ "#cludo-404 h3 {"
++ "  font-size: inherit;"
++ "  text-transform: uppercase;"
++ "  margin-bottom: 20px;"
++ "  float: none !important;"
++ "}"
++ ""
+
++ "</style>";
+
+var cludo404;
+(function () {
+    cludo404 = new Cludo404();
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>feedbackOverlay.html</title>
+</head>
+<body>
+
+<script>
+//#region cx (Connexus)
+var cx;
+(function (cx) {
+    'use strict';
+
+    //#region cx.feedback
+    (function (feedback) {
+        function docReady() {
+            $('.cxlLarge').cxLitbox({ className: 'cxlLarge', type: 'info' });
+            var $feedbackLink = $('a.feedback');
+            // Use .one() to attach the click event only once
+            $feedbackLink.one('click', function (e) {
+                e.preventDefault();
+                displayFeedbackOverlay($(this).attr("href"));
+                // Remove the 'click' event after it's triggered
+                $feedbackLink.off('click');
+            });
+
+            // Some browsers (iOS Safari right now) still open feedback in a new window
+            // We want to make sure they don't do that, but we're leaving the target in the
+            // markup in case there's been a script error or js is disabled
+            $feedbackLink.removeAttr('target');
+        };
+
+        function displayFeedbackOverlay(navigateUrl) {
+            $.fn.cxLitbox.cxlGetType("#cxlAjax", {
+                createType: "get",
+                className: "feedbackOverlay",
+                noHashChange: true,
+                tabFocus: ".cxlContent",
+                loadingMessage: "Loading...",
+                title: "Feedback",
+                footer: '<a href="javascript:void(0)" class="cxBtn cxPrimaryBtn" id="sendFeedback" role="button" aria-label="Send Feedback"><span class="btnContent">Send Feedback</span></a>',
+                createMethod: function (id, url) {
+                    var newHtml = '<div id="feedbackDialog" aria-labelledby="feedbackTitle" aria-live="assertive" tabindex="-1" class="feedbackDialog">' +
+                        '<iframe title="Feedback Frame" id="feedbackFrame" src="' + navigateUrl + '"></iframe>' +
+                        '</div>';
+                    var deferred = $.Deferred();
+                    deferred.resolve(newHtml);
+                    setTimeout(function () {
+                        var $feedbackFrame = $('#feedbackFrame');
+                        feedback.docReady();
+                        $feedbackFrame.on('load', function () {
+                            var iFrameWindow = $feedbackFrame[0].contentWindow;
+                            var iFrameDocument = iFrameWindow.document;
+                            if (iFrameWindow.IsPostBack) {
+                                if (iFrameWindow.Page_IsValid) {
+                                    $('.feedbackOverlay .cxlClose').click();
+                                    $.fn.cxAlert("<strong>Sent!</strong> Thanks for your feedback!", "saved", 3000);
+                                } else {
+                                    $('#sendFeedback').removeAttr('disabled');
+                                }
+                                return false;
+                            }
+                            $('#sendFeedback').on('click', function () {
+                                $('#sendFeedback').attr('disabled', 'disabled');
+                                if (typeof (iFrameWindow.Page_ClientValidate) != 'function') {
+                                    return false;
+                                }
+                                iFrameWindow.Page_ClientValidate();
+                                if (iFrameWindow.Page_IsValid) {
+                                    $feedbackFrame.contents().find('a.submit')[0].click();
+                                    $('#sendFeedback').off('click');
+                                } else {
+                                    $('#sendFeedback').removeAttr('disabled');
+                                }
+                                return false;
+                            });
+                            $(iFrameDocument).on('keydown.feedback', function (event) {
+                                if (event.key === "Escape") {
+                                    $('.feedbackOverlay .cxlClose').click();
+                                    $(iFrameDocument).off('keydown.feedback');
+                                }
+                            });
+                        });
+                    }, 1);
+                    $(document).on('keydown.feedback', function (event) {
+                        if (event.key === "Escape") {
+                            $('.feedbackOverlay .cxlClose').click();
+                            $(document).off('keydown.feedback');
+                        }
+                    });
+                    return deferred.promise();
+                },
+                callback: function () {
+                    var feedbackDialog = document.getElementById('feedbackDialog');
+                    if (feedbackDialog && feedbackDialog.getAttribute('aria-hidden') !== 'true') {
+                        feedbackDialog.focus();
+                    }
+                }
+            });
+        }
+
+        //Public
+        feedback.displayFeedbackOverlay = displayFeedbackOverlay;
+        feedback.docReady = docReady;
+    })(cx.feedback || (cx.feedback = {}));
+})(cx || (cx = {}));
+//#endregion
+
+$(function () { cx.feedback.docReady(); });
+
+</script>
+
+</body>
+</html>

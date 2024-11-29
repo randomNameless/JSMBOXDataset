@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>icyveins-common-4ace8101680e64e91c97e522af99734f.html</title>
+</head>
+<body>
+
+<script>
+// To prevent the Complitly plugin in Chrome from sending millions of /undefined requests to our servers. Who installs that crap, seriously?
+window.suggestmeyes_loaded = true;
+
+jQuery(document).ready(function(){
+
+  if (!getCookie('ips4_member_premium')) {
+    if (window.innerWidth >= 1070) {
+      var remove_ads_buttons_retries = 5
+      add_remove_ads_buttons = function() {
+        if (remove_ads_buttons_retries >= 0) {
+          jQuery("div[id^='div-gpt-ad-']").each(function() {
+            if (jQuery(this).attr("id") != "div-gpt-ad-1498507813884-0" && jQuery(this).attr("id") != "div-gpt-ad-1496430502307-0") {
+              if (jQuery(this).children("div").length != 0 && jQuery(this).children("div").width() != 100 && jQuery(this).children("div").width() >= 0 && jQuery(this).children(".remove-ads").length == 0) {
+                var remove_ads = document.createElement('a');
+                var remove_ads_text = document.createTextNode("Remove Ads");
+                remove_ads.appendChild(remove_ads_text);
+                remove_ads.title = "Remove Ads";
+                remove_ads.href = "https://www.icy-veins.com/forums/premium";
+                remove_ads.className = "remove-ads";
+                jQuery(this).append(remove_ads);
+              }
+            }
+          });
+          jQuery(".remove-ads").click(function() {
+             writeToLocalStorage('premium_origin', JSON.stringify({'type': 'remove-ads', 'date': new Date()}));
+          });
+          remove_ads_buttons_retries -= 1;
+          setTimeout(add_remove_ads_buttons, 1000);
+        }
+      }
+      add_remove_ads_buttons();
+    }
+  }
+
+});
+
+icyveins_tooltips_update_position = function(id, event) {
+  tooltip_wrapper = document.getElementById(tooltip_id);
+  if (!tooltip_wrapper) return;
+  // Tooltip is always 20 pixels away from the cursor in both directions
+  // So we need to identify on which side of the cursor there is the most space (left/right? up/down?)
+  // and place the tooltip accordingly
+
+  const cursor_x = event.pageX - jQuery(window).scrollLeft();
+  const cursor_y = event.pageY - jQuery(window).scrollTop();
+  const windowWidth = window.innerWidth;
+  const windowHeight = window.innerHeight;
+  const tooltipWidth = tooltip_wrapper.clientWidth;
+  const tooltipHeight = tooltip_wrapper.clientHeight;
+  let cursorCorner = '';
+  if (cursor_x <= windowWidth / 2) {
+    // We are on the left side of the screen
+    tooltip_x = Math.min(cursor_x + 15, windowWidth - tooltipWidth);
+    cursorCorner += 'left';
+  } else {
+    // We are on the right side of the screen
+    tooltip_x = Math.max(0, cursor_x - 15 - tooltipWidth);
+    cursorCorner += 'right';
+  }
+
+  if (cursor_y <= windowHeight / 2) {
+    // We are in the top half
+    tooltip_y = Math.min(cursor_y + 10, windowHeight - tooltipHeight);
+    cursorCorner += 'top';
+  } else {
+    // We are in the bottom half
+    tooltip_y = Math.max(0, cursor_y - 10 - tooltipHeight);
+    cursorCorner += 'bottom';
+  }
+  tooltip_wrapper.style.left = `${tooltip_x}px`;
+  tooltip_wrapper.style.top = `${tooltip_y}px`;
+  tooltip_wrapper.dataset.cursorCorner = cursorCorner;
+}
+
+generic_fetch_and_insert_data = function(fetch_and_insert_data, load_path, id, wrapper_inner_css) {
+  jQuery.get(load_path, {}, function(html_data) {
+    fetch_and_insert_data(id, wrapper_inner_css, html_data);
+  });
+}
+
+icyveins_tooltips = function(slugs, load_path_function, fetch_and_insert_data, insert_data) {
+  jQuery('*[data-' + slugs['data'] + ']').mouseenter(function(event) {
+      element = event.target;
+      while (!element.hasAttribute("data-" + slugs['data'])) {
+        element = element.parentNode;
+      }
+      tooltip_id = slugs['data'] + '-' + element.getAttribute("data-" + slugs['data']);
+      if (jQuery(`[id="${tooltip_id}"]`).length == 0) {
+        load_path = load_path_function(element.getAttribute("data-" + slugs['data']));
+        wrapper = jQuery(document.createElement('div')).attr("id", tooltip_id).attr("class", slugs['wrapper_css'])
+        wrapper.css("display", "none");
+        wrapper.css("position", "fixed");
+        inner_wrapper = jQuery(document.createElement('div')).attr("class", slugs['wrapper_inner_css']);
+        inner_wrapper.appendTo(wrapper);
+        wrapper.appendTo(jQuery("body"));
+        if (load_path && fetch_and_insert_data) {
+          generic_fetch_and_insert_data(fetch_and_insert_data, load_path, tooltip_id, slugs['wrapper_inner_css']);
+        } else if (insert_data) {
+          insert_data(tooltip_id, element.getAttribute("data-" + slugs['data']), slugs['wrapper_inner_css']);
+        }
+      }
+      icyveins_tooltips_update_position(tooltip_id, event);
+      jQuery(`[id="${tooltip_id}"]`).show();
+      jQuery(this).mousemove(function(event) {
+        icyveins_tooltips_update_position(tooltip_id, event);
+      });
+  }).mouseleave(function() {
+    jQuery("." + slugs['wrapper_css']).hide();
+    jQuery(this).off("mousemove");
+  });
+
+}
+
+</script>
+
+</body>
+</html>

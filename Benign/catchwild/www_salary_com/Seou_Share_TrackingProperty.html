@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seou_Share_TrackingProperty.html</title>
+</head>
+<body>
+
+<script>
+var B2B_UTM_Helper = (function () {
+    var htmlDecode = function (input) {
+        var doc = new DOMParser().parseFromString(input, "text/html");
+        return doc.documentElement.textContent;
+    },
+        getQueryString = function (key, url) {
+            url = window.top.location.href || url;
+            url = htmlDecode(url);
+            var regex = new RegExp("[?&]" + key + "(=([^&#]*)|&|#|$)", "i"),
+                results = regex.exec(url);
+            if (!results) {
+                return null;
+            }
+            if (!results[2]) {
+                return "";
+            }
+            return decodeURIComponent(results[2].replace(/\+/g, " "));
+        },
+        getOriginUrl = function () {
+            var origin = window.top.location.origin;
+            if (!origin || origin === "null") {
+                origin = window.location.protocol + "//" + window.location.hostname
+                    + (window.location.port ? ":" + window.location.port : "");
+                if (console && console.log) {
+                    console.log('Fixed origin url: _' + origin + "_");
+                }
+            }
+            return origin;
+        },
+
+        getCookie = function (cname) {
+            var name = cname + "=";
+            var ca = top.document.cookie.split(";");
+            for (var i = 0; i < ca.length; i++) {
+                var c = ca[i];
+                while (c.charAt(0) == " ") c = c.substring(1);
+                if (c.indexOf(name) == 0) return c.substring(name.length, c.length);
+            }
+            return "";
+        },
+
+        equal = function (text, other) {
+            return text.localeCompare(other, undefined, { sensitivity: 'base' }) === 0;
+        },
+
+        setCookie = function (cname, cvalue, exdays) {
+            exdays = exdays || -1;
+            if (exdays === -1) {
+                top.document.cookie = cname + "=" + cvalue + "; path=/";
+                return;
+            }
+            var d = new Date();
+            d.setTime(d.getTime() + exdays * 24 * 60 * 60 * 1000);
+            var expires = "expires=" + d.toUTCString();
+            top.document.cookie = cname + "=" + cvalue + "; " + expires + ";path=/";
+        };
+
+    return {
+        getQueryString: getQueryString,
+        getOriginUrl: getOriginUrl,
+        equal: equal,
+        getCookie: getCookie,
+        setCookie: setCookie
+    };
+})();
+
+const UTMTrackCookieName = "b2b_utm_digtial";
+var PageUrl = window.location.href.split(/[?#]/)[0];
+const arrayQueryParams = [
+    "utm_id",
+    "utm_source",
+    "utm_term",
+    "utm_campaign",
+    "utm_content",
+    "utm_medium",
+    "channel",
+    "utm",
+    "utm_keyword",
+    "marketingnote"
+];
+const arrayUTMCookieKeys = [
+    "Digital_Landing_Page__c",
+    "Digital_Landing_Page_Detail__c",
+    "Digital_Source__c",
+    "Digital_Medium__c",
+    "Digital_Campaign_Id__c",
+    "Digital_Campaign_Element__c",
+    "Marketing_Note__c",
+]; // ignore case when pass to sf
+/*Digital_CTA_URL__c, Digital_Device__c get value  in backend  */
+const initUTMTrackCookie = function () {
+    getRefferURL();
+    let objUTMTrackFromCookie = {}, objUTMTrackResult = {};
+    let nonSyncSF = {};
+
+    var utmCookieValue = B2B_UTM_Helper.getCookie(UTMTrackCookieName);
+    const getCookieValueByKeyName = (keyName) => {
+        if (!utmCookieValue)
+            return "";
+
+        let arrUTMSingleKeyValues = utmCookieValue.split("&");
+        for (let keyValue of arrUTMSingleKeyValues) {
+            let arrKeyValue = keyValue.split("=");
+            if (B2B_UTM_Helper.equal(keyName, arrKeyValue[0]))
+                return arrKeyValue[1];
+        }
+
+        return "";
+    };
+
+    arrayQueryParams.forEach(ele => { // get utm value from url
+        let eleValue = B2B_UTM_Helper.getQueryString(ele);
+        switch (ele) {
+            case "channel":
+            case "utm":
+            case "utm_keyword":
+                nonSyncSF[ele] = eleValue;
+                break;
+            case "utm_campaign":
+                //var s=
+                var regex1 = RegExp("[\\?\\*\\!\\]\\>\\<]", 'g');
+                var result1 = regex1.exec(eleValue);
+                if (result1 !== null) {
+                    eleValue = eleValue.slice(0, regex1.lastIndex - 1);
+                }
+                if (eleValue !== null && eleValue !== "") {
+                    objUTMTrackResult[`${ele}__c`] = eleValue.toLowerCase();
+                }
+                break;
+            //Google Ads - Using dynamic keywords on PE product page.
+            case "marketingnote":
+                if (eleValue !== null && eleValue !== "") {
+                    objUTMTrackResult[`Marketing_Note__c`] = eleValue.toLowerCase().replace(/-/g," ");
+                }
+                break;
+            default:
+                if (eleValue !== null && eleValue !== "") {
+                    objUTMTrackResult[`${ele}__c`] = eleValue.toLowerCase();
+                    arrayUTMCookieKeys.push(`${ele}__c`); // all utm filed name that need to sync to sf.
+                }
+                else {
+                    delete objUTMTrackResult[`${ele}__c`];
+                }
+                break;
+        }
+
+    });
+
+    const SourceMediumKeyPair = [
+        { source: 'Google', medium: 'CPC' },
+        { source: 'Google', medium: 'Display' },
+        { source: 'Google', medium: 'Discovery' },
+        { source: 'LinkedIn', medium: 'PaidSocial' },
+        { source: 'LinkedIn', medium: 'Social' },
+        { source: 'Facebook', medium: 'PaidSocial' },
+        { source: 'Facebook', medium: 'Social' },
+        { source: 'Twitter', medium: 'PaidSocial' },
+        { source: 'Twitter', medium: 'Social' },
+        { source: 'Mautic', medium: 'Email' },
+        { source: 'Pardot', medium: 'Email' },
+        { source: 'Zoom', medium: 'Webinar' },
+        { source: 'Wistia', medium: 'Video' },
+        { source: 'Download', medium: 'Innerlink' },
+        { source: 'Intercom', medium: 'Chat' },
+        { source: 'Bing', medium: 'CPC' },
+        { source: 'Bing', medium: 'Display' },
+        { source: 'SendGrid', medium: 'Email' },
+        { source: 'AliYun', medium: 'Email' },
+        { source: 'Tencent', medium: 'Email' },
+        { source: 'Amazon', medium: 'Email' },
+        { source: 'MailGun', medium: 'Email' },
+        { source: 'MailTrap', medium: 'Email' },
+        { source: 'Azure', medium: 'Email' },
+        { source: 'NetEase', medium: 'Email' },
+        { source: 'Mautic6', medium: 'Email' },
+        { source: 'Zoho', medium: 'Email' },
+        { source: 'Criteo', medium: 'Display' },
+        { source: 'Google', medium: 'Performance Max' },
+        { source: 'Social', medium: 'Community' },
+        { source: 'Partner', medium: 'Plugin' },
+         { source: 'SalesForce', medium: 'Email' }
+    ];
+
+    // utm_keyword is not empty and utm_term is empty from url
+    if (nonSyncSF.utm_keyword !== null && nonSyncSF.utm_keyword !== "" && objUTMTrackResult.utm_term__c === undefined) {
+        objUTMTrackResult.utm_term__c = nonSyncSF.utm_keyword;
+    }
+
+    var source_medium = SourceMediumKeyPair.find(x => B2B_UTM_Helper.equal(x.source, objUTMTrackResult.utm_source__c) && B2B_UTM_Helper.equal(x.medium, objUTMTrackResult.utm_medium__c));
+    var referrUrl = document.referrer.toLowerCase();
+    var currentPageUrlWithReferrUrl = addReferrToUrl(window.location.href, referrUrl);
+    var arrRemoveDigital = [];
+    if (B2B_UTM_Helper.equal('b2c', nonSyncSF.channel)) {
+        objUTMTrackResult['Digital_Source__c'] = 'B2C';
+        arrRemoveDigital.push('Digital_Campaign_Id__c', 'Digital_Campaign_Element__c');
+        objUTMTrackResult['Digital_Medium__c'] = 'Direct Visit';
+        objUTMTrackResult['Digital_Landing_Page__c'] = PageUrl;
+        objUTMTrackResult['Digital_Landing_Page_Detail__c'] = encodeURIComponent(window.location.href);
+    }
+    else if (source_medium !== undefined) {
+        objUTMTrackResult['Digital_Source__c'] = source_medium.source;
+        objUTMTrackResult['Digital_Medium__c'] = source_medium.medium;
+        objUTMTrackResult['Digital_Landing_Page__c'] = PageUrl;
+        objUTMTrackResult['Digital_Landing_Page_Detail__c'] = encodeURIComponent(window.location.href);
+        objUTMTrackResult = splitCampaign(objUTMTrackResult.utm_campaign__c, objUTMTrackResult);
+
+    }
+    else if (B2B_UTM_Helper.equal('semsts', nonSyncSF.utm) || B2B_UTM_Helper.equal('semss', nonSyncSF.utm)) {
+        objUTMTrackResult['utm_source__c'] = 'Google';
+        objUTMTrackResult['utm_medium__c'] = 'CPC';
+        objUTMTrackResult['Digital_Source__c'] = 'Google';
+        objUTMTrackResult['Digital_Medium__c'] = 'CPC';
+        objUTMTrackResult['Digital_Landing_Page__c'] = PageUrl;
+        objUTMTrackResult['Digital_Landing_Page_Detail__c'] = encodeURIComponent(window.location.href);
+        objUTMTrackResult = splitCampaign(objUTMTrackResult.utm_campaign__c, objUTMTrackResult);
+
+    }
+    else if (typeof objUTMTrackResult.utm_source__c !== 'undefined' && objUTMTrackResult.utm_source__c.indexOf('partner') !== -1 && (B2B_UTM_Helper.equal('email', objUTMTrackResult.utm_medium__c) || B2B_UTM_Helper.equal('display', objUTMTrackResult.utm_medium__c) || B2B_UTM_Helper.equal('event', objUTMTrackResult.utm_medium__c))) {
+        objUTMTrackResult['Digital_Source__c'] = 'Partner';
+        objUTMTrackResult['Digital_Medium__c'] = objUTMTrackResult.utm_medium__c;
+        objUTMTrackResult['Digital_Landing_Page__c'] = PageUrl;
+        objUTMTrackResult['Digital_Landing_Page_Detail__c'] = encodeURIComponent(window.location.href);
+        objUTMTrackResult = splitCampaign(objUTMTrackResult.utm_campaign__c, objUTMTrackResult);
+    }
+    else if (referrUrl === '' && (utmCookieValue === null || utmCookieValue === "")) {
+        if (isFromHomePage(PageUrl)) {
+            objUTMTrackResult['Digital_Source__c'] = 'Direct-to-HomePage';
+        } else {
+            objUTMTrackResult['Digital_Source__c'] = 'Direct-to-B2B';
+        }
+        arrRemoveDigital.push('Digital_Campaign_Id__c', 'Digital_Campaign_Element__c');
+        objUTMTrackResult['Digital_Landing_Page__c'] = PageUrl;
+        objUTMTrackResult['Digital_Landing_Page_Detail__c'] = encodeURIComponent(window.location.href);
+        objUTMTrackResult['Digital_Medium__c'] = 'Direct Visit';
+    }
+    else if (referrUrl !== '') {
+        if (!isFromSalaryCom(referrUrl) && !isFromSearchEngineer(referrUrl)) {
+            objUTMTrackResult['Digital_Source__c'] = 'ThirdParty';
+            objUTMTrackResult['Digital_Medium__c'] = 'BackLink';
+            arrRemoveDigital.push('Digital_Campaign_Id__c', 'Digital_Campaign_Element__c');
+            objUTMTrackResult['Digital_Landing_Page__c'] = PageUrl;
+            objUTMTrackResult['Digital_Landing_Page_Detail__c'] = currentPageUrlWithReferrUrl;
+        } else if (!isFromSalaryCom(referrUrl)) {
+            objUTMTrackResult['Digital_Source__c'] = 'SEO';
+            objUTMTrackResult['Digital_Medium__c'] = 'NaturalSearch';
+            arrRemoveDigital.push('Digital_Campaign_Id__c', 'Digital_Campaign_Element__c');
+            objUTMTrackResult['Digital_Landing_Page__c'] = PageUrl;
+            objUTMTrackResult['Digital_Landing_Page_Detail__c'] = currentPageUrlWithReferrUrl;
+        } else if (B2B_UTM_Helper.equal('B2C', getCookieValueByKeyName("Digital_Source__c"))) {
+            if (!isFromB2BPage(referrUrl) && !isFromHomePage(PageUrl)) {
+                objUTMTrackResult['Digital_Source__c'] = 'B2C';
+                arrRemoveDigital.push('Digital_Campaign_Id__c', 'Digital_Campaign_Element__c');
+                objUTMTrackResult['Digital_Landing_Page__c'] = PageUrl;
+                objUTMTrackResult['Digital_Medium__c'] = 'Direct Visit';
+                objUTMTrackResult['Digital_Landing_Page_Detail__c'] = currentPageUrlWithReferrUrl;
+            }
+        } else if (!utmCookieValue) {
+            if (isFromB2BPage(referrUrl)) {
+                objUTMTrackResult['Digital_Source__c'] = 'Direct-to-B2B';
+            }
+            else if (isFromB2CPage(referrUrl)) //  user click company logo on b2c header go to b2b gateway page.
+            {
+                objUTMTrackResult["Digital_Source__c"] = "B2C";
+            }
+            else {
+                if (isFromHomePage(PageUrl)) {
+                    objUTMTrackResult["Digital_Source__c"] = "Direct-to-HomePage";
+                } else {
+                    objUTMTrackResult["Digital_Source__c"] = "B2C";
+                }
+            }
+
+            arrRemoveDigital.push('Digital_Campaign_Id__c', 'Digital_Campaign_Element__c');
+            objUTMTrackResult['Digital_Landing_Page__c'] = PageUrl;
+            objUTMTrackResult['Digital_Medium__c'] = 'Direct Visit';
+            objUTMTrackResult["Digital_Landing_Page_Detail__c"] = currentPageUrlWithReferrUrl;
+        }
+    }
+
+    var resetUTMCookie = false;
+    if (JSON.stringify(objUTMTrackResult) !== '{}') {
+        /* var utmCookieValue = B2B_UTM_Helper.getCookie(UTMTrackCookieName);*/
+        //if (utmCookieValue !== null && utmCookieValue !== "") { // utm cookie exist
+        //    let utmSingleKeyValues = utmCookieValue.split('&');
+        //    for (var keyvalue in utmSingleKeyValues) {
+        //        let arrUTM = utmSingleKeyValues[keyvalue].split('=');
+        //        objUTMTrackFromCookie[arrUTM[0]] = arrUTM[1];
+        //    }
+        //}
+
+        arrayUTMCookieKeys.forEach(key => {
+            var remove = arrRemoveDigital.find(x => x === key);
+            if (remove !== undefined && objUTMTrackFromCookie[key] !== undefined) {
+                delete objUTMTrackFromCookie[key];
+            }
+
+            if (objUTMTrackFromCookie[key] === undefined && objUTMTrackResult[key] !== undefined) { // cookie not eixst key, but url exist
+                resetUTMCookie = true;
+            }
+            if (objUTMTrackResult[key] === undefined && objUTMTrackFromCookie[key] !== undefined) { // url not exist key, but cookie exist
+                resetUTMCookie = true;
+                objUTMTrackResult[key] = objUTMTrackFromCookie[key];
+            }
+            if (objUTMTrackFromCookie[key] !== undefined && objUTMTrackResult[key] !== undefined && objUTMTrackFromCookie[key] !== objUTMTrackResult[key]) { // both exist key, then value is not same
+                resetUTMCookie = true;
+            }
+        });
+    }
+
+    if (resetUTMCookie) {
+        var cookieValue = "";
+        for (var prop in objUTMTrackResult) {
+            cookieValue = [[prop, '=', objUTMTrackResult[prop]].join(''), cookieValue].join('&');
+        }
+        if (cookieValue.endsWith('&'))
+            cookieValue = cookieValue.slice(0, -1);
+        B2B_UTM_Helper.setCookie(UTMTrackCookieName, cookieValue, 90);
+    }
+
+};
+
+function splitCampaign(utmCampaign, objTrack) {
+    if (utmCampaign === undefined) return objTrack;
+    if (utmCampaign !== '') {
+        if (utmCampaign.includes('--')) {
+            var ind = utmCampaign.indexOf('--');
+            try {
+                objTrack['Digital_Campaign_Id__c'] = utmCampaign.substr(0, ind);
+                objTrack['Digital_Campaign_Element__c'] = utmCampaign.substr(ind + 2);
+            } catch {
+                console.error('error:split campaing');
+            }
+
+        }
+        else {
+            objTrack['Digital_Campaign_Id__c'] = utmCampaign;
+        }
+    }
+    return objTrack;
+};
+
+function isFromSearchEngineer(referrUrl) {
+    var domainName = referrUrl;
+    var ind = referrUrl.indexOf("?")
+    if (ind >= 0) {
+        domainName = referrUrl.substring(0, ind);
+    }
+
+    if (domainName.indexOf("google.") >= 0 || domainName.indexOf("bing.com") >= 0 || domainName.indexOf("baidu.com") >= 0 || domainName.indexOf("search.yahoo.com") >= 0 || domainName.indexOf("duckduckgo.com") >= 0) {
+        return true;
+    }
+    else {
+        return false;
+    }
+}
+
+function isFromSalaryCom(referrUrl) {
+    var domainName = referrUrl;
+    var ind = referrUrl.indexOf("?")
+    if (ind >= 0) {
+        domainName = referrUrl.substring(0, ind);
+    }
+    if (domainName.indexOf("salary.com") >= 0 || domainName.indexOf("salarynet.local") >= 0) {
+        return true;
+    }
+    else {
+        return false;
+    }
+}
+
+function isFromHomePage(referrUrl) {
+    var domainName = referrUrl;
+    var ind = referrUrl.indexOf("?")
+    if (ind >= 0) {
+        domainName = referrUrl.substring(0, ind);
+    }
+    if (!domainName.endsWith("/")) {
+        domainName = domainName + "/";
+    }
+    if (domainName.endsWith("www.salary.com/") || domainName.endsWith("wwwdelta.salary.com/") || domainName.endsWith("salarynet.local:9020/")) {
+        return true;
+    }
+    else {
+        return false;
+    }
+}
+
+function isFromB2BPage(referrurl) {
+    var isB2BPage = false;
+    var ind = referrurl.indexOf("?");
+    var domainName = referrurl;
+    if (ind >= 0) {
+        domainName = referrurl.substring(0, ind);
+    }
+    var b2BPageUrls = [
+        "business",
+        "companalyst",
+        "pay-equity",
+        "resources",
+        "blog",
+        "about-us",
+        "reviews",
+        "news-and-events",
+        "speakers",
+        "topics",
+        "legal",
+        "free",
+        "akkr-partner",
+        "demo-consulting",
+        "request-demo",
+        "career",
+        "demo-consulting",
+        "buy-compensation-software",
+        "how-can-hr-influence-the-c-suite",
+        "war-for-talent",
+        "contact",
+    ];
+
+    b2BPageUrls.forEach(ele => {
+        if (b2BPageUrls.find(ele => domainName.indexOf(`${B2B_UTM_Helper.getOriginUrl() + '/' + ele}`) >= 0)) {
+            isB2BPage = true;
+        }
+    })
+
+    return isB2BPage;
+}
+
+function isFromB2CPage(referrurl) {
+    var ind = referrurl.indexOf("?");
+    var referrUrlWithoutQueryString = referrurl;
+    if (ind >= 0) referrUrlWithoutQueryString = referrurl.substring(0, ind);
+    if (!referrUrlWithoutQueryString.endsWith('/')) {
+        referrUrlWithoutQueryString = `${referrUrlWithoutQueryString}/`;
+    }
+    
+    const arrB2CHost = [
+        "swz.salary.com/",
+        "secure.salary.com/",
+        "www1.salary.com/",
+        "salarystaging29.salarynet.local/",
+        ":7040/",
+        ":7053/",
+        "securedelta.salary.com/",
+        "swzdelta.salary.com/",
+        "www1delta.salary.com/",
+    ];
+    var arrB2CPathList = [
+        "/partner-offers/",
+        "/swz-request-demo/",
+        "/research/",
+        "/employers/",
+        "/job/",
+        "/tools/",
+        "/jobs/",
+    ];
+    if (arrB2CHost.find((ele) => referrUrlWithoutQueryString.includes(ele))) return true;
+    if (arrB2CPathList.find(ele => referrUrlWithoutQueryString.includes(ele))) return true;
+    return false;
+}
+
+function getRefferURL() {
+    var ignoreurl = [`${settings.destinationHost}/request-demo`,
+    `${settings.destinationHost}/demo-consulting`,
+    `${settings.destinationHost}/akkr-partner`,
+    `${settings.destinationHost}/free`];
+    const url = window.location.href.toLocaleLowerCase();
+    if (url.indexOf("?") != -1) {
+        urlfilter = url.split("?")[0];
+    } else {
+        urlfilter = url;
+    }
+    if (ignoreurl.filter((i) => urlfilter.includes(i)).length === 0) {
+        B2B_UTM_Helper.setCookie('refferurl', encodeURIComponent(url));
+    }
+    else {
+        if (document.referrer == "") {
+            //encodeURIComponent(url)
+            B2B_UTM_Helper.setCookie('refferurl', '');
+        }
+    }
+
+}
+
+function addReferrToUrl(pageUrl, referrUrl) {
+
+    var currentPageUrlWithReferrUrl = pageUrl;
+    if (pageUrl !== '' && referrUrl !== '') {
+        pageUrl = decodeURIComponent(pageUrl);
+        referrUrl = decodeURIComponent(referrUrl);
+        var ind = pageUrl.indexOf("?");
+        if (ind >= 0) {
+            currentPageUrlWithReferrUrl = pageUrl + `&ref=${referrUrl}`;
+        }
+        else {
+            currentPageUrlWithReferrUrl = pageUrl + `?ref=${referrUrl}`;
+        }
+    }
+    return encodeURIComponent(currentPageUrlWithReferrUrl);
+}
+
+if (document.readyState != "loading") {
+    initUTMTrackCookie();
+} else {
+    window.addEventListener("DOMContentLoaded", function () {
+        initUTMTrackCookie();
+    });
+}
+
+</script>
+
+</body>
+</html>

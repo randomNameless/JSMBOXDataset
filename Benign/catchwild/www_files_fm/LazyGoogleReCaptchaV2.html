@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LazyGoogleReCaptchaV2.html</title>
+</head>
+<body>
+
+<script>
+
+if ( typeof(objLazyGoogleReCaptchaV2) === "undefined" )
+{
+    var objLazyGoogleReCaptchaV2 = new LazyGoogleReCaptchaV2();
+}
+
+function LazyGoogleReCaptchaV2 ()
+{
+    var _this = this;
+    
+    // Trigger error if captcha not initialized in this time
+    var intTimeoutSec = 20;
+    
+    var strIncludeUrl = "https://www.google.com/recaptcha/api.js?onload=GoogleReCatpchaV2OnLoad&render=explicit";
+    var strTheme = "light";
+    
+    var objInstances = {};
+    
+    var bolIncludeInjected = false;
+    var bolIncludeLoaded = false;
+    
+    this.strSiteKey = null;
+    this.strLanguageKey = null;
+    
+    function injectInclude()
+    {
+        if ( bolIncludeInjected )
+        {
+            return;
+        }
+    
+        if ( _this.strLanguageKey != null && _this.strLanguageKey.length == 2 )
+        {
+            strIncludeUrl += "&hl=" + _this.strLanguageKey;
+        }
+        
+        var jqInclude = $("<script />").attr("src", strIncludeUrl).attr("type", "text/javascript").attr("async", "async");
+        $("body").append( jqInclude );
+    
+        bolIncludeInjected = true;
+    }
+    
+    this.onIncludeLoaded = function ()
+    {
+        bolIncludeLoaded = true;
+        
+        for (var strDomID in objInstances )
+        {
+            initiate( objInstances[strDomID] );
+        }
+    };
+    
+    this.captchaLoadedAndWorking = function ()
+    {
+        return bolIncludeLoaded && typeof(grecaptcha) !== "undefined";
+    };
+    
+    function initiate( objInstance )
+    {
+        try
+        {
+            var jqInstance = $( "#" + objInstance.DomID );
+            if ( jqInstance.length )
+            {
+                if ( objInstances[ objInstance.DomID ].Initialized === false )
+                {
+                    $( ".google-recaptcha-v2-preloader", jqInstance ).remove();
+    
+                    grecaptcha.render( objInstance.DomID, {
+                        "sitekey": _this.strSiteKey,
+                        "callback": objInstance.SubmittedCallback,
+                        "theme": strTheme
+                    } );
+    
+                    objInstance.ReadyCallback( true );
+    
+                    objInstance.Initialized = true;
+                }
+                
+            }
+            else
+            {
+                throw new Error ("DOM element not found! ID: " + objInstance.DomID);
+            }
+        }
+        catch ( objError )
+        {
+            objInstance.Error = objError;
+            processError( objError );
+        }
+    }
+    
+    this.initInstance = function ( strDomContainerID, fncCallbackReady, fncCallbackSubmitted )
+    {
+        try
+        {
+            if ( !bolIncludeInjected )
+            {
+                injectInclude();
+            }
+    
+            if ( typeof( objInstances[ strDomContainerID ] ) !== "undefined" )
+            {
+                return;
+            }
+    
+            var jqInstance = $( "#" + strDomContainerID );
+            if ( jqInstance.length )
+            {
+                jqInstance.append( getPreloader() ).css( {
+                    "height": "80px",
+                    "position": "relative",
+                    "margin-bottom": "40px"
+                } );
+            }
+            else
+            {
+                throw new Error ( "DOM element not found! ID: " + strDomContainerID );
+            }
+    
+            objInstances[ strDomContainerID ] = {
+                Error: null,
+                Initialized: false,
+                ResponseSubmitted: false,
+                Response: null,
+                DomID: strDomContainerID,
+                ReadyCallback: fncCallbackReady,
+                SubmittedCallback: function ( strResponse )
+                {
+                    _this.setInstanceResponse( strDomContainerID, strResponse );
+                    fncCallbackSubmitted( strResponse );
+                }
+            };
+    
+            if ( bolIncludeLoaded )
+            {
+                initiate( objInstances[ strDomContainerID ] );
+            }
+            
+            // If captcha not initialised in time frame, register error and call ready callback with false parameter
+            setTimeout(function (){
+                
+                if ( ! objInstances || ! objInstances[ strDomContainerID ] || objInstances[ strDomContainerID ].Initialized === false )
+                {
+                    var objError = new Error( "Instance timed out! Waited for " + intTimeoutSec + "sec." );
+    
+                    objInstances[ strDomContainerID ].Error = objError;
+    
+                    objInstances[ strDomContainerID ].ReadyCallback( false );
+    
+                    processError( objError );
+                }
+                
+            }, intTimeoutSec * 1000);
+    
+        }
+        catch ( objError )
+        {
+            if ( typeof(objInstances[ strDomContainerID ]) !== "undefined" )
+            {
+                objInstances[ strDomContainerID ].Error = objError;
+            }
+            processError( objError );
+        }
+    };
+    
+    this.setInstanceResponse = function ( strID, strResponse )
+    {
+        objInstances[ strID ].ResponseSubmitted = true;
+        objInstances[ strID ].Response = strResponse;
+    };
+    
+    this.getInstanceResponse = function ( strID )
+    {
+        if (typeof(objInstances[ strID ]) !== "undefined" )
+        {
+            if ( objInstances[ strID ].ResponseSubmitted )
+            {
+                return objInstances[ strID ].Response;
+            }
+            
+            return false;
+        }
+    
+        return null;
+    };
+    
+    function processError ( objError )
+    {
+        if ( typeof( console ) !== "undefined" && typeof( console.error ) !== "undefined" )
+        {
+            console.error( objError );
+        }
+        
+        if ( typeof( objFilesFmErrorHandler ) !== "undefined" )
+        {
+            var objErrorMessage = {};
+    
+            Object.getOwnPropertyNames(objError).forEach(function (key) {
+                objErrorMessage[key] = objError[key];
+            }, objError);
+    
+            objFilesFmErrorHandler.sendLogEntry({
+                "Type": "ReCaptchaV2Error", "Data": objErrorMessage
+            });
+        }
+    }
+    
+    function getPreloader()
+    {
+        return '<div class="google-recaptcha-v2-preloader"><svg style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); max-width:16%; height: auto;" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid"><g transform="rotate(0 50 50)">\n' +
+            '  <rect x="47" y="24" rx="9.4" ry="4.8" width="6" height="12" fill="#d0d7dd">\n' +
+            '    <animate attributeName="opacity" values="1;0" keyTimes="0;1" dur="1s" begin="-0.9166666666666666s" repeatCount="indefinite"></animate>\n' +
+            '  </rect>\n' +
+            '</g><g transform="rotate(30 50 50)">\n' +
+            '  <rect x="47" y="24" rx="9.4" ry="4.8" width="6" height="12" fill="#d0d7dd">\n' +
+            '    <animate attributeName="opacity" values="1;0" keyTimes="0;1" dur="1s" begin="-0.8333333333333334s" repeatCount="indefinite"></animate>\n' +
+            '  </rect>\n' +
+            '</g><g transform="rotate(60 50 50)">\n' +
+            '  <rect x="47" y="24" rx="9.4" ry="4.8" width="6" height="12" fill="#d0d7dd">\n' +
+            '    <animate attributeName="opacity" values="1;0" keyTimes="0;1" dur="1s" begin="-0.75s" repeatCount="indefinite"></animate>\n' +
+            '  </rect>\n' +
+            '</g><g transform="rotate(90 50 50)">\n' +
+            '  <rect x="47" y="24" rx="9.4" ry="4.8" width="6" height="12" fill="#d0d7dd">\n' +
+            '    <animate attributeName="opacity" values="1;0" keyTimes="0;1" dur="1s" begin="-0.6666666666666666s" repeatCount="indefinite"></animate>\n' +
+            '  </rect>\n' +
+            '</g><g transform="rotate(120 50 50)">\n' +
+            '  <rect x="47" y="24" rx="9.4" ry="4.8" width="6" height="12" fill="#d0d7dd">\n' +
+            '    <animate attributeName="opacity" values="1;0" keyTimes="0;1" dur="1s" begin="-0.5833333333333334s" repeatCount="indefinite"></animate>\n' +
+            '  </rect>\n' +
+            '</g><g transform="rotate(150 50 50)">\n' +
+            '  <rect x="47" y="24" rx="9.4" ry="4.8" width="6" height="12" fill="#d0d7dd">\n' +
+            '    <animate attributeName="opacity" values="1;0" keyTimes="0;1" dur="1s" begin="-0.5s" repeatCount="indefinite"></animate>\n' +
+            '  </rect>\n' +
+            '</g><g transform="rotate(180 50 50)">\n' +
+            '  <rect x="47" y="24" rx="9.4" ry="4.8" width="6" height="12" fill="#d0d7dd">\n' +
+            '    <animate attributeName="opacity" values="1;0" keyTimes="0;1" dur="1s" begin="-0.4166666666666667s" repeatCount="indefinite"></animate>\n' +
+            '  </rect>\n' +
+            '</g><g transform="rotate(210 50 50)">\n' +
+            '  <rect x="47" y="24" rx="9.4" ry="4.8" width="6" height="12" fill="#d0d7dd">\n' +
+            '    <animate attributeName="opacity" values="1;0" keyTimes="0;1" dur="1s" begin="-0.3333333333333333s" repeatCount="indefinite"></animate>\n' +
+            '  </rect>\n' +
+            '</g><g transform="rotate(240 50 50)">\n' +
+            '  <rect x="47" y="24" rx="9.4" ry="4.8" width="6" height="12" fill="#d0d7dd">\n' +
+            '    <animate attributeName="opacity" values="1;0" keyTimes="0;1" dur="1s" begin="-0.25s" repeatCount="indefinite"></animate>\n' +
+            '  </rect>\n' +
+            '</g><g transform="rotate(270 50 50)">\n' +
+            '  <rect x="47" y="24" rx="9.4" ry="4.8" width="6" height="12" fill="#d0d7dd">\n' +
+            '    <animate attributeName="opacity" values="1;0" keyTimes="0;1" dur="1s" begin="-0.16666666666666666s" repeatCount="indefinite"></animate>\n' +
+            '  </rect>\n' +
+            '</g><g transform="rotate(300 50 50)">\n' +
+            '  <rect x="47" y="24" rx="9.4" ry="4.8" width="6" height="12" fill="#d0d7dd">\n' +
+            '    <animate attributeName="opacity" values="1;0" keyTimes="0;1" dur="1s" begin="-0.08333333333333333s" repeatCount="indefinite"></animate>\n' +
+            '  </rect>\n' +
+            '</g><g transform="rotate(330 50 50)">\n' +
+            '  <rect x="47" y="24" rx="9.4" ry="4.8" width="6" height="12" fill="#d0d7dd">\n' +
+            '    <animate attributeName="opacity" values="1;0" keyTimes="0;1" dur="1s" begin="0s" repeatCount="indefinite"></animate>\n' +
+            '  </rect>\n' +
+            '</g></svg>' +
+            '</div>';
+    }
+}
+
+function GoogleReCatpchaV2OnLoad()
+{
+    objLazyGoogleReCaptchaV2.onIncludeLoaded();
+}
+
+</script>
+
+</body>
+</html>

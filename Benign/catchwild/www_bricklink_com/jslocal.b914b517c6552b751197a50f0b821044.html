@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>jslocal.b914b517c6552b751197a50f0b821044.html</title>
+</head>
+<body>
+
+<script>
+var pageController =
+{
+	buildBanners:
+		function ( $banner, bo )
+		{
+			var $bannerInner		= $banner.find( ".carousel-inner" );
+			var $bannerIndicator	= $banner.find( ".carousel-indicators" )
+
+			var $bannerInnerElemTmpl		= $bannerInner.children().first().clone();
+			var $bannerInnerElemTmpl2		= $bannerInner.children().eq( 1 ).clone();
+			var $bannerIndicatorElemTmpl	= $bannerIndicator.children().first().clone();
+
+			$bannerInner.children().remove();
+			$bannerIndicator.children().remove();
+
+			$bannerInnerElemTmpl.removeClass( "active" );
+			$bannerInnerElemTmpl2.removeClass( "active" );
+			$bannerIndicatorElemTmpl.removeClass( "active" );
+
+			if ( bo.list && bo.list.length > 0 )
+			{
+				for ( var i = 0; i < bo.list.length; ++i )
+				{
+					var $innerElem      = $bannerInnerElemTmpl.clone();
+					var $indicatorElem  = $bannerIndicatorElemTmpl.clone();
+
+					try
+					{
+						var data            = bo.list[ i ];
+						var strAltDefault	= "BrickLink Main Page Banner";
+						var strAlt			= (typeof data.strAltText != "undefined" )?(data.strAltText != null)?data.strAltText:strAltDefault:strAltDefault;
+						var	linkUrl			= "https://" + bl.util.getBLHost( "www" ) + "/v2/link_gateway.page?type=1&id=" + data.idBanner + "&url=" + encodeURIComponent( data.strLinkUrl );
+
+						if ( data.typeBanner == 2 )
+						{
+							var linkLabelUrl	= "https://" + bl.util.getBLHost( "www" ) + "/v2/link_gateway.page?type=1&id=" + data.idBanner + "&url=" + encodeURIComponent( ( data.strLabelUrl && data.strLabelUrl.length > 0 ) ? data.strLabelUrl : data.strLinkUrl );
+
+							$innerElem	= $bannerInnerElemTmpl2.clone();
+							$innerElem.find( ".rich-carousel-slide__image" ).css( "background-image", "url( " + data.strImgUrl + ")" );
+							$innerElem.find( ".rich-carousel-slide__image-container" ).css( "background-color", "#" + data.strImageBGColor )
+											.parent().attr( "href", linkUrl );
+							$innerElem.find( "#idBannerLabel" ).html( data.strLabel ).attr( "href", linkLabelUrl );
+							$innerElem.find( "#idBannerLabelLink" ).attr( "href", linkLabelUrl );
+							$innerElem.find( "#idBannerTitle" ).html( data.strTitle ).attr( "href", linkUrl );
+							$innerElem.find( "#idBannerSubtitle" ).html( data.strSubtitle ).attr( "href", linkUrl );
+							$innerElem.find( "#idBannerBtnText").text( data.strButtonText );
+							$innerElem.find( "#idBannerButton" ).addClass( "rich-carousel-slide__cta-btn--" + data.strButtonBGColor )
+											.parent().attr( "href", linkUrl );
+						}
+						else
+						{
+							$innerElem.find( "IMG" ).attr( "src", "" );
+							$innerElem.find( "IMG" ).attr( "src", data.strImgUrl );
+							$innerElem.find( "A" ).attr( "href", linkUrl );			
+						}
+
+						if (strAlt != "" ) 
+						{
+							$innerElem.find( "IMG" ).attr( "alt", strAlt );
+						}
+
+						$innerElem.attr( "data-banner-id", data.idBanner );
+						$innerElem.css( "min-height", "288px" );
+						$innerElem.css( "background-color", "#" + data.strBGColor );
+						
+
+						$indicatorElem.attr( "data-slide-to", i );
+					}
+					catch ( e ) {}
+
+					$bannerInner.append( $innerElem );
+					$bannerIndicator.append( $indicatorElem );
+				}
+
+				if ( bo.list.length == 1 )
+				{
+					$banner.find( ".carousel-pagination" ).hide();
+				}
+
+				this.trackBannerView( bo.list[ 0 ].idBanner );
+			}
+			else
+			{
+				var $innerElem      = $bannerInnerElemTmpl.clone();
+				var $indicatorElem  = $bannerIndicatorElemTmpl.clone();
+
+				$bannerInner.append( $innerElem );
+				$bannerIndicator.append( $indicatorElem );
+				
+				$banner.find( ".carousel-pagination" ).hide();
+			}
+			$bannerInner.children().first().addClass( "active" );
+			$bannerIndicator.children().first().addClass( "active" );
+
+			$banner.on( "slid.bs.carousel", function ( e ) { this.onBannerSwitch( e ) }.bind( this ) ); 
+
+			$banner.show();
+		}
+,	onBannerSwitch:
+		function ( e )
+		{
+			if ( bl.util.isElementInViewport( e.relatedTarget, true ) )
+			{
+				var	idBanner	= $( e.relatedTarget ).attr( "data-banner-id" );
+				if ( idBanner != null )
+					this.trackBannerView( idBanner );
+			}
+		}
+,	trackBannerView:
+		function ( idBanner )
+		{
+			var	viewList	= bl.util.getSessionStorage( "blckBannerView" );
+
+			if ( viewList != null && viewList.indexOf( "[" + idBanner + "]" ) >= 0 )
+				return;
+
+			viewList	= ( viewList == null ? "" : viewList ) + "[" + idBanner + "]";
+
+			bl.util.setSessionStorage( "blckBannerView", viewList );
+			// bl.tracker.track( 100, idBanner );
+		}
+,	buildAnnouncementBar:
+		function ( $bar, bo)
+		{
+			if(bo && bo.bEnabled)
+			{
+				var $link = $bar.find('#announcementLink');
+				var $content = $bar.find('#announcementContent');
+				var $cta = $bar.find('#announcementCTA');
+				$link.attr("href", bo.strTextLink);
+				$content.html(bo.strTextContent);
+				$cta.text(bo.strTextCTA);
+				$bar.css('background-color', bo.bgColor);
+				$bar.show();
+			}
+		}
+,	buildTrendings:
+		function ( $carousel, to )
+		{
+			var $inner          = $carousel.find( ".carousel-inner" );
+
+			var $containerTmpl  = $inner.children().first().clone();
+			var $elemTmpl       = $containerTmpl.children().first().clone();
+
+			var setIndex = 0;
+			var minifigIndex = 0;
+			var partIndex = 0;
+
+			$inner.children().remove();
+			$containerTmpl.removeClass( "active" ).children().remove();
+
+			if ( to.listS && to.listS.length > 0 && to.listP && to.listP.length > 0 && to.listM && to.listM.length > 0 )
+			{
+				var $containerInst  = $containerTmpl.clone();
+				var i               = 0;
+				var	addCnt			= 0;
+
+				for (; i < 20; ++i )
+				{
+					var $elemInstS     = $elemTmpl.clone();
+					var $elemInstP     = $elemTmpl.clone();
+					var $elemInstM     = $elemTmpl.clone();
+
+					$elemInstS.attr( "data-type", "S" );
+					$elemInstP.attr( "data-type", "P" ).hide();
+					$elemInstM.attr( "data-type", "M" ).hide();
+
+					try
+					{
+						var dataS	= ( to.listS.length > i ) ? to.listS[ i ] : to.listS[ 0 ];
+						var dataP	= ( to.listP.length > i ) ? to.listP[ i ] : to.listP[ 0 ];
+						var	dataM	= ( to.listM.length > i ) ? to.listM[ i ] : to.listM[ 0 ];
+
+						// Sets
+						$elemInstS.find( ".l-image" )
+									.css( "background-image", "url(" + dataS.strImgUrl+ ")" )
+									.css( "background-position","center" )
+									.css( "background-repeat", "no-repeat" )
+									.css( "background-size", "contain" )
+									.css( "cursor", "pointer" )
+									.attr( "data-item", dataS.idItem )
+									.click( function ( e ) { e.preventDefault(); e.stopPropagation(); window.location.href = "http:" + bl.url.getCatalogItemPageURL( $( this ).attr( "data-item" ) ); } )
+						$elemInstS.find( ".p-name > A" )
+							.addClass( "bl-trackable-link" )
+							.attr( "data-track-target", "TRENDING-ITEM:S" + i + "(" + dataS.idItem + ")" )
+							.attr( "href", "http:" + bl.url.getCatalogItemPageURL( dataS.idItem ) )
+							.text( dataS.strItemName );
+						$elemInstS.find( ".like-count" ).text( dataS.nWantedCnt );
+						$elemInstS.find( ".price" ).text( dataS.strMinPrice );
+						$elemInstS.find( ".bl-wanted-addable" ).attr( "data-itemid", dataS.idItem ).attr( "data-colorid", "0" );
+
+						// Parts
+						$elemInstP.find( ".l-image" )
+									.css( "background-image", "url(" + dataP.strImgUrl + ")" )
+									.css( "background-position","center" )
+									.css( "background-repeat", "no-repeat" )
+									.css( "background-size", "contain" )
+									.css( "cursor", "pointer" )
+									.attr( "data-item", dataP.idItem )
+									.attr( "data-color", dataP.idColor )
+									.click( function ( e ) { e.preventDefault(); e.stopPropagation(); window.location.href = "http:" + bl.url.getCatalogItemPageURLWithColor( $( this ).attr( "data-item" ), $( this ).attr( "data-color" ) ); } )
+						$elemInstP.find( ".p-name > A" )
+									.addClass( "bl-trackable-link" )
+									.attr( "data-track-target", "TRENDING-ITEM:P" + i + "(" + dataP.idItem + ":" + dataP.idColor + ")" )
+									.attr( "href", "http:" + bl.url.getCatalogItemPageURLWithColor( dataP.idItem, dataP.idColor ) )
+									.text( dataP.strColor + " " + dataP.strItemName );
+						$elemInstP.find( ".like-count" ).text( dataP.nWantedCnt );
+						$elemInstP.find( ".price" ).text( dataP.strMinPrice );
+						$elemInstP.find( ".bl-wanted-addable" ).attr( "data-itemid", dataP.idItem ).attr( "data-colorid", dataP.idColor );
+
+						// Minifigs
+						$elemInstM.find( ".l-image" )
+									.css( "background-image", "url(" + dataM.strImgUrl+ ")" )
+									.css( "background-position","center" )
+									.css( "background-repeat", "no-repeat" )
+									.css( "background-size", "contain" )
+									.css( "cursor", "pointer" )
+									.attr( "data-item", dataM.idItem )
+									.click( function ( e ) { e.preventDefault(); e.stopPropagation(); window.location.href = "http:" + bl.url.getCatalogItemPageURL( $( this ).attr( "data-item" ) ); } )
+						$elemInstM.find( ".p-name > A" )
+									.addClass( "bl-trackable-link" )
+									.attr( "data-track-target", "TRENDING-ITEM:M" + i + "(" + dataM.idItem + ")" )
+									.attr( "href", "http:" + bl.url.getCatalogItemPageURL( dataM.idItem ) )
+									.text( dataM.strItemName );
+						$elemInstM.find( ".like-count" ).text( dataM.nWantedCnt );
+						$elemInstM.find( ".price" ).text( dataM.strMinPrice );
+						$elemInstM.find( ".bl-wanted-addable" ).attr( "data-itemid", dataM.idItem ).attr( "data-colorid", "0" );						
+					}
+					catch ( e ) {};
+
+					$containerInst.append( $elemInstS );
+					$containerInst.append( $elemInstP );
+					$containerInst.append( $elemInstM );
+					++addCnt;
+
+					if ( addCnt == 4 )
+					{
+						$inner.append( $containerInst );
+						$containerInst  = $containerTmpl.clone();
+						addCnt			= 0;
+					}
+				}
+
+				var	wantedCallback	= function ( $thisElem )
+				{
+					$thisElem.find( ".like-count" ).text( $thisElem.attr( "data-wanted-qty") );
+					if ( $thisElem.attr( "data-wanted-check-result" ) == "true" )
+					{
+						$thisElem.find( "I" ).removeClass( "far fa-heart" ).addClass( "fas fa-heart" );
+					}
+					else
+					{
+						$thisElem.find( "I" ).removeClass( "fas fa-heart" ).addClass( "far fa-heart" );
+					}
+				};
+
+				bl.wanted.checkItems( $inner.find( '.bl-wanted-check' ), wantedCallback );
+				bl.wanted.enableAdd( $inner.find( '.bl-wanted-addable' ), function ( $thisElem ) { bl.wanted.checkItems( $thisElem, wantedCallback ); } );
+			}
+
+			$inner.children().first().addClass( "active" );
+
+			$carousel.find( ".bl-btn-view-switch > button" ).click
+			(
+				function ()
+				{
+					var	trendingType = bl.util.getLocalStorage( "blckMainPageTrendingType" );
+
+					switch(trendingType)
+					{
+						case "S" : setIndex = $carousel.find('.carousel-indicators').find('.active').index();	break;
+						case "P" : partIndex = $carousel.find('.carousel-indicators').find('.active').index();	break;
+						case "M" : minifigIndex = $carousel.find('.carousel-indicators').find('.active').index();	break;
+					}
+
+					var	newVal	= $( this ).attr( "value" );
+
+					switch ( newVal )
+					{
+					case "trending-sets":		pageController.switchTrendingItemType( "S", setIndex );	break;
+					case "trending-parts":		pageController.switchTrendingItemType( "P", partIndex );	break;
+					case "trending-minifigs":	pageController.switchTrendingItemType( "M", minifigIndex );	break;
+					}
+				}
+			);
+
+
+			var	ckTrendingSaved		= bl.util.getLocalStorage( "blckMainPageTrendingType" );
+			var	ckTrendingIdxSaved	= parseInt(bl.util.getLocalStorage( "blckMainPageTrendingIdx" ));
+
+			$carousel.bind('slid.bs.carousel', function (e) {
+    			var idx = $carousel.find('.carousel-indicators').find('.active').index();
+    			bl.util.setLocalStorage( "blckMainPageTrendingIdx", idx );
+			});
+			
+			if ( (ckTrendingIdxSaved == null) || isNaN(ckTrendingIdxSaved) )
+			{
+				ckTrendingIdxSaved = 0;
+			}
+
+			if ( ckTrendingSaved != null )
+				this.switchTrendingItemType( ckTrendingSaved, ckTrendingIdxSaved );
+		}
+		
+,	switchTrendingItemType:
+		function ( type, idx )
+		{
+			switch ( type )
+			{
+			case "S":
+				$( ".bl-btn-view-switch > button" ).removeClass( "active" ); 
+				$( ".bl-btn-view-switch > button[value='trending-sets']" ).addClass( "active" ); 
+				$( ".bl-mainpage-trending-card" ).hide(); 
+				$( ".bl-mainpage-trending-card[data-type='S']" ).show();		
+				$( "#idNewestLink" ).text( "Newest Sets" ).attr( "href", "/catalogList.asp?sortBy=D&sortAsc=D&catType=S&v=1" ).attr( "data-track-target", "TRENDING:NEWEST-SET" );
+				$( "#idMostWantedLink" ).text( "Most Wanted Sets" ).attr( "href", "/catalogStatsWanted.asp?itemType=S" ).attr( "data-track-target", "TRENDING:MOSTWANTED-SET" );
+				bl.util.setLocalStorage( "blckMainPageTrendingType", "S" );
+				bl.util.setLocalStorage( "blckMainPageTrendingIdx", idx );
+				break;
+
+			case "P":
+				$( ".bl-btn-view-switch > button" ).removeClass( "active" ); 
+				$( ".bl-btn-view-switch > button[value='trending-parts']" ).addClass( "active" ); 
+				$( ".bl-mainpage-trending-card" ).hide(); 
+				$( ".bl-mainpage-trending-card[data-type='P']" ).show();
+				$( "#idNewestLink" ).text( "Newest Parts" ).attr( "href", "/catalogList.asp?sortBy=D&sortAsc=D&catType=P&v=1" ).attr( "data-track-target", "TRENDING:NEWEST-PART" );;
+				$( "#idMostWantedLink" ).text( "Most Wanted Parts" ).attr( "href", "/catalogStatsWanted.asp?itemType=P" ).attr( "data-track-target", "TRENDING:MOSTWANTED-PART" );
+				bl.util.setLocalStorage( "blckMainPageTrendingType", "P" );
+				bl.util.setLocalStorage( "blckMainPageTrendingIdx", idx );
+				break;
+
+			case "M":
+				$( ".bl-btn-view-switch > button" ).removeClass( "active" ); 
+				$( ".bl-btn-view-switch > button[value='trending-minifigs']" ).addClass( "active" ); 
+				$( ".bl-mainpage-trending-card" ).hide(); 
+				$( ".bl-mainpage-trending-card[data-type='M']" ).show();
+				$( "#idNewestLink" ).text( "Newest Minifigures" ).attr( "href", "/catalogList.asp?sortBy=D&sortAsc=D&catType=M&v=1" ).attr( "data-track-target", "TRENDING:NEWEST-MINIFIG" );
+				$( "#idMostWantedLink" ).text( "Most Wanted Minifigures" ).attr( "href", "/catalogStatsWanted.asp?itemType=M" ).attr( "data-track-target", "TRENDING:MOSTWANTED-MINIFIG" );
+				bl.util.setLocalStorage( "blckMainPageTrendingType", "M" );
+				bl.util.setLocalStorage( "blckMainPageTrendingIdx", idx );
+				break;
+			}
+			$( "#trendingCarousel" ).carousel( idx );
+		}
+
+,	buildStudioSection:
+		function($container, bo)
+		{
+
+
+			var	$studioItemContainer1	= $container.find( "#studioItems1" );
+			var	$studioItemContainer2	= $container.find( "#studioItems2" );
+			var $studioElemTmpl		= $studioItemContainer1.children().first().clone();
+			$studioItemContainer1.children().remove();
+
+			if ( bo.studioItems && bo.studioItems.length > 0 )
+			{
+				for ( var i = 0; i < bo.studioItems.length; ++i )
+				{
+					var	$elemInst	= $studioElemTmpl.clone();
+					try
+					{
+						var	data 		= bo.studioItems[ i ];
+
+						$elemInst.find( "#idModelLink" )
+							.addClass( "bl-trackable-link" )
+							.attr( "data-track-target", "BUILD:ITEM" + i + "(" + data.idModel + ")" )
+							.attr( "href", "/v3/studio/design.page?idModel=" + data.idModel );
+						$elemInst.find( ".l-image" )
+							.css( "background-image", "url(" + data.strModelImgUrl+ ")" )
+							.css( "background-position","center" )
+							.css( "background-size", "contain" )
+							.css( "background-repeat", "no-repeat" )
+							.css( "cursor", "pointer" )
+						//$elemInst.find( ".homepage-moc-card__image-item" ).attr( "src", data.strModelImgUrl );
+						$elemInst.find( ".homepage-moc-card__title" ).text( data.strModelName );
+					}
+					catch ( e )
+					{
+						console.log(e);
+					}
+					if(i < 4)
+						$studioItemContainer1.append( $elemInst );
+					else
+						$studioItemContainer2.append( $elemInst );
+				}
+			}
+
+			if ( bo.featStudioItems && bo.featStudioItems.length > 0 )
+			{
+				$container.find( "#feat-title" ).text(bo.featModelsName);
+				var	$featItems	= $container.find( "#featItems" );
+				var $featItemsTmpl	= $featItems.children().first().clone();
+				$featItems.children().remove();
+				$featItemsTmpl.removeClass( "active" );
+
+				var $featIndicator	= $container.find( "#featured-indicators" )
+				var $featIndicatorElemTmpl	= $featIndicator.children().first().clone();
+				$featIndicator.children().remove();
+				$featIndicatorElemTmpl.removeClass( "active" );
+
+				for ( var i = 0; i < bo.featStudioItems.length; ++i )
+				{
+					var	$elemInst	= $featItemsTmpl.clone();
+					var $indicatorElem  = $featIndicatorElemTmpl.clone();
+
+					try
+					{
+						var	data 		= bo.featStudioItems[ i ];
+
+						$elemInst.find( "#idModelLink" )
+							.addClass( "bl-trackable-link" )
+							.attr( "data-track-target", "BUILD:ITEM" + i + "(" + data.idModel + ")" )
+							.attr( "href", "/v3/studio/design.page?idModel=" + data.idModel )
+						$elemInst.find( ".homepage-highlighted-moc-card__image-item" ).attr( "src", data.strModelImgUrl );
+						$elemInst.find( ".homepage-highlighted-moc-card__title" ).text( data.strModelName );
+						$elemInst.find( ".moc-designer-card__image" ).attr("style", "background-image:url(" + data.strDesignerImgUrl + ")");
+						$elemInst.find( ".moc-designer-card__image a").attr("href", "/v3/studio/public_gallery.page?idUser="+data.idUser)
+						$elemInst.find( ".moc-designer-card__image-item" ).attr( "src", data.strDesignerImgUrl );
+						$elemInst.find( ".moc-designer-card__details a").attr("href", "/v3/studio/public_gallery.page?idUser="+data.idUser)
+						$elemInst.find( ".moc-designer-card__name" ).text( data.strDesignerName );
+						$elemInst.find( ".moc-designer-card__creations" ).text( data.nDesignerCreations + (data.nDesignerCreations > 1 ? ' creations' : ' creation') );
+						$elemInst.find( ".homepage-highlighted-moc-card__desc a" )
+							.addClass( "bl-trackable-link" )
+							.attr( "data-track-target", "BUILD:ITEM" + i + "(" + data.idModel + ")" )
+							.attr( "href", "/v3/studio/design.page?idModel=" + data.idModel )
+							.html(data.strModelDescription)
+						$elemInst.find( ".homepage-highlighted-moc-card__see-more" )
+							.addClass( "bl-trackable-link" )
+							.attr( "data-track-target", "BUILD:ITEM" + i + "(" + data.idModel + ")" )
+							.attr( "href", "/v3/studio/design.page?idModel=" + data.idModel )
+
+						if(data.nBadgeType == 3)
+							$elemInst.find( ".award-icon--finalist" ).removeClass( "hidden" );
+						else if(data.nBadgeType == 2)
+							$elemInst.find( ".award-icon--semi" ).removeClass( "hidden" );
+						else if(data.nBadgeType == 1)
+							$elemInst.find( ".award-icon--mention" ).removeClass( "hidden" );
+						
+						$indicatorElem.attr( "data-slide-to", i );
+					}
+					catch ( e )
+					{
+						console.log(e);
+					}
+					
+					$featItems.append( $elemInst );
+					$featIndicator.append( $indicatorElem );
+					
+				}
+
+				$featItems.children().first().addClass( "active" );
+				$featIndicator.children().first().addClass( "active" );
+			}
+
+			var checkitem = function(slideshow) {
+			  var $this;
+			  $this = $(slideshow);
+
+			  if ($this.find(".carousel-inner .item:first").hasClass("active")) {
+			    $this.find(".left").hide();
+			    $this.find(".right").show();
+			  } else if ($this.find(".carousel-inner .item:last").hasClass("active")) {
+			    $this.find(".right").hide();
+			    $this.find(".left").show();
+			  } else {
+			    $this.find(".carousel-control").show();
+			    $this.find(".right").show();
+			    $this.find(".left").show();
+			  }
+			};
+
+			checkitem("#js-studio-home-creations");
+			checkitem("#js-studio-home-highlight");
+
+			$( "#js-studio-home-main" ).carousel();
+			$( "#js-studio-home-creations" ).carousel();
+			$( "#js-studio-home-highlight" ).carousel();
+
+			$("#js-studio-home-creations").on("slid.bs.carousel", function() {checkitem("#js-studio-home-creations")});
+			$("#js-studio-home-highlight").on("slid.bs.carousel",  function() {checkitem("#js-studio-home-highlight")});
+		}
+
+,	buildBuildSection:
+		function ( $container, bo )
+		{
+			var	$itemContainer	= $container.find( "#idBuildItemContainer" ).children().first();
+			var $elemTmpl		= $itemContainer.children().first().clone();
+
+			$itemContainer.children().remove();
+
+			if ( bo.list && bo.list.length > 0 )
+			{
+				for ( var i = 0; i < 2; ++i )
+				{
+					var	$elemInst	= $elemTmpl.clone();
+					try
+					{
+						var	data 		= ( i >= bo.list.length ) ? bo.list[ 0 ] : bo.list[ i ];
+
+						$elemInst.find( "#idModelLink" )
+							.addClass( "bl-trackable-link" )
+							.attr( "data-track-target", "BUILD:ITEM" + i + "(" + data.idModel + ")" )
+							.attr( "href", "/v2/build/model.page?idModel=" + data.idModel )
+						$elemInst.find( ".simple-media-card__image IMG" ).attr( "src", data.urlDefaultThumbImage );
+						$elemInst.find( ".simple-media-card__title" ).text( data.strModelName );
+						$elemInst.find( ".simple-media-card__author" ).text( "by " + data.skBuilder );
+					}
+					catch ( e )
+					{
+					}
+
+					$itemContainer.append( $elemInst );
+				}
+			}
+		}
+
+,	buildStorePraises:
+		function ( $container, so )
+		{
+			var	$elemTmpl	= $container.children().first().clone();
+
+			$container.children().remove();
+
+			if ( so.list && so.list.length > 0 )
+			{
+				var		i = 0;
+				for ( ; i < so.list.length; ++i )
+				{
+					var	$elemInst	= $elemTmpl.clone();
+					try
+					{
+						var	data 		= so.list[ i ];
+						var	$imgs		= $elemInst.find( ".l-images" ).children();
+						var	urlToStore	= bl.url.getStoreURL( data.skUserSeller );
+
+						for ( var j = 0; j < data.featuredlots.length; ++j )
+						{
+							$imgs.eq( j ).css( "background", "url(" + data.featuredlots[ j ].strInvImgUrl + ") no-repeat center" ).css( "background-size", data.featuredlots[ j ].typeItemInv == "M" ? "40%" : ( data.featuredlots[ j ].typeItemInv == 'P' ? "" : "60%" ) ).attr( "href", bl.url.getStoreInvURL( data.skUserSeller, data.featuredlots[ j ].idInv ) );
+						}
+			
+						$elemInst.find( "#idStoreLogo" ).css( "background", "white url(" + data.strLogoUrl + ") no-repeat center").css( "background-size", "contain" ).attr( "data-href", urlToStore ).click( function( e ) { window.location.href= $( this ).attr( "data-href" ); } );
+						$elemInst.find( ".flag" ).attr( "src", bl.url.getCountryFlagMediumURL( data.idCountry ) );
+						$elemInst.find( "#idLotCnt" ).text( bl.util.formatInteger( data.nLotCnt ) + " Lots" );
+						$elemInst.find( ".p-name" ).text( data.strStoreName ).attr( "href", urlToStore ).attr( "title", data.strStoreName );
+						$elemInst.find( "#idStoreLevelIcon" ).attr( "src", bl.url.getFeedbackIconUrl( data.nFeedbackScore ) );
+						$elemInst.find( ".bl-card-collage__feedback-text > A" ).text( data.strPraiseText ).attr( "title", data.strPraiseText ).attr( "href", bl.url.getStoreFeedbackURL( data.skUserSeller ) );
+						$elemInst.find( "#idFeedbackTime").text( data.strPraiseElapsed );
+						$elemInst.find( "#idPraiser" ).text( data.skUserPraiser );
+						$elemInst.find( ".bl-overlay-text" ).attr( "data-href", urlToStore ).click( function (e) { window.location.href = $( this ).attr( "data-href" ); } );
+
+						if ( data.instantCheckout )
+							$elemInst.find( ".icon-instant-checkout" ).show();
+
+						//$elemInst.find( ".p-summary" ).text( data.strStoreSlogan );
+					}
+					catch ( e )
+					{
+						console.log( e );
+					}
+
+					$container.append( $elemInst );
+				}
+			}
+
+		}
+,	buildStoreSales:
+		function ( $container, so )
+		{
+			var	$elemTmpl	= $container.children().first().clone();
+
+			$container.children().remove();
+
+			if ( so.list && so.list.length > 0 )
+			{
+				var		i = 0;
+				for ( ; i < so.list.length; ++i )
+				{
+					var	$elemInst	= $elemTmpl.clone();
+					try
+					{
+						var	data 		= so.list[ i ];
+						$elemInst.find( "#idSalesPostElapse" ).text( data.strSalesElapsed );
+						$elemInst.find( "#idSalesPostSubject" ).text( data.strSalesSubject ).attr( "href", "/message.asp?ID=" + data.idMsg );
+						$elemInst.find( "#idSalesPostFlag" ).attr( "src", bl.url.getCountryFlagMediumURL( data.idCountry ) );
+						$elemInst.find( "#idSalesPostSeller" ).text( data.strStoreName ).attr( "href", bl.url.getStoreURL( data.skUserSeller ) );
+						$elemInst.find( "#idSalesPostLevelIcon" ).attr( "src", bl.url.getFeedbackIconUrl( data.nFeedbackScore ) );
+						$elemInst.find( "#idSalesPostLots" ).text( data.nLotCnt + " lots" );
+						if ( data.instantCheckout == true )
+							$elemInst.find( ".icon-instant-checkout" ).show();
+						//$elemInst.find( "#idSalesPostStoreLink" ).attr( "href", bl.url.getStoreURL( data.skUserSeller ) );
+					}
+					catch ( e )
+					{
+						console.log( e );
+					}
+
+					$container.append( $elemInst );
+				}
+			}
+		}
+,	initADPTransition: 
+		function() 
+		{
+			var isHovering 		= false;
+			var containers 		= document.querySelectorAll('.landing-adp__model-container');
+			var minTransition = 8000;
+			var maxTransition = 10000;
+			var currentContainer = 0;
+			var currentActiveItem = 1;
+			var timeout;
+
+			for(var i = 0; i < containers.length; i++) {
+				containers[i].addEventListener('mouseover', function() {
+					isHovering = true;
+					clearInterval(timeout);
+				});
+				containers[i].addEventListener('mouseout', function() {
+					isHovering = false;
+					transitionContainer(currentContainer);
+				});
+			}
+
+			// var transitionContainer = function(container, timer) {
+			// 	// var randomTransition 	= Math.floor(Math.random() * (maxTransition - minTransition + 1) + minTransition);
+			// 	var nextIndex 				= (currentActiveItem + 1) % 4;
+			// 			currentActiveItem = nextIndex;
+
+			// 	setTimeout(function(container, timer) {
+			// 		if(!isHovering) {
+			// 			containers[container].setAttribute('data-active', nextIndex);
+			// 		}
+
+			// 		transitionContainer(container, timer);
+			// 	}, timer, container, timer);
+			// }
+
+			var transitionContainer = function(container) {
+				var nextIndex = currentActiveItem + 1;
+
+				if(currentContainer == 7) {
+					currentActiveItem = nextIndex == 4 ? 0 : nextIndex;
+				}
+
+				timeout = setTimeout(function(container) {
+					if(!isHovering) {
+						containers[container].setAttribute('data-active', nextIndex);
+					}
+
+					currentContainer = currentContainer == 7 ? 0 : currentContainer + 1;
+					transitionContainer(currentContainer);
+				}, 3000, container);
+			}
+
+			transitionContainer(currentContainer)
+			// transitionContainer(0, 3000);
+			// transitionContainer(1, 6000);
+			// transitionContainer(2, 9000);
+			// transitionContainer(3, 12000);
+			// transitionContainer(4, 15000);
+			// transitionContainer(5, 18000);
+			// transitionContainer(6, 21000);
+			// transitionContainer(7, 24000);
+		}
+,	buildADPItems:
+		function ( $section, ao )
+		{
+			var $container     	= $section.find( ".col-container-4" );
+
+			var $elemTmpl       = $container.children().first();
+
+			if ( ao.list && ao.list.length > 0 )
+			{
+				var itemList 	= bl.util.shuffleArray( ao.list.filter(function (item) { return item.bInStock }) ).slice(0, 4);
+				var noStockList	= ao.list.filter( function ( item ) { return !item.bInStock } );
+
+				if ( itemList.length < 4 )
+					itemList = itemList.concat( bl.util.shuffleArray( noStockList ).slice( 0, 4 - itemList.length ) );
+
+				itemList.forEach( function( item, idx ) {
+					try
+					{
+						var $elemInst  	= $elemTmpl.clone();
+
+						$elemInst.find( ".l-image" )
+									.css( "background-image", "url(" + item.strModelThumbUrl+ ")" )
+									.css( "background-position","center" )
+									.css( "background-size", "cover" )
+									.css( "background-repeat", "no-repeat" )
+									.css( "cursor", "pointer" )
+									.attr( "data-item", item.idItem )
+									.click( function ( e ) { e.preventDefault(); e.stopPropagation(); window.location.href = bl.url.getCatalogItemPageURL( $( this ).attr( "data-item" ) ); } );
+
+						$elemInst.find( ".p-name > A" )
+									.addClass( "bl-trackable-link" )
+									.attr( "data-track-target", "LANDING-ADP-ITEM:S" + idx + "(" + item.idItem + ")" )
+									.attr( "href", bl.url.getCatalogItemPageURL( item.idItem ) )
+									.text( item.strModelName );
+						
+						$elemInst.find( ".adp-post-sales__designer-name" )
+									.text( item.skUserBuilder );
+						
+						$elemInst.find( ".adp-post-sales__designer-image > IMG" )
+									.attr( "src", item.strProfileUrl );
+
+						$elemInst.find( ".like-count" ).text( item.nWantedCnt );
+						// $elemInst.find( ".price" )
+						// 			.addClass( "bl-trackable-link" )
+						// 			.attr( "data-track-target", "LANDING-ADP-ITEM:S" + idx + "(" + item.idItem + ")" )
+						// 			.attr( "href", bl.url.getCatalogItemPageURL( item.idItem ) )
+						// 			.text( item.bInStock ? item.strMinPrice : "" );
+						$elemInst.find( ".bl-wanted-addable" ).attr( "data-itemid", item.idItem ).attr( "data-colorid", "0" );
+					}
+					catch ( e ) { };
+
+					$container.append( $elemInst );
+				} );			
+
+				$elemTmpl.hide();
+
+				var	wantedCallback	= function ( $thisElem )
+				{
+					$thisElem.find( ".like-count" ).text( $thisElem.attr( "data-wanted-qty") );
+					if ( $thisElem.attr( "data-wanted-check-result" ) == "true" )
+					{
+						$thisElem.find( "I" ).removeClass( "far fa-heart" ).addClass( "fas fa-heart" );
+					}
+					else
+					{
+						$thisElem.find( "I" ).removeClass( "fas fa-heart" ).addClass( "far fa-heart" );
+					}
+				};
+
+				bl.wanted.checkItems( $container.find( '.bl-wanted-check' ), wantedCallback );
+				bl.wanted.enableAdd( $container.find( '.bl-wanted-addable' ), function ( $thisElem ) { bl.wanted.checkItems( $thisElem, wantedCallback ); } );
+			}
+		}
+,	init: 
+		function()
+		{
+			bl.tracker.track( 13, document.referrer );
+			bl.tracker.registerTrackableLink( $( "A.bl-trackable-link" ) );
+		}
+};
+
+;
+
+</script>
+
+</body>
+</html>

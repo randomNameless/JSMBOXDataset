@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ssl_tools_f.html</title>
+</head>
+<body>
+
+<script>
+/**
+ * LUIDを返す
+ * ローカルにcookieを持っていればそれを返し、
+ * 持っていなければサーバから取得したものをcookieにセットしてから返す
+ *
+ * @param type LUIDを使用する案件名（英数字）-- 2018年8月頃から廃止
+ * @param sucess 成功した場合の無名関数 第一引数にLUIDを返す
+ * @param error $.ajaxのerror
+ */
+function get_luid_v2(type, success, error) {
+
+	var optout_value, luid_value;
+
+	// オプトアウト済み
+	optout_value = getTvaCookieV2('optout');
+	if (optout_value == 1) return success(null);
+
+	// 過去に発行済み(cookieに有る)
+	luid_value = getTvaCookieV2('luidv7');
+	if (luid_value) return success(luid_value);
+
+	// 発行した直後
+	luid_value = getTvaGlobalIDV2();
+	if (luid_value) return success(luid_value);
+
+	// 重複リクエストを防止するため、まとめてluidを発行
+	return setTvaDuplicateRequestV2(success, error);
+};
+
+var __fastly_global_trigger__;
+var __fastly_global_callback__;
+var __global_ex_luid_issued__ = false;
+function setTvaDuplicateRequestV2(success, error) {
+
+	// callbackの登録
+	__fastly_global_callback__ = [success, error];
+
+	// リクエストの制御
+	if (__fastly_global_trigger__) {
+		return false;
+	}
+	__fastly_global_trigger__ = true;
+
+
+
+	// 旧luidがすでに設定されていたら一緒に送る
+	var ex_luid = getTvaCookieV2('luid');
+	// 旧luidの新規発行判別フラグ
+	var luid_api_url = 'https://flink.tv-asahi.co.jp/luid/luidv7?is_ex_luid_issued=' + encodeURIComponent(__global_ex_luid_issued__)
+	if (ex_luid) {
+		luid_api_url += '&luid=' + encodeURIComponent(ex_luid);
+	} 
+
+
+	// luidを発行
+	var tools = new tvasahiTools();
+	tools.ajax({
+		url: luid_api_url,
+		timeout: 3000,
+		dataType: 'text',
+		withCredentials: true,
+		success: function (data) {
+
+			// global変数に保存(直後の再取得用)
+			setTvaGlobalIDV2(data);
+
+			// cookieに保存
+			/* 2020/01 SameSite対応でクライアントから保存しないように変更
+			var location_host = '.tv-asahi.co.jp';
+			if (location.hostname.indexOf('tva.asial-project.com') != -1) {
+				location_host = '.tva.asial-project.com';
+			} else if (location.hostname.indexOf('tvasahi.jp') != -1) {
+				location_host = '.tvasahi.jp';
+			}
+			*/
+
+
+			// callbackの実行
+			if (typeof __fastly_global_callback__ === 'object' && 0 in __fastly_global_callback__) {
+				if (typeof __fastly_global_callback__[0] === 'function') {
+					__fastly_global_callback__[0](data);
+				}
+			}
+
+		},
+		error: function (err) {
+			if (typeof __fastly_global_callback__ === 'object' && 1 in __fastly_global_callback__) {
+				if (typeof __fastly_global_callback__[1] === 'function') {
+					__fastly_global_callback__[1](err);
+				}
+			}
+		}
+	});
+
+};
+
+function setTvaCookieV2(key, value, domain, path, expiredays) {
+	if (!path) {
+		var path = location.pathname;
+		// for ie
+		var paths = new Array();
+		paths = path.split("/");
+		if (paths[paths.length - 1] != "") {
+			paths[paths.length - 1] = "";
+			path = paths.join("/");
+		}
+	}
+	var exdate = '';
+	if (expiredays) {
+		var extime = new Date().getTime();
+		var cltime = new Date(extime + (60 * 60 * 24 * 1000 * expiredays));
+		exdate = cltime.toUTCString();
+	}
+	var s = "";
+	s += key + "=" + encodeURIComponent(value);
+	if (domain) {
+		s += "; domain=" + domain;
+	}
+	s += "; path=" + path;
+	if (exdate) {
+		s += "; expires=" + exdate + "; ";
+	} else {
+		s += "; ";
+	}
+	document.cookie = s;
+};
+
+function getTvaCookieV2(name) {
+	var result = null;
+
+	var cookieName = name + '=';
+	var allcookies = document.cookie;
+
+	var position = allcookies.indexOf(cookieName);
+	if (position != -1) {
+		var startIndex = position + cookieName.length;
+		var endIndex = allcookies.indexOf(';', startIndex);
+		if (endIndex == -1) {
+			endIndex = allcookies.length;
+		}
+		result = decodeURIComponent(allcookies.substring(startIndex, endIndex));
+	}
+	return result;
+};
+
+var __fastly_global_luid__;
+function setTvaGlobalIDV2(luid) {
+	__fastly_global_luid__ = luid;
+};
+function getTvaGlobalIDV2() {
+	if (typeof __fastly_global_luid__ === undefined) {
+		return false;
+	} else {
+		return __fastly_global_luid__;
+	}
+};
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>uva.behaviors.html</title>
+</head>
+<body>
+
+<script>
+(function ($) {
+  /**
+   * The recommended way for producing HTML markup through JavaScript is to write
+   * theming functions. These are similiar to the theming functions that you might
+   * know from 'phptemplate' (the default PHP templating engine used by most
+   * Drupal themes including Omega). JavaScript theme functions accept arguments
+   * and can be overriden by sub-themes.
+   *
+   * In most cases, there is no good reason to NOT wrap your markup producing
+   * JavaScript in a theme function.
+   */
+
+  /**
+   * Behaviors are Drupal's way of applying JavaScript to a page. In short, the
+   * advantage of Behaviors over a simple 'document.ready()' lies in how it
+   * interacts with content loaded through Ajax. Opposed to the
+   * 'document.ready()' event which is only fired once when the page is
+   * initially loaded, behaviors get re-executed whenever something is added to
+   * the page through Ajax.
+   *
+   * You can attach as many behaviors as you wish. In fact, instead of overloading
+   * a single behavior with multiple, completely unrelated tasks you should create
+   * a separate behavior for every separate task.
+   *
+   * In most cases, there is no good reason to NOT wrap your JavaScript code in a
+   * behavior.
+   *
+   * @param context
+   *   The context for which the behavior is being executed. This is either the
+   *   full page or a piece of HTML that was just added through Ajax.
+   * @param settings
+   *   An array of settings (added through drupal_add_js()). Instead of accessing
+   *   Drupal.settings directly you should use this because of potential
+   *   modifications made by the Ajax callback that also produced 'context'.
+   */
+
+  Drupal.behaviors.setupBreakpoints = {
+    attach: function (context, settings) {
+      $("body", context).once("setupBreakpoints", function () {
+        $.mediaquery({
+          minWidth: [320, 580, 960, 1140],
+        });
+      });
+    },
+  };
+
+  Drupal.behaviors.imageAlign = {
+    attach: function (context, settings) {
+      $(".media-element-container").addClass(function () {
+        var direction = $("img.media-element").css("float");
+        if (direction == "left" || direction == "right") {
+          return "body-image-" + direction;
+        } else {
+          return "";
+        }
+      });
+    },
+  };
+  Drupal.behaviors.uvaSearch = {
+    attach: function (context, settings) {
+      $btnSearch = $(".btn-search-mobile");
+      $btnClose = $(".btn-search-close");
+
+      $btnSearch.on("click", toggleSearch);
+      $btnClose.on("click", toggleSearch);
+
+      function toggleSearch(event) {
+        event.preventDefault();
+        // close mobile menu if search is toggled, reset scrollbar to top
+        $("html, body").removeClass("mobile-menu-is-open");
+
+        // remove any active arrow classes and removed style attribute on ul
+        var $wrapperLi = $(".mobile-menu-navigation-wrapper li");
+
+        $wrapperLi.removeClass("active");
+        $wrapperLi.find("ul").removeAttr("style");
+        if ($("body").hasClass("search-is-open")) {
+          $(".search-wrapper").find("input[type=text]").val("");
+          $(".search-wrapper").find("input[type=text]").attr("tabindex", -1);
+          $(".search-wrapper").find("input[type=submit]").attr("tabindex", -1);
+          $(".btn-search-mobile").focus();
+        } else {
+          $(".search-wrapper").find("input[type=text]").attr("tabindex", 0);
+          $(".search-wrapper").find("input[type=submit]").attr("tabindex", 0);
+          $(".search-wrapper").find("input[type=text]").focus();
+        }
+
+        $("body").toggleClass("search-is-open");
+        //S$('.search-wrapper').find('input[type=text]').focus();
+      }
+    },
+  };
+
+  Drupal.behaviors.uvaNewsToggle = {
+    attach: function (context, settings) {
+      var $latestHeader = $("#uva-news-rss-latest-title"),
+        $popularHeader = $("#uva-news-rss-popular-title"),
+        $latestContainer = $("#uva_news_rss_latest"),
+        $popularContainer = $("#uva_news_rss_popular");
+
+      $latestHeader.on("click", toggleClasses);
+      $popularHeader.on("click", toggleClasses);
+
+      function toggleClasses(event) {
+        if (!$(this).hasClass("active")) {
+          $latestHeader.toggleClass("active");
+          $popularHeader.toggleClass("active");
+          $latestContainer.toggleClass("visible");
+          $popularContainer.toggleClass("visible");
+        }
+      }
+    },
+  };
+
+  Drupal.behaviors.uvaUrgentNews = {
+    attach: function (context, settings) {
+      var urgentNewsWindow = $("#block-uva-blocks-uva-urgent-news");
+      var urgentNewsTitle = $("h2", urgentNewsWindow);
+      var urgentNewsText = $(".news-text", urgentNewsWindow);
+      var urgentNewsToggle = $(".toggle", urgentNewsWindow);
+
+      if (urgentNewsWindow.length) {
+        urgentNewsWindow.addClass("close");
+        // urgentNewsText.hide(100);
+        urgentNewsText.hide(0);
+        if (urgentNewsTitle.length) {
+          urgentNewsToggle.click(function () {
+            if (urgentNewsWindow.hasClass("close")) {
+              //urgentNewsText.show(100);
+              urgentNewsText.show(0);
+              urgentNewsWindow.removeClass("close").addClass("open");
+            } else {
+              //urgentNewsText.hide(100);
+              urgentNewsText.hide(0);
+              urgentNewsWindow.removeClass("open").addClass("close");
+            }
+          });
+        }
+      }
+    },
+  };
+
+  Drupal.behaviors.promoHovers = {
+    attach: function (context, settings) {
+      $("div.uva-promo").each(function (index, value) {
+        $(this).mouseenter(function () {
+          $(this).css(
+            "background-image",
+            "url('" + $(this).attr("attr-hover-image") + "')",
+          );
+        });
+        $(this).mouseleave(function () {
+          $(this).css(
+            "background-image",
+            "url('" + $(this).attr("attr-normal-image") + "')",
+          );
+        });
+      });
+    },
+  };
+
+  Drupal.behaviors.uvaArrowScroller = {
+    attach: function (context, settings) {
+      var $arrowScroller = $(
+        "#block-views-home-page-views-life-at-uva .down-arrow",
+      );
+      var arrowScrollerTop;
+      var newScrollValue;
+
+      //triggers scroll on click
+      $arrowScroller.on("click", triggerScroll);
+
+      function calcScrollTop() {
+        //calc scroll top only on homepage
+        if ($("body").hasClass("front")) {
+          arrowScrollerTop = $arrowScroller.offset().top;
+          //new scroll top values are calculated based on min width
+          if ($.mediaquery("state").minWidth < 960) {
+            newScrollValue = arrowScrollerTop - 30;
+          } else {
+            newScrollValue = arrowScrollerTop + 30;
+          }
+        }
+      }
+
+      function triggerScroll(event) {
+        setTimeout(function () {
+          //finds new scroll top value before animating
+          calcScrollTop();
+          var ua = window.navigator.userAgent;
+          var msie = ua.indexOf("MSIE ");
+          var ff = ua.indexOf("Firefox");
+          if (
+            msie > 0 ||
+            ff > 0 ||
+            !!navigator.userAgent.match(/Trident.*rv\:11\./)
+          ) {
+            //for IE
+            $("html").animate(
+              {
+                scrollTop: newScrollValue,
+              },
+              800,
+            );
+          } else {
+            $("body").animate(
+              {
+                scrollTop: newScrollValue,
+              },
+              800,
+            );
+          }
+        }, 200);
+      }
+
+      //on resize
+      $(window).on("resize", calcScrollTop);
+    },
+  };
+
+  // remove bottom border of submenu items that has less than 5 items
+  Drupal.behaviors.submenuItemsCount = {
+    attach: function (context, settings) {
+      $("nav .expanded:nth-child(3)").addClass("admission");
+
+      $.mediaquery("bind", "mq-key", "(min-width: 0px)", {
+        enter: function () {
+          if (!$("body").hasClass("section-starthere")) {
+            //$('nav li.expanded:not(".admission")').each(function (c) {
+            $("nav li.expanded").each(function (c) {
+              $(this).addClass("submenu-" + c);
+
+              var count = $(this).find("ul.menu > li").length;
+
+              if (count <= 4) {
+                var half = count / 2;
+                $(this).find("ul.menu > li").slice(0, half).addClass("col1");
+                $(this)
+                  .find("ul.menu > li")
+                  .slice(half, count)
+                  .addClass("col2");
+              }
+              if (count > 4) {
+                var third = count / 3;
+                $(this)
+                  .find("ul.menu > li")
+                  .slice(0, third + 1)
+                  .addClass("col1");
+                $(this)
+                  .find("ul.menu > li")
+                  .slice(third + 1, third + third + 1)
+                  .addClass("col2");
+                $(this)
+                  .find("ul.menu > li")
+                  .slice(third + third + 1, count)
+                  .addClass("col3");
+              }
+            });
+
+            /*	$('.admission').each(function () {
+							$(this).addClass('submenu-2');
+							var count = $(this).find('ul.menu > li').length;
+
+							var half = count / 2;
+							$(this).find('ul.menu > li').slice(0, half).addClass('col1');
+							$(this).find('ul.menu > li').slice(half, count).addClass('col2');
+
+						});*/
+
+            $("ul.menu li.expanded ul.menu").wrap(
+              '<div class="dropdown-menu-content"></div>',
+            );
+            $(".dropdown-menu-content").wrap(
+              '<div class="dropdown-menu"></div>',
+            );
+
+            $(".submenu-0 ul .col1").wrapAll(
+              "<div class='submenu-col' ></div>",
+            );
+            $(".submenu-0 ul .col2").wrapAll(
+              "<div class='submenu-col' ></div>",
+            );
+            $(".submenu-0 ul .col3").wrapAll(
+              "<div class='submenu-col' ></div>",
+            );
+            $(".submenu-1 ul .col1").wrapAll(
+              "<div class='submenu-col' ></div>",
+            );
+            $(".submenu-1 ul .col2").wrapAll(
+              "<div class='submenu-col' ></div>",
+            );
+            $(".submenu-1 ul .col3").wrapAll(
+              "<div class='submenu-col' ></div>",
+            );
+            $(".submenu-2 ul .col1").wrapAll(
+              "<div class='submenu-col' ></div>",
+            );
+            $(".submenu-2 ul .col2").wrapAll(
+              "<div class='submenu-col' ></div>",
+            );
+            $(".submenu-2 ul .col3").wrapAll(
+              "<div class='submenu-col' ></div>",
+            );
+          }
+        },
+      });
+    },
+  };
+
+  //positions news carousel arrows based on image container's height, recalc height on resize
+  Drupal.behaviors.positionSwiperArrows = {
+    attach: function (context, settings) {
+      if ($("body").hasClass("front")) {
+        var slideCount = $(
+          "#block-views-home-page-views-homepage-hero .views-row-even",
+        ).length;
+        //alert(slideCount);
+
+        $("#block-views-home-page-views-homepage-hero .view-content").wrapInner(
+          "<div class='swiper-container'></div>",
+        );
+
+        //if (slideCount > 0) {
+        $(".swiper-container").wrapInner("<div class='swiper-wrapper'></div>");
+        $(".swiper-container").prepend('<div class="swiper-pagination"></div>');
+
+        $(".swiper-container .views-row").addClass("swiper-slide");
+        //$('.swiper-container .views-row').attr('tabindex', '-1');
+
+        setTimeout(function () {
+          $(".swiper-slide-duplicate a").attr("tabindex", "-1");
+          //$('.swiper-slide-duplicate').attr('display', 'none');
+          //$('.swiper-slide-duplicate').remove();
+        }, 500);
+
+        //}
+      }
+    },
+  };
+
+  Drupal.behaviors.mobileMenu = {
+    attach: function (context, settings) {
+      $(".btn-menu-mobile", context).once("mobileMenu", function () {
+        var $menuWrapper,
+          $mainMenu, // #block-system-main-menu
+          $audienceMenu,
+          $audienceHeader,
+          $toolbarMenu,
+          $toolbarHeader,
+          $btnMobileMenu, // #uva_social_links
+          $navItem,
+          previousScrolledPosition;
+
+        function init() {
+          $menuWrapper = $("<div />").attr("id", "mobile-menu-wrapper");
+          $mainMenu = $("#block-system-main-menu > ul.menu")
+            .clone()
+            .wrap(
+              '<div class="mobile-menu-navigation-wrapper" id="mobile-menu-navigation-wrapper"></div>',
+            )
+            .parent();
+          $audienceMenu = $("#block-menu-menu-audiences ul.menu")
+            .clone()
+            .wrap(
+              '<div class="mobile-menu-audiences-wrapper" id="mobile-menu-audiences-wrapper"></div>',
+            )
+            .parent();
+          $audienceHeader = $("<h3>INFO FOR</h3>");
+          $toolbarHeader = $("<h3>HOO LINKS</h3>");
+          $toolbarMenu = $("#menu-toolbar-header ul")
+            .clone()
+            .wrap(
+              '<div class="mobile-menu-toolbar-wrapper" id="mobile-menu-toolbar-wrapper"></div>',
+            )
+            .parent();
+          $btnMobileMenu = $(".btn-menu-mobile");
+
+          $give = $("div.view-header-give").clone();
+          //.wrap('<div class="view-header-give" id="mobile-give-bar"></div>')
+          //.parent();
+
+          $menuWrapper.appendTo(".header-main");
+          $mainMenu.appendTo($menuWrapper);
+          $give.appendTo($menuWrapper);
+          $toolbarMenu.appendTo($menuWrapper);
+          $audienceMenu.appendTo($menuWrapper);
+          $audienceHeader.prependTo(".mobile-menu-audiences-wrapper");
+          $toolbarHeader.prependTo(".mobile-menu-toolbar-wrapper");
+
+          $btnMobileMenu.on("click", toggleMobileMenu);
+
+          $navItem = $(
+            ".mobile-menu-navigation-wrapper > .menu > .expanded > a",
+          );
+          $navItem.prepend('<span class="dd-arrow"></span>');
+
+          $navItemArrow = $(
+            ".mobile-menu-navigation-wrapper > .menu > .expanded > a .dd-arrow",
+          );
+          $navItemArrow.on("click", toggleMobileSubMenu);
+
+          $.mediaquery("bind", "mq-key", "(min-width: 0px)", {
+            enter: function () {
+              if ($("html, body").hasClass("mobile-menu-is-open")) {
+                toggleMobileMenu();
+              }
+            },
+          });
+        }
+
+        function toggleMobileMenu() {
+          // close search if mobile menu is toggled and clear search input value
+          $("body").removeClass("search-is-open");
+          $(".search-wrapper").find("input[type=text]").val("");
+
+          if (!$("html").hasClass("mobile-menu-is-open")) {
+            previousScrolledPosition = $(window).scrollTop();
+            $("html, body").addClass("mobile-menu-is-open");
+            $("#mobile-menu-wrapper")
+              .css({
+                height:
+                  $(window).outerHeight() -
+                  $("header .row-branding").outerHeight(),
+              })
+              .scrollTop(0);
+          } else {
+            $("html, body").removeClass("mobile-menu-is-open");
+            $(window).scrollTop(previousScrolledPosition);
+          }
+        }
+
+        function toggleMobileSubMenu(e) {
+          // prevents arrow from going to link on click
+          e.preventDefault();
+
+          // variable to hold the next DOM li element
+          var $nextElement = $(this).parent().next().children().children(); //.siblings('li');//.children().children().children();//.nextUntil('a');
+
+          //alert($nextElement.html());
+          // remove any active classes and hide any visible submenus
+          $(".mobile-menu-navigation-wrapper li").removeClass("active");
+          $(".mobile-menu-navigation-wrapper ul ul:visible").slideUp("fast");
+          //$('.mobile-menu-navigation-wrapper ul ul').toggle();
+
+          // add active class to li of selected menu item
+          $(this).parents().eq(1).addClass("active");
+
+          // if next element is a ul and is visible, then hide submenu
+          if ($nextElement.is("ul") && $nextElement.is(":visible")) {
+            $nextElement.slideUp("fast");
+            $(this).parents().eq(1).removeClass("active");
+          }
+
+          // if next element is a ul and is not visible, then show submenu
+          if ($nextElement.is("ul") && !$nextElement.is(":visible")) {
+            $nextElement.slideDown("fast");
+          }
+
+          // cancels or preserves clickable link state
+          if ($nextElement.is("ul")) {
+            return false;
+          } else {
+            return true;
+          }
+        }
+
+        init();
+      });
+    },
+  };
+
+  Drupal.behaviors.starthereStories = {
+    attach: function (context, settings) {
+      var tiles = $(".field--name-field-starthere-story .field__item", context);
+      tiles.each(function (i, el) {
+        var activeClass = "panel-hover-" + i,
+          $el = $(el);
+        $el.click(function () {
+          document.location.href = $el.find("a").attr("href");
+        });
+        $(el)
+          .children()
+          .hover(
+            function () {
+              tiles.addClass(activeClass);
+              $(el).find("video").get(0).play();
+            },
+            function () {
+              tiles.removeClass(activeClass);
+              $(el).find("video").get(0).pause();
+              $(el).find("video").get(0).currentTime = 0;
+            },
+          );
+      });
+    },
+  };
+
+  Drupal.behaviors.starthereStory = {
+    attach: function (context, settings) {
+      var infoHandle = $(".story-info-handle", context),
+        infoPane = $(".group-story-info", context);
+
+      $.mediaquery("bind", "mq-key", "(min-width: 0px)", {
+        enter: function () {
+          infoPane.hide();
+          infoHandle.removeClass("close").addClass("open").text("i");
+          //infoHandle.attr("onclick","ga('send', 'event', { eventCategory: 'ButtonTracker', eventAction: 'Click', eventLabel: 'StartHereButton'};");
+        },
+        leave: function () {
+          infoPane.show();
+          //infoHandle.attr('onclick','');
+        },
+      });
+
+      if (infoHandle.length) {
+        infoHandle.click(function () {
+          if (infoHandle.hasClass("open")) {
+            infoPane.show(100);
+            infoHandle.removeClass("open").addClass("close").text("x");
+            //infoHandle.attr('onclick','');
+            //alert('if');
+            //infoPane.once('add-ga-tracking').mouseleave(function (event) {
+            //	alert("Mouse out");
+            ga("send", "event", {
+              eventCategory: "ButtonTracker",
+              eventAction: "click",
+              eventLabel: "StartHereButton",
+              transport: "beacon",
+            });
+          } else {
+            infoPane.hide(100);
+            infoHandle.removeClass("close").addClass("open").text("i");
+            //alert('else');
+            //infoHandle.attr("onclick","ga('send', 'event', { eventCategory: 'ButtonTracker', eventAction: 'Click', eventLabel: 'StartHereButton'};");
+          }
+        });
+      }
+    },
+  };
+
+  Drupal.behaviors.toggleStartHereChapters = {
+    attach: function (context, settings) {
+      var $trigger = $(".trigger-starthere a");
+      var $html = $("html");
+      var $body = $("body");
+
+      $trigger.on("click", function (e) {
+        e.preventDefault();
+
+        $trigger.parent().toggleClass("active");
+        $html.toggleClass("sh-menu-open");
+        $body.toggleClass("sh-menu-open");
+        $(".l-region--starthere-chapters").fadeToggle("fast");
+      });
+    },
+  };
+
+  Drupal.behaviors.anchorNav = {
+    attach: function (context, settings) {
+      $("#block-uva-formatters-anchor-nav").once("anchorNav", function () {
+        var $anchorNav = $("#anchor-nav");
+        var anchorNavPos = $anchorNav.offset().top;
+        $(window).on("resize", function () {
+          anchorNavPos = $anchorNav.offset().top;
+        });
+
+        $.mediaquery("bind", "mq-key", "(min-width: 580px)", {
+          enter: function () {
+            $(window)
+              .off("scroll")
+              .on("scroll", function () {
+                var windowScroll = $(this).scrollTop();
+                if (windowScroll >= anchorNavPos) {
+                  $anchorNav.css({
+                    position: "absolute",
+                    top: windowScroll - anchorNavPos,
+                  });
+                } else {
+                  $anchorNav.removeAttr("style");
+                }
+              }); // window.scroll
+
+            $anchorNav.on("click", "a", function (e) {
+              $anchorNav.find("a").removeClass("active");
+              $(this).addClass("active");
+            });
+          }, // enter
+        }); // media query min-width: 580
+      });
+    },
+  };
+
+  Drupal.behaviors.submenuWatched = {
+    attach: function (context, settings) {
+      var container = $("#block-menu-menu-start-here-chapters", context),
+        links = $(".leaf a", container);
+      if (container.length) {
+        var seen = Cookies.getJSON("starthere-seen-videos");
+        if (typeof seen !== "undefined") {
+          links.each(function (i, e) {
+            var $el = $(e);
+            if (
+              seen.videos.indexOf(Drupal.absoluteUrl($el.attr("href"))) !== -1
+            ) {
+              $el.once("watched-processed").append(
+                $(document.createElement("span"))
+                  .attr({
+                    class: "watched-flag",
+                  })
+                  .text("Watched"),
+              );
+            }
+          });
+        }
+      }
+    },
+  };
+
+  Drupal.behaviors.siteTooltips = {
+    attach: function (context, settings) {
+      var searchBtn = $(".btn-search-mobile");
+
+      //var azLink =  $('#menu-toolbar-header li.last a');
+
+      //searchBtn.attr('data-title', 'People/Term Search');
+
+      //azLink.attr('data-title', 'A-Z Directory');
+
+      //azLink.tooltip({
+      //    direction: 'bottom'
+      //});
+
+      /* searchBtn.tooltip({
+			     direction: 'bottom',
+			     margin: -25
+			 });*/
+    },
+  };
+
+  Drupal.behaviors.toggleStartHereShareExperience = {
+    attach: function (context, settings) {
+      var $share_trigger = $(
+        ".starthere-next-step .group-starthere-text .field--name-field-links .field__item:last-child a",
+      );
+      var $close_trigger = $(
+        "#block-sharethis-sharethis-block .close-sharethis a",
+      );
+      var $html = $("html");
+      var $body = $("body");
+
+      $share_trigger.on("click", function (e) {
+        e.preventDefault();
+        $("#block-sharethis-sharethis-block").fadeToggle("fast");
+        $html.toggleClass("sh-menu-open");
+        $body.toggleClass("sh-menu-open");
+      });
+
+      $close_trigger.on("click", function (e) {
+        e.preventDefault();
+        $("#block-sharethis-sharethis-block").hide("fast");
+        $html.toggleClass("sh-menu-open");
+        $body.toggleClass("sh-menu-open");
+      });
+    },
+  };
+
+  Drupal.behaviors.nextStepGaEvents = {
+    attach: function (context, settings) {
+      var $container = $(".group-starthere-text", "body.starthere-next-step");
+      if (!$container.length) {
+        return;
+      }
+      var $links = $("a", $container);
+      $links.each(function (index) {
+        if (index < 3) {
+          $link = $(this);
+          $(this)
+            .once("add-ga-tracking")
+            .click(function (event) {
+              ga("send", "event", {
+                eventCategory: "Next Step Link",
+                eventAction: "click",
+                eventLabel: $link.attr("href"),
+                transport: "beacon",
+              });
+            });
+        }
+      });
+    },
+  };
+
+  Drupal.behaviors.menuAudiences = {
+    attach: function (context, settings) {
+      $("#block-menu-menu-audiences").hover(function () {
+        if ($("#block-menu-menu-audiences ul").is(":visible") === true) {
+          $("#block-menu-menu-audiences ul").hide();
+        } else {
+          $("#block-menu-menu-audiences ul").show();
+        }
+      });
+    },
+  };
+
+  Drupal.behaviors.menuFocused = {
+    attach: function (context, settings) {
+      $(".btn-search-mobile").keypress(function (e) {
+        var key = e.which;
+        if (key == 13) {
+          // the enter key code
+          $(".btn-search-mobile").click();
+          return false;
+        }
+      });
+
+      $("#uva-events-menu-latest").keypress(function (e) {
+        var key = e.which;
+        if (key == 13) {
+          // the enter key code
+          $("#uva-events-menu-latest").click();
+          return false;
+        }
+      });
+
+      $("#uva-events-menu-important").keypress(function (e) {
+        var key = e.which;
+        if (key == 13) {
+          // the enter key code
+          $("#uva-events-menu-important").click();
+          return false;
+        }
+      });
+
+      $("div.submenu-col-intro a").focusin(function () {
+        $(this).parent().css({
+          "background-color": "#E57200",
+        });
+      });
+
+      $("div.hero-read-more a, div.hp-morelink a").focusin(function () {
+        $(this).parent().css({
+          "background-color": "#232D4B",
+        });
+      });
+      $("div.hero-read-more a, div.hp-morelink a, div.submenu-col a").focusout(
+        function () {
+          $(this).parent().css({
+            "background-color": "",
+          });
+        },
+      );
+
+      $("div.view-header-give a").focusin(function () {
+        $(this).parent().toggleClass("changed");
+        $(this).parent().css({
+          "background-color": "#232D4B",
+        });
+        $(this).css({
+          "background-color": "#232D4B",
+        });
+      });
+      $("div.view-header-give a").focusout(function () {
+        $(".view-header-give").toggleClass("changed");
+        $(this).parent().css({
+          "background-color": "",
+        });
+        $(this).css({
+          "background-color": "",
+        });
+      });
+
+      $("div.life-at-uva-promo-textwrap a").focusin(function () {
+        $(this).parent().find("img").css({
+          opacity: "0.35",
+        });
+      });
+      $("div.life-at-uva-promo-textwrap a").focusout(function () {
+        $("div.life-at-uva-promo-textwrap img").css({
+          opacity: "",
+        });
+      });
+
+      $("nav li.expanded").each(function (c) {
+        $("#block-system-main-menu li.submenu-" + c).focusin(function () {
+          $(this)
+            .find("div.dropdown-menu-content ul.menu")
+            .addClass("expanded-focused");
+          $(this)
+            .siblings()
+            .find("div.dropdown-menu-content ul.menu")
+            .removeClass("expanded-focused");
+        });
+
+        $(
+          "#block-system-main-menu li.submenu-" +
+            c +
+            " div.dropdown-menu-content ul.menu .last",
+        ).focusout(function () {
+          $(this).parents().removeClass("expanded-focused");
+        });
+
+        $(".btn-search-mobile, #menu-toolbar-header li.last").focusin(
+          function () {
+            $(
+              "#block-system-main-menu li.submenu-" +
+                c +
+                " div.dropdown-menu-content ul.menu",
+            ).removeClass("expanded-focused");
+            $("#block-menu-menu-audiences ul.menu").hide();
+          },
+        );
+
+        $(".submenu-col .menu-featured").siblings(".last").removeClass("last");
+        $(".submenu-col .menu-featured").addClass("leaf last");
+
+        $("#block-system-main-menu li.submenu-0").focusin(function () {
+          if ($("body").hasClass("search-is-open")) {
+            $(".btn-search-mobile").click();
+          }
+        });
+
+        $("#block-menu-menu-audiences h2").focusin(function () {
+          $("#block-menu-menu-audiences ul.menu").show();
+          if ($("body").hasClass("search-is-open")) {
+            $(".btn-search-mobile").click();
+            $("#block-menu-menu-audiences h2").focus();
+          }
+        });
+
+        $(".views-row .life-at-uva-promo-textwrap a").focusin(function () {
+          $(
+            ".block--views-home-page-views-life-at-uva .view-content .views-row .life-at-uva-promo-textwrap .glance-bg img",
+          ).attr("opacity", "0.35");
+        });
+
+        $(document.body).click(function () {
+          $(
+            "#block-system-main-menu li.submenu-" +
+              c +
+              " div.dropdown-menu-content ul.menu",
+          ).removeClass("expanded-focused");
+        });
+      });
+
+      $("a.social, #block-menu-menu-footer-utilities a").focusin(function () {
+        $(this).css({
+          outline: "none",
+        });
+      });
+
+      $("#aetni-social-instagram a.social").focusin(function () {
+        $(this).find("span").css({
+          "background-position": "0px -26px",
+        });
+      });
+
+      $("#aetni-social-instagram a.social").focusout(function () {
+        $(this).find("span").css({
+          "background-position": "0px 0px",
+        });
+      });
+
+      $("#aetni-social-twitter a.social").focusin(function () {
+        $(this).find("span").css({
+          "background-position": "-26px -26px",
+        });
+      });
+
+      $("#aetni-social-twitter a.social").focusout(function () {
+        $(this).find("span").css({
+          "background-position": "-26px 0px",
+        });
+      });
+
+      $("#aetni-social-facebook a.social").focusin(function () {
+        $(this).find("span").css({
+          "background-position": "-52px -26px",
+        });
+      });
+
+      $("#aetni-social-facebook a.social").focusout(function () {
+        $(this).find("span").css({
+          "background-position": "-52px 0px",
+        });
+      });
+
+      $("#aetni-social-youtube a.social").focusin(function () {
+        $(this).find("span").css({
+          "background-position": "-78px -26px",
+        });
+      });
+
+      $("#aetni-social-youtube a.social").focusout(function () {
+        $(this).find("span").css({
+          "background-position": "-78px 0px",
+        });
+      });
+
+      $("#aetni-social-snapchat a.social").focusin(function () {
+        $(this).find("span").css({
+          "background-position": "-104px -26px",
+        });
+      });
+
+      $("#aetni-social-snapchat a.social").focusout(function () {
+        $(this).find("span").css({
+          "background-position": "-104px 0px",
+        });
+      });
+    },
+  };
+
+  Drupal.behaviors.navAriaLabel = {
+    attach: function (context, settings) {
+      $("#block-menu-menu-audiences").attr("aria-label", "Audience Links");
+      $("#block-menu-menu-audiences h2").attr("tabindex", "0");
+      $("#block-system-main-menu").attr("aria-label", "Main Menu");
+      $("#block-menu-menu-footer-utilities").attr(
+        "aria-label",
+        "Utilities Links",
+      );
+      $("#search-block-form input.form-text").attr("autocomplete", "off");
+      $("#edit-keys").attr("autocomplete", "off");
+    },
+  };
+
+  Drupal.behaviors.searchInput = {
+    attach: function (context, settings) {
+      $("#search-block-form input.form-text").change(function () {
+        //alert("Handler for .change() called.");
+        var str = $("#edit-search-block-form--2").val();
+        var newStr = str.replace(/[&\/\\_\-|=+()$~%^'\[\]";*<>{}]/g, "");
+        $("#search-block-form input.form-text").attr("value", newStr);
+        CludoSearch.searchUrl = "/search/site/" + newStr;
+        CludoSearch.isSearchResultPage = false;
+      });
+
+      $("#search-form input.form-text").change(function () {
+        //alert("Handler for .change() called.");
+        var str = $("#edit-keys").val();
+        var newStr = str.replace(/[&\/\\_\-|=+()$~%^'\[\]";*<>{}]/g, "");
+        $("#search-form input.form-text").attr("value", newStr);
+        CludoSearch.searchUrl = "/search/site/" + newStr;
+        CludoSearch.isSearchResultPage = false;
+      });
+
+      // document . getElementById( "edit-search-block-form--2" ) . oninput = function () {
+      // myFunction(this);
+      // }
+      // document . getElementById( "edit-keys" ) . oninput = function () {
+      // myFunction(this);
+      // }
+
+      // function myFunction(e) {
+      // var value = e . value;
+      // var value2 = value . replace( /[&\/\\_\-|=+()$~%^'\[\]";*<>{}]/g, "" );
+      // e . value = value2;
+      // CludoSearch . searchUrl = '/search/site/' + value2;
+      // CludoSearch . isSearchResultPage = false;
+      // }
+    },
+  };
+
+  Drupal.behaviors.youtube_homepage_video = {
+    attach: function (settings) {
+      var iOS =
+        /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+      // create a player array to contain the players on a page
+      var player = [];
+      var pausetimer = [];
+
+      // create variable to store the running count of videos that are on and
+      // can be on the page
+      var running_count = 0;
+
+      // embed code for the youtube iframe api
+      var tag = document.createElement("script");
+      tag.src = "https://www.youtube.com/iframe_api?hoopla123";
+      var firstScriptTag = document.getElementsByTagName("script")[0];
+      firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+      // when the iframe api is ready get the videos on the page and embed them,
+      // attach click events for poster and event when video is over
+      window.onYouTubeIframeAPIReady = function () {
+        //getVideos();
+      };
+
+      function onYouTubeIframeAPIReady() {
+        getVideos();
+      }
+
+      onYouTubeIframeAPIReady();
+
+      function getVideos() {
+        // for each link with a attribute "video-id"
+        if ($(".glance-video:not(.video-processed) a[video-id]")) {
+          $(".glance-video:not(.video-processed) a[video-id]").each(
+            function (i, el) {
+              running_count = running_count + 1;
+              $(el).parents(".glance-video").addClass("video-processed");
+              var divId = "player-" + running_count;
+              var $parent = $(el).parents(".glance-video");
+
+              $('<div id="' + divId + '"></div>').appendTo(
+                $parent.find(".video-container"),
+              );
+              $(el).parents(".glance-video").addClass(divId);
+
+              // creates a new YT player for each video in the loop
+              player[running_count] = new YT.Player(divId, {
+                videoId: $(el).attr("video-id"),
+                events: {
+                  onReady: playerReady,
+                  onStateChange: function (event) {
+                    // when the video is over trigger playerEnded() to return poster
+                    if (event.data == YT.PlayerState.ENDED) {
+                      fadeInPoster();
+                    }
+                    if (event.data == YT.PlayerState.PAUSED) {
+                      startPauseTimer();
+                    }
+                    if (event.data == YT.PlayerState.PLAYING) {
+                      window.clearTimeout(pausetimer[running_count]);
+                      fadeOutPoster();
+                    }
+                  },
+                },
+              });
+
+              var iframe = $("#" + divId).attr(
+                "src",
+                $("#" + divId).attr("src") +
+                  "&rel=0&showinfo=0&controls=1&cc_load_policy=1",
+              );
+              iframe = $("#" + divId).attr("tabindex", "-1"); //removes suggested videos and titles
+
+              function startPauseTimer() {
+                pausetimer[running_count] = fadeInPoster(); //window.setTimeout(fadeInPoster, 2000);
+              }
+
+              // fade back all the poster elements
+              function fadeInPoster() {
+                //$('div.' + divId + ' a[video-id]').fadeIn(0500);
+                $("div." + divId + " a[video-id]").show();
+                $("#" + divId).attr("tabindex", "-1");
+                $("#" + divId)
+                  .parent()
+                  .parent()
+                  .find("a.video-trigger")
+                  .focus();
+              }
+
+              // fade out the poster elements
+              function fadeOutPoster() {
+                //$('div.' + divId + ' a[video-id]').fadeOut(0500);
+                $("div." + divId + " a[video-id]").hide();
+                $("#" + divId).attr("tabindex", "0");
+                $("#" + divId).focus();
+              }
+
+              // when player is ready attach click event to posted play button
+              function playerReady(videoObject) {
+                $(el).on("click", function (e) {
+                  e.preventDefault();
+
+                  //pauses all videos so that the only one playing is the target video
+                  var i;
+                  for (i = 1; i < player.length; ++i) {
+                    player[i].pauseVideo();
+                  }
+
+                  // "...embedded media cannot be played automatically in Safari on iOS - the user always initiates playback."
+                  // https://developer.apple.com/library/safari/documentation/AudioVideo/Conceptual/Using_HTML5_Audio_Video/AudioandVideoTagBasics/AudioandVideoTagBasics.html
+                  //if (!iOS) {
+                  // play the target video
+                  videoObject.target.playVideo();
+                  //}
+                });
+              }
+            },
+          );
+        }
+      }
+    }, // attach
+  };
+
+  Drupal.behaviors.homepageElement = {
+    attach: function (context, settings) {
+      if ($("body").hasClass("node-type-home-page")) {
+        var capPos = $(
+          ".field--name-field-caption-position .field__item",
+        ).text();
+        var hideCap = $(".field--name-field-hide-caption .field__item").text();
+        //alert(capPos);
+        $(".field--name-field-hero-url").addClass(capPos);
+        $(".field--name-field-hero-title").addClass(capPos);
+        $(".field--name-field-hero-title-custom").addClass(capPos);
+
+        if ($(".field--name-field-hero-title-custom").length) {
+          $(".field--name-field-hero-title").addClass("hide");
+          $(".field--name-field-hero-url").addClass("custom");
+        } else {
+          $(".field--name-field-hero-url").addClass("no-custom");
+        }
+        if (hideCap == 1) {
+          $(
+            ".field--name-field-hero-title, .field--name-field-hero-url",
+          ).addClass("hide");
+        }
+      }
+
+      //$('.block--views-home-page-views-life-at-uva.hp-promos .dp-composite-field-container.clearfix').removeClass('clearfix');
+      //$('.glance-video').addClass('video-processed');
+      $(
+        ".view-display-id-life_at_uva .field--name-field-hero-entity .dp-composite-field-container.clearfix",
+      ).removeClass("clearfix");
+      //dp-composite-field-container clearfix
+    },
+  };
+
+  Drupal.behaviors.homepageNewsElement = {
+    attach: function (context, settings) {
+      $(".view-display-id-homepage_news .uvatoday-wrapper .views-row").each(
+        function () {
+          var url = $(this).find(".link-news-title a").attr("href");
+          $(this).find(".link-news-title a").contents().unwrap();
+          $(this)
+            .children()
+            .wrapAll('<a href="' + url + '"></a>');
+        },
+      );
+    },
+  };
+
+  Drupal.behaviors.mobileTabbing = {
+    attach: function (context, settings) {
+      function mobileTab() {
+        $(".btn-menu-mobile").keypress(function (e) {
+          var key = e.which;
+          if (key == 13) {
+            // the enter key code
+            $(".btn-menu-mobile").click();
+            $(".submenu-0").find("a:first").focus();
+            return false;
+          }
+        });
+
+        $(".mobile-menu-navigation-wrapper li.expanded").each(function (c) {
+          $(this).focusin(function () {
+            $(this).addClass("active");
+            $(this).find("ul.menu").css("display", "block");
+            $(this).siblings().removeClass("active");
+            $(this).siblings().find("ul.menu").css("display", "none");
+          });
+        });
+        $(".mobile-menu-navigation-wrapper li.leaf").focusin(function () {
+          $(".mobile-menu-navigation-wrapper li.expanded")
+            .find("ul.menu")
+            .css("display", "none");
+        });
+        $("#mobile-menu-wrapper").on("focusout", function (e) {
+          setTimeout(function () {
+            // needed because nothing has focus during 'focusout'
+            if ($(":focus").closest("#mobile-menu-wrapper").length <= 0) {
+              $(".mobile-menu-navigation-wrapper li.expanded")
+                .find("ul.menu")
+                .removeClass("active");
+              $(".mobile-menu-navigation-wrapper li.expanded")
+                .find("ul.menu")
+                .css("display", "none");
+              $(".mobile-menu-is-open .btn-menu-mobile").click();
+            }
+          }, 0);
+        });
+      }
+
+      mobileTab();
+
+      var urgentNewsWindow = $("#block-uva-blocks-uva-urgent-news");
+      var urgentNewsTitle = $("h2", urgentNewsWindow);
+      var urgentNewsText = $(".news-text", urgentNewsWindow);
+      var urgentNewsToggle = $(".toggle", urgentNewsWindow);
+
+      $("#urgent-news").focusin(function () {
+        urgentNewsText.show(0);
+        urgentNewsWindow.removeClass("close").addClass("open");
+      });
+
+      $("#block-uva-blocks-uva-urgent-news").on("focusout", function (e) {
+        setTimeout(function () {
+          // needed because nothing has focus during 'focusout'
+          if (
+            $(":focus").closest("#block-uva-blocks-uva-urgent-news").length <= 0
+          ) {
+            urgentNewsText.hide(0);
+            urgentNewsWindow.removeClass("open").addClass("close");
+          }
+        }, 0);
+      });
+    },
+  };
+
+  /* eslint-disable */
+  Drupal.behaviors.detectIE = {
+    attach: function (context) {
+      $("body", context)
+        .once("detectIE")
+        .each(function () {
+          var isIE11 = !!navigator.userAgent.match(/Trident.*rv\:11\./);
+          var isIEedge = !!navigator.userAgent.match(/Edge/);
+
+          if (isIE11 === true) {
+            $("html").addClass("ie-11");
+          }
+
+          if (isIEedge) {
+            $("html").addClass("ie-edge");
+          }
+        });
+    },
+  };
+
+  /* eslint-enable */
+
+  Drupal.behaviors.GoogleAnalyticsCheck = {
+    attach: function (context, settings) {
+      setTimeout(function () {
+        if (
+          $('script[src="https://www.google-analytics.com/analytics.js"]')
+            .length > 0
+        ) {
+          //alert('hello');
+        } else {
+          //alert('no');
+          var ga = document.createElement("script");
+          ga.type = "text/javascript";
+          ga.src = "https://www.google-analytics.com/analytics.js";
+          // Use any selector
+          $("head").append(ga);
+        }
+      }, 1000);
+
+      var questions = $(
+        ".dp-composite-field-item-refresh-copy-video .image-description #questions .expandable-list-question button",
+      );
+      var quicklinks = $(
+        ".dp-composite-field-item-refresh-copy-video .image-description #quicklinks ul li a",
+      );
+
+      questions.each(function (c) {
+        $(this)
+          .once("add-ga-tracking")
+          .click(function (event) {
+            ga("send", "event", {
+              eventCategory: "Covid-19 Question Links",
+              eventAction: "Click",
+              eventLabel: $(this).html(),
+              transport: "beacon",
+            });
+          });
+      });
+      quicklinks.each(function (c) {
+        $(this)
+          .once("add-ga-tracking")
+          .click(function (event) {
+            ga("send", "event", {
+              eventCategory: "Covid-19 FAQ Quick Links",
+              eventAction: "Click",
+              eventLabel: $(this).html(),
+              transport: "beacon",
+            });
+          });
+      });
+    },
+  };
+
+  Drupal.behaviors.uva_today_fixed_shared = {
+    attach: function (settings) {
+      $(window).load(function () {
+        if ($("div#quicklinks").length) {
+          var navTop = $("div#quicklinks").offset().top;
+          var navHeight = $("div#quicklinks").outerHeight();
+          var navBottom = $("div#quicklinks").offset().top + navHeight;
+          var columnHeight = $(".image-description").innerHeight();
+          var columnBottom =
+            $(".image-description").offset().top + columnHeight + navHeight / 6;
+
+          console.log(navTop, navHeight, navBottom, columnHeight, columnBottom);
+
+          $(window).bind("scroll click resize", function () {
+            columnHeight = $(".image-description").innerHeight();
+            columnBottom =
+              $(".image-description").offset().top +
+              columnHeight +
+              navHeight / 6;
+
+            if (
+              $(window).scrollTop() + 20 >= navTop &&
+              window.innerWidth >= 780
+            ) {
+              $("div#quicklinks").addClass("sticky-sidebar");
+            } else {
+              $("div#quicklinks").removeClass("sticky-sidebar");
+            }
+
+            var scrollBottom = jQuery(window).scrollTop() + window.outerHeight;
+
+            console.log(scrollBottom, columnBottom);
+
+            if (scrollBottom >= columnBottom && window.innerWidth >= 780) {
+              $("div#quicklinks").addClass("sticky-sidebar-bottom");
+            } else {
+              $("div#quicklinks").removeClass("sticky-sidebar-bottom");
+            }
+          });
+
+          $(".expand-button").bind("click", function () {
+            $("html, body").animate({ scrollTop: "+=1px" }, 100);
+          });
+
+          $(window).scrollTop($(window).scrollTop() - 1);
+        }
+      });
+    },
+  };
+})(jQuery);
+
+</script>
+
+</body>
+</html>

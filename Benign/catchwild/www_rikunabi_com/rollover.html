@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>rollover.html</title>
+</head>
+<body>
+
+<script>
+/*
+	Standards Compliant Rollover Script
+	Author : Daniel Nolan
+	http://www.bleedingego.co.uk/webdev.php
+
+	Last Modified: Concent, Inc., 2008-07-01
+	- new simple interface: call single function, options by a hash.
+	  * not be lower-compatible!
+*/
+
+function setRollovers(opts) {
+
+if (!opts) opts = {};
+opts.rolloverClass               = opts.rolloverClass              || 'imgover';
+opts.defaultRolloverImageSuffix  = opts.defaultRolloverImageSuffix || '_ov';
+
+var targetImageIdSuffixRe = new RegExp('_' + opts.rolloverClass + '$'); // 'id_imgover'
+
+setRolloversByTagName('img',   function(image) {return (true);                 });
+setRolloversByTagName('input', function(input) {return (input.type == 'image');});
+
+function setRolloversByTagName(targetTag, isRolloverObject) {
+	var aImages = document.getElementsByTagName(targetTag); //like 'img', 'input',...
+	for (var i = 0, n = aImages.length; i < n; i++) {
+		var image = aImages[i];
+		if (!image.className) continue;
+		if (!getRolloverClass(image)) continue;
+		if (!isRolloverObject(image)) continue;
+		if (image.useMap) { // case of clickable map
+			setRolloversClickableMap(image);
+			continue; // next image
+		}
+		setRollover(image);
+	}
+}
+
+function getRolloverClass(anObject) {
+	var rolloverClassRe = new RegExp('^(' + opts.rolloverClass + ')(.*)');
+	if (!anObject.className) return null;
+	var classNames = anObject.className.split(' ');
+	for (var i = 0, n = classNames.length; i < n; i++) {
+		var classNameElements = classNames[i].match(rolloverClassRe);
+		if (classNameElements) return classNameElements;
+		// returns an array [class_full, class_base, class_extension]
+	}
+	return null;
+}
+
+function setRolloversClickableMap(image) {
+	var mapId = image.useMap.match(/^\#(.*)/)[1]; // cut off the initial "#"
+	var areas = document.getElementsByName(mapId).item(0).areas;
+	for (var i = 0, n = areas.length; i < n; i++) {
+		if (getRolloverClass(areas[i])) {
+			setRollover(image, areas[i]);
+		}
+	}
+}
+
+function setRollover(targetImage, eventCaptureObject) {
+	// if eventCaptureObject catch some mouseover/mouseout event,
+	// then replace the image source of targetImage.
+	var src = targetImage.src;
+	var targetImageId = targetImage.getAttribute('id') || '';
+	var eventCaptureId = (targetImageId.match(targetImageIdSuffixRe))
+		? targetImageId.replace(targetImageIdSuffixRe, '')
+		: '';
+
+	eventCaptureObject
+		= document.getElementById(eventCaptureId)
+		|| eventCaptureObject
+		|| targetImage;
+
+	var rolloverImageSuffix = getRolloverClass(eventCaptureObject)[2] // _XX of imgover_XX
+		|| opts.defaultRolloverImageSuffix;                       // _ov
+
+	var ftype = src.substring(src.lastIndexOf('.'), src.length);
+	var hsrc = src.replace(ftype, rolloverImageSuffix + ftype);
+	var mouseoverImage = new Image();
+	var mouseoutImage  = new Image();
+
+	mouseoverImage.src = hsrc;	// preload mouseover image
+	mouseoutImage.src  = src;	// save as mouseout image
+
+	eventCaptureObject.onmouseover = function() {
+		targetImage.src = hsrc;
+	}
+
+	eventCaptureObject.onmouseout = function() {
+		targetImage.src = src;
+	}
+}
+} // /setRollover
+
+</script>
+
+</body>
+</html>

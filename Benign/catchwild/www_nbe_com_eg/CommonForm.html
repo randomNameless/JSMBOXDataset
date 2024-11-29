@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CommonForm.html</title>
+</head>
+<body>
+
+<script>
+//******************************************************* Java script code *************************************************************************//
+var __extends = this.__extends || function (d, b) {
+    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+    function __() { this.constructor = d; }
+    __.prototype = b.prototype;
+    d.prototype = new __();
+};
+var CommonForm = (function () {
+    function CommonForm() {
+        this.mPageID = '';
+        this.mPageType = "widget";
+        this.mParameters = null;
+        this.mAsyncData = false;
+        this.ScreenFieldHTMLObj = null;
+        this.MyHTML = '';
+        //this.DataObjToBeBinded = null;
+        this.DataSource = null;
+        this.EnableBinding = true;
+        this.BindedHTMLWithData = '';
+        this.DisplaySpinnerWhenMWCall = false;
+        this.HideSpinnerWhenCallSuccess = false;
+        this.DisplayLoadingSpinner = false;
+        this.HideLoadingSpinnerAfterDataBinding = false;
+        this.$DOMWidgetInstance = undefined;
+        this.InParameters = undefined;
+        this.WidgetConfig = undefined;
+        this.WidgetInstanceConfig = undefined;
+        this.OutParameters = undefined;
+        this.MyHTMLInputElementsValues = {};
+        this.HandleGetScreenDataFinishedSucceed = false;
+    }
+    // To Execute the Class Initiation Sequence
+    CommonForm.prototype.RunForm = function (pPageID) {
+        this.RunFormLogic(pPageID);
+
+        if (!this.mAsyncData) {
+            this.HandleGetScreenDataFinished();
+        } else {
+            if (!this.CachedDataBinded) {
+                if (this.HideLoadingSpinnerAfterDataBinding || this.HideSpinnerWhenCallSuccess) {
+                    ShowLoadingSpinner();
+                }
+            }
+
+        }
+    };
+
+    CommonForm.prototype.RunFormLogic = function (pPageID) {
+        try {
+            this.InitCM();
+            this.Init();
+            this.ValidateInputData();
+            this.BeforeGetScreenData();
+            this.GetScreenData();
+        } catch (e) {
+            logErr(e);
+            //DisplayProcessingRequestError();
+            //return;
+        }
+    };
+
+    //To Set Form Params needed for Runing Form
+    CommonForm.prototype.Init = function () {
+        this.DataSource = this.DataSource || {};
+        this.DataSource.InParams = this.InParameters;
+        if (this.DisplayLoadingSpinner || this.DisplaySpinnerWhenMWCall) {
+            ShowLoadingSpinner();
+        }
+    };
+
+    CommonForm.prototype.InitCM = function (resultCode, Response) {
+        if (this.WidgetInstanceConfig && this.WidgetInstanceConfig.CMCallHandlerInstanceID) {
+            LoadAndRunCMCallHandler(this.WidgetInstanceConfig.CMCallHandlerInstanceID, LoadedSubPages[CurrentSubPageID].SubPageOutParams, this.CMCallBack);
+        }
+    };
+    CommonForm.prototype.CMCallBack = function (resultCode, Response, FullBody) {
+        //alert(resultCode);
+        //log(Response);
+    };
+    // Overridable To Validate Form Input Params Set By Init, from where the Business initiating the Form
+    CommonForm.prototype.ValidateInputData = function () {
+    };
+
+    // Overridable To initiating the Form If form DomExist(Get From Cache)
+    CommonForm.prototype.OnReuseForm = function () {
+
+    };
+    // Overridable
+    CommonForm.prototype.BeforeGetScreenData = function () {
+    };
+
+    // Overridable for Pages without Calls, to Get data of mParameters and Prepare DataObjToBeBinded
+    CommonForm.prototype.GetScreenData = function () {
+    };
+
+    // Executes flow after Screen Data Gotten
+    // For Forms without call, Business should override GetScreenData to Get data of mParameters and Prepare DataObjToBeBinded
+    // For Forms with call, GetScreenData will execute the call, and the CallBack will execute HandleGetScreenDataFinished
+    CommonForm.prototype.HandleGetScreenDataFinished = function () {
+        try {
+            this.HandleOutput();
+            if (this.DataObjToBeBinded != null) {
+                for (var item in this.DataObjToBeBinded) {
+                    if (this.DataObjToBeBinded[item])
+                        this.DataSource[item] = this.DataObjToBeBinded[item];
+                }
+            }
+            //if (this.WidgetInstanceID == "wginsContactUsInquiry_Default") {
+            //    debugger
+            //}
+            this.BindDataToHTML();
+            this.AfterBindDataToHTML();
+            this.BindHTMLToContainerDiv();
+            this.SetOutParams();
+            this.AfterBindHTMLToContainerDiv();
+            this.HandleCustomAfterBindHTMLToContainerDiv();
+            if (this.BindHTMLElementsEvents)
+                this.BindHTMLElementsEvents();
+            // this function called to handle issue in blind support version ,not affect any issue in normal version of BSf
+           // HandleAria();
+            //end
+            this.HandleGetScreenDataFinishedSucceed = true;
+        } catch (e) {
+            log(e);
+            //DisplayProcessingResponsetError();
+        }
+
+    };
+
+    //  Overridable to Execute any business flow after GetScreenData Executed
+    CommonForm.prototype.HandleOutput = function () {
+    };
+
+    // Binds DataObjToBeBinded to MyHTML
+    CommonForm.prototype.BindDataToHTML = function () {
+        if (this.DataSource == null) {
+            this.BindedHTMLWithData = this.MyHTML;
+            return;
+        }
+        var BindedHTML = $.tmpl('<div>' + this.MyHTML + '</div>', this.DataSource);
+        this.BindedHTMLWithData = $(BindedHTML).html();
+    };
+
+    // Overridable to Execute business flow after HTML Binded
+    CommonForm.prototype.AfterBindDataToHTML = function () {
+        
+    };
+
+    // Binds the HTML to the appropriate Container Div, and Displays the HTML
+    CommonForm.prototype.BindHTMLToContainerDiv = function () {
+        if (!this.EnableBinding) {
+            return;
+        }
+        if (this.WidgetInstanceID == 'wginsExchangeRateCurrencyConverter_Home') {
+            //debugger
+        }
+
+        if (this.$DOMWidgetInstance) {
+            //this.$DOMWidgetInstance.html('');
+            this.$DOMWidgetInstance.empty();
+            $(this.BindedHTMLWithData).appendTo(this.$DOMWidgetInstance);
+        }
+    };
+
+
+    // Overridable to Execute business flow after Showing Binded HTML, i.e. Bind Events
+    CommonForm.prototype.AfterBindHTMLToContainerDiv = function () {
+        if (this.HideLoadingSpinnerAfterDataBinding || this.HideSpinnerWhenCallSuccess) {
+            HideLoadingSpinner();
+        }
+
+        if (this.mPageType != "widget") {
+            ApplyCustomFunctionWhenOpen();
+        }
+    };
+
+    CommonForm.prototype.HandleCustomAfterBindHTMLToContainerDiv = function () {
+        var extraFunction = "AfterBind_" + this.WidgetInstanceID;
+        if (typeof window[extraFunction] === "function") {
+            window[extraFunction].apply(this);
+        }
+    };
+
+    // Overridable to Execute business flow after Back Button Clicked 
+    CommonForm.prototype.AfterFormPopBack = function (PopBackFormPramsObj) {
+    };
+    CommonForm.prototype.BeforeShowForm = function (DataObject) {
+
+    };
+    CommonForm.prototype.AfterShowForm = function (DataObject) {
+        
+    };
+
+    CommonForm.prototype.SetOutParams = function (DataObject) {
+        if (this.WidgetConfig && this.WidgetConfig.WidgetParams) {
+            var WidgetParams = this.WidgetConfig.WidgetParams;
+            for (var index = 0; index < WidgetParams.length; index++) {
+                var ParamName = WidgetParams[index].ParamName;
+                var ParamType = WidgetParams[index].ParamType.toLowerCase();
+                if (ParamType == 'out' || ParamType == 'inout') {
+                    var BindedHTMLElementSelector = WidgetParams[index].BindedHTMLElementSelector;
+                    if (BindedHTMLElementSelector && BindedHTMLElementSelector.length > 0) {
+                        BindedHTMLElementSelector = BindedHTMLElementSelector.split(',');
+                        for (var ElemIndex = 0; ElemIndex < BindedHTMLElementSelector.length; ElemIndex++) {
+                            var DomElement = this.GetHTMLElement(BindedHTMLElementSelector[ElemIndex]);
+                            //text area, select, radio button, checkbox
+                            if (DomElement && (DomElement.is('input') ||
+                                DomElement.is('select') || DomElement.is('textarea'))) {
+                                this.OnChangeObject(this.OutParameters, DomElement, ParamName);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    };
+
+    CommonForm.prototype.OnChangeObject = function (Obj, DomElement, ParamName) {
+        DomElement.on('change keydown keypress', function (e) {
+            Obj[ParamName] = $(this).val();
+        });
+    };
+
+    CommonForm.prototype.GetHTMLElement = function (SelectorStr) {
+        return this.$DOMWidgetInstance.find(SelectorStr);
+    };
+
+    CommonForm.prototype.BindEvent = function(SelectorStr, EventsStr, HandlerFunction) {
+        var _arguments = arguments;
+        var _this = this;
+        var myfunc = function () { return HandlerFunction.apply(_this, arguments) };
+        myfunc.BindEventArgs = arguments;
+        this.GetHTMLElement(SelectorStr).bind(EventsStr, myfunc);
+    }
+
+    CommonForm.prototype.GetHTMLInputsValues = function () {
+        if (this.$DOMWidgetInstance) {
+            var _this = this;
+            this.$DOMWidgetInstance.find('input , textarea , select').each(function (index, HTMLElement) {
+                try {
+                    var $HTMLElement = $(HTMLElement);
+                    var ID = $HTMLElement.attr('id');
+                    var Value = $HTMLElement.val();
+                    _this.MyHTMLInputElementsValues[ID] = Value;
+                } catch (e) { log(e);}
+			});
+			RestHTMLInputsDOM(this.$DOMWidgetInstance);
+        }
+    }
+
+    CommonForm.prototype.RestHTMLInputsValues = function () {
+        try {
+            if (this.$DOMWidgetInstance) {
+				RestHTMLInputsDOM(this.$DOMWidgetInstance);
+                this.MyHTMLInputElementsValues = {};
+            }
+        } catch (e) { }
+	}
+
+	function RestHTMLInputsDOM($DOMWidgetInstance) {
+		try {
+			$DOMWidgetInstance.find('input , textarea , select').each(function (index, HTMLElement) {
+				try {
+					var $HTMLElement = $(HTMLElement);
+					var type = $HTMLElement.attr("type");
+                    if ($HTMLElement.is('select')) {
+                        $HTMLElement.val(0);
+						//HTMLElement.selectedIndex = 0;
+						//$HTMLElement.trigger('change');
+					} else if (type == 'radio' || type == 'checkbox' ) {
+
+					}
+					else {
+						$HTMLElement.val("");
+
+					}
+				} catch (e) { }
+			});
+		} catch (e) { }
+	}
+
+    CommonForm.prototype.SetHTMLInputsValues = function () {
+        try {
+            if (this.$DOMWidgetInstance) {
+                for (var HTMLInputID in this.MyHTMLInputElementsValues) {
+                    try {
+                        $(this.$DOMWidgetInstance.find('#' + HTMLInputID)).val(this.MyHTMLInputElementsValues[HTMLInputID]);
+                    } catch (e) {}
+                }
+            }
+        } catch (e) { }
+    }
+
+    CommonForm.prototype.RegisterPortalEventHandler = function (EventID, HandlerFn, Context, FuncNameKey) {
+        return RegisterPortalEventHandler(EventID, HandlerFn, Context, FuncNameKey);
+    }
+    CommonForm.prototype.FirePortalEvent = function () {
+        FirePortalEvent.apply(this, arguments);
+    }
+    return CommonForm;
+})();
+</script>
+
+</body>
+</html>

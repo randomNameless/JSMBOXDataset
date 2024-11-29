@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>rave_alerts.html</title>
+</head>
+<body>
+
+<script>
+(function ($) {
+
+
+  $(window).load(function () {
+    /**/
+
+	closeButton();
+
+    window.checkRaveInterval = setInterval(function () {
+      alertWorker();
+    }, 10000);
+  });
+
+
+  function alertWorker() {
+    // @TODO: Add loop count or option to exit so this doesn't keep running after an
+    // active event has ended if someone leaves a browser open
+    // if ( Drupal.settings.rave_alerts_active_event == 1 ) {
+    // Create our own rounded timestamp to limit paths cached by varnish
+    var stamp = Math.ceil($.now() / 10000);
+
+    $.ajax({
+      type: "GET",
+      url: "https://content.getrave.com/rss/uva/channel1" + "?stamp=" + stamp,
+      dataType: "xml",
+      //cache: false, // Causes Varnish to miss every request
+      success: rssParser,
+      complete: function () {
+        // Schedule the next request when the current one's complete
+        //setInterval(alertWorker, 1000);
+      }
+    });
+    //};
+  };
+
+  function rssParser(xml) {
+
+
+    $(xml).find("item").each(function () {
+      if ($(this).find("link").text()) {
+        feedLink = $(this).find("link").text();
+      } else {
+        // @TODO: get url from jQuery.extend(Drupal.settings
+        feedLink = Drupal.settings.rave_alerts_deafult_read_more_url;
+      }
+
+
+      var dateHolder = $("#rss-feeds-container").find(".date-holder").text();
+
+      var stamp = Math.ceil($.now() / 10000);
+      var alertTitle = $(this).find("title").text();
+      var alertDescription = $(this).find("description").text();
+      var alertPubtime = $(this).find("pubDate").text();
+
+      var rssDate = new Date(alertPubtime);
+      var today = new Date();
+      var timeDiff = today.getTime() - rssDate.getTime();
+      var fifteenMin = 900000;
+
+
+	  var month = rssDate.getMonth()+1;
+      var day = rssDate.getDate();
+
+
+      var dateTime = month + '/' + day + ' ' + DisplayTime(rssDate);
+
+	 // var dateFormat - month + '/' + day;
+
+      //alertPubtime = alertPubtime.formatDate('h:mm a, M/D', new Date());
+      // $("#rave-alerts .alert").html(alertTitle + ' <a href="' + feedLink + '" >' + 'Read More!!!</a>');
+      // data-alert-publish-time="' + alertPubtime + '" data-alert-timestamp="' + stamp + '"
+      if (dateHolder !== alertPubtime) {
+        $("#rss-feeds-container #rss-feeds").attr('data-alert-publish-time', alertPubtime);
+        $("#rss-feeds-container #rss-feeds").attr('data-alert-timestamp', stamp);
+
+        $("#rss-feeds-container #rss-feeds").html("<span href='#close' class='close rss-close'>X</span><div class='entry'><div class='pre-title'>" + alertTitle + "<p class='date'>Last Updated: " + dateTime + "</p></div><div><p class='news-text'>" + alertDescription + "</p></div></div><div class='date-holder' style='display:none;'>" + alertPubtime + "</div>");
+
+		$("#rss-feeds-container").show();
+
+      }
+
+
+      if (checkTime(timeDiff)) {
+
+      } else {
+        $("#rss-feeds-container").hide();
+      }
+
+
+    });
+  };
+
+  function checkTime(tDiff) {
+
+    if (tDiff > 900000) {
+      return false;
+    } else {
+      return true;
+    }
+  };
+
+	function DisplayTime(date) {
+        //var date = new Date();
+        var hours = date.getHours() > 12 ? date.getHours() - 12 : date.getHours();
+        var am_pm = date.getHours() >= 12 ? "PM" : "AM";
+        hours = hours < 10 ? "" + hours : hours;
+        var minutes = date.getMinutes() < 10 ? "0" + date.getMinutes() : date.getMinutes();
+        var seconds = date.getSeconds() < 10 ? "0" + date.getSeconds() : date.getSeconds();
+       // time = hours + ":" + minutes + ":" + seconds + " " + am_pm;
+        time = hours + ":" + minutes + " " + am_pm;
+        //var lblTime = document.getElementById("lblTime");
+        //lblTime.innerHTML = time;
+		return time;
+    };
+
+ function closeButton(){
+
+	 $(document).on('click','.rss-close',function(){
+		 $("#rss-feeds-container").hide();
+	 });
+
+ };
+
+
+})(jQuery);
+
+</script>
+
+</body>
+</html>

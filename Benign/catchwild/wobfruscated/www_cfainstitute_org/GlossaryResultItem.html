@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>GlossaryResultItem.html</title>
+</head>
+<body>
+<script>import {
+  resultContext,
+} from "https://static.cloud.coveo.com/atomic/v2/index.esm.js";
+
+//Title
+export class GlossaryResultItem extends HTMLElement {
+  shadow;
+  result;
+  initialized = false;
+  loggedIn;
+
+  async connectedCallback() {
+    if (this.initialized) {
+      return;
+    }
+
+    this.initialized = true;
+    this.shadow = this.attachShadow({ mode: "open" });
+
+    try {
+      this.result = await resultContext(this);
+      this.loggedIn = window.drupalSettings.user_roles.includes('authenticated');
+      this.render();
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  render() {
+    const title = this.result.title;
+    const description = this.result.raw.description;
+    const synonyms = this.result.raw.field_synonyms;
+    const related_terms = this.result.raw.field_related_glossary_item_names;
+    const glossary_program = this.result.raw.field_learning_product_name;
+    const curriculum_level = this.result.raw.field_exam_level_name;
+    let itemContent = "";
+    itemContent = `
+              <h4 class="coveo-title">${title}</h4>
+              <div class="result-body">
+                <p class="glossary-definition">${description}</p>
+                <p class="glossary-synonym-terms">Synonyms: <span class="glossary-synonym">${synonyms}</span></p>
+                <p class="glossary-related-terms">Related Terms: <span class="glossary-related"> ${related_terms}</span></p>
+              </div>
+              <div class="result-meta">
+                <span class="result-meta-item">${glossary_program} ${curriculum_level}</span>
+              </div>
+            `;
+    this.shadow.innerHTML = itemContent;
+  }
+}</script>
+</body>
+</html>

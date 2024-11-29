@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>porthole.min.html</title>
+</head>
+<body>
+
+<script>
+/*
+	Copyright (c) 2011 Ternary Labs. All Rights Reserved.
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in
+	all copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+	THE SOFTWARE.
+*/
+/* packed with http://dean.edwards.name/packer/ */
+var Porthole=(typeof Porthole=="undefined")||!Porthole?{}:Porthole;Porthole={proxies:{},trace:function(s){},error:function(s){try{console.error("Porthole: "+s)}catch(e){}}};Porthole.WindowProxy=function(){};Porthole.WindowProxy.prototype={postMessage:function(){},addEventListener:function(f){},removeEventListener:function(f){}};Porthole.WindowProxyLegacy=function(a,b){if(b===undefined){b=''}this.targetWindowName=b;this.proxyIFrameLoaded=false;this.eventListeners=[];this.origin=window.location.protocol+'//'+window.location.host;if(a!==null){this.proxyIFrameName=this.targetWindowName+'ProxyIFrame';this.proxyIFrameLocation=a;this.proxyIFrameElement=this.createIFrameProxy()}else{this.proxyIFrameElement=null}};Porthole.MarkIFrameLoaded=function(a){var b=Porthole.proxies[a];b.proxyIFrameLoaded=true};Porthole.WindowProxyLegacy.prototype={getTargetWindowName:function(){return this.targetWindowName},getOrigin:function(){return this.origin},createIFrameProxy:function(){var a='<iframe onload="Porthole.MarkIFrameLoaded(\''+this.proxyIFrameName+'\');"></iframe>';var b=document.createElement('div');b.innerHTML=a;var c=b.firstChild;var d=this;c.onload=function(e){d.proxyIFrameLoaded=true};c.setAttribute('id',this.proxyIFrameName);c.setAttribute('name',this.proxyIFrameName);c.setAttribute('src',this.proxyIFrameLocation);c.setAttribute('frameBorder','1');c.setAttribute('scrolling','auto');c.setAttribute('width',30);c.setAttribute('height',30);c.setAttribute('style',"position: absolute; left: -100px; top:0px;");if(c.style.setAttribute){c.style.setAttribute('cssText',"position: absolute; left: -100px; top:0px;")}document.body.appendChild(c);return c},postMessage:function(a,b){if(b===undefined){b='*'}if(this.proxyIFrameElement===null){Porthole.error("Can't send message because no proxy url was passed in the constructor")}else{var c=undefined;var d=this;c=setInterval(function(){if(!d.proxyIFrameLoaded)return;sourceWindowName=window.name;d.proxyIFrameElement.setAttribute('src',d.proxyIFrameLocation+'#'+escape(a)+'&sourceOrigin='+escape(d.getOrigin())+'&targetOrigin='+escape(b)+'&sourceWindowName='+sourceWindowName+'&targetWindowName='+d.targetWindowName);d.proxyIFrameElement.height=d.proxyIFrameElement.height>50?50:100;clearInterval(c)},200)}},addEventListener:function(f){this.eventListeners.push(f);return f},removeEventListener:function(f){try{var a=this.eventListeners.indexOf(f);this.eventListeners.splice(a,1)}catch(e){this.eventListeners=[];Porthole.error(e)}},dispatchEvent:function(e){for(var i=0;i<this.eventListeners.length;i++){try{this.eventListeners[i](e)}catch(ex){Porthole.error("Exception trying to call back listener: "+ex)}}}};Porthole.WindowProxyHTML5=function(a,b){if(b===undefined){b=''}this.targetWindowName=b};Porthole.WindowProxyHTML5.prototype={postMessage:function(a,b){if(b===undefined){b='*'}if(this.targetWindowName===''){targetWindow=top}else{targetWindow=parent.frames[this.targetWindowName]}targetWindow.postMessage(a,b)},addEventListener:function(f){window.addEventListener("message",f,false);return f},removeEventListener:function(f){window.removeEventListener("message",f,false)},dispatchEvent:function(e){var a=document.createEvent("MessageEvent");a.initMessageEvent("message",true,true,e.data,e.origin,1,window,null);window.dispatchEvent(a)}};if(typeof window.postMessage!='function'){Porthole.trace("Using legacy browser support");Porthole.WindowProxy=Porthole.WindowProxyLegacy;Porthole.WindowProxy.prototype=Porthole.WindowProxyLegacy.prototype}else{Porthole.trace("Using built-in browser support");Porthole.WindowProxy=Porthole.WindowProxyHTML5;Porthole.WindowProxy.prototype=Porthole.WindowProxyHTML5.prototype}Porthole.WindowProxy.splitMessageParameters=function(a){if(typeof a=='undefined'||a===null){return null}var b=[];var c=a.split(/&/);for(var d in c){var e=c[d].split('=');if(typeof(e[1])=='undefined'){b[e[0]]=''}else{b[e[0]]=e[1]}}return b};Porthole.MessageEvent=function MessageEvent(a,b,c){this.data=a;this.origin=b;this.source=c};Porthole.WindowProxyDispatcher={forwardMessageEvent:function(e){var a=document.location.hash;if(a.length>0){a=a.substr(1);m=Porthole.WindowProxyDispatcher.parseMessage(a);if(m.targetWindowName===''){targetWindow=top}else{targetWindow=parent.frames[m.targetWindowName]}var b=Porthole.WindowProxyDispatcher.findWindowProxyObjectInWindow(targetWindow,m.sourceWindowName);if(b){if(b.origin==m.targetOrigin||m.targetOrigin=='*'){e=new Porthole.MessageEvent(m.data,m.sourceOrigin,b);b.dispatchEvent(e)}else{Porthole.error("Target origin "+b.origin+" does not match desired target of "+m.targetOrigin)}}else{Porthole.error("Could not find window proxy object on the target window")}}},parseMessage:function(a){if(typeof a=='undefined'||a===null){return null}params=Porthole.WindowProxy.splitMessageParameters(a);var h={targetOrigin:'',sourceOrigin:'',sourceWindowName:'',data:''};h.targetOrigin=unescape(params.targetOrigin);h.sourceOrigin=unescape(params.sourceOrigin);h.sourceWindowName=unescape(params.sourceWindowName);h.targetWindowName=unescape(params.targetWindowName);var d=a.split(/&/);if(d.length>3){d.pop();d.pop();d.pop();d.pop();h.data=unescape(d.join('&'))}return h},findWindowProxyObjectInWindow:function(w,a){if(w.RuntimeObject){w=w.RuntimeObject()}if(w){for(var i in w.Porthole.proxies){try{var b=w.Porthole.proxies[i];if(b!==null&&typeof b=="object"&&b instanceof w.Porthole.WindowProxy&&b.getTargetWindowName()==a){return b}}catch(e){}}}return null},start:function(){var a=undefined;a=setInterval(function(e){if(location.hash){Porthole.WindowProxyDispatcher.forwardMessageEvent();clearInterval(a)}},200)}};
+
+</script>
+
+</body>
+</html>

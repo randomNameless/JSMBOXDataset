@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>scriptTcf.html</title>
+</head>
+<body>
+
+<script>
+import { playerScript } from '/scripts/scriptPlayer.js';
+import {postMessageScript} from '/scripts/scriptPostMessage.js';
+import {$store} from '/scripts/store.js';
+export default { 
+  tcfFunction() {
+    if ("" === miniplayerRequestParams.consent) {
+      let frame = window;
+      let cmpFrame;
+      const cmpCallbacks = {};
+      while (frame) {
+        try {
+          if (frame.frames["__tcfapiLocator"]) {
+            cmpFrame = frame;
+            break;
+          }
+        } catch (ignore) {}
+        if (frame === window.top) {
+          break;
+        }
+        frame = frame.parent;
+      }
+
+      window.__tcfapi = function (cmd, version, callback, arg) {
+        if (!cmpFrame) {
+          callback({ msg: "CMP not found" }, false);
+        } else {
+          const callId = Math.random() + "";
+          const msg = {
+            __tcfapiCall: {
+              command: cmd,
+              parameter: arg,
+              version: version,
+              callId: callId,
+            },
+          };
+          cmpCallbacks[callId] = callback;
+          cmpFrame.postMessage(msg, "*");
+        }
+      };
+      function postMessageHandler(event) {
+        /********** CUSTOMINFO && ACTIONS *****************/
+        if (
+          typeof event.data === "string"
+        ) {
+          if(event.data.includes("customInfo=")){
+            $store.customInfo = "&" + e.data;
+          }
+          switch (event.data) {
+            case "pause":
+              playerScript.forcePause();
+              break;
+            case "getCurrentTime":
+              postMessageScript.postMessage({event:'octopus_player_current_time', data: {time: $store.source($store.getCurrentPlayed())?.currentTime ?? 0}});
+              break;
+            case "getDuration":
+              postMessageScript.postMessage({event:'octopus_player_duration', data: {duration: $store.getDuration($store.getCurrentPlayed())}});
+              break;
+            default:
+              break;
+          }
+          return;
+        }
+        /*** IMPLEMENTER ACTIONS */
+        let json = {};
+        try {
+          json =
+            typeof event.data === "string" ? JSON.parse(event.data) : event.data;
+        } catch (ignore) {}
+        const payload = json.__tcfapiReturn;
+        if (payload) {
+          if (typeof cmpCallbacks[payload.callId] === "function") {
+            cmpCallbacks[payload.callId](payload.returnValue, payload.success);
+            cmpCallbacks[payload.callId] = null;
+          }
+        }
+      }
+      window.addEventListener("message", postMessageHandler, false);
+
+      __tcfapi("addEventListener", 2, (tcData, success) => {
+        if (success && tcData.eventStatus === "tcloaded") {
+          miniplayerRequestParams.consent = tcData.tcString;
+        }
+      });
+    }
+  }
+}
+</script>
+
+</body>
+</html>

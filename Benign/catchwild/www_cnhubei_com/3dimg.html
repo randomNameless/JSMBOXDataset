@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3dimg.html</title>
+</head>
+<body>
+
+<script>
+/*
+author : mengjia
+version : 1.0
+������
+	go(index)����ָ����Ź������м䣬��Ŵ�0��ʼ
+	setIndex(index)����ָ�������ת���м䣬�޶�������Ŵ�0��ʼ
+	setLeftIndex(index)����ָ�������ת������ߣ��޶�������Ŵ�0��ʼ
+	pre()����ǰ����һ��
+	next()��������һ��
+	init()����ʼ��
+
+HTML����ṹ˵����
+	Ϊ����վ��SEOЧ����ͼƬ���ݣ�������Ϣ�Ⱦ����õ�HTML�����У���ṹ���£�
+
+	<img src="" />
+	<div>������ö�ǰһ��ͼƬ��������Ϣ</div>
+	<img src="" />
+	<div>������ö�ǰһ��ͼƬ��������Ϣ</div>
+
+	���ͼƬ�����ӣ�����Ҫ��ͼƬ������<a>��ǩ��������ʾ��
+	<a href="" target=""><img src="" /></a>
+	<div>������ö�ǰһ��ͼƬ��������Ϣ</div>
+	<img src="" />
+	<div>������ö�ǰһ��ͼƬ��������Ϣ</div>
+���Բο����ʾ��DEMO�ļ�
+*/
+
+(function(){
+	var it168 = {
+		$ : function(objName){if(document.getElementById){return eval('document.getElementById("'+objName+'")')}else{return eval('document.all.'+objName)}},
+		//Event
+		addEvent : function(obj,eventType,func){if(obj.attachEvent){obj.attachEvent("on" + eventType,func);}else{obj.addEventListener(eventType,func,false)}},
+		delEvent : function(obj,eventType,func){
+			if(obj.detachEvent){obj.detachEvent("on" + eventType,func)}else{obj.removeEventListener(eventType,func,false)}
+		},
+		// ��ȡ��һ���ǿսڵ�
+		next : function(el){
+			var next = el.nextSibling;
+			while(next && next.nodeType != 1){
+				next = next.nextSibling;
+			}
+			return next;
+		},
+		extend : function(o,t){
+			for (var p in t){
+				o[p] = t[p];
+			}
+			return o;
+		},
+		/**
+		 * ����Ԫ�ص�css��ʽ
+		 */
+		css : function(o,s){
+			var t = o.style;
+			for (var p in s){
+				t[p] =s[p];
+			}
+			return o;
+		},
+		getCurrIndex : function(len,curr){
+			if(curr >= len)
+				curr -= len;
+			if(curr <0)
+				curr += len;
+			return curr;
+		},
+		// ��ȡ�����ĳ��Ԫ��
+		getArrEl : function(arr,curr){
+			return arr[this.getCurrIndex(arr.length,curr)];
+		},
+		supportTransition : (function(){
+			// ����ֻ�Ǽ򵥵��ж�һ���Ƿ���webkit�ں�
+			return window.navigator.userAgent.toLowerCase().indexOf("webkit")>=0;
+		})(),
+		/*
+		 * �������ߣ�Ԫ��elem�ӵ�ǰ״̬���е�to��ʽ״̬������time��ʱ��
+		 * ע����Ҫʹ��setTimeout 0 ��Ϊ������javascriptִ����һֱռ��UI�̣߳�����Ԫ�ص�CSS�����ò�������Ҫ��Ч��������һ�����Ӿ��ǣ�������DurationΪ0ʱ���������Ĵ�����������Duration��Ϊ0�ģ���ִ��ʱCSS��DurationΪ0����Ч����������jsִ��ʱ��ʱ��ռ��UI�̣߳�����ҳ����ȾǰWebkitTransitionDuration�Ѿ���Ϊ0�ˡ�
+		 */
+		transition : function(elem,to,time){
+			setTimeout(function(){
+				it168.css(elem,{
+					display : "",
+					WebkitTransform : "translate3d(0,0,0)",
+					//WebkitTransitionTimingFunction : "linear",
+					WebkitTransitionDuration : time
+				});
+				it168.css(elem,to);
+				it168.css(elem.imgObj,{
+					WebkitTransform : "translate3d(0,0,0)",
+					//WebkitTransitionTimingFunction : "linear",
+					WebkitTransitionDuration : time
+				});
+				it168.css(elem.imgObj,to.imgObj);
+			},0);
+		}
+	};
+
+	var d = document,w = this, b = d.body, h = d.documentElement;
+	var scrollPic3D = function(){};
+	scrollPic3D.prototype = {
+		boxId : '', //����id
+		width : 882, //��������
+		height : 280, //�����߶�
+		imgWidth : 260, //ͼƬ����
+		imgHeight : 228, //ͼƬ�߶�
+		descHeight : 100,
+		descClass : "picdesc",
+		showsNumber : 5, //��ʾ����
+		zoom : 0.5, //Сͼ���ű�
+		data : [],
+		position : [],
+		timeLimit : 200, //����ʱ�䣬100����
+		leftIndex : 0,//�����ͼƬ�������±�
+		autoPlay : false, //�Ƿ��Զ�����
+		autoPlayTime : 5, //�Զ�����ʱ����
+		version : "1.0",
+		author : "mengjia",
+		init : function(){
+			this.initData();
+			if(this.data.length < this.showsNumber){console.log('���󣺹���ͼƬ����С����ʾ����');return};
+			if(this.showsNumber % 2 == 0){this.showsNumber++}; //��֤������
+			var boxEl = it168.$(this.boxId);
+			boxEl.style.width = this.width + 'px';
+			boxEl.style.height = this.height + 'px';
+			boxEl.style.position = 'relative';
+			boxEl.style.overflow = 'hidden';
+			boxEl.style.zoom = 1;
+			this.setLeftIndex(0);
+			this.showDesc(this.index);// ��ʾ��ʼ��ģ�����Ϣ
+			this.ifDestory();
+		},
+		/*
+		 * ����ҳ��ʱ������ɾ����������ֹ�ڴ�й¶
+		 */
+		ifDestory : function(){
+			var thisObj = this;
+			it168.addEvent(w,"unload",function(){
+				delete thisObj.data;
+			});
+		},
+		/*
+		 * ��ʼ�����ݣ���Ŀ�괰��this.boxId�е�����imageԪ����Ϊ��Ҫ��̬��ʾ��ͼƬԪ�أ�ÿһ��Ԫ�ص���һ���ڵ�����������Ϣ�������ӵ��´����Ľڵ�������ʾ������������ͼƬû��������Ϣ�������ӿսڵ�
+		 * 
+		 */
+		initData : function(){
+			// ��������imgԪ��
+			var boxEl = it168.$(this.boxId);
+			// ������Ӧ�Ĳ���Ԫ�غ���ʾ������Ԫ��
+			var descEl = d.createElement("div");
+			descEl.id = this.descId = "descEL-"+ (+new Date());
+			descEl.className = "imgDesc_";
+			descEl.style.position = "absolute";
+			descEl.style.height = this.descHeight + "px";
+			descEl.style.bottom = 0;
+			descEl.style.width = "100%";
+			boxEl.appendChild(descEl);
+
+			var objs = boxEl.childNodes,obj,imgObj;
+			var imgObjs = boxEl.getElementsByTagName("img"),imgObj,tempThis = this;
+			for (var i = 0,j=0,len = objs.length; i < len; i++){
+				obj = objs[i];
+				if(obj.tagName != "DIV")continue;
+				//obj.num = i;
+				obj.style.position = 'absolute';
+				imgObj = obj.getElementsByTagName("img")[0];
+				// ���û��ͼƬ��������
+				if(!imgObj)continue;
+				obj.imgObj = imgObj;
+				imgObj.num = obj.num = j++;
+				imgObj.style.width = "100%";
+				imgObj.style.height = "100%";
+
+//				it168.addEvent(imgObj,"click",function(e){
+//					e = e || w.event;
+//					var tar = e.target || e.srcElement;
+//					// �����ǰҳ�����ǽ���ͼ����ɵ���ҳ��
+//					tempThis.go(tar.num);
+//					if(tempThis.index != tar.num){
+//						if ( e.preventDefault ) {
+//							e.preventDefault();
+//						}
+//						if ( e.stopPropagation ) {
+//							e.stopPropagation();
+//						}
+//						return false;
+//					}
+//				});
+				// �Ѷ�ͼƬ��Ӧ���������ݷ��õ�descElԪ����
+				var next = this._getDescEl(obj);
+				if(!next){
+					next = d.createElement("div");
+				}
+				next.style.display = "none";
+				descEl.appendChild(next);
+				this.data.push(obj);
+			}
+		},
+		/*
+		 * ��ʾǰһ��ͼƬ���ж���
+		 * 
+		 */
+		pre : function(){
+			this.go(this.index - 1);
+		},
+		/*
+		 * ��ʾ��һ��ͼƬ���ж���
+		 * 
+		 */
+		next : function(){
+			this.go(this.index + 1);
+		},
+		/*
+		 * �Զ����ź�����ͨ��this.autoPlay���Կ���
+		 * 
+		 */
+		autoPlayFunc : function(){
+			if(this.autoPlay){
+				clearInterval(this._autoPlay);
+				var tempThis = this;
+				this._autoPlay = setInterval(function(){tempThis.next();},this.autoPlayTime*1000);
+			};
+		},
+		/*
+		 * css3���ƶ�����һ���Ķ���ʵ�ֺ���
+		 * @param clockwise {Boolean} ��˳ʱ�뻹����ʱ���˶�
+		 * @param time {Number} ִ����ζ�������Ҫ��ʱ��
+		 * 
+		 */
+		transNext : function(clockwise,time){
+			var datas = this.data,leftIndex = this.leftIndex,posArr = this.position,len = this.showsNumber,pos,elem,
+
+				//��ȡ��Ҫ��ǰ׼����Ԫ��
+				el = it168.getArrEl(datas,clockwise?leftIndex+len : leftIndex-1),
+				// ��ȡ��Ԫ������Ӧ����ʽ
+				s = it168.getArrEl(posArr,clockwise?posArr.length-1:0);
+			// ����Ӧ�ø���ʽ
+			it168.transition(el,s,"0s");
+			for (var i = 0; i <= len; i++){
+				// ��ȡ��ǰ��Ӧ��Ԫ��
+				elem = it168.getArrEl(datas,clockwise?i+leftIndex:i-1+leftIndex);
+				//����Ӧ��Ԫ�����ö�Ӧ��λ����Ϣ��ͬʱָ��css������ʱ��
+				pos = it168.getArrEl(posArr,clockwise?i:i+1);
+				it168.transition(elem,pos,time+"ms");
+			}
+			// ����leftIndex��indexֵ
+			this.leftIndex = it168.getCurrIndex(datas.length,clockwise?leftIndex+1:leftIndex-1);
+			this.index = it168.getCurrIndex(datas.length,this.leftIndex + Math.floor(len / 2));
+		},
+
+		/*
+		 * ���м��ͼƬ���óɵ��±�Ϊindex��ͼƬ���ж���
+		 * @param index {Integer} Ŀ��ͼƬ��Ӧ���±�ֵ
+		 * @example 
+		 * ���磺��Ҫ��ʾ��2��ͼ��������Ϣ����===> go(1)������������Ч��
+		 * 
+		 */
+		go : function(index){
+			if(this.index == index){return;};
+			var start = this.index, end = index, len = this.data.length;
+			clearTimeout(this._timeout);
+
+			//���·��
+			if(Math.abs(end - start) > len / 2){
+				if(end > len / 2){
+					end = end - len;
+				}else{
+					end = end + len;
+				};
+			};
+			// �����Ƿ�֧��css3���� �ֱ�������
+			this[it168.supportTransition?"_css3Animate":"_jsAnimate"](end);
+		},
+		/*
+		 * css3 Transition����ʵ�ֺ������������ֵ,��ʼ��������
+		 *
+		 */
+		_css3Animate : function(end){
+			var obj = this,start = this.index, length = Math.abs(end - start),
+				stepTime = this.timeLimit / length;
+
+			this._timeout = setTimeout(function(){
+				if(!length--){//����·�������timeout����
+					if(obj.onend){obj.onend(start,obj.index)};
+					return;
+				}
+				obj.transNext(end > start,stepTime);
+				obj._timeout = setTimeout(arguments.callee,stepTime/2);
+			},0);
+		},
+		/*
+		 * js����ʵ�ֺ������������ֵ,��ʼ��������
+		 *
+		 */
+		_jsAnimate : function(end){
+			//����
+			var step = this.timeLimit / 20, obj = this, start = this.index, now = 0;
+			this._timeout = setTimeout(function(){
+				var index = obj.index;
+				if(now >= step){
+					if(index != Math.round(index))
+						obj.go(Math.round(index));
+					if(obj.onend){obj.onend(start,index)};
+					return;
+				};
+				now ++;
+				var t = now;
+				// ���ö���������Ч�����η�����
+				var value = ((end - start)*((t=t/step-1)*t*t + 1))+ start;
+				obj.setIndex(value);
+				obj._timeout = setTimeout(arguments.callee,20);
+			},20);
+		},
+		/*
+		 * ��ȡ��ǰͼƬ��Ӧ������Ԫ��
+		 * @param {HTMLDomElement} ͼƬԪ�ض�Ӧ��HTMLDomElement
+		 * 
+		 */
+		_getDescEl : function(obj){
+			var nodes = obj.childNodes,node;
+			for (var i = 0,len = nodes.length; i < len; i++){
+				node = nodes[i];
+				if(node && node.className && node.className.indexOf(this.descClass) >= 0)
+					return node;
+			}
+			return null;
+			/*var pNode = imgEl.parentNode,
+				next = it168.next(pNode.tagName.toLowerCase() == "a"?pNode :imgEl),
+				tagName = next?next.tagName.toLowerCase():"";
+
+			// ��Ҫ��ʾ��ͼƬ��������Ϣ
+
+			if(!next || (next && (tagName == "img" || tagName == "a" || next.id == this.descId))){
+				// û������Ԫ�أ����ؿ�
+				return null;
+			}
+			return next;
+			*/
+		},
+		/*
+		 * ֻ��ʾ��ǰ�±�ͼƬ��Ӧ��������Ϣ
+		 * @param {Integer} ��ǰͼƬ��Ӧ���±�ֵ
+		 * @example 
+		 * ���磺��Ҫ��ʾ��2��ͼ��������Ϣ����===> showDesc(1)
+		 * 
+		 */
+		showDesc : function(currIndex){
+			var children = it168.$(this.descId).childNodes;
+			for (var i = 0,len = children.length; i < len; i++){
+				children[i].style.display = i == currIndex?"":"none";
+			}
+		},
+		/*
+		 * ͼƬ��ת��ɺ󴥷��Ķ���
+		 * @param preIndex {Integer} ԭ��ͼƬ���±�
+		 * @param currIndex {Integer} ��ǰͼƬ���±�
+		 * TODO ������һЩ����Ч��������������Ϣ�ĵ��뵭����
+		 * 
+		 */
+		onend : function(preIndex , currIndex){
+			// TODO ��������������Ч��
+			currIndex = Math.round(currIndex);
+			if(currIndex >= this.data.length){
+				currIndex = currIndex - this.data.length;
+			}
+
+			this.showDesc(currIndex);
+		},
+		/*
+		 * ���õ�ǰ�±��ֵ��Ϊ�м�ͼƬ���޶���
+		 * @param index {Integer} ͼƬ���±�
+		 * 
+		 */
+		setIndex : function(index){
+			this.setLeftIndex(index - Math.floor(this.showsNumber/2));
+		},
+		/*
+		 * ���õ�ǰ�±��ֵ��Ϊ�����ͼƬ���޶���
+		 * @param leftIndex {Integer} ͼƬ���±�
+		 * 
+		 */
+		setLeftIndex : function(leftIndex){
+			var picLen = this.data.length,half = this.showsNumber/2,getIndex = it168.getCurrIndex;
+			//���⸡�������bug
+			leftIndex = Math.round(leftIndex * 1000) / 1000;
+			leftIndex = getIndex(picLen,leftIndex);
+			this.leftIndex = leftIndex;
+
+			var index = getIndex(picLen,Math.floor(half) + leftIndex);
+			this.index = index;
+
+			for(var i=0;i<picLen;i++){
+				if(this.data[i]){
+					this.data[i].style.display = 'none';
+				};
+			};
+			var tempThis = this,obj,w,h,t,l,z;
+			for(var i=0,len = (this.showsNumber == this.data.length)?this.showsNumber-1:this.showsNumber;i<=len;i++){
+				var pos = getIndex(picLen,leftIndex + i);
+				pos = Math.floor(pos);//���������±�
+
+				var pos_f = i - leftIndex + Math.floor(leftIndex); //����λ�ã�����ΪС��
+				var size = (half - Math.abs(pos_f - half + 0.5));
+				var zIndex = Math.ceil(size);
+				obj = this.data[pos];
+				obj.style.display = '';
+				obj.style.zoom = 1;
+
+				var zoom = Math.abs(this.zoom + (1 - this.zoom) / half * size);
+				// ����ͼƬ�Ŀ���
+				w = Math.round(this.imgWidth * zoom);
+				h = Math.round(this.imgHeight * zoom);
+
+				var imgObj = obj.imgObj;
+				imgObj.style.width = w + 'px';
+				imgObj.style.height = h + 'px';
+				imgObj.style.zoom = 1;
+
+				// ����ͼƬ�Ŀ���
+
+				var imgW = imgObj.offsetWidth, imgH = imgObj.offsetHeight, imgBorder = imgW - w;
+				obj.style.width = imgW + "px";
+				obj.style.height = imgH + "px";
+				var objW = obj.offsetWidth,objH = obj.offsetHeight,objBorder = objW - imgW;
+
+				// ����ͼƬ��λ����Ϣ��ֻ��¼leftֵ
+				l = (this.width / 2 - (this.imgWidth + objBorder) / 2) / (half - 0.5) * (size - 0.5) ;
+
+				l = half > i? l : this.width - l - objW;
+				obj.style.left = l + "px";
+
+				t = Math.round((this.height - objH - this.descHeight) / 2 );
+				obj.style.top = t + 'px';
+
+				obj.style.zIndex = z = Math.round(zIndex);
+				//setTimeout(function(){
+				obj.style.zoom = 1;
+				imgObj.style.zoom = 1;
+				//},0);
+				// ���ﱣ���ʼʱ����ȷ����ͼƬλ�ô�С����Ϣ
+				if(it168.supportTransition && !this.position[i]){
+					this.position[i] = {
+						zIndex:z*100,// �Ŵ�zindex
+						left:l + "px",
+						top:t+"px",
+						width:imgW +"px",
+						height:imgH+"px",
+						imgObj : {
+							width : w + "px",
+							height : h + "px"
+						}
+					}
+				};
+			}
+			// ������ʾԪ��ǰһ�������һ����λ��
+			if(it168.supportTransition && this.position.length != this.showsNumber+2){
+				var temp = this.position[0];
+				this.position.unshift(it168.extend(it168.extend({},temp),{
+					left : "-"+temp.width,
+					zIndex : 0
+				}));
+				this.position[this.position.length-1] = it168.extend(it168.extend({},temp),{
+					left : this.width+"px",
+					zIndex : 0
+				});
+			};
+			this.autoPlayFunc();
+		}
+	};
+	w.scrollPic3D = scrollPic3D;
+})();
+</script>
+
+</body>
+</html>

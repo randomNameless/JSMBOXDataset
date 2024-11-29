@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>scripts.html</title>
+</head>
+<body>
+
+<script>
+$(document).ready(function() {
+
+  //Placeholder fix
+	$('input[placeholder], textarea[placeholder]').placeholder();
+
+	// Target blank fix
+	$('a[rel=external]').attr('target','_blank');
+
+
+	//Header fix when scroll
+  var header = document.querySelector("header");
+    var headroom  = new Headroom(header,{
+      offset : 180
+    });
+  headroom.init();
+
+  //Mobile Menu open/close
+  $('.menu_toggle , .mobile_close').on('click',function(){
+    $('.mobile_menu').toggleClass('opened');
+    $('body').toggleClass('mobile_menu_opened');
+    return false;
+  });
+
+  //Scroll top button
+  scrollToTop.init( );
+
+  //Lang switcher
+  $('.lang a').on('click',function(){
+    $('body').addClass('overflow');
+    $('.lang_popup_wrap').fadeIn(300);
+    setTimeout(function(){
+      $('.lang_popup').addClass('opened');
+    },301);
+    return false;
+  });
+
+  $('.lang_popup_wrap').on('click',function() {
+    $('body').removeClass('overflow');
+    $('.lang_popup').removeClass('opened');
+    $('.lang_popup_wrap').fadeOut(300);
+  });
+
+  //Search on website
+  $('.search_checkbox').on('click',function(e){
+    var _this = $(this);
+     placeholder = _this.parents('.search_box').find('.search_autocomplete').attr('data-placeholder-default');
+     placeholder_web = _this.parents('.search_box').find('.search_autocomplete').attr('data-placeholder-web');
+
+    if(!_this.hasClass('checked')) {
+      _this.addClass('checked');
+      _this.next().val(1);
+      _this.parents('.search_box').find('.search_autocomplete').attr('placeholder',placeholder_web);
+        $('.autocomplete-suggestions').addClass('hidden');
+    }else{
+      _this.removeClass('checked');
+      _this.parents('.search_box').find('.search_autocomplete').attr('placeholder',placeholder);
+      _this.next().val(0);
+        $('.autocomplete-suggestions').removeClass('hidden');
+    }
+    e.preventDefault();
+  });
+
+  //Faq page
+  $('.page-faq .box a').on('click',function(){
+    parent = $(this).parents('article');
+    if(!parent.find('div').is(':visible')){
+      $('.page-faq .box article').removeClass('opened');
+      $('.page-faq .box article div').slideUp(300);
+      parent.find('div').slideDown(300);
+      parent.addClass('opened');
+    }else{
+      parent.find('div').slideUp(300);
+
+      $('.page-faq .box article').removeClass('opened');
+    }
+    return false;
+  });
+
+  //Gallery Fancy box
+  if($('.fancybox').length > 0){
+    $(".fancybox").fancybox({
+      padding: 0,
+      helpers : {
+        title: {
+          type: 'inside',
+          position: 'bottom'
+        },
+        overlay: {
+          locked: false,
+          css : {
+            'background' : 'rgba(3, 21, 42, 0.50)'
+          }
+        }
+      }
+    });
+  }
+
+
+
+  //Gallery Load more
+  $('.gallery-load-more').on('click',function(){
+    var gallery_ajax = $.get( "gallery_load_ajax.html", function(data) {
+      $('.gallery_wrap').append(data);
+      console.log(data);
+    });
+    return false;
+  });
+
+  //Choosen selects
+  var fontSelect = $(".font-size-changer .chosen-select");
+  if(fontSelect.length > 0){
+    fontSelect.chosen({
+      disable_search_threshold: 10,
+      touch:true,
+      no_results_text: fontSelect.attr('data-no-results-text')
+    });
+  }
+  var bordered = $(".bordered .chosen-select");
+  if(bordered.length > 0){
+    bordered.chosen({
+      disable_search_threshold: 10,
+      touch:true,
+      no_results_text: fontSelect.attr('data-no-results-text')
+    });
+  }
+  //Choseni update etmek ucun
+  //$(".bordered .chosen-select").trigger('liszt:updated');
+
+  // Chosen touch support.
+  if ($('.chosen-container').length > 0) {
+    $('.chosen-container').on('touchstart', function(e){
+      e.stopPropagation(); e.preventDefault();
+      // Trigger the mousedown event.
+      $(this).trigger('mousedown');
+    });
+  }
+
+  //Secondary menu change
+
+  $('.secondary_menu select').on('change',function(){
+    window.location.href = $(this).val();
+  });
+
+  //Form Validate
+  function recaptchaCallback() {
+    $('#hiddenRecaptcha').valid();
+  }
+  window.recaptchaCallback = recaptchaCallback;
+  $("#supportForm").validate({
+    ignore: ".ignore",
+    rules: {
+      name: {
+        required: true,
+        minlength: 2
+      },
+      surname: {
+        required: true,
+        minlength: 2
+      },
+      father_name: {
+        required: true,
+        minlength: 2
+      },
+      email: {
+        required: true,
+        email:true
+      },
+      phone: {
+        required: true,
+        minlength: 7
+      },
+      subject: {
+        required: true,
+        minlength : 2
+      },
+      hiddenRecaptcha: {
+        required: function () {
+          if (grecaptcha.getResponse() == '') {
+            return true;
+          } else {
+            return false;
+          }
+        }
+      }
+    },
+    highlight: function(element, errorClass) {
+      $(element).addClass("error").parents('.form-group').addClass("error");
+
+
+      if($(element).attr('name') == 'hiddenRecaptcha'){
+        $(element).addClass("error").parents('.captcha').addClass("error");
+      }
+
+    },
+    unhighlight: function(element, errorClass) {
+      $(element).removeClass("error").parents('.form-group').removeClass("error");
+
+      if($(element).attr('name') == 'hiddenRecaptcha'){
+        $(element).removeClass("error").parents('.captcha').removeClass("error");
+      }
+    },
+    submitHandler: function(form) {
+        $.ajaxSetup({
+          headers: {
+              'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+          }
+        });
+        $.ajax({
+            type: "post",
+            url: form.action,
+            data: {
+              'step1': $(form).find('input[name=step1]').val(),
+              'step2': $(form).find('input[name=step2]').val(),
+              'step3': $(form).find('input[name=step3]').val(),
+                'type': $(form).find('input[name=type]').val(),
+                'name': $(form).find('input[name=name]').val(),
+                'surname': $(form).find('input[name=surname]').val(),
+                'father_name': $(form).find('input[name=father_name]').val(),
+                'email': $(form).find('input[name=email]').val(),
+                'phone': $(form).find('select[name=prefix]').val() + $(form).find('input[name=phone]').val(),
+                'subject': $(form).find('textarea[name=subject]').val(),
+                '_token': $('meta[name="csrf-token"]').attr('content')
+            },
+            success: function(responseData, textStatus, jqXHR) {
+              $('.page-support-form').hide();
+              $('section.message-infoblock.success').removeClass('hidden').show();
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+            }
+        });
+        grecaptcha.reset();
+        return false;
+    }
+  });
+
+  //Service Block Toggle
+  $('.service-info-block a').on('click',function(){
+    if($(this).hasClass('opened')){
+      $(this).removeClass('opened').parents('.service-info-block').removeClass('opened');
+      $('.service-info-block .toggle-service').stop(true).slideUp();
+    }else{
+      $(this).addClass('opened').parents('.service-info-block').addClass('opened');
+      $('.service-info-block .toggle-service').stop(true).slideDown();
+    }
+    return false;
+  });
+
+
+  //Service Form validation
+  $("#serviceForm").validate({
+    ignore: ".ignore",
+    rules: {
+      name: {
+        required: true,
+        minlength: 2
+      },
+      surname: {
+        required: true,
+        minlength: 2
+      },
+      fathername: {
+        required: true
+      },
+      sv_seriya: {
+        required: true
+      },
+      address: {
+        required: true
+      },
+      phone: {
+        required: true
+      },
+      hiddenRecaptcha: {
+        required: function () {
+          if (grecaptcha.getResponse() == '') {
+            return true;
+          } else {
+            return false;
+          }
+        }
+      }
+    },
+    highlight: function(element, errorClass) {
+      $(element).addClass("error").parents('.form-group').addClass("error");
+
+
+      if($(element).attr('name') == 'hiddenRecaptcha'){
+        $(element).addClass("error").parents('.captcha').addClass("error");
+      }
+
+    },
+    unhighlight: function(element, errorClass) {
+      $(element).removeClass("error").parents('.form-group').removeClass("error");
+
+      if($(element).attr('name') == 'hiddenRecaptcha'){
+        $(element).removeClass("error").parents('.captcha').removeClass("error");
+      }
+    },
+    submitHandler: function(form) {
+      $.ajaxSetup({
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        }
+      });
+        $.ajax({
+            type: "post",
+            url: form.action,
+            data: {
+                'name': $(form).find('input[name=name]').val(),
+                'surname': $(form).find('input[name=surname]').val(),
+                'fathername': $(form).find('input[name=fathername]').val(),
+                'sv_seriya': $(form).find('input[name=sv_seriya]').val(),
+                'address': $(form).find('input[name=address]').val(),
+                'phone': $(form).find('input[name=phone]').val(),
+                'g-recaptcha-response': $(form).find('textarea[name=g-recaptcha-response]').val(),
+                '_token': $('meta[name="csrf-token"]').attr('content')
+            },
+            success: function(responseData, textStatus, jqXHR) {
+                $('.page-support-form').hide();
+                $('section.message-infoblock.success').removeClass('hidden').show();
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+            }
+        });
+        grecaptcha.reset();
+        return false;
+    }
+  });
+  //Queue form
+  $("#queueServiceForm").validate({
+    ignore: ".ignore",
+    rules: {
+      name: {
+        required: true,
+        minlength: 2
+      },
+      surname: {
+        required: true,
+        minlength: 2
+      },
+      fin: {
+        required: true,
+        minlength: 7,
+        maxlength: 7
+      },
+      date: {
+        required: true
+      },
+      time: {
+        required: true
+      },
+      confirm_number: {
+        required: true
+      },
+      email: {
+        required: true,
+        email:true
+      },
+      hiddenRecaptcha: {
+        required: function () {
+          if ($('#hiddenRecaptcha').length > 0 && grecaptcha.getResponse() == '') {
+            return true;
+          } else {
+            return false;
+          }
+        }
+      }
+    },
+    highlight: function(element, errorClass) {
+      $(element).addClass("error").parents('.form-group').addClass("error");
+
+
+      if($(element).attr('name') == 'hiddenRecaptcha'){
+        $(element).addClass("error").parents('.captcha').addClass("error");
+      }
+
+    },
+    unhighlight: function(element, errorClass) {
+      $(element).removeClass("error").parents('.form-group').removeClass("error");
+
+      if($(element).attr('name') == 'hiddenRecaptcha'){
+        $(element).removeClass("error").parents('.captcha').removeClass("error");
+      }
+    },
+    submitHandler: function(form) {
+        var serviceID = $('input[name=serviceID]').val();
+        var serviceCenterID = $('input[name=serviceCenterID]').val();
+        var registrationDate = $('select[name=date]').val();
+        var registrationTime = $('select[name=time]').val();
+        var name = $('input[name=name]').val();
+        var surname = $('input[name=surname]').val();
+        var fin = $('input[name=fin]').val();
+        var email = $('input[name=email]').val();
+        var fathername = '';
+
+
+        if(serviceCenterID !== '' && serviceID !== '' && registrationDate !== '') {
+          $.ajaxSetup({
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            }
+          });
+            $.ajax({
+                type: "post",
+                url: $(form).attr('action'),
+                data: {
+                    'serviceCenterID': serviceCenterID,
+                    'serviceID': serviceID,
+                    'registrationDate': registrationDate,
+                    'registrationTime': registrationTime,
+                    'name': name,
+                    'surname': surname,
+                    'fin': fin,
+                    'email': email,
+                    'fathername': fathername,
+                    'g-recaptcha-response': $('#g-recaptcha-response').val(),
+                    '_token': $('meta[name="csrf-token"]').attr('content')
+                },
+                success: function(responseData, textStatus, jqXHR) {
+                  $('#error-modal .modal-body .error-popup p').html(responseData.message);
+                  $('#error-modal').modal('toggle');
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                }
+            });
+        }
+        if($('#hiddenRecaptcha').length > 0) {
+          grecaptcha.reset();
+        }
+        return false;
+    }
+  });
+
+  //Calendar
+  if($('.calendar').length > 0){
+    _datepicker = $('.calendar').datepicker({
+      position: "bottom right",
+      autoClose:true,
+      showEvent:'click',
+      language : document.documentElement.lang,
+      dateFormat: 'dd/mm/yyyy',
+      onSelect: function(formattedDate, date, inst){
+        $(inst.el).trigger('change');
+      }
+    }).data('datepicker');
+  }
+  //Timepicker
+  if($('.timepicker').length > 0){
+    _timepicker = $('.timepicker').datepicker({
+      position: "bottom right",
+      autoClose:true,
+      showEvent:'click',
+      dateFormat: ' ',
+      language : document.documentElement.lang,
+      timepicker: true,
+      onlyTimepicker:true,
+      classes: 'only-timepicker',
+      onSelect: function(formattedDate, date, inst){
+        $('.timepicker').val($.trim(formattedDate));
+        $(inst.el).trigger('change');
+      }
+    }).data('datepicker');
+  }
+  //Input Masks
+  if($(":input").length > 0){
+
+    $('.calendar').inputmask({
+      showMaskOnHover: false,
+      oncomplete: function() {
+        formatdateNew = $(this).val().split('/');
+        var d = new Date(formatdateNew[2], formatdateNew[1], formatdateNew[0]);
+        d.setMonth(d.getMonth() - 1);
+        _datepicker.selectDate(d);
+      }
+    });
+
+    $('.timepicker').inputmask({
+      showMaskOnHover: false
+    });
+
+  }
+
+  //Svg Animations
+
+  if($('.svg_animate').length > 0){
+    $('.svg_animate').each(function(){
+      new Vivus($(this).attr('id'), {
+        duration: 200,
+        file: $(this).attr('data-url'),
+        start:'inViewport'
+      }, function(obj){
+        obj.el.classList.add('finished');
+      });
+    });
+  }
+
+  //Post Slider
+  $(".post_slider .owl-carousel").owlCarousel({
+    items: 1,
+    nav: true,
+    dots:false,
+    responsiveClass:true
+  });
+
+
+  $(".secondary_menu_slider .owl-carousel").owlCarousel({
+    items: 3,
+    nav: true,
+    margin:50,
+    loop:true,
+    autoWidth:true,
+    dots:false,
+    responsiveClass:true
+  });
+
+
+  $(".rowgallery .owl-carousel").owlCarousel({
+    items: 4,
+    nav: true,
+    margin:20,
+    loop:true,
+    dots:false,
+    navText:['',''],
+    responsiveClass:true,
+    responsive:{
+      0:{
+        items:1,
+        nav:false,
+        dots:true
+      },
+      768:{
+        items:2
+      },
+      992:{
+        items:3
+      },
+      1200:{
+        items:4
+      }
+    }
+  });
+
+  //Support step change
+  $('.support_step[data-step=step_1] input').on('change',function(){
+    $('<a href="javascript:;" class="support_change_link" data-step="1">'+$('.support_step input:checked').attr('data-name')+'</a>').insertBefore('.support_step[data-step=step_2] ul');
+    $('input[name=step1]').val($('.support_step input:checked').val());
+    $('.support_step[data-step=step_1]').hide();
+
+    $('.support_step[data-step=step_2] ul li[data-service_id='+$(this).val()+']').show();
+
+    $('.support_step[data-step=step_2]').slideDown();
+    return false;
+  });
+  $('.support_step[data-step=step_2] input').on('change',function(){
+    $('<a href="javascript:;" class="support_change_link" data-step="2">'+$('.support_step input:checked').attr('data-name')+'</a>').insertBefore('.support_step[data-step=step_3] ul');
+    $('input[name=step2]').val($('.support_step input:checked').val());
+    $('.support_step[data-step=step_2]').hide();
+    $('.support_step[data-step=step_3]').slideDown();
+    return false;
+  });
+
+  $('.support_step[data-step=step_3] input').on('change',function(){
+    $('input[name=step3]').val($('.support_step input:checked').val());
+    $('.support_step_main').hide();
+    $('.page-support-form').slideDown();
+
+    return false;
+  });
+
+  $(document).on('click','.support_change_link',function(){
+    $(this).parents('.support_step').hide();
+    $(this).parents('.support_step').prev().find('input').removeAttr('checked');
+    $(this).parents('.support_step').prev().slideDown();
+    $('input[name=step'+$(this).attr('data-step')+']').val('');
+    if($(this).attr('data-step') == '1') {
+        $('.support_step[data-step=step_2] ul li').hide();
+    }
+    $(this).remove();
+    return false;
+  });
+
+  //Black Select box
+
+  $('.blackSelect').selectpicker({
+    size: 'auto',
+    width:'100%',
+    mobile:Modernizr.touch
+  });
+
+  //Selectpickeri update etmek ucun
+  //$('.blackSelect').selectpicker('refresh');
+
+  $('.content_part *').jfontsize({
+    btnMinusClasseId: '.jfontsize-m2',
+    btnDefaultClasseId: '.jfontsize-d2',
+    btnPlusClasseId: '.jfontsize-p2',
+    btnMinusMaxHits: 2,
+    btnPlusMaxHits: 3,
+    sizeChange: 2
+  });
+
+  //Load more functionality
+  $('.padright100 ul li').showMore({
+    showsize:1,
+    element:'.order_info_toggle ul li',
+    showMore:'.order_info_toggle .showMore',
+    showLess:'.order_info_toggle .showLess'
+  });
+
+  $('.padright100 ul li').showMore({
+    showsize:10,
+    element:'.order_items ul li',
+    showMore:'.order_items .showMore',
+    showLess:'.order_items .showLess'
+  });
+
+  //Magic line
+
+  if($('.mobile_schema').hasClass('inner')){
+    var waitForFinalEvent=function(){var b={};return function(c,d,a){a||(a=":)");b[a]&&clearTimeout(b[a]);b[a]=setTimeout(c,d)}}();
+    var fullDateString = new Date();
+    magic_line_fix();
+    $(window).on('resize',function(){
+      waitForFinalEvent(function(){
+        magic_line_fix();
+      }, 300, fullDateString.getTime())
+    });
+  }
+
+
+  $('.mobile_schema ul li a').on('click',function(event){
+    $(this).parents('ul').find('a').removeClass('current');
+    $(this).addClass('current');
+    $(this).parents('.mobile_box_blue').find('.mobile_place span').html($(this).attr('data-place'));
+    $(this).parents('.mobile_box_blue').find('.mobile_date span').html($(this).attr('data-date'));
+    var services = $.parseJSON($(this).attr('data-services'));
+    var services_area = $('#services_provided');
+    var notes = $(this).attr('data-notes');
+    var default_notes = $('#notes').find('ul').first().hide();
+    services_area.html('');
+      $.each(services, function (k, v) {
+          services_area.append('<li>' + v + '</li>');
+      });
+    if(notes.length) {
+    	$('#notes').find('ul').remove();
+    	$('#notes').append(default_notes);
+    	$('#notes').append(notes);
+    } else {
+    	$('#notes').find('ul').remove();
+    	$('#notes').append(default_notes);
+    	default_notes.show();
+    }
+    event.preventDefault();
+  });
+
+  $('.print_btn').on('click',function(event){
+    window.print();
+    event.preventDefault()
+  });
+
+  //Call center
+
+  $('.call_center').on('click',function(event){
+    event.preventDefault();
+    window.location.href = "tel:108";
+  });
+
+    //Abad
+
+  $('.abad_logo').on('click', function(event){
+    event.preventDefault();
+    window.open("http://abad.gov.az", "_blank");
+  });
+
+  // EM href
+  $('em[data-href]').on('click',function(event){
+    event.preventDefault();
+    window.location.href = $(this).attr('data-href');
+  });
+
+  // Located map
+
+  $('.located_map').attr('target','_blank');
+
+  // Back button js
+
+  $('.breadcrumb_panel .back').on('click',function(e){
+    e.preventDefault();
+    window.history.back();
+  });
+
+});//Document Ready
+
+  //Magic line fix :)
+  function isBreakpoint( alias ) {
+    return $('.device-' + alias).is(':visible');
+  }
+
+  magic_line_fix = function(){
+
+    if(!isBreakpoint('xs')){
+      $('<div class="device-xs visible-xs"></div><div class="device-sm visible-sm"></div> <div class="device-md visible-md"></div> <div class="device-lg visible-lg"></div>').appendTo('body');
+
+      if( isBreakpoint('lg') ) {
+        value = $('.mobile_schema ul li:last-child div a.last').position().left+75;
+        $('.mobile_schema ul li:last-child div').find('em').remove();
+        $('.mobile_schema ul li:last-child div').append('<em />').find('em').css('left',value+'px');
+      }else if(isBreakpoint('md')){
+        value = $('.mobile_schema ul li:last-child div a.last').position().left+60;
+        $('.mobile_schema ul li:last-child div').find('em').remove();
+        $('.mobile_schema ul li:last-child div').append('<em />').find('em').css('left',value+'px');
+      }else if(isBreakpoint('sm')){
+        value = $('.mobile_schema ul li:last-child div a.last').position().left+48;
+        $('.mobile_schema ul li:last-child div').find('em').remove();
+        $('.mobile_schema ul li:last-child div').append('<em />').find('em').css('left',value+'px');
+      }
+
+    }
+  };
+
+//Load more functionality
+(function ( $ ) {
+  $.fn.showMore = function( options ) {
+    // This is the easiest way to have default options.
+    var settings = $.extend({
+      // These are the defaults.
+      showsize: 3,
+      element: "",
+      showMore: "",
+      showLess: ""
+    }, options );
+
+    $(settings.element).hide();
+    var size_li = $(settings.element).size()+1;
+    var x=settings.showsize;
+    var total = size_li-x;
+
+    $(settings.element+':lt('+x+')').stop().show();
+    $(settings.showMore).on('click',function (event) {
+      x= (x+total <= size_li) ? x+total : size_li;
+      $(settings.element+':lt('+x+')').stop().slideDown();
+      $(settings.showMore).hide();
+      $(settings.showLess).show();
+      event.preventDefault();
+    });
+    $(settings.showLess).on('click', function (event) {
+      x=(x-total<0) ? x : x-total;
+      $(settings.element).not(':lt('+x+')').stop().slideUp();
+      $(settings.showMore).show();
+      $(settings.showLess).hide();
+      event.preventDefault();
+    });
+  };
+}( jQuery ));
+
+
+var scrollToTop =
+  {
+    /**
+     * When the user has scrolled more than 100 pixels then we display the scroll to top button using the fadeIn function
+     * If the scroll position is less than 100 then hide the scroll up button
+     *
+     * On the click event of the scroll to top button scroll the window to the top
+     */
+    init: function(  ){
+
+      //Check to see if the window is top if not then display button
+      $(window).scroll(function(){
+        if ($(this).scrollTop() > 100) {
+          $('.scrollToTop').fadeIn();
+        } else {
+          $('.scrollToTop').fadeOut();
+        }
+      });
+
+      // Click event to scroll to top
+      $('.scrollToTop').click(function(){
+        $('html, body').animate({scrollTop : 0},800);
+        return false;
+      });
+    }
+  };
+
+showLoading = function(){
+  $('body').addClass('overflow');
+  $('body .loading_wrap').remove();
+  $('body').append('<div class="loading_wrap"/>');
+  $('body .loading_wrap').hide().fadeIn();
+};
+
+hideLoading = function(){
+  $('body .loading_wrap').fadeOut(600);
+  setTimeout(function(){
+    $('body .loading_wrap').remove();
+  },601);
+};
+
+
+$('select#chartServiceCenter').on('change', function () {
+   var serviceCenterID = $(this).val();
+   var serviceElement = $('#chartService');
+   var chartDisplay = $('#chartDisplay');
+    chartDisplay.addClass('hidden');
+    serviceElement.attr('disabled', 'disabled');
+    serviceElement.selectpicker('refresh');
+    if(serviceCenterID !== '') {
+      $.ajaxSetup({
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        }
+      });
+        $.ajax({
+            type: "get",
+            url: $(this).attr('data-action'),
+            data: {
+                'serviceCenterID': serviceCenterID,
+            },
+            success: function(responseData, textStatus, jqXHR) {
+                serviceElement.html('<option value="">' + serviceElement.attr('data-none-selected-text') + '</option>');
+                $.each(responseData, function (k, v) {
+                    serviceElement.append('<option value="' + v.serviceId + '">' + v.serviceName + '</option>');
+                });
+                serviceElement.removeAttr('disabled');
+                serviceElement.selectpicker('refresh');
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+            }
+        });
+    } else {
+        serviceElement.html('<option value="">' + serviceElement.attr('data-none-selected-text') + '</option>');
+        serviceElement.attr('disabled', 'disabled');
+        serviceElement.selectpicker('refresh');
+        chartDisplay.addClass('hidden');
+    }
+});
+
+$('select#chartService').on('change', function () {
+    var serviceCenterID = $('select#chartServiceCenter').val();
+    var serviceID = $(this).val();
+    var chartDisplay = $('#chartDisplay');
+    if(serviceCenterID !== '' && serviceID !== '') {
+      $.ajaxSetup({
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        }
+      });
+        $.ajax({
+            type: "get",
+            url: $(this).attr('data-action'),
+            data: {
+                'serviceCenterID': serviceCenterID,
+                'serviceID': serviceID,
+            },
+            success: function(responseData, textStatus, jqXHR) {
+                $('#serviceName span').html(responseData.serviceName);
+                $('#served span').html(responseData.served);
+                $('#waiting span').html(responseData.waiting);
+                $('#averageServeTime span').html(responseData.averageServeTime);
+                chartDisplay.removeClass('hidden');
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+            }
+        });
+    } else {
+        chartDisplay.addClass('hidden');
+    }
+});
+
+$('#queueForm').find('select#date').on('change', function () {
+    var serviceID = $('input[name=serviceID]').val();
+    var serviceCenterID = $('input[name=serviceCenterID]').val();
+    var registrationDate = $(this).val();
+    var timeElement = $('select#time');
+
+    timeElement.html('');
+    timeElement.trigger('liszt:updated');
+
+    if($('option:selected', this).attr('data-holiday') === '1') {
+      timeElement.trigger('liszt:updated');
+      let lang = $('html').attr('lang');
+      $('#notWorkingModal').find('h4.modal-title').html(lang == 'az' ? 'Qeyri-iş günü' : 'Non-working day');
+      $('#notWorkingModal').find('p').html($('option:selected', this).attr('data-holidayName'));
+      $('#notWorkingModal').modal('toggle');
+    } else{
+
+      if(serviceCenterID !== '' && serviceID !== '' && registrationDate !== '') {
+        $.ajaxSetup({
+          headers: {
+              'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+          }
+        });
+        $.ajax({
+            type: "get",
+            url: $(this).attr('data-action'),
+            data: {
+                'serviceCenterID': serviceCenterID,
+                'serviceID': serviceID,
+                'registrationDate': registrationDate,
+            },
+            success: function(responseData, textStatus, jqXHR) {
+              let notWorkingModal = $('#notWorkingModal');
+              if (responseData.responseStatus.code !== '0x00001') {
+                timeElement.attr('disabled', 'disabled');
+                notWorkingModal.find('h4.modal-title').html('Diqqət');
+                notWorkingModal.find('p').html(responseData.responseStatus.message);
+	              notWorkingModal.modal('show');
+              } else if (responseData.allowedTimes !== null) {
+                timeElement.html('<option value="">---------</option>');
+                var is_full = true;
+                $.each(responseData.allowedTimes, function (k, v) {
+                  if(v.status === 'FREE') {
+                      timeElement.append('<option value="' + v.time + '">' + v.time + '</option>');
+                      is_full = false;
+                  }
+                });
+                if(is_full === true) {
+                	timeElement.attr('disabled', 'disabled');
+	                notWorkingModal.find('h4.modal-title').html('Xəbərdarlıq');
+	                //notWorkingModal.find('p').html('Hörmətli istifadəçi, seçdiyiniz tarixdə onlayn növbə üçün mövcud olan bütün saatlar tutulmuşdur. Zəhmət olmasa başqa tarix seçin.');
+			            notWorkingModal.find('p').html('Hörmətli istifadəçi, seçdiyiniz tarixdə planlaşdırılan növbə üçün mövcud olan bütün saatlar tutulmuşdur. Zəhmət olmasa başqa tarix seçin. Cari günə "ASAN xidmət" mobil tətbiqi ilə əvvəlcədən onlayn növbə ala bilərsiniz.');
+	                notWorkingModal.modal('show');
+                } else {
+                	timeElement.removeAttr('disabled');
+                }
+              }
+              timeElement.trigger('liszt:updated');
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+            }
+        });
+    }
+
+    }
+});
+
+
+
+$(function () {
+
+        $.fn.clickOff = function(callback) {
+            var clicked = false,
+                parent = this;
+
+            parent.click(function() {
+                clicked = true;
+            });
+
+            $(document).click(function(event) {
+                if (!clicked) {
+                    callback(parent, event);
+                }
+                clicked = false;
+            });
+        };
+
+        $('.mobile_menu').clickOff(function() {
+            $('.mobile_menu').removeClass('opened');
+        });
+
+
+});
+
+</script>
+
+</body>
+</html>

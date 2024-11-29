@@ -1,0 +1,1936 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>core.html</title>
+</head>
+<body>
+
+<script>
+//Compress with https://jscompress.com/
+//Paste compressed output in core.unminified.min.js
+//Paste compressed output in core.js
+//Core JavaScript V1
+(function (win, doc) {
+
+    //Load the primary dude solutions name space
+    var lActiveData = (function () {
+
+        return {
+
+            "Events": function (url) {
+
+                //Url is always required
+                var lUrl = url + "&get=events";
+
+                //Callback is always required and is the last parameter
+                var lCallback = (jQuery.isFunction(arguments[arguments.length - 1])) ? arguments[arguments.length - 1] : null;
+
+                if (arguments.length == 3 && typeof arguments[1] == "object") {
+                    //Complex query
+                    var lFilters = arguments[1];
+                    var lQuery = [];
+
+                    for (var key in lFilters) {
+                        if (typeof lFilters[key] == "string") {
+                            //String Filter
+                            lQuery[lQuery.length] = key + "=" + encodeURIComponent(lFilters[key]);
+                        }
+                        else {
+                            //Array Filter
+                            var lParamArray = [];
+                            for (var x = 0; x < lFilters[key].length; x++) {
+                                lParamArray[lParamArray.length] = key + "=" + encodeURIComponent(lFilters[key][x]);
+                            }
+                            lQuery[lQuery.length] = lParamArray.join("&");
+                        }
+                    }
+
+                    //Append the custom query parameters to the page
+                    lUrl += "&" + lQuery.join("&");
+                }
+
+                $.ajax({
+                    type: "POST",
+                    url: lUrl,
+                    dataType: "jsonp",
+                    async: true,
+                    cache: false
+                }).done(function (data, textStatus, jqXHR) {
+                    //If a callback function is supplied, transfer control to the function
+                    if (lCallback != null) { lCallback.apply(null, arguments); }
+                });
+
+
+            }
+        }
+
+    })();
+
+    if (!win.ActiveData) {
+        /*ActiveData namespace has not been loaded yet, do it once*/
+        win.ActiveData = lActiveData;
+    };
+
+})(window, document);
+
+ActiveData.EventDetails = (function () {
+
+    return {
+
+        Transform: "",
+
+        RequestUrl: function (route) {
+            //Setup local context for this call
+            var filter = {};
+            var lContext = ActiveData.Utility.Context(filter);
+
+            //Set parameters for gadget
+            var lParams = { "tenant": "", "site": "", "get": "eventdetails", "route": route, "view": this.Transform };
+            lParams["tenant"] = lContext.Tenant;
+            lParams["site"] = lContext.Site;
+
+            //Create the URL that will make the call
+            var lUrl = ActiveData.Variables.runtime.baseUrl + "/handlers/query.ashx?" + $.param(lParams);
+
+            return lUrl;
+        },
+
+        RenderHtml: function (route) {
+            return $.ajax({
+                method: "GET",
+                url: ActiveData.EventDetails.RequestUrl(route),
+                dataType: "jsonp"
+            });
+        }
+
+    }
+
+})();
+
+ActiveData.EventList = (function () {
+
+    return {
+
+        Transform: "",
+
+        Count: {
+            Total: -1,
+            Page: 0,
+            PageSize: -1
+        },
+
+        RequestUrl: function () {
+            //Setup local context for this call
+            var filter = {};
+            var lContext = ActiveData.Utility.Context(filter);
+
+            //Set parameters for gadget
+            var lParams = { "tenant": "", "site": "", "get": "eventlist", "page": this.Count.Page, "pageSize": this.Count.PageSize, "total": this.Count.Total, "view": this.Transform };
+            lParams["tenant"] = lContext.Tenant;
+            lParams["site"] = lContext.Site;
+
+            //Create the URL that will make the call
+            var lUrl = ActiveData.Variables.runtime.baseUrl + "/handlers/query.ashx?" + $.param(lParams);
+
+            return lUrl;
+        },
+
+        RenderHtml: function () {
+            return $.ajax({
+                method: "GET",
+                url: ActiveData.EventList.RequestUrl(),
+                dataType: "jsonp"
+            });
+        }
+
+    }
+
+})();
+
+ActiveData.Gadgets = (function () {
+
+    //Private parts of this Namespace
+
+    //Public parts of this Namespace
+    return {
+
+        CurrentGadget: "",
+
+        RegisterGadgets: function () {
+            /// <summary>Handles activating all supported elements that can trigger gadget functionality.</summary>
+            $(document).on("click", ".gadget-link", function () {
+                //Set submit button with gadget attributes to indicate how the posted data needs to be processed
+                var lSiteRoute = $(this).attr("data-gadgetsite");
+                if (lSiteRoute == undefined) { lSiteRoute = ActiveData.Variables.site.route; }
+                $("#adx-modal-submit .core-button-submit").attr("data-gadgetsite", lSiteRoute);
+                $("#adx-modal-submit .core-button-submit").attr("data-gadgetevent", $(this).attr("data-gadgetevent"));
+                $("#adx-modal-submit .core-button-submit").attr("data-gadgetaction", $(this).attr("data-gadgetaction"));
+                $("#adx-modal-submit .core-button-submit").attr("data-sharetype", $(this).attr("data-sharetype"));
+
+                //Show the gadget
+                ActiveData.Gadgets.Show({
+                    action: $(this).attr("data-gadgetaction"),
+                    title: $(this).attr("title"),
+                    filter: {
+                        Site: lSiteRoute,
+                        Event: $(this).attr("data-gadgetevent"),
+                        Resize: "Y",
+                        ShareType: $(this).attr("data-sharetype")  // Used by the Subscribe gadget to determine output type
+                    }
+                });
+            });
+
+            $(document).on("click", "#adx-modal-submit .core-button-submit", function () {
+                //Get gadget attributes so we know how to handle the data
+                var lParams = {};
+                lParams["tenant"] = ActiveData.Variables.tenant.route;
+                lParams["site"] = ActiveData.Variables.site.route;
+                //Do not change the following line as on LIST views, the attr method is required, but when on details ActiveData.Variables may be used.
+                lParams["event"] = $(this).attr("data-gadgetevent") || ActiveData.Variables.event.route;
+                lParams["action"] = $(this).attr("data-gadgetaction");
+                lParams["type"] = $(this).attr("data-sharetype");
+                lParams["recaptcha"] = grecaptcha.getResponse();
+
+                //Get user input
+                var lData = GetGadgetValues(lParams["action"]);
+
+                //Create the URL that will make the call
+                var lUrl = ActiveData.Variables.runtime.baseUrl + "/handlers/gadgets.ashx?" + $.param(lParams);
+
+                $.ajax({
+                    method: "POST",
+                    url: lUrl,
+                    data: JSON.stringify(lData),
+                    dataType: "jsonp",
+                    async: true,
+                    cache: false,
+                    success: function (data) {
+                        //Show success messages or output other scripts to be executed
+                        var statushtml = "<h2>Success</h2>";
+                        $.each(data.statusmessage, function (key, value) {
+                            statushtml = statushtml + "<div class='core-success'>" + value + "</div>";
+                        });
+
+                        $("#adx-modal-form").html(statushtml);
+                        $("#adx-modal-submit").css("display", "none");
+                        $("#adx-modal-error").html("");
+                    },
+                    error: function (xhr, status, error) {
+                        //Show any error messages
+                        var errors = $.parseJSON(xhr.responseText);
+                        var errorshtml = "";
+                        $.each(errors.statusmessage, function (key, value) {
+                            errorshtml = errorshtml + "<div class='core-error'>" + value + "</div>";
+                        });
+
+                        //Need to set new secure token as current one is expired or verified once already
+                        ActiveData.Gadgets.Refresh();
+
+                        $("#adx-modal-error").html(errorshtml);
+                    }
+                });
+            });
+
+            $(document).on("click", ".adx-close-modal", function () {
+                ActiveData.Gadgets.Hide();
+            });
+
+            function GetGadgetValues(type) {
+                var lData = {};
+
+                if (type == "Email") { lData["to"] = $("#txtGadgetEmailAddress").val(); lData["from"] = $("#txtGadgetEmailFrom").val(); lData["name"] = $("#txtGadgetEmailName").val(); lData["message"] = $("#txtGadgetEmailMessage").val(); }
+                else if (type == "Alert") { lData["email"] = $("#txtGadgetEmailAddress").val(); lData["series"] = $("#ddlSeriesSelection option:selected").val(); lData["type"] = $("#ddlAlertType option:selected").val(); }
+                else if (type == "RemindMe") { lData["firstname"] = $("#txtGadgetFirstName").val(); lData["lastname"] = $("#txtGadgetLastName").val(); lData["type"] = $("#core_remind_me_type input[type='radio']:checked:first").val(); lData["email"] = $("#txtGadgetEmailAddress").val(); lData["carrier"] = $("#ddlGadgetWirelessCarrier option:selected").val(); lData["number"] = $("#txtGadgetWirelessNumber").val(); lData["interval"] = $("#ddlGadgetReminderInterval option:selected").val(); }
+                else if (type == "Subscribe") { lData["url"] = $("#core_subscription_url").text(); }
+                else if (type == "DetailsIcalDownload") { lData["series"] = $("#ddlGadgetSeriesSelection option:selected").val(); }
+                else if (type == "Category" || type == "Location") {
+                    //Multi-select categories/locations
+                    var selected = "";
+                    $("#core_multi_select_list input:checked").each(function () {
+                        selected = selected + $(this).attr("id") + ",";
+                    });
+                    lData["selection"] = selected;
+                } else if (type == "Custom" || type == "GlobalCustom") {
+                    //Multi-select custom field options
+                    var cf = "";
+                    var selected = "";
+                    $("#core_multi_select_list input:checked").each(function () {
+                        if (type == "GlobalCustom") {
+                            selected = selected + $(this).attr("id") + ",";
+                            if (cf == "") { cf = $(this).parent().attr("id"); }
+                        }
+                        else {
+                            selected = selected + $(this).siblings("label").text() + ",";
+                            if (cf == "") { cf = $(this).attr("id"); }
+                        }
+                    });
+                    lData["selection"] = selected;
+                    lData["customfield"] = cf;
+                } else if (type == "AdvancedSearch") {
+                    //Advanced Search fields
+                    lData["startdate"] = $("#txtGadgetStartDate").val();
+                    lData["enddate"] = $("#txtGadgetEndDate").val();
+                    lData["location"] = $("#ddlGadgetLocation option:selected").val();
+                    lData["category"] = $("#ddlGadgetCategory option:selected").val();
+                    lData["proximityrange"] = $("#txtGadgetProximityRange").val() != "from city state zip" ? $("#txtGadgetProximityRange").val() : "";
+                    lData["proximitykeywordsinput"] = $("#txtGadgetProximityKeyword").val() != "events near" ? $("#txtGadgetProximityKeyword").val() : "";
+                    lData["proximitykeywordscoords"] = $("#hdnGadgetProximityKeyword").val();
+                    lData["keywords"] = $("#txtGadgetKeywords").val();
+
+                    //Custom Fields
+                    var lCF = {}
+                    $("#core_gadget_search .core-search-custom").each(function () {
+                        var lCustom = $(this).find("select");
+                        var lCustomId = lCustom.attr("id");
+                        var lCustomSelection = lCustom.find("option:selected").val();
+                        lCF[lCustomId] = lCustomSelection;
+                    });
+
+                    lData["customfields"] = lCF;
+
+                    var lGCF = {}
+                    $("#core_gadget_search .core-search-global-custom").each(function () {
+                        var lGlobalCustom = $(this).find("select");
+                        var lGlobalCustomId = lGlobalCustom.attr("id");
+                        var lGlobalCustomSelection = lGlobalCustom.find("option:selected").val();
+                        lGCF[lGlobalCustomId] = lGlobalCustomSelection;
+                    });
+
+                    lData["globalcustomfields"] = lGCF;
+                }
+
+
+                return lData;
+            }
+            $(".adx-modal").find("input,select,a").attr("tabindex", "-1");
+        },
+
+        Show: function (params) {
+            /// <summary>Show a gadget to the screen.</summary>
+
+            //Remember scroll position
+            var lScrollPosition = $(document).scrollTop();
+            $("#adx-modal-scroll-position").val(lScrollPosition);
+            
+            //Setup local context for this call
+            var lContext = ActiveData.Utility.Context(params.filter);
+
+            if (params.filter) {
+                //Adjust any context filters
+                delete params.filter.Tenant; delete params.filter.tenant;
+                delete params.filter.Site; delete params.filter.site;
+                delete params.filter.Event; delete params.filter.event;
+            }
+
+            //Set parameters for gadget
+            var lParams = { "tenant": "", "site": "" };
+            lParams["tenant"] = lContext.Tenant;
+            lParams["site"] = lContext.Site;
+            lParams["event"] = lContext.Event;
+            lParams["action"] = params.action;
+            lParams["type"] = params.filter.ShareType;
+            if (params.filter.CustomField !== undefined) { lParams["customfield"] = params.filter.CustomField; }
+
+            //Create the URL that will make the call
+            var lUrl = ActiveData.Variables.runtime.baseUrl + "/handlers/gadgets.ashx?" + $.param(lParams);
+
+            // Just keep recaptcha hidden until we get data returned back to say otherwise.
+            $("#adx-modal-recaptcha").css("display", "none");
+
+            $.ajax({
+                method: "GET",
+                url: lUrl,
+                dataType: "jsonp",
+                async: true,
+                cache: false,
+                success: function (data) {
+                    //Display input fields
+                    $("#adx-modal-submit").css("display", "block");
+                    $("#adx-modal-form").html(data.form);
+                    $("#adx-modal-error").html("");
+
+                    //Show/Hide recaptcha when necessary
+                    if (data.recaptcha == "false") {
+                        $("#adx-modal-recaptcha").css("display", "none");
+                    } else {
+                        //Need to set new secure token as current one is expired or verified once already
+                        ActiveData.Gadgets.Refresh();
+
+                        $("#adx-modal-recaptcha").css("display", "block");
+                    }
+                    $("#adx-modal-recaptcha iframe").attr("tabindex","-1");
+                    //Slide the form into the page after everything is set
+                    $("#gadget").addClass("adx-modal-active");
+                    $("body").addClass("adx-modal-wrapper-active");
+                    $(".adx-modal").find("input,select,a").attr("tabindex", "0");
+                    $(".adx-modal").find("input,select,a").first().focus();
+                    //When necessary, resize to fit gadget on screen properly
+                    ActiveData.Gadgets.Resized();
+                },
+                error: function (xhr, status, error) {
+                    //This shouldn't happen...
+                    $('#gadget').removeClass("adx-modal-active");
+                }
+            });
+
+            return;
+        },
+
+        Hide: function () {
+            /// <summary>Discpose any currently activated gadgets.</summary>
+            var lScrollPosition = $("#adx-modal-scroll-position").val();
+            var lBrowserHeight = $(window).height();
+            var setPosition = false;
+
+            if (lBrowserHeight < 700 || $(".adx-modal-wrapper-active .adx-modal").hasClass("adx-modal-full-width")) {
+                //Need to set scroll position after we have unhid the main body div
+                setPosition = true;
+            }
+
+            //Remove active gadget classes
+            $(".adx-modal-wrapper-active .main").removeClass("main-hide");
+            $(".adx-modal-wrapper-active .adx-modal").removeClass("adx-modal-full-width");
+            $(".adx-modal-wrapper-active .adx-modal-inner").removeClass("adx-modal-center");
+            $('#gadget').removeClass("adx-modal-active");
+            $("body").removeClass("adx-modal-wrapper-active");
+            $(".adx-modal").find("input,select,a,iframe").attr("tabindex", "-1");
+            if (setPosition) {
+                //Go back to user's original position on the page
+                $("html, body").animate({ scrollTop: lScrollPosition }, 0);
+            }
+        },
+
+        Loaded: function (e) {
+            /// <summary>A gadget has finished loading handle any post load events.</summary>
+            this.Resized();
+        },
+
+        Resized: function (e) {
+            /*Try and create an optimal view for the gadget box*/
+            var lGadgetHeight = $(".adx-modal-wrapper-active .adx-modal-inner").outerHeight();
+            var lBrowserHeight = $(window).height();
+            var lBrowserWidth = $(window).width();
+
+            if (lBrowserWidth >= 400) {
+                $(".adx-modal-wrapper-active .adx-modal").css("width", "400px");
+            }
+            else {
+                $(".adx-modal-wrapper-active .adx-modal").css("width", "80%");
+            }
+
+            if (lGadgetHeight > lBrowserHeight) {
+                // Make gadget full width and scrollable when form is larger than browser window
+                $(".adx-modal-wrapper-active .main").addClass("main-hide");
+                $(".adx-modal-wrapper-active .adx-modal").addClass("adx-modal-full-width");
+                $(".adx-modal-wrapper-active .adx-modal-inner").addClass("adx-modal-center");
+            } else if (lBrowserHeight < 600) {
+                // Fix resizing glitches by letting CSS Media Query take over when necessary
+                $(".adx-modal-wrapper-active .main").removeClass("main-hide");
+                $(".adx-modal-wrapper-active .adx-modal").removeClass("adx-modal-full-width");
+                $(".adx-modal-wrapper-active .adx-modal-inner").removeClass("adx-modal-center");
+            }
+        },
+
+        Refresh: function () {
+            grecaptcha.reset();
+        }
+    }
+
+})();
+
+ActiveData.Utility = (function () {
+
+    //Private parts of this Namespace
+
+    //Public parts of this Namespace
+    return {
+
+        Context: function (params) {
+            /// <summary>Method to give local context to an API call, will use globals if local values are not supplied.</summary>
+            /// <param name="params" type="Object">JSON object containing context values.</param>
+            if (params) {
+                //A "params" object was passed, check it for context overrides and set them accordingly.
+                if (ActiveData.Variables) {
+                    //There are variables (and thus fallbacks in place)
+                    return {
+                        Tenant: (params.Tenant != undefined) ? params.Tenant : ActiveData.Variables.tenant.route,
+                        Site: (params.Site != undefined) ? params.Site : ActiveData.Variables.site.route,
+                        Event: (params.Event != undefined) ? params.Event : ActiveData.Variables.event.route
+                    };
+                }
+                else {
+                    //There are no variables in place, this syndication will likely not work.
+                    return { Tenant: (params.Tenant) ? params.Tenant : "", Site: (params.Site) ? params.Site : "", Event: (params.Event) ? params.Event : "" };
+                }
+            }
+            else {
+                //No params are passed, just give back the current context as defined by the API.
+                return { Tenant: ActiveData.Variables.tenant.route, Site: ActiveData.Variables.site.route, Event: ActiveData.Variables.event.route };
+            }
+        },
+
+        Post: function (url, method, params) {
+            //Create a form
+            var form = document.createElement("form");
+            form.setAttribute("method", method);
+            form.setAttribute("action", url);
+
+            //Add all parameters as hidden fields
+            for (var key in params) {
+                if (params.hasOwnProperty(key)) {
+                    var hidden = document.createElement("input");
+                    hidden.setAttribute("type", "hidden");
+                    hidden.setAttribute("name", key);
+                    hidden.setAttribute("value", params[key]);
+                    form.appendChild(hidden);
+                }
+            }
+
+            //Post the form
+            document.body.appendChild(form);
+            form.submit();
+        }
+
+    }
+})();
+
+ActiveData.Routes = (function () {
+
+    //Private parts of this Namespace
+
+    //Public parts of this Namespace
+    return {
+
+        List: function (query, tenantRoute, siteRoute) {
+            /// <summary>Build a relatively pathed list route.</summary>
+            var lRoute = "/";
+
+            //Optionally append tenant and site routes
+            if (tenantRoute != null && tenantRoute.length > 0) { lRoute += tenantRoute + "/"; }
+            if (siteRoute != null && siteRoute.length > 0) { lRoute += "site/" + siteRoute + "/"; }
+
+            //Optionally append query
+            if (query != null && query.length > 0) { lRoute += "?" + query; }
+
+            return lRoute;
+        },
+
+        Detail: function (eventRoute, query, tenantRoute, siteRoute) {
+            /// <summary>Build a relatively pathed detail route.</summary>
+            var lRoute = ActiveData.Routes.List(null, tenantRoute, siteRoute);
+
+            //Always append the event route
+            lRoute += "event/" + eventRoute + "/";
+
+            //Optionally append query
+            if (query != null && query.length > 0) { lRoute += "?" + query; }
+
+            return lRoute;
+        },
+
+        Generic: function (action, value, query, tenantRoute, siteRoute) {
+            /// <summary>Build a relatively pathed generic route.</summary>
+            var lRoute = ActiveData.Routes.List(null, tenantRoute, siteRoute);
+
+            //Always apply the generic action route
+            lRoute += action + "/";
+
+            //Optionally append on the value (extends and action) and query
+            if (value != null && value.length > 0) { lRoute += value + "/"; }
+            if (query != null && query.length > 0) { lRoute += "?" + query; }
+
+            return lRoute;
+        }
+
+    }
+
+})();
+
+ActiveData.Types = (function () {
+
+    //Private parts of this Namespace
+
+    //Public parts of this Namespace
+    return {
+
+        IsIntegerFormat: function (val) {
+            /// <summary>Checks if the string passed is ALL numbers [Int32, Int64].</summary>
+            return (val && val != null) ? /^[\d]+$/.test(val) : false;
+        },
+
+        IsFloatFormat: function (val) {
+            /// <summary>Checks if the string passed is ALL numbers and one decimal point at most [Double, Decimal].</summary>
+            return (val && val != null) ? /^[\d]+(\.\d+)?$/.test(val) : false;
+        },
+
+        IsNumericFormat: function (val) {
+            /// <summary>Checks if the string passed is numeric by stripping all commas and calling [IsFloatFormat].</summary>
+            return (val && val != null) ? IsFloatFormat(val.replace(/,/g, "")) : false;
+        },
+
+        GetInteger: function (val, defaultTo) {
+            /// <summary>Get an integer type or return default specified.</summary>
+            var lInt = String(val).replace(/\,/g, ""); /*Remove commas for ease*/
+            return (this.IsIntegerFormat(lInt)) ? parseInt(lInt, 10) : defaultTo;
+        },
+
+        GetFloat: function (val, defaultTo) {
+            /// <summary>Get a float type or return default specified.</summary>
+            var lFloat = String(val).replace(/\,/g, ""); /*Remove commas for ease*/
+            return (this.IsFloatFormat(lFloat)) ? parseFloat(lFloat) : defaultTo;
+        }
+
+    }
+})();
+
+ActiveData.Purchases = (function () {
+
+    return {
+
+        "Cart": {
+
+            "items": {},
+
+            "updateCart": function (product, quantity, donation) {
+                if (quantity == 0) {
+                    //Remove the cart item relating to this product
+                    delete this.items[product["id"]];
+                    return;
+                }
+
+                var lCartItem = null;
+
+                if (this.items[product["id"]]) {
+                    //This product is already in the cart, get a reference to it
+                    lCartItem = this.items[product["id"]];
+                }
+                else {
+                    //This product is not in the cart yet, create one now and put it in the cart
+                    lCartItem = {
+                        "productGuid": product["id"],
+                        "quantity": 0,
+                        "donation": 0,
+                        "info": []
+                    };
+                    this.items[product["id"]] = lCartItem;
+                }
+
+                if (lCartItem == null) {
+                    //There is nothing in the cart for this product, remove it
+                    return;
+                }
+
+                if (product["fields"] != null) {
+                    if (lCartItem.quantity > quantity) {
+                        //Remove info from the cart item
+                        while (lCartItem.quantity > quantity) {
+                            lCartItem.info.splice(lCartItem.info.length - 1, 1);
+                            lCartItem.quantity = lCartItem.info.length;
+                        }
+
+                        //Just exit this function
+                        return lCartItem;
+                    }
+
+                    //Set the quantity of the cart item to the number requested
+                    lCartItem.quantity = quantity;
+                    lCartItem.donation = donation;
+
+                    //This product requires user information, initialize it now based n quantity requested
+                    while (lCartItem.info.length != lCartItem.quantity) {
+                        var lProductFormId = product["id"] + "_" + lCartItem.info.length;
+                        var lProductQuestions = Builder.Form({ "guid": lProductFormId });
+
+                        for (var fieldIndex = 0; fieldIndex < product["fields"].length; fieldIndex++) {
+                            var lProductField = product["fields"][fieldIndex];
+
+                            //Create a new question to show the end user
+                            var lField = Builder.Field({ "guid": lProductField.guid, "label": lProductField.label, "type": lProductField.type.toLowerCase(), "required": lProductField.required });
+
+                            //Apply specific product field information
+                            if (lField.type == "text") {
+                                lField["textMode"] = lProductField.textMode;
+                                
+                                //Apply user profile values to field
+                                if (ActiveData.Variables.user.isLoggedIn) {
+                                    if (lField.guid == "firstname") { lField.setValue(lProductFormId, ActiveData.Variables.user.firstName); }
+                                    else if (lField.guid == "lastname") { lField.setValue(lProductFormId, ActiveData.Variables.user.lastName); }
+                                    else if (lField.guid == "emailaddress") { lField.setValue(lProductFormId, ActiveData.Variables.user.email); }
+                                }
+                            }
+                            else if (lField.type == "yesno") {
+                            }
+                            else if (lField.type == "singlechoice") {
+                                lField["options"] = lProductField.options;
+                            }
+                            else if (lField.type == "multiplechoice") {
+                                lField["options"] = lProductField.options;
+                            }
+                            
+                            //Add the field to the list of questions being shown
+                            lProductQuestions.addField(lField);
+                        }
+
+                        //Add a new info collection to the cart item
+                        lCartItem.info[lCartItem.info.length] = lProductQuestions;
+                    }
+                }
+                else {
+                    //This product does not use custom fields, just set the quantity
+                    lCartItem.quantity = quantity;
+                    lCartItem.donation = donation;
+                }
+
+                return lCartItem;
+            },
+
+            "removeCartItemInfo": function (product, index) {
+                var lCartItem = this.items[product["id"]];
+
+                if (lCartItem != null) {
+                    //Remove the information for the cart item at the index specified
+                    lCartItem.info.splice(index, 1);
+                    lCartItem.quantity = lCartItem.info.length;
+                }
+            },
+
+            "subtotal": function () {
+                var lSubTotal = 0.0;
+                for (var productGuid in this.items) {
+                    var lCartItem = this.items[productGuid];
+                    var lProduct = ActiveData.Purchases.Products.getProduct(productGuid);
+                    lSubTotal += parseFloat(lProduct.cost) * lCartItem.quantity;
+                }
+                return lSubTotal;
+            },
+
+            "quantity": function () {
+                var lQuantity = 0.0;
+                for (var productGuid in this.items) {
+                    var lCartItem = this.items[productGuid];
+                    lQuantity += lCartItem.quantity;
+                }
+                return lQuantity;
+            }
+
+        },
+
+        "Products": {
+
+            "addProduct": function (product) {
+                this.items.push(product);
+            },
+
+            "getProduct": function (guid) {
+                for (var productIndex = 0; productIndex < this.items.length; productIndex++) {
+                    if (this.items[productIndex]["id"] == guid) {
+                        return this.items[productIndex];
+                    }
+                }
+                return null;
+            },
+
+            "items": []
+
+        },
+
+        "Register": function (callback) {
+            //This will hold all data being registered for
+            var lRegistrationPost = {};
+
+            $(".core-product-questions").each(function () {
+                //Iterate each product being shown on the page
+                var lProductGuid = $(this).attr("data-productGuid");
+                var lProduct = ActiveData.Purchases.Products.getProduct(lProductGuid);
+
+                if (ActiveData.Purchases.Cart.items[lProduct["id"]]) {
+                    //This product is in the current cart, get a reference to the owning CARTITEM
+                    var lCartItem = ActiveData.Purchases.Cart.items[lProduct["id"]];
+                    lRegistrationPost[lProduct["id"]] = { "quantity": lCartItem.quantity, "donation": lCartItem.donation };
+
+                    if (lProduct["fields"].length > 0) {
+                        for (var infoIndex = 0; infoIndex < lCartItem.info.length; infoIndex++) {
+                            //Get a reference to the form that contains the data associated to the FORM
+                            var lForm = lCartItem.info[infoIndex];
+                            var lFormAnswers = [];
+
+                            for (var fieldIndex = 0; fieldIndex < lForm.fields.length; fieldIndex++) {
+                                //Calling the {getValue} method will save the value to the javascript as well
+                                lFormAnswers[lFormAnswers.length] = lForm.fields[fieldIndex].guid + "[" + lForm.fields[fieldIndex].getValue(lForm.guid) + "]";
+                            }
+                            lRegistrationPost[lProduct["id"]][infoIndex] = lFormAnswers.join("|");
+                        }
+                    }
+                    else {
+                        //This is just a quantity/donation and is already set
+                    }
+                }
+                else {
+                    //This product is not in the cart                    
+                }
+            });
+
+            //Get the context for the current tenant/site/event
+            var lContext = $.param(ActiveData.Utility.Context(null));
+
+            //Send the request to the server
+            $.ajax({
+                type: "POST",
+                url: ActiveData.Variables.runtime.baseUrl + "/handlers/hapiproducts.ashx?method=get&entity=purchase-register&callback=&" + lContext,
+                data: lRegistrationPost,
+                dataType: "json"
+            }).done(function (data) {
+
+                if (data && data.status == "success") {
+                    callback.apply(this, arguments);
+                }
+                else {
+                    //The request did not go as planned
+                    alert("Error registering, refresh the page then try again.");
+                }
+            });
+        }
+
+    };
+
+})();
+
+ActiveData.Theme = (function () {
+
+    return {
+
+        LoginUrl: function () {
+            return ActiveData.Routes.Generic("login", "", "", ActiveData.Variables.tenant.route, ActiveData.Variables.site.route);
+        },
+
+        LogoutUrl: function () {
+            return ActiveData.Routes.Generic("login", "", "signout=true", ActiveData.Variables.tenant.route, ActiveData.Variables.site.route);
+        },
+
+        IsLoggedIn: function () {
+            return (ActiveData.Variables.user.isLoggedIn == "Y");
+        }
+
+    }
+
+})();
+
+ActiveData.Maps = (function () {
+    var deffereds2 = [];
+    return {
+        ParseLocation: function (obj) {
+            var deferred = $.Deferred();
+
+            //formats the address for either geocoding 
+            //or for display in the info window
+            var lAddress;
+
+            //string literal formatted address
+            var literal = (obj.Address1 + " " + obj.City + " " + obj.State + " " + obj.Zip).trim();
+
+            var deferred2 = $.Deferred();
+            deffereds2.push(deferred2);
+
+            var resolveAll = function(val) {
+                $.each(deffereds2, function () {
+                    if (this.state() === "pending") {
+                        this.resolve(val);
+                    }
+                });
+                deffereds2 = [];
+            }
+
+            // Try HTML5 geolocation.
+            // It never fails, just returns empty coordinates if failed.
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(function (position) {
+                    resolveAll(position.coords.latitude + "," + position.coords.longitude);
+                }, function (e) {
+                    // fail
+                    resolveAll("");
+                });
+            } else {
+                // Browser doesn't support Geolocation
+                deferred2.resolve("");
+            }
+
+            deferred2.done(function (origin) {
+                var googleUrl = "https://www.google.com/maps/dir/"
+
+                //html formatted address
+                var html = "<div class=\"\">" + obj.Name + "<br/>"
+                    + obj.Address1 + "<br/>"
+                    + obj.City + " "
+                    + obj.State + " "
+                    + obj.Zip;
+
+                if (literal.length == 0) {
+                    if (obj.Latitude != 0 || obj.Longitude != 0) {
+                        //use lat & lng
+                        html = html + "<br/><a target=\"_blank\" href=\"" + googleUrl + origin + "/" + obj.Latitude + "," + obj.Longitude + "\">Get Directions</a></div>";
+                    }
+                    else {
+                        //no address or lat/long
+                        //do not add any more content
+                    }
+
+                } else {
+                    //basic address directions
+                    html = html + "<br/><a target=\"_blank\" href=\"" + googleUrl + origin + "/" + obj.Address1 + " " + obj.City + " " + obj.State + " " + obj.Zip + "\">Get Directions</a></div>";
+                }
+
+                lAddress = {
+                    source: obj,
+                    literal: literal,
+                    coords: {
+                        lat: parseFloat(obj.Latitude),
+                        lng: parseFloat(obj.Longitude)
+                    },
+                    html: html
+                }
+
+                //return lAddress;
+                deferred.resolve(lAddress);
+            });
+
+            return deferred.promise();
+        },
+
+        Show: function (obj) {
+            //load map
+            if (typeof ActiveData.Variables.site.mapboxApiKey != "undefined" && ActiveData.Variables.site.mapboxApiKey.length > 0) {
+                ActiveData.Maps.Mapbox.Show(obj);
+            } else if (typeof ActiveData.Variables.site.googleApiKey != "undefined" && ActiveData.Variables.site.googleApiKey.length > 0) {
+                ActiveData.Maps.Google.Show(obj);
+            }
+        },
+
+        Refresh: function (obj) {
+            //redraw map
+            if (typeof ActiveData.Variables.site.mapboxApiKey != "undefined" && ActiveData.Variables.site.mapboxApiKey.length > 0) {
+                ActiveData.Maps.Mapbox.Refresh();
+            } else if (typeof ActiveData.Variables.site.googleApiKey != "undefined" && ActiveData.Variables.site.googleApiKey.length > 0) {
+                ActiveData.Maps.Google.Refresh();
+            }
+        }
+
+    }
+})();
+
+ActiveData.Maps.Google = (function () {
+
+    function ProcessGeocode(location, results) {
+        //Note: The reverse geocoder matches political entities (countries, provinces, cities and neighborhoods), street addresses, and postal codes.
+        //The geocoder will attempt to find the closest addressable location within a certain tolerance.
+        if (location.coords.lat != 0 || location.coords.lng != 0) {
+            //use the supplied lat & lng by user instead because we do not want the closest addressable location in this case
+            var lat_long = new google.maps.LatLng(location.coords.lat, location.coords.lng);
+        }
+        else {
+            //get the lat & lng from the geocode request
+            var lat_long = new google.maps.LatLng(results[0].geometry.location.lat(), results[0].geometry.location.lng());
+        }
+
+        //create a marker (pin) at the geocoded lat&long and use the facility name as the hover text
+        var lMarker = new google.maps.Marker({ map: ActiveData.Maps.Google.Canvas, position: lat_long, title: location.source.Name });
+
+        //extend the bounds to include each marker's position
+        ActiveData.Maps.Google.Bounds.extend(lMarker.position);
+
+        //create a content window
+        var marker_info_window = new google.maps.InfoWindow({ content: location.html, disableAutoPan: false });
+
+        //sets the map that this marker is shown on
+        lMarker.setMap(ActiveData.Maps.Google.Canvas);
+        ActiveData.Maps.Google.Refresh();
+
+        //add click event for the marker
+        google.maps.event.addListener(lMarker, 'click', function () {
+            //show the info window when clicked
+            marker_info_window.open(ActiveData.Maps.Google.Canvas, lMarker);
+        });
+
+        if (ActiveData.Maps.Google.Marker == null) {
+            //This will set marker variable, so that the first location will be centered.
+            ActiveData.Maps.Google.Marker = lMarker;
+        }
+        marker_info_window.open(ActiveData.Maps.Google.Canvas, lMarker);
+    };
+
+    //Public parts of this Namespace
+    return {
+        Show: function (obj) {
+            //create geocoder instance to get lat & long
+            var geocoder = new google.maps.Geocoder();
+
+            //setup basic map options
+            var mapOptions = { zoom: 14, mapTypeId: google.maps.MapTypeId.ROADMAP }
+
+            //set map with the supplied canvas and mapOptions 
+            this.Canvas = new google.maps.Map(obj.canvas, mapOptions);
+
+            //set bounds to hold location coordinates
+            this.Bounds = new google.maps.LatLngBounds();
+
+            //set how many markers will be created
+            this.MarkerCount = obj.address.length;
+
+            $.each(obj.address, function (index, address) {
+                ActiveData.Maps.ParseLocation(address)
+                    .done(function (location) {
+                        /* Geocoder object specification */
+                        // Req: One, and only one, of address, location and placeId must be supplied.
+                        //  address: Address to geocode. Type: String
+                        //  location: LatLng (or LatLngLiteral) for which to search. Type: LatLng|LatLngLiteral
+                        if (location.coords.lat != 0 || location.coords.lng != 0) {
+                            //geocode by lat & lng
+                            geocoder.geocode({ 'location': location.coords }, function (results, status) {
+                                //will be ZERO_RESULTS if a bad address is entered
+                                if (status == google.maps.GeocoderStatus.OK) {
+                                    ProcessGeocode(location, results);
+                                }
+                            });
+                        }
+                        else {
+                            //geocode by string literal
+                            geocoder.geocode({ 'address': location.literal }, function (results, status) {
+                                //will be ZERO_RESULTS if a bad address is entered
+                                if (status == google.maps.GeocoderStatus.OK) {
+                                    ProcessGeocode(location, results);
+                                }
+                            });
+                        }
+                    });
+            });
+        },
+        Refresh: function () {
+            if (this.Canvas != null) {
+                //if there's a map, trigger the resize which will redraw the map
+                google.maps.event.trigger(this.Canvas, 'resize');
+
+                //center the map on the markers
+                this.Canvas.setCenter(this.Bounds.getCenter());
+
+                //fit all markers in view of the map
+                if (this.MarkerCount > 1) {
+                    this.Canvas.fitBounds(this.Bounds);
+                }
+            }
+        },
+        Canvas: null,
+        Bounds: null,
+        Marker: null,
+        MarkerCount: null
+    }
+})();
+
+ActiveData.Maps.Mapbox = (function () {
+
+    //Public parts of this Namespace
+    return {
+        Show: function (obj) {
+            //set api key from site config
+            L.mapbox.accessToken = ActiveData.Variables.site.mapboxApiKey;
+
+            //create geocoder instance to get lat & long 
+            var geocoder = L.mapbox.geocoder('mapbox.places');
+
+            //set map instance
+            this.Canvas = L.mapbox.map(obj.canvas.id, "mapbox.streets");
+
+            //set bounds to hold location coordinates
+            this.Bounds = new L.LatLngBounds();
+
+            //set how many markers will be created
+            this.MarkerCount = obj.address.length;
+
+            $.each(obj.address, function (index, address) {
+                ActiveData.Maps.ParseLocation(address)
+                    .done(function (location) {
+                        //lookup the location
+                        geocoder.query(location.literal, function (error, results) {
+                            var coords = [];
+
+                            if (location.coords.lat != 0 || location.coords.lng != 0) {
+                                //use the user-provided lat/lng
+                                coords = [location.coords.lat, location.coords.lng];
+                            } else if (typeof results.latlng != 'undefined' && error == null) {
+                                //use the geocode lat/lng
+                                coords = results.latlng;
+                            }
+
+                            if (coords.length > 0) {
+                                //create marker and add to map
+                                var marker = L.marker(coords);
+                                marker.bindPopup(location.html);
+                                marker.addTo(ActiveData.Maps.Mapbox.Canvas);
+
+                                //set map view within bounds of the coordinates
+                                ActiveData.Maps.Mapbox.Bounds.extend(coords);
+                                ActiveData.Maps.Mapbox.Canvas.fitBounds(ActiveData.Maps.Mapbox.Bounds);
+
+                                //open first marker popup by default
+                                if (index == 0) {
+                                    ActiveData.Maps.Mapbox.Marker = marker;
+                                    ActiveData.Maps.Mapbox.Marker.openPopup();
+                                    ActiveData.Maps.Mapbox.Canvas.setZoom(14);
+                                }
+                            }
+                        });
+                    });
+            });
+
+        },
+        Refresh: function () {
+            if (this.Canvas != null) {
+                //fix for maps initially hidden in dom
+                this.Canvas.invalidateSize();
+
+                if (this.MarkerCount > 1) {
+                    //center the map on the markers
+                    this.Canvas.fitBounds(this.Bounds);
+                }
+                else {
+                    //center marker with an appropriate zoom level
+                    this.Canvas.setZoom(14);
+                }
+
+                //this will open popup for the first marker pinned
+                if (this.Marker != null) { this.Marker.openPopup(); }
+            }
+        },
+        Canvas: null,
+        Bounds: null,
+        Marker: null,
+        MarkerCount: null
+    }
+
+})();
+
+//Legacy Core JavaScript API
+(function (win, doc) {
+
+    var ADX = (function () {
+
+        //Public parts of this Namespace
+        return {
+
+            Get: function (obj) {
+                /// <summary>Handles making all requests for against the host application.</summary>
+                /// <param name="obj" type="Object">JSON object containing the API call to make.</param> 
+                /// <summary>Handles making all requests (get/set) data.</summary>
+                /// <param name="obj" type="Object">JSON object containing the API call to make.</param> 
+
+                //Include just the supported query values in the legacy call
+                var lParams = {
+                    "tenant": "", "site": "", "id": ""
+                };
+                if (obj.filter.View) {
+                    lParams["view"] = obj.filter.View;
+                }
+                if (obj.filter.Highlighted) {
+                    lParams["highlighted"] = obj.filter.Highlighted;
+                }
+                if (obj.filter.SharingGuid) {
+                    lParams["id"] = obj.filter.SharingGuid;
+                }
+                if (obj.filter.Id) {
+                    lParams["id"] = obj.filter.Id;
+                }
+
+                if (ActiveData.Variables) {
+                    //Use the app supplied values
+                    lParams["tenant"] = ActiveData.Variables.tenant.route;
+                    lParams["site"] = ActiveData.Variables.site.route;
+                }
+                else {
+                    //Assume the client sent them
+                    if (obj.filter.Tenant) {
+                        lParams["tenant"] = obj.filter.Tenant;
+                    }
+                    if (obj.filter.Site) {
+                        lParams["site"] = obj.filter.Site;
+                    }
+                }
+
+                /* Some legacy ADX.Get() calls will supply their own url */
+                var lUrl = ((obj.url) ? obj.url : ActiveData.Variables.runtime.baseUrl + "/handlers/") + "query.ashx";
+
+                ActiveData.Events(lUrl + "?" + $.param(lParams), obj.success);
+            }
+
+        };
+
+    })();
+
+    if (!win.ADX) {
+        /*ADX namespace has not been loaded yet, do it once*/
+        win.ADX = ADX;
+    };
+
+})(window, document);
+
+function datepickerKeyDown(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    //   KEY MAP
+    //  [TAB: 9, LEFT: 37, UP: 38, RIGHT: 39, DOWN: 40]
+    var code = event.keyCode || event.which;
+    // If key is not TAB
+    if (code != '9') {
+        // And arrow keys used "for performance on other keys"
+        if (code == '37' || code == '38' || code == '39' || code == '40') {
+            // Get current date
+            var parts = $(this).val().split("/"),
+                currentDate = new Date(parts[2], parts[0] - 1, parts[1]);
+            // Show next/previous day/week 
+            switch (code) {
+                // LEFT, -1 day
+                case 37:
+                    currentDate.setDate(currentDate.getDate() - 1);
+                    break;
+                    // UP, -1 week
+                case 38:
+                    currentDate.setDate(currentDate.getDate() - 7);
+                    if (!_.isNull(currentDate)) {
+                        $(this).datepicker("setDate", currentDate);
+                        return false;
+                    }
+
+                    break;
+                    // RIGHT, +1 day
+                case 39:
+                    currentDate.setDate(currentDate.getDate() + 1);
+                    break;
+                    // DOWN, +1 week
+                case 40:
+                    currentDate.setDate(currentDate.getDate() + 7);
+                    break;
+            }
+        } else {
+            return false;
+        } // If other keys pressed.. return false
+    }
+}
+
+(function ($) {
+    'use strict';
+
+    $(document).ready(function () {
+        if ($ && $.datepicker) {
+            $.datepicker.setDefaults({
+                onClose: removeAria
+            });
+        }
+    });
+})(jQuery);
+
+function setDatetimeTripper(element) {
+    $('#ui-datepicker-div').detach().appendTo('body');
+    var today = $('.ui-datepicker-today a')[0];
+
+    if (!today) {
+        today = $('.ui-state-active')[0] ||
+                $('.ui-state-default')[0];
+    }
+
+    // Hide the entire page (except the date picker)
+    // from screen readers to prevent document navigation
+    // (by headings, etc.) while the popup is open
+    $(".main").attr('aria-hidden', 'true');
+    $(".skip-nav").attr('aria-hidden', 'true');
+
+    // Hide the "today" button because it doesn't do what
+    // you think it supposed to do
+    $(".ui-datepicker-current").hide();
+
+    today.focus();
+    datePickHandler(element);
+    $(document).on('click', '#ui-datepicker-div .ui-datepicker-close', function () {
+        closeCalendar(element);
+        $(element).next(':focusable').focus();
+    });
+}
+
+////////////////////////////////
+function dayTripper() {
+    $('.ui-datepicker-trigger').click(function () {
+        setTimeout(setDatetimeTripper, 0);
+    });
+}
+
+function focusNext(element) {
+    if (!element) return;
+    var allFocusables = $(':focusable');
+    var index = allFocusables.index(element);
+    if (index < allFocusables.length - 1) {
+        allFocusables.eq(index + 1).focus();
+    }
+}
+
+function focusPrev(element) {
+    if (!element) return;
+    var allFocusables = $(':focusable');
+    var index = allFocusables.index(element);
+    if (index > 0) {
+        allFocusables.eq(index - 1).focus();
+    }
+}
+
+function datePickHandler(element) {
+    var container = document.getElementById('ui-datepicker-div');
+    //var input = document.getElementById('datepicker');
+
+    if (!container || !element) {
+        return;
+    }
+
+    // $(container).find('table').first().attr('role', 'grid');
+
+    container.setAttribute('role', 'application');
+    container.setAttribute('aria-label', 'Calendar view date-picker');
+
+    // the top controls:
+    var prev = $('.ui-datepicker-prev', container)[0],
+        next = $('.ui-datepicker-next', container)[0];
+
+
+    // This is the line that needs to be fixed for use on pages with base URL set in head
+    next.href = 'javascript:void(0)';
+    prev.href = 'javascript:void(0)';
+
+    next.setAttribute('role', 'button');
+    next.removeAttribute('title');
+    prev.setAttribute('role', 'button');
+    prev.removeAttribute('title');
+
+    appendOffscreenMonthText(next);
+    appendOffscreenMonthText(prev);
+
+    // delegation won't work here for whatever reason, so we are
+    // forced to attach individual click listeners to the prev /
+    // next month buttons each time they are added to the DOM
+    $(next).on('click', handleNextClicks);
+    $(prev).on('click', handlePrevClicks);
+
+    monthDayYearText();
+
+    container.onkeydown = function calendarKeyboardListener(keyVent) {
+        var which = keyVent.which;
+        var target = keyVent.target;
+        var dateCurrent = getCurrentDate(container);
+
+        if (!dateCurrent) {
+            dateCurrent = $('a.ui-state-default')[0];
+            setHighlightState(dateCurrent, container);
+        }
+
+        if (27 === which) { // ESC
+            keyVent.stopPropagation();
+            closeCalendar(element);
+            focusNext(element);
+            return;
+        } else if (which === 9 && keyVent.shiftKey) { // SHIFT + TAB
+            keyVent.preventDefault();
+            //if ($(target).hasClass('ui-datepicker-close')) { // close button
+            //    $('.ui-datepicker-prev')[0].focus();
+            //} else if ($(target).hasClass('ui-state-default')) { // a date link
+            //    $('.ui-datepicker-close')[0].focus();
+            //} else if ($(target).hasClass('ui-datepicker-prev')) { // the prev link
+            //    $('.ui-datepicker-next')[0].focus();
+            //} else if ($(target).hasClass('ui-datepicker-next')) { // the next link
+            //    activeDate = $('.ui-state-highlight') ||
+            //                $('.ui-state-active')[0];
+            //    if (activeDate) {
+            //        activeDate.focus();
+            //    }
+            //}
+            if (element.hasDatepickerFocus) {
+                element.focus();
+            } else {
+                setTimeout(function () {
+                    closeCalendar(element);
+                    focusPrev(element);
+                }, 100);
+            }
+            
+        } else if (which === 9) { // TAB
+            keyVent.preventDefault();
+            //if ($(target).hasClass('ui-datepicker-close')) { // close button
+            //    activeDate = $('.ui-state-highlight') ||
+            //                $('.ui-state-active')[0];
+            //    if (activeDate) {
+            //        activeDate.focus();
+            //    }
+            //} else if ($(target).hasClass('ui-state-default')) {
+            //    $('.ui-datepicker-next')[0].focus();
+            //} else if ($(target).hasClass('ui-datepicker-next')) {
+            //    $('.ui-datepicker-prev')[0].focus();
+            //} else if ($(target).hasClass('ui-datepicker-prev')) {
+            //    $('.ui-datepicker-close')[0].focus();
+            //}
+            if (element.hasDatepickerFocus) {
+                element.focus();
+            } else {
+                setTimeout(function () {
+                    closeCalendar(element);
+                    focusNext(element);
+                }, 100);
+            }
+
+        } else if (which === 37) { // LEFT arrow key
+            // if we're on a date link...
+            if (!$(target).hasClass('ui-datepicker-close') && $(target).hasClass('ui-state-default')) {
+                keyVent.preventDefault();
+                previousDay(target);
+            }
+        } else if (which === 39) { // RIGHT arrow key
+            // if we're on a date link...
+            if (!$(target).hasClass('ui-datepicker-close') && $(target).hasClass('ui-state-default')) {
+                keyVent.preventDefault();
+                nextDay(target);
+            }
+        } else if (which === 38) { // UP arrow key
+            if (!$(target).hasClass('ui-datepicker-close') && $(target).hasClass('ui-state-default')) {
+                keyVent.preventDefault();
+                upHandler(target, container, prev);
+            }
+        } else if (which === 40) { // DOWN arrow key
+            if (!$(target).hasClass('ui-datepicker-close') && $(target).hasClass('ui-state-default')) {
+                keyVent.preventDefault();
+                downHandler(target, container, next);
+            }
+        } else if (which === 13) { // ENTER
+            if ($(target).hasClass('ui-state-default')) {
+                setTimeout(function () {
+                    closeCalendar(element);
+                    focusNext(element);
+                }, 100);
+            } else if ($(target).hasClass('ui-datepicker-prev')) {
+                handlePrevClicks();
+            } else if ($(target).hasClass('ui-datepicker-next')) {
+                handleNextClicks();
+            }
+        } else if (32 === which) {
+            if ($(target).hasClass('ui-datepicker-prev') || $(target).hasClass('ui-datepicker-next')) {
+                target.click();
+            }
+        } else if (33 === which) { // PAGE UP
+            moveOneMonth(target, 'prev');
+            keyVent.preventDefault();
+        } else if (34 === which) { // PAGE DOWN
+            moveOneMonth(target, 'next');
+            keyVent.preventDefault();
+        } else if (36 === which) { // HOME
+            var firstOfMonth = $(target).closest('tbody').find('.ui-state-default')[0];
+            if (firstOfMonth) {
+                firstOfMonth.focus();
+                setHighlightState(firstOfMonth, $('#ui-datepicker-div')[0]);
+            }
+        } else if (35 === which) { // END
+            var $daysOfMonth = $(target).closest('tbody').find('.ui-state-default');
+            var lastDay = $daysOfMonth[$daysOfMonth.length - 1];
+            if (lastDay) {
+                lastDay.focus();
+                setHighlightState(lastDay, $('#ui-datepicker-div')[0]);
+            }
+        }
+        $(".ui-datepicker-current").hide();
+    }
+}
+
+function closeCalendar(element) {
+    var container = $('#ui-datepicker-div');
+    $(container).off('keydown');
+    if (element) {
+        $(element).datepicker('hide');
+        //$(element).focus();
+    }
+}
+
+function removeAria() {
+    // make the rest of the page accessible again:
+    $(".main").removeAttr('aria-hidden');
+    $(".skip-nav").removeAttr('aria-hidden');
+}
+
+///////////////////////////////
+//////////////////////////// //
+///////////////////////// // //
+// UTILITY-LIKE THINGS // // //
+///////////////////////// // //
+//////////////////////////// //
+///////////////////////////////
+function isOdd(num) {
+    return num % 2;
+}
+
+function moveOneMonth(currentDate, dir) {
+    var button = (dir === 'next')
+                ? $('.ui-datepicker-next')[0]
+                : $('.ui-datepicker-prev')[0];
+
+    if (!button) {
+        return;
+    }
+
+    var ENABLED_SELECTOR = '#ui-datepicker-div tbody td:not(.ui-state-disabled)';
+    var $currentCells = $(ENABLED_SELECTOR);
+    var currentIdx = $.inArray(currentDate.parentNode, $currentCells);
+
+    button.click();
+    setTimeout(function () {
+        updateHeaderElements();
+
+        var $newCells = $(ENABLED_SELECTOR);
+        var newTd = $newCells[currentIdx];
+        var newAnchor = newTd && $(newTd).find('a')[0];
+
+        while (!newAnchor) {
+            currentIdx--;
+            newTd = $newCells[currentIdx];
+            newAnchor = newTd && $(newTd).find('a')[0];
+        }
+
+        setHighlightState(newAnchor, $('#ui-datepicker-div')[0]);
+        newAnchor.focus();
+
+    }, 0);
+
+}
+
+function handleNextClicks() {
+    setTimeout(function () {
+        updateHeaderElements();
+        prepHighlightState();
+        $('.ui-datepicker-next').focus();
+        $(".ui-datepicker-current").hide();
+    }, 0);
+}
+
+function handlePrevClicks() {
+    setTimeout(function () {
+        updateHeaderElements();
+        prepHighlightState();
+        $('.ui-datepicker-prev').focus();
+        $(".ui-datepicker-current").hide();
+    }, 0);
+}
+
+function previousDay(dateLink) {
+    var container = document.getElementById('ui-datepicker-div');
+    if (!dateLink) {
+        return;
+    }
+    var td = $(dateLink).closest('td');
+    if (!td) {
+        return;
+    }
+
+    var prevTd = $(td).prev(),
+        prevDateLink = $('a.ui-state-default', prevTd)[0];
+
+    if (prevTd && prevDateLink) {
+        setHighlightState(prevDateLink, container);
+        prevDateLink.focus();
+    } else {
+        handlePrevious(dateLink);
+    }
+}
+
+
+function handlePrevious(target) {
+    var container = document.getElementById('ui-datepicker-div');
+    if (!target) {
+        return;
+    }
+    var currentRow = $(target).closest('tr');
+    if (!currentRow) {
+        return;
+    }
+    var previousRow = $(currentRow).prev();
+
+    if (!previousRow || previousRow.length === 0) {
+        // there is not previous row, so we go to previous month...
+        previousMonth();
+    } else {
+        var prevRowDates = $('td a.ui-state-default', previousRow);
+        var prevRowDate = prevRowDates[prevRowDates.length - 1];
+
+        if (prevRowDate) {
+            setTimeout(function () {
+                setHighlightState(prevRowDate, container);
+                prevRowDate.focus();
+            }, 0);
+        }
+    }
+}
+
+function previousMonth() {
+    var prevLink = $('.ui-datepicker-prev')[0];
+    var container = document.getElementById('ui-datepicker-div');
+    prevLink.click();
+    // focus last day of new month
+    setTimeout(function () {
+        var trs = $('tr', container),
+            lastRowTdLinks = $('td a.ui-state-default', trs[trs.length - 1]),
+            lastDate = lastRowTdLinks[lastRowTdLinks.length - 1];
+
+        // updating the cached header elements
+        updateHeaderElements();
+
+        setHighlightState(lastDate, container);
+        lastDate.focus();
+
+    }, 0);
+}
+
+///////////////// NEXT /////////////////
+/**
+ * Handles right arrow key navigation
+ * @param  {HTMLElement} dateLink The target of the keyboard event
+ */
+function nextDay(dateLink) {
+    var container = document.getElementById('ui-datepicker-div');
+    if (!dateLink) {
+        return;
+    }
+    var td = $(dateLink).closest('td');
+    if (!td) {
+        return;
+    }
+    var nextTd = $(td).next(),
+        nextDateLink = $('a.ui-state-default', nextTd)[0];
+
+    if (nextTd && nextDateLink) {
+        setHighlightState(nextDateLink, container);
+        nextDateLink.focus(); // the next day (same row)
+    } else {
+        handleNext(dateLink);
+    }
+}
+
+function handleNext(target) {
+    var container = document.getElementById('ui-datepicker-div');
+    if (!target) {
+        return;
+    }
+    var currentRow = $(target).closest('tr'),
+        nextRow = $(currentRow).next();
+
+    if (!nextRow || nextRow.length === 0) {
+        nextMonth();
+    } else {
+        var nextRowFirstDate = $('a.ui-state-default', nextRow)[0];
+        if (nextRowFirstDate) {
+            setHighlightState(nextRowFirstDate, container);
+            nextRowFirstDate.focus();
+        }
+    }
+}
+
+function nextMonth() {
+    nextMon = $('.ui-datepicker-next')[0];
+    var container = document.getElementById('ui-datepicker-div');
+    nextMon.click();
+    // focus the first day of the new month
+    setTimeout(function () {
+        // updating the cached header elements
+        updateHeaderElements();
+
+        var firstDate = $('a.ui-state-default', container)[0];
+        setHighlightState(firstDate, container);
+        firstDate.focus();
+    }, 0);
+}
+
+/////////// UP ///////////
+/**
+ * Handle the up arrow navigation through dates
+ * @param  {HTMLElement} target   The target of the keyboard event (day)
+ * @param  {HTMLElement} cont     The calendar container
+ * @param  {HTMLElement} prevLink Link to navigate to previous month
+ */
+function upHandler(target, cont, prevLink) {
+    prevLink = $('.ui-datepicker-prev')[0];
+    var rowContext = $(target).closest('tr');
+    if (!rowContext) {
+        return;
+    }
+    var rowTds = $('td', rowContext),
+        rowLinks = $('a.ui-state-default', rowContext),
+        targetIndex = $.inArray(target, rowLinks),
+        prevRow = $(rowContext).prev(),
+        prevRowTds = $('td', prevRow),
+        parallel = prevRowTds[targetIndex],
+        linkCheck = $('a.ui-state-default', parallel)[0];
+
+    if (prevRow && parallel && linkCheck) {
+        // there is a previous row, a td at the same index
+        // of the target AND theres a link in that td
+        setHighlightState(linkCheck, cont);
+        linkCheck.focus();
+    } else {
+        // we're either on the first row of a month, or we're on the
+        // second and there is not a date link directly above the target
+        prevLink.click();
+        setTimeout(function () {
+            // updating the cached header elements
+            updateHeaderElements();
+            var newRows = $('tr', cont),
+                lastRow = newRows[newRows.length - 1],
+                lastRowTds = $('td', lastRow),
+                tdParallelIndex = $.inArray(target.parentNode, rowTds),
+                newParallel = lastRowTds[tdParallelIndex],
+                newCheck = $('a.ui-state-default', newParallel)[0];
+
+            if (lastRow && newParallel && newCheck) {
+                setHighlightState(newCheck, cont);
+                newCheck.focus();
+            } else {
+                // theres no date link on the last week (row) of the new month
+                // meaning its an empty cell, so we'll try the 2nd to last week
+                var secondLastRow = newRows[newRows.length - 2],
+                    secondTds = $('td', secondLastRow),
+                    targetTd = secondTds[tdParallelIndex],
+                    linkCheck = $('a.ui-state-default', targetTd)[0];
+
+                if (linkCheck) {
+                    setHighlightState(linkCheck, cont);
+                    linkCheck.focus();
+                }
+
+            }
+        }, 0);
+    }
+}
+
+//////////////// DOWN ////////////////
+/**
+ * Handles down arrow navigation through dates in calendar
+ * @param  {HTMLElement} target   The target of the keyboard event (day)
+ * @param  {HTMLElement} cont     The calendar container
+ * @param  {HTMLElement} nextLink Link to navigate to next month
+ */
+function downHandler(target, cont, nextLink) {
+    nextLink = $('.ui-datepicker-next')[0];
+    var targetRow = $(target).closest('tr');
+    if (!targetRow) {
+        return;
+    }
+    var targetCells = $('td', targetRow),
+        cellIndex = $.inArray(target.parentNode, targetCells), // the td (parent of target) index
+        nextRow = $(targetRow).next(),
+        nextRowCells = $('td', nextRow),
+        nextWeekTd = nextRowCells[cellIndex],
+        nextWeekCheck = $('a.ui-state-default', nextWeekTd)[0];
+
+    if (nextRow && nextWeekTd && nextWeekCheck) {
+        // theres a next row, a TD at the same index of `target`,
+        // and theres an anchor within that td
+        setHighlightState(nextWeekCheck, cont);
+        nextWeekCheck.focus();
+    } else {
+        nextLink.click();
+
+        setTimeout(function () {
+            // updating the cached header elements
+            updateHeaderElements();
+
+            var nextMonthTrs = $('tbody tr', cont),
+                firstTds = $('td', nextMonthTrs[0]),
+                firstParallel = firstTds[cellIndex],
+                firstCheck = $('a.ui-state-default', firstParallel)[0];
+
+            if (firstParallel && firstCheck) {
+                setHighlightState(firstCheck, cont);
+                firstCheck.focus();
+            } else {
+                // lets try the second row b/c we didnt find a
+                // date link in the first row at the target's index
+                var secondRow = nextMonthTrs[1],
+                    secondTds = $('td', secondRow),
+                    secondRowTd = secondTds[cellIndex],
+                    secondCheck = $('a.ui-state-default', secondRowTd)[0];
+
+                if (secondRow && secondCheck) {
+                    setHighlightState(secondCheck, cont);
+                    secondCheck.focus();
+                }
+            }
+        }, 0);
+    }
+}
+
+
+function onCalendarHide() {
+    closeCalendar();
+}
+
+// add an aria-label to the date link indicating the currently focused date
+// (formatted identically to the required format: mm/dd/yyyy)
+function monthDayYearText() {
+    var cleanUps = $('.amaze-date');
+
+    $(cleanUps).each(function (clean) {
+        // each(cleanUps, function (clean) {
+        clean.parentNode.removeChild(clean);
+    });
+
+    var datePickDiv = document.getElementById('ui-datepicker-div');
+    // in case we find no datepick div
+    if (!datePickDiv) {
+        return;
+    }
+
+    var dates = $('a.ui-state-default', datePickDiv);
+    //$(dates).attr('role', 'button').on('keydown', function (e) {
+    //    if (e.which === 32) {
+    //        e.preventDefault();
+    //        e.target.click();
+    //        setTimeout(function () {
+    //            closeCalendar();
+    //        }, 100);
+    //    }
+    //});
+    $(dates).each(function (index, date) {
+        var currentRow = $(date).closest('tr'),
+            currentTds = $('td', currentRow),
+            currentIndex = $.inArray(date.parentNode, currentTds),
+            headThs = $('thead tr th', datePickDiv),
+            dayIndex = headThs[currentIndex],
+            daySpan = $('span', dayIndex)[0],
+            monthName = $('.ui-datepicker-month', datePickDiv)[0].innerHTML,
+            year = $('.ui-datepicker-year', datePickDiv)[0].innerHTML,
+            number = date.innerHTML;
+
+        if (!daySpan || !monthName || !number || !year) {
+            return;
+        }
+
+        // AT Reads: {month} {date} {year} {day}
+        // "December 18 2014 Thursday"
+        var dateText = date.innerHTML + ' ' + monthName + ' ' + year + ' ' + daySpan.title;
+        // AT Reads: {date(number)} {name of day} {name of month} {year(number)}
+        // var dateText = date.innerHTML + ' ' + daySpan.title + ' ' + monthName + ' ' + year;
+        // add an aria-label to the date link reading out the currently focused date
+        date.setAttribute('aria-label', dateText);
+    });
+}
+
+
+
+// update the cached header elements because we're in a new month or year
+function updateHeaderElements() {
+    var context = document.getElementById('ui-datepicker-div');
+    if (!context) {
+        return;
+    }
+
+    //  $(context).find('table').first().attr('role', 'grid');
+
+    prev = $('.ui-datepicker-prev', context)[0];
+    next = $('.ui-datepicker-next', context)[0];
+
+    //make them click/focus - able
+    next.href = 'javascript:void(0)';
+    prev.href = 'javascript:void(0)';
+
+    next.setAttribute('role', 'button');
+    prev.setAttribute('role', 'button');
+    appendOffscreenMonthText(next);
+    appendOffscreenMonthText(prev);
+
+    $(next).on('click', handleNextClicks);
+    $(prev).on('click', handlePrevClicks);
+
+    // add month day year text
+    monthDayYearText();
+}
+
+
+function prepHighlightState() {
+    var highlight;
+    var cage = document.getElementById('ui-datepicker-div');
+    highlight = $('.ui-state-highlight', cage)[0] ||
+                $('.ui-state-default', cage)[0];
+    if (highlight && cage) {
+        setHighlightState(highlight, cage);
+    }
+}
+
+// Set the highlighted class to date elements, when focus is recieved
+function setHighlightState(newHighlight, container) {
+    var prevHighlight = getCurrentDate(container);
+    // remove the highlight state from previously
+    // highlighted date and add it to our newly active date
+    $(prevHighlight).removeClass('ui-state-highlight');
+    $(newHighlight).addClass('ui-state-highlight');
+}
+
+
+// grabs the current date based on the hightlight class
+function getCurrentDate(container) {
+    var currentDate = $('.ui-state-highlight', container)[0];
+    return currentDate;
+}
+
+/**
+ * Appends logical next/prev month text to the buttons
+ * - ex: Next Month, January 2015
+ *       Previous Month, November 2014
+ */
+function appendOffscreenMonthText(button) {
+    var buttonText;
+    var isNext = $(button).hasClass('ui-datepicker-next');
+    var months = [
+      'january', 'february',
+      'march', 'april',
+      'may', 'june', 'july',
+      'august', 'september',
+      'october',
+      'november', 'december'
+    ];
+
+    var currentMonth = $('.ui-datepicker-title .ui-datepicker-month').text().toLowerCase();
+    var monthIndex = $.inArray(currentMonth.toLowerCase(), months);
+    var currentYear = $('.ui-datepicker-title .ui-datepicker-year').text().toLowerCase();
+    var adjacentIndex = (isNext) ? monthIndex + 1 : monthIndex - 1;
+
+    if (isNext && currentMonth === 'december') {
+        currentYear = parseInt(currentYear, 10) + 1;
+        adjacentIndex = 0;
+    } else if (!isNext && currentMonth === 'january') {
+        currentYear = parseInt(currentYear, 10) - 1;
+        adjacentIndex = months.length - 1;
+    }
+
+    buttonText = (isNext)
+                  ? 'Next Month, ' + firstToCap(months[adjacentIndex]) + ' ' + currentYear
+                  : 'Previous Month, ' + firstToCap(months[adjacentIndex]) + ' ' + currentYear;
+
+    $(button).find('.ui-icon').html(buttonText);
+
+}
+
+// Returns the string with the first letter capitalized
+function firstToCap(s) {
+    return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function mediaPickerRegisterClickEvent(ajaxPnl, lbtnSearch, txtSearch) {
+    $("#" + txtSearch).keyup(function (event) {
+        if (event.keyCode == 13) {
+            var ajaxManager = $find(ajaxPnl);
+            ajaxManager.ajaxRequestWithTarget(lbtnSearch, "");
+        }
+    });
+    $("#" + txtSearch).focus();
+}
+
+</script>
+
+</body>
+</html>

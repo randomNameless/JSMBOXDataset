@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>yxtADinit.html</title>
+</head>
+<body>
+
+<script>
+$(function () {
+    var errLine, errMsg, errUrl, cssStyle = '';
+
+    //错误处理
+    window.onerror = function (msg, url, line) {
+        errLine = line;
+        errUrl = url;
+        errMsg = msg;
+    };
+
+
+    //通用JS效果初始化
+    var reloadYxtCommon = function () {
+        //浮层处理
+
+        var yxtAdType_fc = $('.yxtAdType_fc'),
+            yxtAdType_fc_b = yxtAdType_fc.find('b');
+
+        if (yxtAdType_fc.length > 0) {
+            //浮层通用css加入
+            cssStyle += '<style>\n';
+            cssStyle += '.yxtAdType_fc{overflow: hidden; transform:translate(0,0); z-index:9999;}\n';
+            cssStyle += '.yxtAdType_fc b{position: absolute; bottom:0; right:0; padding:0 4px; font-family:"Microsoft YaHei",Helvetica; font-size:12px; color:#fff; background:#000; cursor:pointer;line-height:16px;}\n';
+            cssStyle += '.yxtAdType_fc i img{width: 100%; height:100%;}\n';
+            cssStyle += '</style>';
+
+            $('body').append(cssStyle);
+
+            //yxtAdType_fc.append($('.yxtAdType_fc + div').prop("outerHTML"));
+        }
+
+        yxtAdType_fc_b.click(function () {
+            //$(this).offsetParent().remove();
+            $(this).parentsUntil('.yxtposter').parent().html('');
+        });
+
+        yxtAdType_fc.each(function () {
+            var timeout = Number($(this).attr('timeout')) || 0, that = $(this);
+            if (timeout != 0) {
+                setTimeout(function () {
+                    that.parentsUntil('.yxtposter').parent().html('');
+                    //var nexthtml = that.next().prop("outerHTML");
+                    //if (nexthtml) {
+                    //    if (nexthtml.indexOf('postico') != -1)
+                    //        that.next().remove();
+                    //}
+
+                    //that.remove();
+                }, timeout);
+            }
+
+            //var thatparent = that.parent();
+            //thatparent.width(that.width()).height(that.height());
+            var nexthtml = that.next().prop("outerHTML");
+
+            if (nexthtml) {
+                if (nexthtml.indexOf('postico') != -1) {
+                    that.append(nexthtml);
+                    that.next().remove();
+                }
+            }
+        });
+
+    };
+
+    var ajaxpost = function () {
+        //收集客户端信息
+        var fWidth = screen.width;
+        var fHeight = screen.height;
+        var sWidth = screen.availWidth;
+        var sHeight = screen.availHeight;
+        var bWidth = $("body").width();
+        var bHeight = $("body").height();
+        var href = window.location.href;
+
+        //采集token
+        //<div class="yxtposter" token="CF4CA2651410C753EB555AC414E41D60"></div>
+        var tokenStr = '';
+        $('.yxtposter').each(function (i, item) {
+            var token = $(this).attr('token');
+            if (token != '') {
+                if (tokenStr != '')
+                    tokenStr += '&';
+                tokenStr += 'token=' + token;
+            }
+        });
+
+        $.ajax({
+            type: "GET",
+            //url: 'https://plugin.cloudyxt.com/poster/Show?' + tokenStr,
+            url: 'https://tp.scol.com.cn/poster/Show?' + tokenStr,
+            data: {
+                errLine: errLine,
+                errMsg: errMsg,
+                errUrl: errUrl,
+                screenW: fWidth,
+                screenH: fHeight,
+                availW: sWidth,
+                availH: sHeight,
+                bodyW: bWidth,
+                bodyH: bHeight,
+                href: href
+            },
+            dataType: "jsonp",
+            success: function (jsonp) {
+                $.each(jsonp, function (i, item) {
+                    //替换对应的广告位
+                    $('.yxtposter[token="' + item.token + '"]').html(item.html);
+                });
+                reloadYxtCommon();
+            }
+        });
+    };
+
+    setTimeout(ajaxpost, 100);
+
+});
+
+</script>
+
+</body>
+</html>

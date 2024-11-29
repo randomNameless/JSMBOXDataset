@@ -1,0 +1,1184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>search.html</title>
+</head>
+<body>
+
+<script>
+/**
+ * konan 통합검색 검색 조회를 위한 스크립트
+ * ============================================
+ * 2018.10 ksh UI 변경에 따른 수정 및 sort 기본값(r>d) 수정, 검색결과에서 정렬순서 변경 시 검색옵션 표시하지 않도록 수정
+ * 						 기간 날짜 선택하여 검색 시 사이즈 조정
+ * */
+
+var imgs = new Array();
+function getimagesize(url, target) {
+    if ( typeof(imgs[url])=="undefined" || !imgs[url].complete ) { // 정의되지 않았거나 로딩되지 않은 경우
+        imgs[url] = new Image(); // 이미지 Object
+        imgs[url].src = url; // 이미지 지정
+        setTimeout("getimagesize('"+url+"','"+target+"')",100); // 0.1초 후 재귀 호출
+    } else {
+		 $('.gallery figure a'+target).attr('data-size',imgs[url].width+"x"+imgs[url].height);
+    }
+}
+
+//쿠키값 설정
+function setCookie(c_name,value,exdays) {
+  var exdate=new Date();
+  exdate.setDate(exdate.getDate() + exdays);
+  var c_value=escape(value) + ((exdays==null) ? "" : "; expires="+exdate.toUTCString()) + "; domain=seoul.go.kr";
+  document.cookie=c_name + "=" + c_value;
+}
+
+//쿠키값 조회
+function getCookie(c_name) {
+  var i,x,y,cookies=document.cookie.split(";");
+  for (i=0;i<cookies.length;i++) {
+    x=cookies[i].substr(0,cookies[i].indexOf("="));
+    y=cookies[i].substr(cookies[i].indexOf("=")+1);
+    x=x.replace(/^\s+|\s+$/g,"");
+
+    if (x==c_name) {
+      return unescape(y);
+    }
+  }
+}
+
+
+// 첨부파일 클릭 
+function file_preview(srvc_id , upper_no , file_ty , file_no , bbs_no , ntt_no){ 
+    var xdr6;
+    var url = '//seoulboard.seoul.go.kr/ajax/bbs/filePreview.json';
+    var w = window.open("about:blank","_blank");
+    if(window.XDomainRequest) {
+            xdr6 = new XDomainRequest();
+            if(xdr6) {
+                    xdr6.onprogress = function() {};
+                    xdr6.open("get", url+"?srvcId="+srvc_id+"&upperNo="+upper_no+"&fileTy="+file_ty+"&fileNo="+file_no+"&bbsNo="+bbs_no+"&nttNo="+ntt_no);
+                    xdr6.contentType = "text/json";
+                    xdr6.onload = function() {
+                            var JSON = $.parseJSON(xdr6.responseText);
+                            if (JSON == null || typeof (JSON) == 'undefined')
+                        {
+                            JSON = $.parseJSON(data.firstChild.textContent);
+                        }
+
+                            drawFileView(JSON);
+                    };
+                    setTimeout(function() { xdr6.send(); }, 0);
+            }
+    }else {
+            $.ajax({
+                    url: url,
+                    data : {
+                            srvcId : srvc_id,
+                            upperNo : upper_no,
+                            fileTy : file_ty,
+                            fileNo : file_no,
+                            bbsNo : bbs_no,
+                            nttNo : ntt_no
+                    },
+                    type : 'POST',
+                    success: function(result) {
+                            drawFileView(result,srvc_id,file_no);
+                    }
+            });
+    }
+    
+    function drawFileView(result,srvc_id,file_no) {
+            if(result.code == "0"){
+                    var url = "//seoulboard.seoul.go.kr/front/bbsSynapPreview?bbsNo="+bbs_no+"&nttNo="+ntt_no+"&orginlFileNm="+result.resultName+"&outputPath="+result.outputPath+"&streFileNm="+result.fileVO.streFileNm+"&filePath="+result.filePath+"&srvcId="+srvc_id+"&fileNo="+file_no;
+                    w.location.href = url;
+            }else{
+                    alert(result.message);
+                    return false;
+            }
+    }
+}
+
+// 페이지 선택
+function gotopage(p) {
+	$('#categorize').val(false); // 페이지 이동의 경우 새로 카테고리 그루핑할 필요 없음
+	$('#page').val(p);
+	$('#pageNum').val((p+1));
+	$('#contents').load($('#historyForm').attr('action'), $('#historyForm').serializeArray());
+	$('#historyForm').submit();
+}
+
+// 결과내재검색
+function reSrch() {
+	var preKwds = $('#originalQuery').val();
+	var paramKwd = $('#preKwd').val();
+	var curKwd = $('#kwd').val();
+	var preKwdList = preKwds.split('^');
+	
+	preKwdList.forEach(function(v, i) { 
+		if(v == paramKwd || v == curKwd) {
+			preKwdList.splice(i, 1);
+		} 
+	});
+	
+	preKwds = preKwdList.join("^");
+	
+	if(preKwds != '') {
+		preKwds = preKwds+'^'+paramKwd;
+	}else {
+		preKwds = paramKwd == curKwd ? "" : paramKwd;
+	}
+	
+	$('#tr_code').val('s_chk');
+	$('#originalQuery').val(preKwds);
+}
+
+//날짜를 입력 하면 오늘 날짜로부터 숫자만큼 전날의 날짜를 yyyy-mm-dd 형식으로 돌려 준다.
+function caldate(day) {
+	var y, m, d;
+	var today = new Date();
+	var caldate = new Date(Date.parse(today) - day*1000*60*60*24);
+	
+	y = caldate.getFullYear();
+	m = caldate.getMonth()+1;
+	m = m < 10 ? '0'+m : m;
+	d = caldate.getDate();
+	d = d < 10 ? '0'+d : d;
+	
+	return y+'-'+m+'-'+d;
+}
+
+//날짜를 입력 하면 오늘 날짜로부터 숫자만큼 전날의 날짜를 yyyymmdd 형식으로 돌려 준다.
+function caldate2(date) {
+	var today = new Date();
+	var y, m, d;
+		
+	if(date == 'w') {
+		today.setDate(today.getDate()-7);
+	}else if(date == 'm') {
+		today.setMonth(today.getMonth()-1);
+	}else if(date == 'y') {
+		today.setFullYear(today.getFullYear()-1);
+	}else {
+		return '';
+	}
+	
+	y = today.getFullYear();
+	m = today.getMonth()+1;
+	m = m < 10 ? '0'+m : m;
+	d = today.getDate();
+	d = d < 10 ? '0'+d : d;
+	
+	return y+''+m+''+d;
+}
+
+// 날짜 포맷 변환 (yyyymmdd -> yyyy.mm.dd)
+function dateFormat(str) {
+	var result = str;
+	if (str != "" ) {
+		if (str.length == "8") {
+			year = str.substr(0,4);
+			month = str.substr(4,2);
+			day = str.substr(6,2);
+			result = year+"."+month+"."+day;
+		}
+	}  
+	return result;
+}
+
+function searchOpengov(_this) {
+	$('#group').val($(_this).children('span').attr('data-tab'));
+	$('#historyForm').submit();
+}
+
+function detailCheck(kwd) {
+	$('#detail').val(false);
+	$('#basickwd').val('');
+	$('#exactkwd').val('');
+	$('#inkwd').val('');
+	$('#notkwd').val('');
+	
+	if(kwd.indexOf(' -') > -1 || kwd.indexOf(' +') > -1 || kwd.indexOf(' "') > -1) {
+		var word = kwd.split("\"");
+		var word2 = '';
+		var basickwd = ''; 
+		var basickwdCnt = 0;
+		var exactkwd = '';
+		var exactkwdCnt = 0;
+		var inkwd = '';
+		var inkwdCnt = 0;
+		var notkwd = '';
+		var notkwdCnt = 0;
+		word.forEach(function(v, i) {
+			if(i%2 == 1) {
+				if(exactkwdCnt > 0) exactkwd += ',';
+				exactkwd +=v;
+				exactkwdCnt++;
+			}else {
+				word2 = v.split(" ");
+										
+				word2.forEach(function(v2, i) {
+					if(v2.length > 0) {
+						if(v2.indexOf('-')==0) {
+							if(notkwdCnt > 0) notkwd += ',';
+							notkwd += v2.replace('-','');
+							notkwdCnt++;
+						}else if(v2.indexOf('+')==0){
+							if(inkwdCnt > 0) inkwd += ',';
+							inkwd += v2.replace('+','');
+							inkwdCnt++;
+						}else {
+							if(basickwdCnt > 0) basickwd += ',';
+							basickwd += v2;
+							basickwdCnt++;
+						}	
+					}
+				});
+			}
+		});
+		
+		$('#detail').val(true);
+		$('#basickwd').val(basickwd.trim());
+		$('#exactkwd').val(exactkwd.trim());
+		$('#inkwd').val(inkwd.trim());
+		$('#notkwd').val(notkwd.trim());
+	}
+}
+
+//정보소통광장 코드에 따른 url 구성요소 변환 , 코드값 : DOC_TYPE_ID 	
+function getUrlAlias(code,nid){
+	var alias = "";
+	var url = "http://opengov.seoul.go.kr/";
+	switch(code){
+		    case "admpub":
+		    case "expense":
+		            alias = "public";
+		            break;
+		    case "polirlnm":
+		            alias = "policy";
+		            break;
+		    case "selwtp":
+		            alias = "paper";
+		            break;
+		case "socintbsn":
+		            alias = "interest";
+		            break;
+		    case "mtg":
+		            alias = "proceeding";
+		            break;
+		    case "mis":
+		            alias = "seoul";
+		            break;
+		    case "analysis":
+		    case "notice":
+		    case "citizen":
+		    case "opinion":
+		    case "reply":
+		    case "citizenrecords":
+		    case "help":
+		    case "issue":
+		    case "spot":
+		    case "spending":
+		    case "anspruch":
+		            alias = type;
+		            break;
+		    case "100001":
+		    case "100016":
+		    case "100017":
+		    case "100018":
+		    case "100019":
+		    case "100020":
+			case "100021":
+		    case "100022":
+		    case "100023":
+		    case "100024":
+		    case "100025":
+		    case "100026":
+		    case "100027":
+		    case "100028":
+		    case "100029":
+		    case "100030":
+		    case "100031":
+		    case "100032":
+		    case "100033":
+		    case "100034":
+		    case "100035":
+		    case "100036":
+		    case "100037":
+		    case "100038":
+		    case "100039":
+		    case "100040":
+		    //투자출연기관
+		    case "100201":
+		    case "100202":
+		    case "100203":
+		    case "100204":
+		    case "100205":
+		    case "100206":
+		    case "100207":
+			case "100208":
+		    case "100209":
+		    case "100210":
+		    case "100211":
+		    case "100212":
+		    case "100213":
+		    case "100214":
+		    case "100215":
+		    case "100216":
+		    case "100217":
+		    case "100218": // 서울에너지공사 gov31 2018.01.15추가
+		    case "100220": // 서울50플러스재단 gov30 2017.12.27추가
+		    case "sanction":
+		            alias = "sanction";
+		            break;
+		    case "100002":
+		    case "rms":
+		            alias = "rms";
+		            break;
+		    case "100003":
+		    case "budget":
+		            alias = "budget";
+		            break;
+		    case "100004":
+		    case "scholarship":
+		            alias = "scholarship";
+		            break;
+		    case "100005":
+			case "technology":
+		            alias = "technology";
+		            break;
+		    case "100006":
+		    case "press":
+		            alias = "press";
+		            break;
+		    //case "100008":
+		    case "100308":
+		    case "100303":
+		    case "100310":
+		    case "100302":
+		    case "100301":
+		    case "100305":
+		    case "100304":
+		    case "100312":
+		    case "100311":
+		    case "100306":
+		    case "100313":
+		    case "100309":
+		    case "100307":
+		    case "researh":
+		            alias = "research";
+		            break;
+		    case "100009":
+		    case "study":
+		            alias = "study";
+		            break;
+			case "100010":
+		    case "statistics":
+		            alias = "statistics";
+		            break;
+		    case "100011":
+		    case "data":
+		            alias = "data";
+		            break;
+		    case "100014":
+		    case "finance":
+		            alias = "finance";
+		            break;
+		    case "100015":
+		    case "history":
+		            alias = "history";
+		            break;
+		    case "100041":
+		    case "civilappeal":
+		            alias = "civilappeal";
+		            break;
+		    case "100042":
+		    case "mediahub":
+		            alias = "mediahub";
+		            break;
+		    // 서울사랑 - 2016.12.20
+		    case "100047":
+		            alias = "seoullove";
+		            break;
+			//  내친구서울 - 2017.08.28 추가
+		    case "100048":
+		            alias = "mfseoul";
+		            break;
+		    // 서울시의회 - 2017.11.28 추가
+		    case "100049":
+		            alias = "council";
+		            break;
+		    // 사진아카이브 - 2016.07.06 추가
+		    case "100046":
+		    case "photoarchives":
+		            alias = 'photoarchives';
+		            break;
+		    case "photoarchives_collection": // 사진아카이브 컬렉션
+		            alias = 'photoarchives/collection';
+		            break;
+		    case "policy_project":
+		            alias = "policy/project";
+		            break;
+		    case "cis_project":
+		            alias = "cis/project";
+		            break;
+		    case "participation_project":
+		            alias = "participation/project";
+		            break;
+		            
+
+	   
+		            
+		    default:
+		            alias = "node";
+			}
+	url = url + alias + "/" + nid+"?tr_code=open";
+	$('.opengov-title').attr('href', url);
+	window.open(url);
+}
+
+function showFilter() {
+	var view = $('.search-option-inner');
+	$('.more-layer').hide();
+	view.show();
+	$('.search-option a').attr('class','active').find('>span').attr('class','down');
+	$('#srch_opt').val('y');
+}
+
+function hideFilter() {
+	var view = $('.search-option-inner');
+	$('.more-layer').hide();
+	view.hide();
+	$('.search-option a').removeClass('active').find('>span').removeClass('down');
+	$('#srch_opt').val('n');
+}
+
+$(function() {
+	// 검색 타깃 초기화 및 사이드바 위젯 초기화
+	$('.gnb')
+		.find('li > span').removeClass('active').end()
+		.find('[data-target=' + $('#category').val() + ']').addClass('active').end();
+	
+	if($('#srch_opt').val() == 'y') {
+		showFilter();
+	}
+	
+	// 필터 초기화
+	if($('#sort').val() != 'r') {
+		var sortObj = $('header .search-option-inner .more-layer[data-param=sort]')
+						.find('a').removeClass('active').end()
+						.find('[data-cd='+$('#sort').val()+']');
+		sortObj.addClass('active').end();
+		$('header .search-option-inner .more-layer[data-param=sort]').prev('a').text(sortObj.text()).append($('<span>').addClass('ico-set up'));
+	//	showFilter();  /*201809*/
+	}else {
+		$('header .search-option-inner .more-layer[data-param=sort]')
+			.find('a').removeClass('active').end()
+			.find('[data-cd=r]').addClass('active').end();
+	}
+	
+	if($('#date').val() != '') {
+		var dateObj = $('header .search-option-inner .more-layer[data-param=date]')
+						.find('a').removeClass('active').end()
+						.find('[data-cd='+$('#date').val()+']');
+		dateObj.addClass('active').end();
+		if($('#date').val() == 'input') {
+			$('#sdate').val($('#startDate').val());
+			$('#edate').val($('#endDate').val());
+			$('header .search-option-inner .more-layer[data-param=date]').prev('a').text(dateFormat($('#startDate').val())+'~'+dateFormat($('#endDate').val())).append($('<span>').addClass('ico-set up'));
+			//날짜 타입 입력 시 길이 조절
+			$('header .search-option-inner > ul >li:nth-child(2)').attr("style","width:185px");
+			$('header .search-option-inner > ul').attr("style","width:630px");
+			
+		}else {
+			$('header .search-option-inner .more-layer[data-param=date]').prev('a').text(dateObj.text()).append($('<span>').addClass('ico-set up'));
+			$('header .search-option-inner').find('li:nth-child(2)').attr("style","");
+			$('header .search-option-inner > ul').attr("style","");
+		}
+		showFilter();
+	}else {
+		$('header .search-option-inner .more-layer[data-param=date]')
+			.find('a').removeClass('active').end()
+			.find('[data-cd=""]').addClass('active').end();
+	}
+	
+	if($('#fields').val() != '') {
+		var fieldsObj = $('header .search-option-inner .more-layer[data-param=fields]')
+						.find('a').removeClass('active').end()
+						.find('[data-cd='+$('#fields').val()+']');
+		fieldsObj.addClass('active').end();
+		$('header .search-option-inner .more-layer[data-param=fields]').prev('a').text(fieldsObj.text()).append($('<span>').addClass('ico-set up'));
+		showFilter();
+	}else {
+		$('header .search-option-inner .more-layer[data-param=fields]')
+			.find('a').removeClass('active').end()
+			.find('[data-cd=""]').addClass('active').end();
+	}
+	
+	// detail search 초기화
+	if($('#detail').val() == 'true') {
+		$('#detailkwd').val($('#kwd').val().trim());
+		
+		var basickwd = $('#basickwd').val().trim();
+		var exactkwd = $('#exactkwd').val().trim();
+		var inkwd = $('#inkwd').val().trim();
+		var notkwd = $('#notkwd').val().trim();
+		
+		$('#s1').val(basickwd);
+		$('#s2').val(exactkwd);
+		$('#s3').val(inkwd);
+		$('#s4').val(notkwd);
+		$('#detailkwd').css('overflow-y','scroll');
+		
+		$('#column-left .detail').css('display','block');
+		var detailTxt = "";
+		
+		if(basickwd.length > 0) {
+			detailTxt += "<span>'"+basickwd+"'</span>에 대한 검색결과 중 ";
+		}
+		if(exactkwd.length > 0) {
+			detailTxt += "<span>'"+exactkwd+"'</span>이(가) 순서대로 존재";
+			detailTxt += (inkwd.length > 0 || notkwd.length > 0) ? "하고 " : "한 ";
+		}
+		if(inkwd.length > 0) {
+			detailTxt += "<span>'"+inkwd+"'</span>을(를) 포함";
+			detailTxt += notkwd.length > 0 ? "하고 " : "한 ";
+		}
+		if(notkwd.length > 0) {
+			detailTxt += "<span>'"+notkwd+"'</span>을(를) 제외한 ";
+		}
+		detailTxt += "상세검색 결과입니다.";
+		
+		$('#column-left .detail').append(detailTxt);
+		showFilter();
+	}else {
+		$('#detailkwd').val($('#kwd').val());
+		$('#s1').val($('#kwd').val());
+	}
+	
+	// 그룹박스 초기화
+	$('#groupbox').find('input[name=group]').each(function() {
+		$(this).prop('checked', ($.inArray($(this).next().children('span.groupnm').text(), initValues) != -1));
+	});
+	
+	// Grouping Site 초기화
+	if($('#group').val()) {
+		var initValues = $('#group').val().split(','); 
+		$('#groupbox').find('input[name=group]').each(function() {
+			$(this).prop('checked', ($.inArray($(this).next().children('span.groupnm').text(), initValues) != -1));
+		});
+	}
+	
+	// 정렬 초기화 
+	$('section#column-left .result-sort, #container .result-sort')
+		.find('a[data-sort='+$('#sort').val()+']').addClass('active').end()
+		.find('form').deserialize($('#historyForm').serializeArray());
+	
+	// 상세검색 입력 이벤트
+	$('#s1, #s2, #s3, #s4').keyup(function(e) {
+		if(e.which != 188 && e.which != 32) {
+			var id = $(this).attr('id');
+			var basictxt = $('#s1').val(); 
+			var exactTxt = $('#s2').val();
+			var inTxt = $('#s3').val();
+			var notTxt = $('#s4').val();
+			var thisTxt = $(this).val().replace(/,\s*,+/g,',');
+			
+			switch(id) {
+				case 's2' : exactTxt = $.trim(thisTxt); break;
+				case 's3' : inTxt = thisTxt; break;
+				case 's4' : notTxt = thisTxt; break;
+				default : basictxt = thisTxt;
+			}
+			
+			exactTxt = exactTxt.length>0?"\""+exactTxt.replace(/,\s*/g,'\" \"')+"\"":"";
+			inTxt = inTxt.length>0?"+"+inTxt.replace(/,\s*/g,' +'):"";
+			notTxt = notTxt.length>0?"-"+notTxt.replace(/,\s*/g,' -'):"";
+			
+			$('#detailkwd').val((basictxt+" "+exactTxt+" "+inTxt+" "+notTxt).trim());
+			$('#detailkwd').css('overflow-y','scroll');
+		}
+	});		
+	
+	// 카테고리 위치변경(더보기 하위 <-> 더보기 이전)
+	if($('#category').val() == 'minwon' || $('#category').val() == 'yeyak' || $('#category').val() == 'sll' || $('#category').val() == 'lib' || $('#category').val() == 'bus') {
+		var srcObj = $('.gnb').find('li a[data-target=more]').parents('.more-btn').prev('li').children('a');
+		var tgtObj = $('.gnb').find('div li a[data-target='+$('#category').val()+']');
+		var txt = srcObj.text();
+		var att = srcObj.attr('data-target');
+		var trcode = srcObj.attr('data-trcode');
+		
+		srcObj.text(tgtObj.text());
+		srcObj.attr('data-target', tgtObj.attr('data-target'));
+		srcObj.attr('data-trcode', tgtObj.attr('data-trcode'));
+		srcObj.addClass('active').end();
+		srcObj.append($('<span>').addClass('gnb-bar'));
+		
+		tgtObj.text(txt);
+		tgtObj.attr('data-target', att);
+		tgtObj.attr('data-trcode', trcode);
+		tgtObj.removeClass('active').end();
+	}
+	
+	//click content log writing  
+	$('.lst-type-wrap .title').on('click', function() {
+		var id = "";
+		var ctgrnm = $(this).parents('.lst-type-wrap').children('h3').text();
+		var linkurl = ""; 
+		var tit = "";
+		
+		if(ctgrnm != '이미지') {
+			id = $(this).parents('li').children('input[name=id]').val();
+			linkurl = $(this).attr('href');
+			tit = $(this).text().trim()==''?$(this).next().children('dt').children('a').text():$(this).text().trim();
+			
+			if(tit.indexOf('|') > -1) tit = tit.split('|')[1].trim(); 
+			
+			$('#id').val(id);
+			$('#ctgrnm').val(ctgrnm);
+			$('#url').val(linkurl);
+			$('#tit').val(tit);
+			
+			var url = "click.do";
+			var params = $('#historyForm').serialize();
+			$.post(url, params);
+		}
+	});
+	
+	// 결과 내 재검색 플래그 설정
+	if ($('#resrch').val() == 'true') {
+		$('header #search_re').prop('checked', true);
+	}
+
+	/* Event Handlers */
+
+	/* 검색 폼 제출 시 */
+	$('#historyForm').submit(function(e) {
+		var resrchYn = $('header #search_re').is(':checked');
+		if(resrchYn == true) reSrch();
+		else $('#originalQuery').val('');
+		
+		$('#id').val('');
+		$('#url').val('');
+		$('#tit').val('');
+		$('#categorize').val($('#category').val() != 'total');
+		$('#resrch').val(resrchYn);
+		$('#recent').recent('add', $('#kwd').val()); // 최근 검색어 추가
+	});
+
+	
+	/* 상단 키워드 입력 폼을 통한 검색 시 */
+	$('header form, footer form').submit(function(e) {
+		e.preventDefault();
+		e.stopPropagation();
+		var kwd = $(this).find('input[name=kwd]').val();
+		var ctgr = $('#category').val();
+		var trcode = "search01";
+		
+		if($(this).parents('header').length < 1) trcode = "search02"; 
+		
+		if ($.trim(kwd)) {
+			detailCheck(kwd);
+			$('#pageNum').val('1');
+			$('#group').val('');
+			$('#kwd').val(kwd);
+			$('#sort').val('');
+			$('#date').val('');
+			$('#fields').val('');
+			$('#category').val(ctgr=='site'?'total':ctgr);
+			$('#tr_code').val(trcode);
+			$('#imgno').val('');
+			$('#historyForm').submit();
+		} else {
+			$('#kwd').val("");
+			$('#imgno').val('');
+			$('#pageNum').val('1');
+			$('#historyForm').submit();
+		}
+	});
+	
+	/* 사이트검색 입력 폼을 통한 검색 시 */
+	$('section#column-left #sitesrch').submit(function(e) {
+		e.preventDefault();
+		e.stopPropagation();
+		var kwd = $(this).find('input[name=kwd]').val();
+		var target = "web";
+		
+		var url = $(this).parents('li').children('dt').children('a').attr('href').replace('?tr_code=rsite','').replace('http://','');
+		if(url.charAt(url.length-1) == '/') url = url.substring(0, url.length-1);
+		if(url == "lib.seoul.go.kr") {
+			target = "lib";
+		}else if(url == "sll.seoul.go.kr") {
+			target = "sll";
+		}else if (url == "opengov.seoul.go.kr") {
+			target = "opengov";
+		}else if (url == "yeyak.seoul.go.kr") {
+			target = "yeyak";
+		}else if (url == "www.seoul.go.kr" || url == "mayor.seoul.go.kr" || url == "mediahub.seoul.go.kr" || url == "love.seoul.go.kr" || url == "ebook.seoul.go.kr" || url == "120dasan.seoul.go.kr") {
+			target = "news";
+		}else if (url == "oasis.seoul.go.kr" || url == "eungdapso.seoul.go.kr") {
+			target = "minwon";
+		}
+		
+		kwd += " site:"+url;
+		
+		$('#kwd').val(kwd);
+		$('#category').val(target);
+		$('#pageNum').val(1);
+		$('#detail').val(false);
+		$('#historyForm').submit();
+	});
+	
+	
+	/* Grouping Handler */
+	$('#groupbox').on('change', 'input[name=group]', function () {
+		var obj = $(this).parents('#groupbox');
+		
+		// 개별사이트 선택시, 전체선택 체크해제
+		if($(this).val()) {
+			obj.find(':checkbox[value=""]').prop('checked', false);
+		}else {
+			// 전체선택시 toggle 
+			if($(this).prop('checked')) obj.find(':checkbox').not(this).prop('checked', true);
+			else obj.find(':checkbox').not(this).prop('checked', false);
+		}
+	}).on('click', 'button', function() {
+		
+		var obj = $(this).parents('#groupbox');
+
+		var checkedList = obj.find('input[name=group]:checked').map(function() { 
+			return $(this).next().children('span.groupnm').text();
+		}).get().join(',');
+	
+		if(checkedList.length <1){
+			return;
+		}
+		$('#group').val(checkedList);
+		$('#pageNum').val(1);
+		$('#historyForm').submit();
+	});
+	
+	
+	
+	/* 오타교정 클릭 시 */
+	$('.spc').on('click', 'a', function() {
+		$('#autospc').val($(this).attr('data-auto'));
+		$('#kwd').val($(this).text());
+		$('#pageNum').val(1);
+		$('#detail').val(false);
+		$('#historyForm').submit();
+	});
+
+	/* 검색어 추천, 인기검색어, 최근검색어, 오타교정어, 내가찾은검색어 클릭 시 */
+	$('.kre, #rankings, #recent, #suggestions, .issue').on('click', 'a', function() {
+		$('#kwd').val($(this).text());
+		$('#pageNum').val(1);
+		$('#detail').val(false);
+		$('#tr_code').val($(this).parents('[data-trcode]').attr('data-trcode'));
+		$('#imgno').val('');
+		$('#sort').val('');
+		$('#date').val('');
+		$('#fields').val('');
+		$('#group').val('');
+		$('#historyForm').submit();
+	});
+	
+	/* 카테고리 탭 클릭시 */
+	$('.gnb').on('click', 'li.ctgr a', function() {
+		var target = $(this).attr('data-target');
+		var trcode = $(this).attr('data-trcode');
+		var kwd = $('#kwd').val();
+		if(kwd.indexOf('::') > 0) kwd = kwd.substring(0,kwd.indexOf('::'));
+		$('#kwd').val(kwd);
+		$('#category').val(target);
+		$('#pageNum').val('1');
+		$('#group').val('');
+		$('#sort').val('d');
+		$('#imgno').val('');
+		$('#tr_code').val(trcode);
+		$('#historyForm').submit();
+	});
+	
+	/* 필터(검색옵션) */
+	$('header .search-option-inner').on('click', '.more-menu li', function() {
+		if($(this).children('div').length < 1) {
+			var param = $(this).parent().parent().attr('data-param');
+			$('#'+param).val($(this).children('a').attr('data-cd'));
+			$('#tr_code').val($(this).children('a').attr('data-trcode'));
+			$('#startDate').val('');
+			$('#endDate').val('');
+			$('#imgno').val('');
+			$('#historyForm').submit();
+		}
+	}).on('click', '.more-layer[data-param=date] button', function() {
+		$('#date').val($(this).parent().attr('data-cd'));
+		$('#tr_code').val($(this).parent().attr('data-trcode'));
+		$('#startDate').val($('#sdate').val());
+		$('#endDate').val($('#edate').val());
+		$('#imgno').val('');
+		$('#historyForm').submit();
+	}).on('click', '.more-layer[data-param=detail] button, .detail .init', function() { 
+		var cls = $(this).attr('class');
+		var kwd = $(this).parent().parent().children().children('#detailkwd').val().trim();
+		var basickwdObj = $(this).parent().siblings('dl').find('#s1');
+		var exactkwdObj = $(this).parent().siblings('dl').find('#s2');
+		var inkwdObj = $(this).parent().siblings('dl').find('#s3');
+		var notkwdObj = $(this).parent().siblings('dl').find('#s4');
+		
+		if(cls.indexOf('srch') > -1) {
+			$('#kwd').val(kwd);
+			if(exactkwdObj.val().trim() == '' && inkwdObj.val().trim() == '' && notkwdObj.val().trim() == '') {
+				$('#detail').val(false);
+			}else {
+				$('#detail').val(true);
+				$('#basickwd').val(basickwdObj.val().trim());
+				$('#exactkwd').val(exactkwdObj.val().trim());
+				$('#inkwd').val(inkwdObj.val().trim());
+				$('#notkwd').val(notkwdObj.val().trim());
+			}
+			
+			$('#pageNum').val('1');
+			$('#group').val('');
+			$('header #search_re').prop('checked', false);
+			$('#sort').val('');
+			$('#date').val('');
+			$('#fields').val('');
+			$('#tr_code').val($(this).parent().parent().parent().attr('data-trcode'));
+			$('#imgno').val('');
+			$('#historyForm').submit();
+		}else if (cls.indexOf('exit') > -1) {
+			obj = $('.more-layer[data-param=detail]'); 
+			obj.hide().end();
+			obj.prev().children('span').removeClass('down').addClass('up');
+		}else if (cls == 'init') {
+			$('#detailkwd').text('');
+			basickwdObj.val('');
+			exactkwdObj.val('');
+			inkwdObj.val('');
+			notkwdObj.val('');
+		}
+	});
+	
+	/* sns 링크 연동*/
+	$('header .sns-menu li').on('click', function() {
+		var kwd = encodeURI($('#kwd').val());
+		var clickObjCls = $(this).children('a').children('span').first().attr('class');
+		if(clickObjCls.indexOf('tw') > -1) {
+			var url = 'https://twitter.com/intent/tweet?text='+kwd+encodeURI(' - 서울특별시 통합검색 ')+'&url='+encodeURIComponent('http://newsearch.seoul.go.kr/ksearch/search.do?kwd='+kwd);
+			window.open(url, '', 'width=640, height=440');
+		}else if(clickObjCls.indexOf('fb') > -1) {
+			var url = 'https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent('http://newsearch.seoul.go.kr/ksearch/search.do?kwd='+kwd);
+			window.open(url, '', 'width=540, height=520');
+		}else if(clickObjCls.indexOf('talk') > -1) {
+			var url = 'https://story.kakao.com/share?url='+encodeURIComponent('http://newsearch.seoul.go.kr/ksearch/search.do?kwd='+kwd);
+			window.open(url, '', 'width=530, height=480');
+		}	
+	});
+	
+	$('header .sns-btn').on('click', function() {
+		var urlcopyObj = $(this).children('.more-layer').children('.sns-url');
+		var curUrl = location.protocol+"//"+location.host+location.pathname+location.search; 
+		urlcopyObj.children('div').children('input').val(curUrl);
+	}).on('click', '.sns-url', function(e) {
+		var curUrl = $(this).children('div').children('input').val();
+		
+		var success = false;
+		if(window.clipboardData) {
+			window.clipboardData.setData("Text", curUrl);
+			success = true;
+		}else {
+			$('#myClipboard').parent().css('display','block');
+			var textarea = document.getElementById("myClipboard");
+			textarea.value=curUrl;
+			try {
+				textarea.select();
+				success = document.execCommand('copy');
+			} catch (err) {
+				success = false;
+				console.log(err);
+			}
+			$('#myClipboard').parent().css('display','none');
+		}
+		
+		$('.sns-btn > div.more-layer').css('display','none');
+		$('.sns-btn > div.urlcp-alrt').css('display','block');
+		
+		if(!success) {
+			$('.sns-btn > div.urlcp-alrt p').text('복사하지 못했습니다. 담당자에게 문의해 주세요.');
+		}
+	});
+	
+	/* 정렬 클릭시 */
+	$('section#column-left .result-sort, #container .result-sort').on('click', 'a', function() {		
+		$('#sort').val($(this).attr('data-sort'));
+		$('#srch_opt').val('n');
+		$('#pageNum').val('1');
+		$('#historyForm').submit();
+	});
+	
+	/* 검색 결과 영역 이벤트 */
+	$('.lst-type-wrap').on('click', '.more > a', function() {
+		// 결과 더보기 - 통합검색
+		var target = $(this).attr('data-target');
+		var trcode = $(this).attr('data-trcode');
+		
+		if(target == 'map') {
+			//var kwd = encodeURIComponent(','+$('#kwd').val()+',');
+			//$(this).attr('href','http://map.seoul.go.kr/smgis/webs/main/main.do?mode=seoulmap&thm_theme_id=&cate_id=&map_type=1&list_type=4&theme_type=0&xpoint=126.992218&ypoint=37.5556336&level=12&radius=2000&oldmap=&tp=0.7&maptile=BASEMAP_NAVER&order=0&utid=&search_type=conts&search_data='+kwd+'&copy_mode=url&tr_code=map_more');
+			
+			var kwd = encodeURIComponent($('#kwd').val());
+			
+
+
+			$(this).attr('href','https://map.seoul.go.kr/smgis/webs/main/main.do?mode=seoulMapSearch&menuType=totalSearch&themeIds=&maptile=BASEMAP_GEN&x=126.97460784495189&y=37.56021287611466&zoom=6&utid=&oldMap_opcy=&oldmap=&search_data='+kwd+'&copy_mode=url');
+						
+			
+			$(this).attr('target','_blank');
+		}else {
+			$('#category').val(target);
+			$('#pageNum').val(1);
+			$('#imgno').val('');
+			$('#tr_code').val(trcode);
+			$('#historyForm').submit();
+		}
+	}).on('click', '.image li', function() {
+		$('#imgno').val($(this).index());
+		$('#category').val('image');
+		$('#tr_code').val('img');
+		$('#historyForm').submit();
+	});
+
+	$('body').on('click', function(event) {
+		if($(event.target).parents('.more-btn').length === 0) {
+			if($('.more-btn .more-layer').is(':visible')) {
+				$('.more-btn .more-layer').toggle();
+			}
+		}
+		
+		if($(event.target).parents('.seoul-common-gnb').length === 0) {
+			if($('.seoul-gnb-menu-section').is(':visible')) {
+				$('.seoul-gnb-menu-section').toggle();
+			}
+		}
+		
+		if (
+			  ($(event.target).attr('class') == "ui-icon ui-icon-circle-triangle-e")
+			  || ($(event.target).attr('class') == "ui-icon ui-icon-circle-triangle-w") || ($(event.target).attr('class') == "ui-datepicker-title")
+			  || ($(event.target).attr('class') == "ui-datepicker-month") || ($(event.target).attr('class') == "ui-datepicker-year") 
+			  || ($(event.target).attr('class') == "ui-datepicker-prev ui-corner-all ui-state-hover ui-datepicker-prev-hover")
+			  || ($(event.target).attr('class') == "ui-datepicker-next ui-corner-all ui-state-hover ui-datepicker-next-hover")
+			  || ($(event.target).attr('class') == " ui-datepicker-week-end ui-datepicker-other-month ui-datepicker-unselectable ui-state-disabled")
+			  || ($(event.target).attr('class') == " ui-datepicker-other-month ui-datepicker-unselectable ui-state-disabled")
+			  || ($(event.target).attr('class') == "ui-datepicker-title")
+			  || ($(event.target).attr('class') == "ui-datepicker-header ui-widget-header ui-helper-clearfix ui-corner-all")
+			  || ($(event.target).attr('scope') == "col") || ($(event.target).attr('title') == "Sunday") || ($(event.target).attr('title') == "Monday")
+			  || ($(event.target).attr('title') == "Tuesday") || ($(event.target).attr('title') == "Wednesday") || ($(event.target).attr('title') == "Thursday")
+			  || ($(event.target).attr('title') == "Friday") || ($(event.target).attr('title') == "Saturday")
+			  || ($(event.target).attr('class') == "btnsmt chk") 
+			  ) {
+			  return;
+		  }
+		
+		if($(event.target).parents('.search-option-menu').length === 0) {
+			if($('.search-option-menu .more-layer').is(':visible')) {
+				$('.search-option-menu .more-layer').css('display','none');
+				$('.search-option-menu a span').attr('class', 'ico-set up');
+			}
+		}
+		
+		if($(event.target).parents('.sns-btn').length === 0) {
+			if($('.sns-btn .more-layer').is(':visible')) {
+				$('.sns-btn .more-layer').toggle();
+			}
+			
+			if($('.sns-btn .urlcp-alrt').is(':visible')) {
+				$('.sns-btn .urlcp-alrt').toggle();
+			}
+		}
+		
+		if($(event.target).parents('.auto-search').length === 0) {
+			if($('.auto-search').is(':visible')) {
+				$('.auto-search').toggle();
+			}
+		}
+	});
+	
+	/* 통합게시판 첨부파일 미리보기, 다운로드 링크 */
+	$('.news-total-file, .web-total-file').on('click', '.view', function() {
+		var obj = $(this).parent().parent();
+		var srvc_id = obj.siblings('[name=srvc_id]').val();
+		var upper_no = obj.siblings('[name=upper_no]').val();
+		var file_ty = obj.siblings('[name=file_ty]').val();
+		var file_no = obj.siblings('[name=file_no]').val();
+		var bbs_no = obj.siblings('[name=bbs_no]').val();
+		var ntt_no = obj.siblings('[name=ntt_no]').val();
+		file_preview(srvc_id, upper_no, file_ty, file_no, bbs_no, ntt_no);
+		
+	}).on('click', '.down', function() {
+		location.href = $(this).parent().parent().siblings('[name=downlink]').val();
+	});
+	
+	
+	/* 정보소통광장 검색API 호출 */
+	if($('#category').val() == 'total' || $('#category').val() == 'opengov') {
+		var kwd = $('#kwd').val();
+		var domain = "";
+		var sitesrchYn = false;
+		if(kwd.indexOf("site:") > 0) {
+			domain = kwd.substring(kwd.indexOf("site:")+5, kwd.length).trim();
+			domain = domain.split(" ")[0];
+			kwd = kwd.replace("site:", "").replace(domain, "").trim();
+			sitesrchYn = true;
+		}
+		if(!sitesrchYn || (sitesrchYn && domain == 'opengov.seoul.go.kr')) {
+			var params = {'kwd':$('#kwd').val(), 'category':$('#category').val(), 'date':$('#date').val(), 'startDate':$('#startDate').val(), 'endDate':$('#endDate').val(), 'originalQuery':$('#originalQuery').val()
+						, 'pageNum':$('#pageNum').val(), 'resrch':$('#resrch').val(), 'group':$('#group').val(), 'detail':$('#detail').val()};
+			if($('#kwd').val() != '') $('.no-result').hide();
+			$('.result-opengov').html('<img src =\'images/ajax-loader.gif\' alt=\'로딩중\' align=\'center\' />');
+			
+			$.post('newopengov.do', params).done(function(data) {
+				$('.result-opengov').html(data);
+				var opengovTotal = $('#opengovTotal').val();
+				var totalcnt = Number(/\d{1,}/.exec($('.page-header small').text())) + Number(opengovTotal);
+				$('.page-header small').text('총 '+String(totalcnt).replace(/\B(?=(\d{3})+(?!\d))/g, ',')+'건');
+				if(totalcnt == 0) {
+					$('.no-result').show();
+				}
+				
+				// Grouping Site 초기화
+				if($('#group').val()) {
+					$('#groupbox').find('span[data-tab='+$('#group').val()+']').addClass('active').end();					
+				}else {
+					$('#groupbox').find('span[data-tab=\'\']').addClass('active').end();
+				}
+				
+				var group = $('#group').val();
+				var groupText = '전체';
+				if(group == 'sanctioninfo') {
+					groupText = '결재문서';
+				}else if(group == 'maininfo') {
+					groupText = '속속정보';
+				}else if(group == 'citizeninfo') {
+					groupText = '시민참여정보';
+				}
+				
+				$('#opengov-txt').text(groupText);
+				
+				$('#pagination').pagination(opengovTotal, {
+			        current_page: $('#pageNum').val()-1,
+			        callback: gotopage
+			    });
+				
+				//파일목록보기
+				$('.opengov-flo').on('click',function(){
+					var view = $(this).parent().next();
+					if(view.is(':visible')){
+						view.hide();
+						$(this).find('>span').attr('class','ico-set up');
+					} else {
+						$('.file-lst').hide();
+						view.show();
+						$('.opengov-flo').find('>span').attr('class','ico-set up');
+						$(this).find('>span').attr('class','ico-set down');
+					}
+				});
+				
+				/* 검색 결과 영역 이벤트 */
+				$('.lst-type-wrap').on('click', '.more > a[data-target=opengov]', function() {
+					// 결과 더보기 - 통합검색
+					var target = $(this).attr('data-target');
+					var trcode = $(this).attr('data-trcode');
+					$('#category').val(target);
+					$('#tr_code').val(trcode);
+					$('#pageNum').val(1);
+					$('#historyForm').submit();
+				});
+			});
+		}
+	}
+	
+	$('.map-tit').on('click', function() {
+		var x = $(this).parents('li').children('#x').val();
+		var y = $(this).parents('li').children('#y').val();
+		var iconurl = $(this).parents('li').children('#iconurl').val();
+		setPointAndTooltip(x,y,$(this).text().replace(/]/,"]<br/>"),iconurl);
+	});
+	
+	/**
+	 *  설문조사 -------------------------------------------------------------------
+	 */
+	// 설문조사 버튼 표시
+	if($('#kwd').val().trim() =="" || $('#surveyYn').val() !="Y") {
+		$('#search_survey').addClass('dn');
+	}else {
+		$('#search_survey').removeClass('dn');
+		 $('.sr_survey > a').css('display','block');
+		 $('.sr_survey > span').css('display','none');	
+	};
+	
+	//설문조사 만족도 클릭
+	$('.sr_survey > a').on('click', function() {
+		$('#survey_layer').removeClass('dn');		
+	});
+	var maxlength = 200;
+	$('#opinion').keyup(function(){		
+		var valuelen = $(this).val().length;
+		console.log(valuelen);
+		if(valuelen > maxlength){
+			alert(maxlength+"자까지 입력가능합니다.");
+			return;
+		}
+	});
+	$('.survey_submit').on('click', function(e) {
+		if($("input:radio[name='stsfdg']").is(":checked")==false){
+			alert("선택된 의견이 없습니다.");
+			return;			
+		}
+		var imprvm_temp = "";
+		$("input:checkbox[name='imprvm_temp']:checked").each(function(){
+			if(imprvm_temp !="") imprvm_temp += ", ";
+			var text = $(this).next('label').text();
+			//console.log(text);
+			imprvm_temp += text;			
+		});
+			
+		//console.log(imprvm_temp);
+		$('#imprvm').val(imprvm_temp);
+		// 저장		
+		var requestUrl  = "saveSurvey.do";
+		var paramData =$("#survey_form").serialize();
+		
+		//ajax 저장
+		//console.log(paramData);
+
+	    $.ajax({
+			cache: false,
+			async:false,
+			method: 'POST',
+			url:  requestUrl,
+			data: paramData,
+			success: function(data){
+			}, 
+			error: function (xhr, opt, err) {
+			}
+		});
+		
+
+	    // 설문조사 참여확인
+		$('#survey_layer').addClass('dn');
+	    $('.sr_survey > a').css('display','none');
+	    $('.sr_survey > span').css('display','block');
+		
+		
+	});
+	$('.survey_cancel').on('click', function() {
+		$('#survey_layer').addClass('dn');	
+		$('#survey_form')[0].reset();
+	});
+	// 설문조사
+});
+</script>
+
+</body>
+</html>

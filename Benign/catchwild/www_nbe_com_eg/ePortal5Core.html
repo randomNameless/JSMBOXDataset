@@ -1,0 +1,2079 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ePortal5Core.html</title>
+</head>
+<body>
+
+<script>
+var ePortal5Errors = {
+    InsufficientInParams: -1
+}
+
+var PortalMainModule = {}
+PortalMainModule.EnableDetailedLog = true;
+
+var Prefixes = {
+    inFlowPrefix: "InFlowSubPageID=",
+    inParamsPrefix: "inParams="
+};
+PortalMainModule.SubPagesHistoryStack = [];
+PortalMainModule.WindowLocationHref = "";
+
+var EventAppSpinnerBehaviors = {
+    ShowAppSpinner: 'ShowAppSpinner',
+    DoNotShowAppSpinner: 'DoNotShowAppSpinner',
+    ShowAppSpinnerAndHideAfterHTMLAndJSLoaded: 'ShowAppSpinnerAndHideAfterHTMLAndJSLoaded',
+    ShowAppSpinnerAndHideAfterAllWidgetsLoaded: 'ShowAppSpinnerAndHideAfterAllWidgetsLoaded'
+}
+
+var EventsTypes = {
+    LoadSubPage: 'LoadSubPage',
+    LoadAndRunActionWidgetInstance: 'LoadAndRunActionWidgetInstance'
+
+}
+function ExecutePortalEvent(EventID) {
+    if (!config.Events[EventID]) {
+        logErr("* Event: ", EventID, "Is not Configured!");
+        return;
+    }
+    var EventConfig = config.Events[EventID];
+    //var EventAppSpinnerBehavior = EventConfig.Param2;
+    if (EventConfig.EventTypeID == EventsTypes.LoadSubPage) {
+        var EventAppSpinnerBehavior = config.SubPages[EventConfig.Param1].AppSpinnerBehavior;
+        var _LoadSubPageParams = {
+            SubPageID: EventConfig.Param1,
+            EventID: EventID,
+            ResetWidgetInstancesHTMLInputs: config.SubPages[CurrentSubPageID].ResetHTMLInputsOnLeavingSubPage,
+            //LoadSubPageType: LoadSubPageTypes[EventConfig.Param3],
+            LoadSubPageType: config.SubPages[EventConfig.Param1].SubPageLoadType,
+            SourceSubPageOutParams: LoadedSubPages[CurrentSubPageID].SubPageOutParams,
+            SubPageInParams: {},
+            SubPageOutParams: {}
+        }
+
+        //var currentSubpageID = window.location.href.substring(window.location.href.lastIndexOf("/") + 1);
+        //if (config.SubPages[EventConfig.Param1].IncludeSubPageInHistory == true) {
+        //    PortalMainModule.SubPagesHistoryStack.push(EventConfig.Param1);
+        //}
+
+
+        LoadSubPage(_LoadSubPageParams);
+    } else if (EventConfig.EventTypeID == EventsTypes.LoadAndRunActionWidgetInstance) {
+
+        var OnCMCallFinished = function (Data) {
+            //log("%c Call CM Finished For: ", "Color: green; font-size: 16px;", EventConfig.Param1, Data);
+            if (EventAppSpinnerBehavior != EventAppSpinnerBehaviors.DoNotShowAppSpinner)
+                HideSpinner("CMCallFinished For " + EventConfig.Param1);
+        }
+
+        var WidgetInstanceID = EventConfig.Param1;
+        var WidgetInstanceDetails = config.ActionWidgetsInstances[WidgetInstanceID];
+        var EventAppSpinnerBehavior = config.ActionWidgetsInstances[WidgetInstanceID].AppSpinnerBehavior;
+
+        var LoadAndRunWidgetInstanceOptions = {
+            WidgetInstanceID: EventConfig.Param1,
+            EventID: EventID,
+            WidgetConfig: config.Widgets[WidgetInstanceDetails.WidgetID],
+            WidgetLocale: config.Locale[WidgetInstanceDetails.WidgetID] ? config.Locale[WidgetInstanceDetails.WidgetID][config.AppLangID] : undefined,
+            WidgetInstanceConfig: WidgetInstanceDetails,
+            SourceSubPageOutParams: LoadedSubPages[CurrentSubPageID].SubPageOutParams,
+            ReLoadHTML: false,
+            ReLoadJS: false,
+            ReCallCM: false,
+            ReRunForm: false,
+            CallBackContext: {},
+            OnLoadSuccessFunction: function () { /*WidgetsInstancesClasses[WidgetInstanceID].HandleGetScreenDataFinished();*/ },
+            OnLoadFailureFunction: function () { },
+            OnCMCallFinished: OnCMCallFinished
+        }
+
+        if (EventAppSpinnerBehavior != EventAppSpinnerBehaviors.DoNotShowAppSpinner)
+            ShowSpinner();
+        LoadAndRunWidgetInstance(LoadAndRunWidgetInstanceOptions);
+    } else {
+        logErr("* Event: ", EventID, ", Type: ", EventConfig.EventTypeID, "Is not Supported!");
+    }
+}
+
+function GetSubPageWidgetInstancesHTMLInputValues(SubPageID) {
+    for (var i = 0; i < config.SubPages[SubPageID].ZoneInstances.length; i++) {
+        for (var j = 0; j < config.SubPages[SubPageID].ZoneInstances[i].WidgetInstances.length; j++) {
+            WidgetsInstancesClasses[config.SubPages[SubPageID].ZoneInstances[i].WidgetInstances[j].WidgetInstanceID].GetHTMLInputsValues();
+        }
+    }
+}
+
+function RestSubPageWidgetInstancesHTMLInputValues(SubPageID) {
+    for (var i = 0; i < config.SubPages[SubPageID].ZoneInstances.length; i++) {
+        for (var j = 0; j < config.SubPages[SubPageID].ZoneInstances[i].WidgetInstances.length; j++) {
+            WidgetsInstancesClasses[config.SubPages[SubPageID].ZoneInstances[i].WidgetInstances[j].WidgetInstanceID].RestHTMLInputsValues();
+        }
+    }
+}
+
+var LoadSubPageTypes = {};
+LoadSubPageTypes.DirectlyShow = 'DirectlyShow';
+LoadSubPageTypes.ShowAfterHTMLJSLoaded = 'ShowAfterHTMLJSLoaded';
+LoadSubPageTypes.ShowAfterAllWidgetsLoaded = 'ShowAfterAllWidgetsLoaded';
+
+var LoadSubPageParams = {
+    SubPageID: '',
+    LoadSubPageType: LoadSubPageTypes.DirectlyShow,
+    SubPageInParams: {},
+    SubPageOutParams: {},
+    SourceSubPageOutParams: undefined,
+    SubPageURLInParams: undefined
+};
+
+var LoadedSubPages = {};
+var CurrentSubPageID = '';
+function LoadSubPage(LoadSubPageParams) {
+    if (BusinessVirtualFunctions && BusinessVirtualFunctions.CanOpenSubPage && BusinessVirtualFunctions.CanOpenSubPage(LoadSubPageParams? LoadSubPageParams.SubPageID: undefined) == false) {
+        return;
+    }
+    //try { GetSubPageWidgetInstancesHTMLInputValues(CurrentSubPageID); } catch (e) { }
+    try {
+		if (config.SubPages[CurrentSubPageID].ResetHTMLInputsOnLeavingSubPage)
+            RestSubPageWidgetInstancesHTMLInputValues(CurrentSubPageID);
+        else 
+            GetSubPageWidgetInstancesHTMLInputValues(CurrentSubPageID);
+		//if (CurrentSubPageID) {
+		//	if (config.SubPages[CurrentSubPageID].ResetHTMLInputsOnLeavingSubPage)
+		//		RestSubPageWidgetInstancesHTMLInputValues(CurrentSubPageID);
+		//	else {
+		//		if (LoadSubPageParams.ResetWidgetInstancesHTMLInputs)
+		//			RestSubPageWidgetInstancesHTMLInputValues(CurrentSubPageID);
+		//		else
+		//			GetSubPageWidgetInstancesHTMLInputValues(CurrentSubPageID);
+		//	}
+		//}
+
+	} catch (e) { }
+    
+    //history.pushState({}, "", PortalMainModule.StartURLWithoutSubPageID + LoadSubPageParams.SubPageID);
+    var SubPageDetails = config.SubPages[LoadSubPageParams.SubPageID];
+    var EventID = LoadSubPageParams.EventID;
+    //if (LoadedSubPages[LoadSubPageParams.SubPageID] && LoadSubPageParams.KeepCurrentHistoryState) {
+    //    LoadSubPageParams = LoadedSubPages[LoadSubPageParams.SubPageID];
+    //}
+    //else {
+    //    LoadedSubPages[LoadSubPageParams.SubPageID] = LoadSubPageParams;
+    //}
+    LoadedSubPages[LoadSubPageParams.SubPageID] = LoadSubPageParams;
+
+    CurrentSubPageID = LoadSubPageParams.SubPageID;
+    //Create Or Get Alredy Created Screen Layout Assigned To SubPage
+    if (SubPageDetails.SubPageLoadType === LoadSubPageTypes.DirectlyShow) {
+        DisplayScreenLayout(SubPageDetails.LayoutID);
+        //Create Or Get Created Zones Instances And Assign Properites to it related to SubPage (CSS, Style, Order)  
+        DisplayZoneInstancesInScreenLayout(LoadSubPageParams);
+        //Create Or Get Created Widgets Instances With It's Containers And Assign Properites to it related to SubPage (CSS, Style, Order)
+        //debugger
+        LoadAndRunSubPageWidgetsInstances(SubPageDetails, LoadSubPageParams.SourceSubPageOutParams, LoadSubPageParams.SubPageURLInParams, EventID, function () { });
+        //debugger
+        DisplayWidgetsInstancesInZoneInstances(LoadSubPageParams);
+    } else {
+        var $Layout = CreateLayoutDiv(SubPageDetails.LayoutID);
+        for (var i = 0; i < SubPageDetails.ZoneInstances.length; i++) {
+            var $ZoneInstanceContainer = CreateOrGetCreatedZoneInstance(SubPageDetails.ZoneInstances[i]);
+        }
+        LoadAndRunSubPageWidgetsInstances(SubPageDetails, LoadSubPageParams.SourceSubPageOutParams, LoadSubPageParams.SubPageURLInParams, EventID, function () {
+            DisplayScreenLayout(SubPageDetails.LayoutID);
+            DisplayZoneInstancesInScreenLayout(LoadSubPageParams);
+            DisplayWidgetsInstancesInZoneInstances(LoadSubPageParams);
+        });
+    }
+    if (!LoadSubPageParams.KeepCurrentHistoryState)
+        HandleHistoryState(LoadSubPageParams);
+	
+	if(config.Settings.FacebookPixelID != undefined && config.Settings.FacebookPixelID != null){
+		FacebookPixel(LoadSubPageParams);
+	}
+
+}
+
+// CALL FacebookPixel for pram
+function FacebookPixel(LoadSubPageParams){
+	var PixelParams = {};
+	PixelParams.content_name = LoadSubPageParams.SubPageID;
+	if (LoadSubPageParams.SubPageInParams != undefined && LoadSubPageParams.SubPageInParams != null && Object.keys(LoadSubPageParams.SubPageInParams).length !== 0){
+		PixelParams.contents = [];
+		PixelParams.contents[0] = {id: 'SubPageInParams', quantity: Object.keys(LoadSubPageParams.SubPageInParams).length, objectParams: LoadSubPageParams.SubPageInParams};
+	} 
+	
+	if (LoadSubPageParams.SubPageURLInParams != undefined && LoadSubPageParams.SubPageURLInParams != null && Object.keys(LoadSubPageParams.SubPageURLInParams).length !== 0){
+		PixelParams.contents = (PixelParams.contents === undefined || PixelParams.contents === null)?[]: PixelParams.contents;
+		PixelParams.contents[1] = {id: 'SubPageURLInParams', quantity: Object.keys(LoadSubPageParams.SubPageURLInParams).length, objectParams: LoadSubPageParams.SubPageURLInParams};
+	}
+	fbq('trackCustom', 'NBE', PixelParams);
+}
+
+
+var CurrentDisplayedLayoutID = '';
+function DisplayScreenLayout(LayoutID) {
+    if (CurrentDisplayedLayoutID != LayoutID) {
+        var $Layout = CreateLayoutDiv(LayoutID);
+        //Move Any Layout From ContentPanel (The Div Containing All Visible Portal Content) To Hidden Div For Already Created Layout (Div: CreatedLayouts)
+        if (CurrentDisplayedLayoutID != '') {
+            $('#' + CurrentDisplayedLayoutID).detach();//.appendTo('#CreatedLayouts');
+        }
+        //Append Layout To DOM (If it was already created, will be Moved from Hidden Container to ContentPanel)
+        $Layout.detach().appendTo("#ContentPanel")
+        $Layout.show();
+        CurrentDisplayedLayoutID = LayoutID;
+    }else if(CurrentDisplayedLayoutID == LayoutID){
+		$( "[subpageid]" ).attr( "subpageid",CurrentSubPageID );
+	}
+}
+
+function getParameterByName(name, url) {
+    if (!url) url = window.location.href;
+    name = name.replace(/[\[\]]/g, "\\$&");
+    var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"),
+        results = regex.exec(url);
+    if (!results) return null;
+    if (!results[2]) return '';
+    return decodeURIComponent(results[2].replace(/\+/g, " "));
+}
+
+function CheckBowserCompatibility() {
+    navigator.sayswho = (function () {
+        var ua = navigator.userAgent, tem,
+            M = ua.match(/(opera|chrome|safari|firefox|msie|trident(?=\/))\/?\s*(\d+)/i) || [];
+        if (/trident/i.test(M[1])) {
+            tem = /\brv[ :]+(\d+)/g.exec(ua) || [];
+            return 'IE ' + (tem[1] || '');
+        }
+        if (M[1] === 'Chrome') {
+            tem = ua.match(/\b(OPR|Edge)\/(\d+)/);
+            if (tem != null) return tem.slice(1).join(' ').replace('OPR', 'Opera');
+        }
+        M = M[2] ? [M[1], M[2]] : [navigator.appName, navigator.appVersion, '-?'];
+        if ((tem = ua.match(/version\/(\d+)/i)) != null) M.splice(1, 1, tem[1]);
+        return M.join(' ');
+    })();
+    console.log(navigator.sayswho); // outputs: `Chrome 62`
+
+
+    function versionCompare(v1, v2, options) {
+        var lexicographical = options && options.lexicographical,
+            zeroExtend = options && options.zeroExtend,
+            v1parts = v1.split('.'),
+            v2parts = v2.split('.');
+
+        function isValidPart(x) {
+            return (lexicographical ? /^\d+[A-Za-z]*$/ : /^\d+$/).test(x);
+        }
+
+        if (!v1parts.every(isValidPart) || !v2parts.every(isValidPart)) {
+            return NaN;
+        }
+
+        if (zeroExtend) {
+            while (v1parts.length < v2parts.length) v1parts.push("0");
+            while (v2parts.length < v1parts.length) v2parts.push("0");
+        }
+
+        if (!lexicographical) {
+            v1parts = v1parts.map(Number);
+            v2parts = v2parts.map(Number);
+        }
+
+        for (var i = 0; i < v1parts.length; ++i) {
+            if (v2parts.length == i) {
+                return 1;
+            }
+
+            if (v1parts[i] == v2parts[i]) {
+                continue;
+            }
+            else if (v1parts[i] > v2parts[i]) {
+                return 1;
+            }
+            else {
+                return -1;
+            }
+        }
+
+        if (v1parts.length != v2parts.length) {
+            return -1;
+        }
+
+        return 0;
+    }
+
+    var detectedBrowser = navigator.sayswho.split(' ');
+    for (var browser in config.Settings.Browsers) {
+        if (browser.toLowerCase() == detectedBrowser[0].toLowerCase()) {
+            if (versionCompare(detectedBrowser[1], config.Settings.Browsers[browser].Version) == 1 || versionCompare(detectedBrowser[1], config.Settings.Browsers[browser].Version) == 0) {
+                console.log("up to date")
+            } else {
+                //console.log("outdated")
+                var LangCssFilesPaths = config.Styles[config.AppLangID];
+                $('[configuredstylecss]').remove();
+                $('head').append(LangCssFilesPaths);
+                var RedirectURL = config.Settings.Browsers[browser].RedirectURL;
+                if (RedirectURL != null && RedirectURL != "") {
+                    window.location = RedirectURL;
+                } else {
+                    //alert("Please update your browser");
+              if (config.AppLangID == "AR") {
+                        jAlert("من فضلك قم بتحديث المتصفح", 'Sorry', null, "ok", null);
+                    } else {
+                        jAlert("Please update your browser", 'Sorry', null, "ok", null);
+                    }
+                    
+                }
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+var CreatedScreenLayouts = {};
+var LayoutDivHTML;
+var ContainerDivID;
+function CreateLayoutDiv(LayoutID) {
+    var $Layout;
+    //Check If Layout is Already Created or not
+    if (CreatedScreenLayouts[LayoutID] != undefined) {
+        // If Layout is Already Created Get It From DOM
+        $Layout = CreatedScreenLayouts[LayoutID];
+    } else {
+        // If Layout is Not yet Created, Then Create It
+        if (config.Layouts[LayoutID].LayoutHTMLTemplate != "" && config.Layouts[LayoutID].LayoutHTMLTemplate != null) {
+            LayoutDivHTML = '<div SubPageID="' + CurrentSubPageID + '" id="' + LayoutID + '" class="Layout ' + LayoutID + ' ' + config.Layouts[LayoutID].CssClassName + '"></div>'
+            var $LayoutDivHTML = $(LayoutDivHTML);
+            var LayoutHTMLTemplate = config.Layouts[LayoutID].LayoutHTMLTemplate;
+            var $LayoutHTMLTemplate = $(LayoutHTMLTemplate);
+            for (var i = 0; i < config.Layouts[LayoutID].LayoutContainerDivsIDs.length; i++) {
+                ContainerDivID = config.Layouts[LayoutID].LayoutContainerDivsIDs[i].ContainerDivID;
+                var ContainerDivSelectorID = config.Layouts[LayoutID].LayoutContainerDivsIDs[i].ContainerDivSelectorID;
+                var LayoutContainerDiv = '<div id="' + ContainerDivID + '" class="LayoutContainerDiv ' + ContainerDivID + ' ' + config.LayoutContainerDivs[ContainerDivID].CssClassName + '"></div>'
+                $LayoutHTMLTemplate.find('#' + ContainerDivSelectorID).append(LayoutContainerDiv);
+            }
+            //$LayoutHTMLTemplate.appendTo($LayoutDivHTML);
+            $LayoutDivHTML.append($LayoutHTMLTemplate);
+            $Layout = $LayoutDivHTML;
+        }
+        else {
+            LayoutDivHTML = '<div SubPageID="' + CurrentSubPageID + '" id="' + LayoutID + '" class="Layout ' + LayoutID + ' ' + config.Layouts[LayoutID].CssClassName + '">'
+            for (var i = 0; i < config.Layouts[LayoutID].LayoutContainerDivsIDs.length; i++) {
+                ContainerDivID = config.Layouts[LayoutID].LayoutContainerDivsIDs[i].ContainerDivID;
+                LayoutDivHTML += '<div id="' + ContainerDivID + '" class="LayoutContainerDiv ' + ContainerDivID + ' ' + config.LayoutContainerDivs[ContainerDivID].CssClassName + '"></div>'
+            }
+            LayoutDivHTML += '</div>';
+            $Layout = $(LayoutDivHTML);
+        }
+        //Add Layout ID to CreatedScreenLayouts Array So That it will not be created again
+        CreatedScreenLayouts[LayoutID] = $Layout;
+    }
+    return $Layout;
+}
+
+function DisplayZoneInstancesInScreenLayout(LoadSubPageParams) {
+    var SubPageDetails = config.SubPages[LoadSubPageParams.SubPageID];
+
+    //Move All Zone Instances In SubPage Layout to Hidden Zones Containers Div (Div: CreatedZoneInstances)
+    var $CurrentLayoutZones = CreatedScreenLayouts[SubPageDetails.LayoutID].find('.ZoneInstanceContainer');
+
+    for (var i = 0; i < $CurrentLayoutZones.length; i++) {
+        $($CurrentLayoutZones[i]).detach()//.appendTo('#CreatedZoneInstances');
+    }
+
+    //Create or Get Zone Instances of the Sub Page and Move/Append it to the Layout
+    for (var i = 0; i < SubPageDetails.ZoneInstances.length; i++) {
+        var $ZoneInstanceContainer = CreateOrGetCreatedZoneInstance(SubPageDetails.ZoneInstances[i]);
+        //Move/Append Zone instance to It's Contaier in the Layout of the SubPage
+        SetZoneInstanceCssAndStyle(SubPageDetails.ZoneInstances[i]);
+        $ZoneInstanceContainer.detach().appendTo(CreatedScreenLayouts[SubPageDetails.LayoutID].find('#' + SubPageDetails.ZoneInstances[i].ContainerDivID));
+    }
+}
+
+
+var CreatedZoneInstances = {};
+function CreateOrGetCreatedZoneInstance(ZoneInstanceDetails) {
+    var $ZoneInstanceContainer;
+
+    //If Zone Instance Already Created then Get it, otherwise Create It
+    if (CreatedZoneInstances[ZoneInstanceDetails.ZoneInstanceID] != undefined)
+        $ZoneInstanceContainer = CreatedZoneInstances[ZoneInstanceDetails.ZoneInstanceID]
+    else {
+        if (config.Zones[ZoneInstanceDetails.ZoneID] != null) {
+            var ZoneInstanceHTML = '<div id="' + ZoneInstanceDetails.ZoneInstanceID + '" Style="" Class="ZoneInstance"></div>';
+            var ZoneHTMLTemplate = config.Zones[ZoneInstanceDetails.ZoneID].ZoneHTMLTemplate;
+            if (ZoneHTMLTemplate) {
+                var $ZoneHTMLTemplate = $(ZoneHTMLTemplate);
+                $ZoneHTMLTemplate.addClass('ZoneInstanceContainer');
+                var $ZoneHTMLTemplateContainer = $('<div>').append($ZoneHTMLTemplate)
+                $ZoneHTMLTemplateContainer.find(".ZoneBody").append(ZoneInstanceHTML);
+                $ZoneInstanceContainer = $ZoneHTMLTemplate;
+            } else {
+                $ZoneInstanceContainer = $(ZoneInstanceHTML);
+                $ZoneInstanceContainer.addClass('ZoneInstanceContainer');
+            }
+        }
+    }
+    CreatedZoneInstances[ZoneInstanceDetails.ZoneInstanceID] = $ZoneInstanceContainer;
+
+    return $ZoneInstanceContainer;
+}
+
+function SetZoneInstanceCssAndStyle(ZoneInstanceDetails) {
+    var ZoneInstanceStyle = '';
+    var ZoneStyle = '';
+    var ZoneInstanceCssClassName = '';
+    var ZoneCssClassName = '';
+
+    // Get Zone Css, Style, and Zone Instance Css, Style related to the Sub Page
+	try { ZoneInstanceStyle = ZoneInstanceDetails.ZoneInstanceStyles[config.AppLangID] } catch (e) { log(e); }
+	try { ZoneStyle = (ZoneInstanceDetails.IncludeZoneStyle[config.AppLangID] == true || ZoneInstanceDetails.IncludeZoneStyle[config.AppLangID] == undefined) ? config.Zones[ZoneInstanceDetails.ZoneID].ZoneStyles[config.AppLangID] : ''; } catch (e) { log(e); }
+	try { ZoneInstanceCssClassName = ZoneInstanceDetails.ZoneInstanceCssClassNames[config.AppLangID] } catch (e) { log(e);}
+	try { ZoneCssClassName = (ZoneInstanceDetails.IncludeZoneCssClassName[config.AppLangID] == true || ZoneInstanceDetails.IncludeZoneCssClassName[config.AppLangID] == undefined) ? config.Zones[ZoneInstanceDetails.ZoneID].ZoneCssClassNames[config.AppLangID] : ''; } catch (e) { log(e); }
+
+    //Assign to Zone Instance the CSSs And Styles related to SubPage 
+    var $ZoneInstance = $('<div>').append(CreatedZoneInstances[ZoneInstanceDetails.ZoneInstanceID]).find('.ZoneInstance');
+    $ZoneInstance.attr("Style", ZoneStyle + ' ' + ZoneInstanceStyle);
+    $ZoneInstance.attr("Class", 'ZoneInstance XZoneInstanceContainer ' + ZoneInstanceDetails.ZoneInstanceID + ' ' + ZoneCssClassName + ' ' + ZoneInstanceCssClassName);
+}
+
+function DisplayWidgetsInstancesInZoneInstances(LoadSubPageParams) {
+    var SubPageDetails = config.SubPages[LoadSubPageParams.SubPageID];
+
+    //Move All WidgetContainers From the Layout To the Hidden WidgetsInstances Container (Div: CreatedWidgetInstances)
+    var $CurrentLayoutWidgets = CreatedScreenLayouts[SubPageDetails.LayoutID].find('.WidgetContainer').not('.MenuWidgetInstanceContainer');
+    
+    for (var i = 0; i < $CurrentLayoutWidgets.length; i++) {
+        $($CurrentLayoutWidgets[i]).detach()//.appendTo('#CreatedWidgetInstances');
+    }
+    
+    for (var i = 0; i < SubPageDetails.ZoneInstances.length; i++) {
+        for (var j = 0; j < SubPageDetails.ZoneInstances[i].WidgetInstances.length; j++) {
+
+            var WidgetInstanceDetails = SubPageDetails.ZoneInstances[i].WidgetInstances[j];
+            SetWidgetInstanceCSS(WidgetInstanceDetails);
+            //Append/Move Widget Instance Container to Its Zone Instance Div
+            var WidgetContainerDivGeneratedID = WidgetInstanceDetails.WidgetInstanceID + '_Container';
+            var $WidgetInstanceContainer = CreatedWidgetInstanceContainers[config.AppLangID][WidgetContainerDivGeneratedID];
+            var $ZoneInstance = CreatedZoneInstances[WidgetInstanceDetails.ZoneInstanceID].find('.ZoneInstance');
+            if ($ZoneInstance.length == 0) {
+                $ZoneInstance = CreatedZoneInstances[WidgetInstanceDetails.ZoneInstanceID];
+            }
+            //var $ZoneInstance = $('<div>').append(CreatedZoneInstances[WidgetInstanceDetails.ZoneInstanceID]).find('.ZoneInstance');
+            //$WidgetInstanceContainer.detach().appendTo(CreatedZoneInstances[WidgetInstanceDetails.ZoneInstanceID]);
+            $WidgetInstanceContainer.detach().appendTo($ZoneInstance);
+        }
+    }
+	
+	try{
+		if(window.SubPagesDisplayCallBacks[LoadSubPageParams.SubPageID])
+		{
+			while(window.SubPagesDisplayCallBacks[LoadSubPageParams.SubPageID].length > 0){
+				var CallBackData = window.SubPagesDisplayCallBacks[LoadSubPageParams.SubPageID].pop();
+				CallBackData.CallBackFunction.call(/*CallBackData.CallBackContext*/WidgetsInstancesClasses[CallBackData.WidgetInstanceID]);
+			}
+		}
+	}catch(e){}
+
+    document.title = SubPageDetails.Titles[config.AppLangID] || config.Settings['DefaultTitle' + config.AppLangID] || document.title;
+	try{BusinessVirtualFunctions.SetCustomeBrowserTitle();}catch(e){}
+	if((document.title != SiteConstants.DefaultTitleEN && config.AppLangID=="EN")||(document.title != SiteConstants.DefaultTitleAR && config.AppLangID=="AR"))
+		GoogleAnalyticsLogs(window.location.href);
+	
+
+}
+
+function LoadAndRunSubPageWidgetsInstances(SubPageDetails, SourceSubPageOutParams, SubPageURLInParams, EventID, AfterAllWidgetInstancesLoadedCallBack) {
+    var WidgetsInstancesLoadingStatusArr = {};
+    var WidgetsCallCMArr = {};
+    var EventConfig = config.Events[EventID];
+    var WidgetsWithCMCallCount = 0;
+    //var EventAppSpinnerBehavior = undefined;
+    //if (EventConfig)
+    EventAppSpinnerBehavior = config.SubPages[SubPageDetails.SubPageID].AppSpinnerBehavior;
+
+    var AfterAllWidgetInstancesHTMLAndJSLoadedFn = function () {
+        for (var WidgetInstanceID in WidgetsInstancesLoadingStatusArr) {
+            if (WidgetsInstancesLoadingStatusArr[WidgetInstanceID].LoadFinished == false) {
+                return;
+            }
+        }
+        log(WidgetsInstancesLoadingStatusArr);
+        if (!EventID)
+            AfterAllWidgetInstancesLoadedCallBack();
+        else if (config.SubPages[SubPageDetails.SubPageID].SubPageLoadType === LoadSubPageTypes.ShowAfterHTMLJSLoaded)
+            AfterAllWidgetInstancesLoadedCallBack();
+
+        try {
+            if (EventAppSpinnerBehavior === EventAppSpinnerBehaviors.ShowAppSpinner ||
+                EventAppSpinnerBehavior === EventAppSpinnerBehaviors.ShowAppSpinnerAndHideAfterHTMLAndJSLoaded || WidgetsWithCMCallCount === 0)
+                HideSpinner("After All Widgets HTML & JS Loaded For: " + SubPageDetails.SubPageID);
+        } catch (e) { log(e); }
+        log("%cSubPage: " + SubPageDetails.SubPageID + ' Widgets Instances HTML & JS Loaded!', 'color:green; font-weight:bold;');
+    };
+
+    var AfterAllWidgetInstancesCMFinishedFn = function (Data) {
+        //logDetail("%cCM Call Finished: ", "color:darkgreen", Data);
+        for (var WidgetInstanceID in WidgetsCallCMArr) {
+            if (WidgetsCallCMArr[WidgetInstanceID].CallCMFinished === false)
+                return;
+        }
+        try {
+            if (config.SubPages[SubPageDetails.SubPageID].SubPageLoadType == LoadSubPageTypes.ShowAfterAllWidgetsLoaded) {
+                AfterAllWidgetInstancesLoadedCallBack();
+            }
+            //if (EventAppSpinnerBehavior == EventAppSpinnerBehaviors.ShowAppSpinner && config.SubPages[SubPageDetails.SubPageID].SubPageLoadType == LoadSubPageTypes.ShowAfterAllWidgetsLoaded) {
+            //    HideSpinner();
+            //}
+            if (EventAppSpinnerBehavior == EventAppSpinnerBehaviors.ShowAppSpinnerAndHideAfterAllWidgetsLoaded) {
+                HideSpinner("After All Widget Instances CM Finished For: " + SubPageDetails.SubPageID);
+            }
+        } catch (e) { log(e) }
+        log("%cSubPage: " + SubPageDetails.SubPageID + ' Widgets Instances CM Calls Finished!', 'color:darkgreen; font-weight:bold;');
+
+    };
+
+    if (!SubPageDetails.ZoneInstances || SubPageDetails.ZoneInstances.length == 0) {
+        logErr("* No Zone Instances Configured For: ", SubPageDetails.SubPageID);
+        return;
+    }
+    else if (!SubPageDetails.ZoneInstances[0].WidgetInstances || SubPageDetails.ZoneInstances[0].WidgetInstances.length == 0) {
+        logErr("* No Widget Instances Configured For: ", SubPageDetails.ZoneInstances[0]);
+        return;
+    }
+
+    if (EventAppSpinnerBehavior !== EventAppSpinnerBehaviors.DoNotShowAppSpinner)
+        ShowSpinner();
+
+    for (var i = 0; i < SubPageDetails.ZoneInstances.length; i++) {
+        for (var j = 0; j < SubPageDetails.ZoneInstances[i].WidgetInstances.length; j++) {
+            var WidgetInstanceDetails = SubPageDetails.ZoneInstances[i].WidgetInstances[j];
+            WidgetsInstancesLoadingStatusArr[WidgetInstanceDetails.WidgetInstanceID] = { LoadFinished: false, LoadSucceed: false };
+			if (config.Widgets[WidgetInstanceDetails.WidgetID].WidgetMWDetails.MWServiceID !== "") {
+                WidgetsCallCMArr[WidgetInstanceDetails.WidgetInstanceID] = { CallCMFinished: false };
+                WidgetsWithCMCallCount++;
+			}
+        }
+    }
+
+    for (var i = 0; i < SubPageDetails.ZoneInstances.length; i++) {
+        for (var j = 0; j < SubPageDetails.ZoneInstances[i].WidgetInstances.length; j++) {
+            var WidgetInstanceDetails = SubPageDetails.ZoneInstances[i].WidgetInstances[j];
+            WidgetsInstancesLoadingStatusArr[WidgetInstanceDetails.WidgetInstanceID] = { LoadFinished: false, LoadSucceed: false };
+            var DOMInstanceWasExist = CreateOrGetCreatedWidgetInstance(WidgetInstanceDetails);
+            var NewWidgetParamsValues = false;
+            var WidgetOldInParamsStringified = "";
+            try {
+                if (WidgetsInstancesClasses[WidgetInstanceDetails.WidgetInstanceID]) {
+                    var WidgetOldInParams = WidgetsInstancesClasses[WidgetInstanceDetails.WidgetInstanceID].InParametersPerLang[config.AppLangID] || {};
+                    WidgetOldInParamsStringified = JSON.stringify(WidgetOldInParams);
+                    var NewInParamsStringified = JSON.stringify(GetWidgetInParamsObject(WidgetInstanceDetails.WidgetID, WidgetInstanceDetails,
+             $.extend(SourceSubPageOutParams, SubPageURLInParams)))
+                    //logDetail('WidgetOldInParamsStringified: ', WidgetOldInParamsStringified, 'NewInParamsStringified: ', NewInParamsStringified);
+                    if (WidgetOldInParamsStringified !== NewInParamsStringified)
+                        NewWidgetParamsValues = true;
+                }
+                else {
+                    GetWidgetInParamsObject(WidgetInstanceDetails.WidgetID, WidgetInstanceDetails,
+                        $.extend(SourceSubPageOutParams, SubPageURLInParams))
+                }
+
+            } catch (e) {
+				log(e);
+            }
+
+
+            //Append/Move Widget Instance Container to Its Zone Instance Div
+            var WidgetContainerDivGeneratedID = WidgetInstanceDetails.WidgetInstanceID + '_Container';
+            var $WidgetInstanceContainer = CreatedWidgetInstanceContainers[config.AppLangID][WidgetContainerDivGeneratedID];
+            var OnCMCallFinished = undefined;
+			if (config.Widgets[WidgetInstanceDetails.WidgetID].WidgetMWDetails.MWServiceID !== "" /*&& (!DOMInstanceWasExist || WidgetInstanceDetails.AlwaysReRunForm)*/) {
+                //WidgetsCallCMArr[WidgetInstanceDetails.WidgetInstanceID] = { CallCMFinished: false };
+                //WidgetsWithCMCallCount++;
+
+                var _WidgetID = WidgetInstanceDetails.WidgetID;
+
+                OnCMCallFinished = function (Data) {
+                    var _WidgetInstanceDetails = Data.LoadAndRunWidgetInstanceOptions.WidgetInstanceConfig;
+                    WidgetsCallCMArr[_WidgetInstanceDetails.WidgetInstanceID].CallCMFinished = true;
+                    AfterAllWidgetInstancesCMFinishedFn(Data);
+                };
+            }
+
+            var LoadAndRunWidgetInstanceOptions = {
+                WidgetInstanceID: WidgetInstanceDetails.WidgetInstanceID,
+                WidgetConfig: config.Widgets[WidgetInstanceDetails.WidgetID],
+                EventID: EventID,
+                WidgetInstanceConfig: WidgetInstanceDetails,
+                SourceSubPageOutParams: SourceSubPageOutParams,
+                SubPageURLInParams: SubPageURLInParams,
+                ReLoadHTML: false,
+                ReLoadJS: false,
+                ReCallCM: false,
+                ReRunForm: false,
+                CallBackContext: {},
+                OnLoadSuccessFunction: function (Results) {
+                    var _WidgetInstanceDetails = Results.LoadAndRunWidgetInstanceOptions.WidgetInstanceConfig;
+
+                    //if (_WidgetInstanceDetails.WidgetInstanceID == "wgNBEDynamicWidget_FloatingMenu")
+                    //    debugger
+
+                    if (!DOMInstanceWasExist)
+                        try { WidgetsInstancesClasses[_WidgetInstanceDetails.WidgetInstanceID].SetHTMLInputsValues(); } catch (e) { log(e); };
+                    WidgetsInstancesLoadingStatusArr[_WidgetInstanceDetails.WidgetInstanceID].LoadFinished = true;
+                    WidgetsInstancesLoadingStatusArr[_WidgetInstanceDetails.WidgetInstanceID].LoadSucceed = true;
+                    AfterAllWidgetInstancesHTMLAndJSLoadedFn();
+                },
+                OnLoadFailureFunction: function (Results) {
+                    WidgetsInstancesLoadingStatusArr[_WidgetInstanceDetails.WidgetInstanceID].LoadFinished = true;
+                    AfterAllWidgetInstancesHTMLAndJSLoadedFn();
+                },
+                OnCMCallFinished: OnCMCallFinished
+            };
+
+            if (!WidgetsInstancesClasses[WidgetInstanceDetails.WidgetInstanceID] || !WidgetsInstancesClasses[WidgetInstanceDetails.WidgetInstanceID].HandleGetScreenDataFinishedSucceed
+                    || NewWidgetParamsValues || WidgetInstanceDetails.AlwaysReRunForm) {
+				
+                LoadAndRunWidgetInstance(LoadAndRunWidgetInstanceOptions);
+            }
+            else if (!DOMInstanceWasExist) {
+                LoadAndRunWidgetInstanceOptions.UseCurrentWidgetInstanceClass = true;
+                LoadAndRunWidgetInstance(LoadAndRunWidgetInstanceOptions);
+            }
+            else if (DOMInstanceWasExist) {
+                try {
+                    WidgetsInstancesLoadingStatusArr[WidgetInstanceDetails.WidgetInstanceID].LoadFinished = true;
+                    WidgetsInstancesLoadingStatusArr[WidgetInstanceDetails.WidgetInstanceID].LoadSucceed = true;
+                    //if (i == 2) {
+                    //    
+                    //}
+                    if (config.Widgets[WidgetInstanceDetails.WidgetID].WidgetMWDetails.MWServiceID !== "" /*&& WidgetInstanceDetails.AlwaysReRunForm*/)
+                        WidgetsCallCMArr[WidgetInstanceDetails.WidgetInstanceID].CallCMFinished = true;
+                    //if (WidgetInstanceDetails.WidgetInstanceID == 'wginsExchangeRateCurrencyConverter_Default')
+                    try {
+                        if (CreatedWidgetInstances[config.AppLangID][WidgetInstanceDetails.WidgetInstanceID].parent().length === 0) {
+                            CreateOrGetCreatedWidgetInstance(WidgetInstanceDetails);
+                        }
+                    } catch (e) {
+						log(e);
+                    }
+                    WidgetsInstancesClasses[WidgetInstanceDetails.WidgetInstanceID].$DOMWidgetInstance = CreatedWidgetInstances[config.AppLangID][WidgetInstanceDetails.WidgetInstanceID];
+					//Set HTML inputs values, If SubPage isn't reset HTML inputs and load subpage from back and forward buttons
+					if (!config.SubPages[CurrentSubPageID].ResetHTMLInputsOnLeavingSubPage && LoadedSubPages[CurrentSubPageID].LoadSubPageSource == "BackForwardBtns")
+						WidgetsInstancesClasses[WidgetInstanceDetails.WidgetInstanceID].SetHTMLInputsValues();
+                    WidgetsInstancesClasses[WidgetInstanceDetails.WidgetInstanceID].OnReuseForm();
+                    if (i === SubPageDetails.ZoneInstances.length - 1 && j === SubPageDetails.ZoneInstances[i].WidgetInstances.length - 1) {
+                        AfterAllWidgetInstancesHTMLAndJSLoadedFn();
+                        AfterAllWidgetInstancesCMFinishedFn();
+                    }
+                } catch (e) {
+                    log(e);
+                }
+            }
+        }
+    }
+}
+
+var CreatedWidgetInstanceContainers = {
+}
+var CreatedWidgetInstances = {
+}
+function CreateOrGetCreatedWidgetInstance(WidgetInstanceDetails) {
+    var $WidgetInstance;
+    var $WidgetInstanceContainer;
+    var WidgetContainerDivGeneratedID = WidgetInstanceDetails.WidgetInstanceID + '_Container';
+    var DOMInstanceWasExist = false;
+
+    //If Widget Instance Container Already Created, Then Get It, otherwise Create it and Append Widget Instance Div in It
+    CreatedWidgetInstanceContainers[config.AppLangID] = CreatedWidgetInstanceContainers[config.AppLangID] || {};
+    CreatedWidgetInstances[config.AppLangID] = CreatedWidgetInstances[config.AppLangID] || {};
+    if (/*Begin osama*/config.Widgets[WidgetInstanceDetails.WidgetID].CacheExpiryIntervalInMinutes > 0 &&/*End osama*/ CreatedWidgetInstanceContainers[config.AppLangID][WidgetContainerDivGeneratedID] != undefined) {
+        $WidgetInstanceContainer = CreatedWidgetInstanceContainers[config.AppLangID][WidgetContainerDivGeneratedID];
+        $WidgetInstance = CreatedWidgetInstances[config.AppLangID][WidgetInstanceDetails.WidgetInstanceID];
+        DOMInstanceWasExist = true;
+    }
+    else {
+        var WidgetDetails = config.Widgets[WidgetInstanceDetails.WidgetID];
+        var WidgetInstancesContainerTypeID = WidgetInstanceDetails.WidgetInstancesContainerTypeID;
+
+        if (WidgetInstancesContainerTypeID) {
+
+            var WidgetInstancesHtmlTemplate = config.WidgetContainers[WidgetInstancesContainerTypeID].WidgetContainerHTMLTemplate[config.AppLangID];
+            $WidgetInstanceContainer = $(WidgetInstancesHtmlTemplate);
+        }
+        else {
+            var WidgetContainerDetails = config.WidgetContainers[WidgetDetails.WidgetContainerTypeID];
+            var WidgetContainerDivHTML = WidgetContainerDetails.WidgetContainerHTMLTemplate[config.AppLangID];
+            $WidgetInstanceContainer = $(WidgetContainerDivHTML);
+        }
+        $WidgetInstanceContainer.attr("id", WidgetContainerDivGeneratedID)
+        $WidgetInstanceContainer.attr("Class", $WidgetInstanceContainer.attr("Class") + " WidgetContainer");
+
+        //Localize The Widget Container
+        try {
+            if (config.Locale[WidgetInstanceDetails.WidgetID] && config.Locale[WidgetInstanceDetails.WidgetID][config.AppLangID])
+                $WidgetInstanceContainer = $.tmpl($('<div></div>').append($WidgetInstanceContainer), {
+                    locale: config.Locale[WidgetInstanceDetails.WidgetID][config.AppLangID]
+                });
+        } catch (e) {
+			log(e);
+        }
+
+        //Get the WidgetInstance Content Container Div from the Widget Container Template (With Class: WidgetInstanceContentContainer) to Append the Widget Instance in it
+        var $WidgetContainerDivHolder = $("<div></div>");
+
+        $WidgetInstanceContainer.appendTo($WidgetContainerDivHolder);
+        var $WidgetInstanceContentContainerDiv = $WidgetContainerDivHolder.find('.WidgetInstanceBody');
+
+        //Create the Widget Instance HTML Object and Append it in WidgetInstanceContentContainer
+        var WidgetInstanceHTML = '<div id="' + WidgetInstanceDetails.WidgetInstanceID + '" Class=""></div>';
+        $WidgetInstance = $(WidgetInstanceHTML);
+        $WidgetInstance.appendTo($WidgetInstanceContentContainerDiv);
+    }
+    CreatedWidgetInstances[config.AppLangID][WidgetInstanceDetails.WidgetInstanceID] = $WidgetInstance;
+    CreatedWidgetInstanceContainers[config.AppLangID][WidgetContainerDivGeneratedID] = $WidgetInstanceContainer;
+    return DOMInstanceWasExist;
+}
+
+function SetWidgetInstanceCSS(WidgetInstanceDetails) {
+    var WidgetInstanceCssClassName = '';
+    var WidgetCssClassName = '';
+    //Get Widget, Widget Instance CSS, and Assign it to Widget Instance 
+	try { WidgetInstanceCssClassName = WidgetInstanceDetails.WidgetInstanceCssClassName } catch (e) {
+		log(e);
+    }
+	try { WidgetCssClassName = WidgetInstanceDetails.IncludeWidgetCssClassName ? config.Widgets[WidgetInstanceDetails.WidgetID].WidgetCssClassName : ''; } catch (e) {
+		log(e);
+    }
+    var $WidgetInstance = CreatedWidgetInstances[config.AppLangID][WidgetInstanceDetails.WidgetInstanceID];
+    $WidgetInstance.attr("Class", 'WidgetInstance ' + WidgetInstanceDetails.WidgetInstanceID + ' ' + WidgetCssClassName + ' ' + WidgetInstanceCssClassName);
+}
+
+var LoadAndRunWidgetInstanceOptions = {
+    WidgetInstanceID: '',
+    WidgetConfig: {
+    },
+    WidgetInstanceConfig: {
+    },
+    WidgetParams: {
+    },
+    ReLoadHTML: false,
+    ReLoadJS: false,
+    ReCallCM: false,
+    ReRunForm: false,
+    CallBackContext: {
+    },
+    OnLoadSuccessFunction: function () {
+    },
+    OnLoadFailureFunction: function () { }
+}
+
+var WidgetsInstancesClasses = {
+};
+function LoadAndRunWidgetInstance(LoadAndRunWidgetInstanceOptions) {
+    var WidgetHasHTML = false;
+    var HTMLLoadFinished = false;
+    var HTMLLoadSucceed = false;
+    var JSLoadFinished = false;
+    var JSLoadSucceed = false;
+    var DataObjToBeBinded = null;
+    var HTML = '';
+    var JS = '';
+    var OnLoadHTMLAndJSFinishedFn = function (Results) {
+        if (((JSLoadFinished && JSLoadSucceed) || LoadAndRunWidgetInstanceOptions.UseCurrentWidgetInstanceClass) && ((WidgetHasHTML && HTMLLoadFinished && HTMLLoadSucceed) || WidgetHasHTML == false)) {
+            eval.call(window, JS);
+            if (WidgetHasHTML) {
+                window[LoadAndRunWidgetInstanceOptions.WidgetConfig.CodeBehindJSClassName].MyHTML = HTML;
+            }
+
+            try {
+                var ParamsValues;
+                //window['Class_' + LoadAndRunWidgetInstanceOptions.WidgetConfig.CodeBehindJSClassName] = clone(window[LoadAndRunWidgetInstanceOptions.WidgetConfig.CodeBehindJSClassName]);
+                if (!LoadAndRunWidgetInstanceOptions.UseCurrentWidgetInstanceClass) {
+                    WidgetsInstancesClasses[LoadAndRunWidgetInstanceOptions.WidgetInstanceID] = eval("new " + LoadAndRunWidgetInstanceOptions.WidgetConfig.CodeBehindJSClassName + "()");
+                    var SourceParams = LoadAndRunWidgetInstanceOptions.SourceSubPageOutParams;
+                    if (!SourceParams) {
+                        SourceParams = LoadAndRunWidgetInstanceOptions.SubPageURLInParams;
+                    }
+                    var InParams = GetWidgetInParamsObject(LoadAndRunWidgetInstanceOptions.WidgetConfig.WidgetID, LoadAndRunWidgetInstanceOptions.WidgetInstanceConfig, SourceParams);
+                    if (InParams == ePortal5Errors.InsufficientInParams) {
+                        logErr("Insufficient InParams, Will NOT continue Run Forms");
+                        return;
+                    }
+                    WidgetsInstancesClasses[LoadAndRunWidgetInstanceOptions.WidgetInstanceID].InParameters = InParams;
+                    WidgetsInstancesClasses[LoadAndRunWidgetInstanceOptions.WidgetInstanceID].InParametersPerLang =
+                        WidgetsInstancesClasses[LoadAndRunWidgetInstanceOptions.WidgetInstanceID].InParametersPerLang || {};
+                    WidgetsInstancesClasses[LoadAndRunWidgetInstanceOptions.WidgetInstanceID].InParametersPerLang[config.AppLangID] = clone(InParams);
+
+                    SetWidgetOutParamsObject(LoadAndRunWidgetInstanceOptions.WidgetInstanceID, LoadAndRunWidgetInstanceOptions.WidgetConfig);
+                }
+
+                WidgetsInstancesClasses[LoadAndRunWidgetInstanceOptions.WidgetInstanceID].MyHTML = HTML;
+                WidgetsInstancesClasses[LoadAndRunWidgetInstanceOptions.WidgetInstanceID].WidgetConfig = LoadAndRunWidgetInstanceOptions.WidgetConfig;
+                //if (LoadAndRunWidgetInstanceOptions.WidgetInstanceID == "wgNBEDynamicWidget_FloatingMenu")
+                //    debugger
+                WidgetsInstancesClasses[LoadAndRunWidgetInstanceOptions.WidgetInstanceID].WidgetInstanceConfig = LoadAndRunWidgetInstanceOptions.WidgetInstanceConfig;
+
+                WidgetsInstancesClasses[LoadAndRunWidgetInstanceOptions.WidgetInstanceID].$DOMWidgetInstance = CreatedWidgetInstances[config.AppLangID][LoadAndRunWidgetInstanceOptions.WidgetInstanceID]
+
+                WidgetsInstancesClasses[LoadAndRunWidgetInstanceOptions.WidgetInstanceID].DataSource = WidgetsInstancesClasses[LoadAndRunWidgetInstanceOptions.WidgetInstanceID].DataSource || {
+                };
+                try {
+                    if (config.Locale[LoadAndRunWidgetInstanceOptions.WidgetConfig.WidgetID] && config.Locale[LoadAndRunWidgetInstanceOptions.WidgetConfig.WidgetID][config.AppLangID])
+                        WidgetsInstancesClasses[LoadAndRunWidgetInstanceOptions.WidgetInstanceID].DataSource.locale = config.Locale[LoadAndRunWidgetInstanceOptions.WidgetConfig.WidgetID][config.AppLangID];
+				} catch (e) { log(e);}
+
+                
+
+                WidgetsInstancesClasses[LoadAndRunWidgetInstanceOptions.WidgetInstanceID].OnCMCallFinished = function (Data) {
+                    Data.LoadAndRunWidgetInstanceOptions = LoadAndRunWidgetInstanceOptions;
+                    if (LoadAndRunWidgetInstanceOptions.OnCMCallFinished)
+                        LoadAndRunWidgetInstanceOptions.OnCMCallFinished(Data);
+                }
+                WidgetsInstancesClasses[LoadAndRunWidgetInstanceOptions.WidgetInstanceID].BindHTMLElementsEvents = function () {
+                    if (LoadAndRunWidgetInstanceOptions.WidgetConfig.HTMLElementsEvents && LoadAndRunWidgetInstanceOptions.WidgetConfig.HTMLElementsEvents.length > 0) {
+                        for (i = 0; i < LoadAndRunWidgetInstanceOptions.WidgetConfig.HTMLElementsEvents.length; i++) {
+                            BindHTMLElementsEventsForWidgetInstance(LoadAndRunWidgetInstanceOptions.WidgetInstanceID, LoadAndRunWidgetInstanceOptions.WidgetConfig.HTMLElementsEvents[i].HTMLElementSelector, LoadAndRunWidgetInstanceOptions.WidgetConfig.HTMLElementsEvents[i].EventID);
+                        }
+                    }
+
+                    if (LoadAndRunWidgetInstanceOptions.WidgetInstanceConfig.HTMLElementsEvents && LoadAndRunWidgetInstanceOptions.WidgetInstanceConfig.HTMLElementsEvents.length > 0) {
+                        for (i = 0; i < LoadAndRunWidgetInstanceOptions.WidgetInstanceConfig.HTMLElementsEvents.length; i++) {
+                            BindHTMLElementsEventsForWidgetInstance(LoadAndRunWidgetInstanceOptions.WidgetInstanceID, LoadAndRunWidgetInstanceOptions.WidgetInstanceConfig.HTMLElementsEvents[i].HTMLElementSelector, LoadAndRunWidgetInstanceOptions.WidgetInstanceConfig.HTMLElementsEvents[i].EventID);
+                        }
+                    }
+                }
+                    WidgetsInstancesClasses[LoadAndRunWidgetInstanceOptions.WidgetInstanceID].WidgetInstanceID = LoadAndRunWidgetInstanceOptions.WidgetInstanceID;
+                    
+
+                    
+
+                //Run all form logic to get it's data, no data processing to be done until relative subpage displayed; HandleGetScreenDataFinished to be called by subpage/action widget decission
+                    //WidgetsInstancesClasses[LoadAndRunWidgetInstanceOptions.WidgetInstanceID].RunFormLogic();                //if (LoadAndRunWidgetInstanceOptions.WidgetConfig.CodeBehindJSClassName == "ContactUsInquiry") {
+                    WidgetsInstancesClasses[LoadAndRunWidgetInstanceOptions.WidgetInstanceID].RunForm();                //if (LoadAndRunWidgetInstanceOptions.WidgetConfig.CodeBehindJSClassName == "ContactUsInquiry") {
+                //}
+                //BindConfigHTMLElementsEvents();
+
+                var Results = {
+                    };
+                    Results.LoadAndRunWidgetInstanceOptions = LoadAndRunWidgetInstanceOptions;
+                    LoadAndRunWidgetInstanceOptions.OnLoadSuccessFunction(Results);
+            } catch (e) {
+                console.log(e);
+            }
+        }
+    }
+    if (LoadAndRunWidgetInstanceOptions.WidgetConfig.WidgetTemplates[config.AppLangID]) {
+        WidgetHasHTML = true;
+        var LoadHTMLOptions = clone(LoadWidgetInstanceHTMLOptions);
+        LoadHTMLOptions.WidgetInstanceID = LoadAndRunWidgetInstanceOptions.WidgetInstanceID;
+        LoadHTMLOptions.WidgetConfig = LoadAndRunWidgetInstanceOptions.WidgetConfig;
+        LoadHTMLOptions.ReLoadHTML = LoadAndRunWidgetInstanceOptions.ReLoadHTML;
+        LoadHTMLOptions.OnLoadSuccessFunction = function (Results) {
+            HTMLLoadFinished = true;
+            HTMLLoadSucceed = true;
+            HTML = Results.Response;
+            OnLoadHTMLAndJSFinishedFn(Results);
+        };
+        LoadHTMLOptions.OnLoadFailureFunction = function (Results) {
+            HTMLLoadFinished = true;
+            OnLoadHTMLAndJSFinishedFn(Results);
+        };
+        LoadWidgetInstanceHTML(LoadHTMLOptions);
+    }
+
+    if (!LoadAndRunWidgetInstanceOptions.UseCurrentWidgetInstanceClass) {
+        var LoadJSOptions = clone(LoadWidgetInstanceJSOptions);
+        LoadJSOptions.WidgetInstanceID = LoadAndRunWidgetInstanceOptions.WidgetInstanceID;
+        LoadJSOptions.WidgetConfig = LoadAndRunWidgetInstanceOptions.WidgetConfig;
+        LoadJSOptions.ReLoadJS = LoadAndRunWidgetInstanceOptions.ReLoadJS;
+        LoadJSOptions.OnLoadSuccessFunction = function (Results) {
+            JSLoadFinished = true;
+            JSLoadSucceed = true;
+            JS = Results.Response;
+            OnLoadHTMLAndJSFinishedFn(Results);
+        };
+        LoadJSOptions.OnLoadFailureFunction = function (Results) {
+            JSLoadFinished = true; OnLoadHTMLAndJSFinishedFn(Results);
+        };
+        LoadWidgetInstanceJS(LoadJSOptions)
+    }
+}
+
+function LoadAndRunPreDefindWidgets() {
+    for (var x in config.Widgets) {
+        if (config.Widgets[x].WidgetCommunicationSettings.GetFromDevice.toLowerCase() == "true") {
+            var LoadHTMLOptions = clone(LoadWidgetInstanceHTMLOptions);
+            LoadHTMLOptions.WidgetConfig = config.Widgets[x];
+            LoadHTMLOptions.OnLoadSuccessFunction = function (Results) {
+                //HTMLLoadFinished = true;
+                //HTMLLoadSucceed = true;
+                //HTML = Results.Response;
+                //OnLoadHTMLAndJSFinishedFn(Results);
+            };
+            LoadHTMLOptions.OnLoadFailureFunction = function (Results) {
+                //HTMLLoadFinished = true;
+                //OnLoadHTMLAndJSFinishedFn(Results);
+            };
+            LoadWidgetInstanceHTML(LoadHTMLOptions);
+            var LoadJSOptions = clone(LoadWidgetInstanceJSOptions);
+            LoadJSOptions.WidgetConfig = config.Widgets[x];
+            LoadJSOptions.OnLoadSuccessFunction = function (Results) {
+                //JSLoadFinished = true;
+                //JSLoadSucceed = true;
+                //JS = Results.Response;
+                //OnLoadHTMLAndJSFinishedFn(Results);
+            };
+            LoadJSOptions.OnLoadFailureFunction = function (Results) {
+                //JSLoadFinished = true; OnLoadHTMLAndJSFinishedFn(Results);
+            };
+            LoadWidgetInstanceJS(LoadJSOptions)
+        }
+    }
+
+}
+function m(i, x) {
+    h = {}
+    n = []
+    for (a = 2; a--; i = x)
+        i.map(function (b) {
+            h[b] = h[b] || n.push(b)
+        });
+    return n
+}
+///**************Begin SubPage and Widget Parameters [In/Out]*****************///
+//Generate Input Parameters Object, and check if required or not, and set values if exist in subpage out Params
+
+//if (!Array.prototype.find) {
+//    Object.defineProperty(Array.prototype, 'find', {
+//        value: function (predicate) {
+//            // 1. Let O be ? ToObject(this value).
+//            if (this == null) {
+//                throw new TypeError('"this" is null or not defined');
+//            }
+
+//            var o = Object(this);
+
+//            // 2. Let len be ? ToLength(? Get(O, "length")).
+//            var len = o.length >>> 0;
+
+//            // 3. If IsCallable(predicate) is false, throw a TypeError exception.
+//            if (typeof predicate !== 'function') {
+//                throw new TypeError('predicate must be a function');
+//            }
+
+//            // 4. If thisArg was supplied, let T be thisArg; else let T be undefined.
+//            var thisArg = arguments[1];
+
+//            // 5. Let k be 0.
+//            var k = 0;
+
+//            // 6. Repeat, while k < len
+//            while (k < len) {
+//                // a. Let Pk be ! ToString(k).
+//                // b. Let kValue be ? Get(O, Pk).
+//                // c. Let testResult be ToBoolean(? Call(predicate, T, « kValue, k, O »)).
+//                // d. If testResult is true, return kValue.
+//                var kValue = o[k];
+//                if (predicate.call(thisArg, kValue, k, o)) {
+//                    return kValue;
+//                }
+//                // e. Increase k by 1.
+//                k++;
+//            }
+
+//            // 7. Return undefined.
+//            return undefined;
+//        },
+//        configurable: true,
+//        writable: true
+//    });
+//}
+function GetWidgetInParamsObject(WidgetID, WidgetInstanceConfig, SourceOutParamsBag, AvoidSettingInParamsForSubPage) {
+    var ConfigWidgetParams = config.Widgets[WidgetID].WidgetParams;
+    var ConfigWidgetInstanceParams = WidgetInstanceConfig.WidgetInstanceParams || [];
+    var WidgetInParamsObj = {
+    };
+    var AllConfigParams = ConfigWidgetParams.concat(ConfigWidgetInstanceParams);
+    if (AllConfigParams) {
+        for (var index = 0; index < AllConfigParams.length; index++) {
+            var ParamName = AllConfigParams[index].ParamName;
+            var IsOptional = AllConfigParams[index].IsOptional;
+            var paramType = AllConfigParams[index].ParamType.toLowerCase();
+            if (paramType == 'in' || paramType == 'inout') {
+                if (SourceOutParamsBag && SourceOutParamsBag[ParamName]) {
+                    WidgetInParamsObj[ParamName] = SourceOutParamsBag[ParamName];
+                    if (!AvoidSettingInParamsForSubPage && ParamName.toLowerCase()!=="contentid")
+                        LoadedSubPages[CurrentSubPageID].SubPageInParams[ParamName] = SourceOutParamsBag[ParamName];
+                }
+                else {
+                    var WidgetParamDefaultValue = AllConfigParams[index].DefaultValue;
+                    //var WidgetInstanceParamConfig = ConfigWidgetInstanceParams.find(r => r.ParamName == ParamName);
+                    var WidgetInstanceParamConfig = ConfigWidgetInstanceParams.find(function (P) {
+                        return P.ParamName == ParamName;
+                    });
+                    var WidgetInstanceParamDefaultValue = WidgetInstanceParamConfig ? WidgetInstanceParamConfig.DefaultValue : undefined;
+                    if (WidgetInstanceParamDefaultValue) {
+                        WidgetInParamsObj[ParamName] = WidgetInstanceParamDefaultValue;
+                        if (!AvoidSettingInParamsForSubPage && ParamName.toLowerCase() !== "contentid")
+                            LoadedSubPages[CurrentSubPageID].SubPageInParams[ParamName] = WidgetInstanceParamDefaultValue;
+                    }
+                    else if (WidgetParamDefaultValue) {
+                        WidgetInParamsObj[ParamName] = WidgetParamDefaultValue;
+                        if (!AvoidSettingInParamsForSubPage && ParamName.toLowerCase() !== "contentid")
+                            LoadedSubPages[CurrentSubPageID].SubPageInParams[ParamName] = WidgetParamDefaultValue;
+                    }
+                    else if (IsOptional == false) {
+                        logErr(WidgetID + " require Input Param: " + ParamName);
+                        return ePortal5Errors.InsufficientInParams;
+                    }
+
+                }
+            }
+        }
+    }
+
+    return WidgetInParamsObj;
+}
+
+function BindHTMLElementsEventsForWidgetInstance(WidgetInstanceID, HTMLElementSelector, EventID) {
+    WidgetsInstancesClasses[WidgetInstanceID].BindEvent(HTMLElementSelector, "click", function () {
+        ExecutePortalEvent.call(WidgetsInstancesClasses[WidgetInstanceID], EventID);
+    });
+}
+
+
+
+
+function SetWidgetOutParamsObject(WidgetInstanceID, WidgetConfig) {
+    if (!WidgetsInstancesClasses[WidgetInstanceID].OutParameters)
+        WidgetsInstancesClasses[WidgetInstanceID].OutParameters = {
+        };
+    if (WidgetConfig && WidgetConfig.WidgetParams) {
+        for (var index = 0; index < WidgetConfig.WidgetParams.length; index++) {
+            var ParamName = WidgetConfig.WidgetParams[index].ParamName;
+            var ParamType = WidgetConfig.WidgetParams[index].ParamType.toLowerCase();
+            if (ParamType == 'out' || ParamType == 'inout') {
+                BuildOutParamPropertyGetterSetter(WidgetsInstancesClasses[WidgetInstanceID].OutParameters, ParamName);
+            }
+        }
+    }
+}
+function BuildOutParamPropertyGetterSetter(Obj, Name) {
+    Object.defineProperty(Obj, Name, {
+        get: function () {
+            return LoadedSubPages[CurrentSubPageID].SubPageOutParams[Name];
+        },
+        set: function (val) {
+            LoadedSubPages[CurrentSubPageID].SubPageOutParams[Name] = val;
+        }
+    });
+}
+///**************End SubPage and Widget Parameters [In/Out]*****************///
+//function GetParamsObject
+var LoadWidgetInstanceHTMLOptions = {
+    WidgetInstanceID: '',
+    WidgetConfig: {
+    },
+    ReLoadHTML: false,
+    CacheExpiryIntervalInMinutes: 14400,
+    OnLoadSuccessFunction: function () {
+    },
+    OnLoadFailureFunction: function () { }
+}
+var WidgetsTemplatesHTML = {
+}
+function LoadWidgetInstanceHTML(LoadWidgetInstanceHTMLOptions) {
+    var Options = clone(LoadResourceOptions);
+    CachedObjectOptions = clone(GetFromCacheOptions);
+    Options.Path = LoadWidgetInstanceHTMLOptions.WidgetConfig.WidgetTemplates[config.AppLangID].WidgetPath;
+    Options.CacheExpiryIntervalInMinutes = LoadWidgetInstanceHTMLOptions.WidgetConfig.CacheExpiryIntervalInMinutes;
+    CachedObjectOptions.Type = CachingTypes.LocalStorage;
+    CachedObjectOptions.Key = Options.Path;
+    this.CachedWidgetResult = GetObjectFromCache(CachedObjectOptions);
+    if (Options.CacheExpiryIntervalInMinutes > 0 && this.CachedWidgetResult.Value != null && this.CachedWidgetResult.Expired == false) {
+        this.Results = {
+        }
+        this.Results.Response = this.CachedWidgetResult.Value;
+        this.Results.LoadResourceOptions = Options;
+        this.Results.Succeed = true;
+        WidgetsTemplatesHTML[Options.Path] = this.CachedWidgetResult.Value;
+        LoadWidgetInstanceHTMLOptions.OnLoadSuccessFunction(this.Results);
+        return;
+    }
+
+    Options.CacheExpiryIntervalInMinutes = LoadWidgetInstanceHTMLOptions.WidgetConfig.CacheExpiryIntervalInMinutes;
+    Options.OnLoadSuccessFunction = function (Results) {
+        WidgetsTemplatesHTML[Options.Path] = Results.Response;
+        LoadWidgetInstanceHTMLOptions.OnLoadSuccessFunction(Results);
+        // Caching Widgets
+        ToBeCachedObject = clone(SetToCacheOptions);
+        ToBeCachedObject.Type = CachingTypes.LocalStorage;
+        ToBeCachedObject.Key = Options.Path;
+        ToBeCachedObject.Value = Results.Response;
+        ToBeCachedObject.ExpirationInMinutes = Options.CacheExpiryIntervalInMinutes;
+        CacheObject(ToBeCachedObject);
+    };
+    Options.OnLoadFailureFunction = function (Results) {
+        LoadWidgetInstanceHTMLOptions.OnLoadFailureFunction(Results);
+    };
+    LoadResource(Options);
+}
+var LoadWidgetInstanceJSOptions = {
+    WidgetInstanceID: '',
+    CacheExpiryIntervalInMinutes: 14400,
+    WidgetConfig: {
+    },
+    ReLoadJS: false,
+    OnLoadSuccessFunction: function () {
+    },
+    OnLoadFailureFunction: function () { }
+}
+var WidgetsJSs = {
+};
+function LoadWidgetInstanceJS(LoadWidgetInstanceJSOptions) {
+    var Options = clone(LoadResourceOptions);
+    CachedObjectOptions = clone(GetFromCacheOptions);
+    Options.Path = LoadWidgetInstanceJSOptions.WidgetConfig.CodeBehindJSPath;
+    Options.CacheExpiryIntervalInMinutes = LoadWidgetInstanceJSOptions.WidgetConfig.CacheExpiryIntervalInMinutes;
+    CachedObjectOptions.Type = CachingTypes.LocalStorage;
+    CachedObjectOptions.Key = Options.Path;
+    this.CachedWidgetResult = GetObjectFromCache(CachedObjectOptions);
+    if (Options.CacheExpiryIntervalInMinutes > 0 && this.CachedWidgetResult.Value != null && this.CachedWidgetResult.Expired == false) {
+        this.Results = {
+        }
+        this.Results.Response = this.CachedWidgetResult.Value;
+        this.Results.LoadResourceOptions = Options;
+        this.Results.Succeed = true;
+        WidgetsTemplatesHTML[Options.Path] = this.CachedWidgetResult.Value;
+        LoadWidgetInstanceJSOptions.OnLoadSuccessFunction(this.Results);
+        return;
+    }
+    Options.OnLoadSuccessFunction = function (Results) {
+        WidgetsJSs[Options.Path] = Results.Response;
+        // Caching Widgets
+        ToBeCachedObject = clone(SetToCacheOptions);
+        ToBeCachedObject.Type = CachingTypes.LocalStorage;
+        ToBeCachedObject.Key = Options.Path;
+        ToBeCachedObject.Value = Results.Response;
+        ToBeCachedObject.ExpirationInMinutes = Options.CacheExpiryIntervalInMinutes;
+        CacheObject(ToBeCachedObject);
+        LoadWidgetInstanceJSOptions.OnLoadSuccessFunction(Results);
+    };
+    Options.OnLoadFailureFunction = function (Results) {
+        LoadWidgetInstanceJSOptions.OnLoadFailureFunction(Results);
+    };
+    LoadResource(Options);
+}
+
+var LoadResourceTypes = {
+}
+LoadResourceTypes.FromServer = 0;
+LoadResourceTypes.FromAppPackage = 1;
+
+var LoadResourceOptions = {
+    Path: '',
+    LoadType: LoadResourceTypes.FromServer,
+    OnLoadSuccessFunction: function () {
+    },
+    OnLoadFailureFunction: function () {
+    },
+    AjaxCallType: 'GET',
+    AjaxCallData: '',
+	Timeout: config.Settings.AjaxCallTimeout || 60000,
+}
+
+
+function LoadResource(LoadResourceOptions) {
+    LoadResourceFromServer(LoadResourceOptions);
+}
+
+var AjaxCallInfoArr = {
+}
+
+function SetGlobalSettingForGetCEEPContent() {
+
+    //Globals.GetCEEPUpdatesThroughCM = true;
+    UseActiveSubPageWhenLoadingPageContent = false;
+    var CeepId = "GetCeepContent";
+    CacheSettingsArr = CacheSettingsArr || {}
+    CacheSettingsArr[CeepId] = new CacheSettings.constructor();
+    CacheSettingsArr[CeepId].CodeBehindJSClassName = "GetCeepContent";
+    CacheSettingsArr[CeepId].CodeBehindJSPath = "ePortalBuiltInWidgets/GetCeepContent/GetCeepContentAction.js";
+    CacheSettingsArr[CeepId].PageID = CeepId;
+    CacheSettingsArr[CeepId].PageHasHTML = false;
+    CacheSettingsArr[CeepId].PageHasJS = true;
+    CacheSettingsArr[CeepId].PagePath = "ePortalBuiltInWidgets/GetCeepContent/GetCeepContentAction.js";
+    CacheSettingsArr[CeepId].PagePath_AR = "ePortalBuiltInWidgets/GetCeepContent/GetCeepContentAction.js";
+    CacheSettingsArr[CeepId].CacheEnabled = true;
+    CacheSettingsArr[CeepId].CacheExpiryInterval = "525600";
+    CacheSettingsArr[CeepId].ShowDataMode = "ShowFromCacheAndRefreshWhenCacheIsExpired";
+    CacheSettingsArr[CeepId].ShowDateTimeStamp = "No";
+    CacheSettingsArr[CeepId].RefreshAnimationMode = "none";
+    CacheSettingsArr[CeepId].OnCallFailureAction = "";
+    CacheSettingsArr[CeepId].OnCallSuccessAction = "";
+    CacheSettingsArr[CeepId].CustomCallFunction = "";
+    CacheSettingsArr[CeepId].CustomCallFlag = false;
+    CacheSettingsArr[CeepId].DataSignatureEnabled = false;
+    CacheSettingsArr[CeepId].DataSourceAndDependents = "";
+    CacheSettingsArr[CeepId].DataSignatureEnabled = false;
+    CacheSettingsArr[CeepId].EmbeddedOnDevice = true;
+    CacheSettingsArr[CeepId].PageType = "";
+    CacheSettingsArr[CeepId].PageTitle = "";
+    CacheSettingsArr[CeepId].PageTitle_Ar = "";
+    CacheSettingsArr[CeepId].StaticPageID = "";
+    CacheSettingsArr[CeepId].AppID = "";
+    try { CacheSettingsArrWithURL[CacheSettingsArr[CeepId].PagePath] = CacheSettingsArr[CeepId]; } catch (e) { }
+    try { CacheSettingsArrWithURL[CacheSettingsArr[CeepId].PagePath_AR] = CacheSettingsArr[CeepId]; } catch (e) { }
+    try { CacheSettingsArrWithURL[CacheSettingsArr[CeepId].CodeBehindJSPath] = CacheSettingsArr[CeepId]; } catch (e) { }
+}
+
+function LoadResourceFromServer(LoadResourceOptions) {
+
+
+    var CallBackData = {
+        LoadResourceOptions: LoadResourceOptions,
+        Succeed: true,
+        Response: ''
+    }
+    var URL = LoadResourceOptions.Path;
+    AjaxCallInfoArr[URL] = {
+    };
+    var OnSuccess = function (response, textStatus, XMLHttpResponse) {
+
+        try {
+            //log('AjaxPostCallURL:- Call was Success for ' + URL);
+            if (URL == undefined) {
+                return;
+            }
+            AjaxCallInfoArr[URL].RespHtml = response;
+            AjaxCallInfoArr[URL].XMLHttpResponse = XMLHttpResponse;
+            try {
+                CallBackData.Response = response;
+                LoadResourceOptions.OnLoadSuccessFunction(CallBackData)
+            } catch (e) {
+            }
+        } catch (e) {
+            console.log(e);
+        }
+    }
+    var OnFailure = function (xhr, status, error) {
+        debugger
+        AjaxCallInfoArr[URL].Error = error;
+        try {
+            CallBackData.Succeed = false;
+            LoadResourceOptions.OnLoadFailureFunction(CallBackData);
+            BusinessVirtualFunctions.GeneralHandleGetResourceError();
+            console.log("General Handle Get Resource Error: ", error);
+        } catch (e) {
+        }
+    }
+
+    SetGlobalSettingForGetCEEPContent();
+    if (Globals.GetCEEPUpdatesThroughCM && URL.indexOf("GetCeepContent") == -1) {
+        //var CallData = {};
+        //CallData.URL = URL, CallData.PostData = PostData, CallData.OnCallSuccessAction = OnCallSuccessAction, CallData.OnCallFailureAction = OnCallFailureAction, CallData.Options = Options;
+        var CeepParams = {
+            path: URL,
+            Options: {},//Options,
+            OnCallSuccessAction: '',//OnCallSuccessAction,
+            OnCallSuccessFunction: OnSuccess,//OnCallSuccessFunction,
+            OnCallFailureAction: '',//OnCallFailureAction,
+            OnCallFailureFunction: OnFailure
+            //xhr : xhr,
+            //status : status
+        };
+
+        var GetCeepContentOptions = {};
+        //if (URL.indexOf("Overrides") != -1)
+        //{
+        GetCeepContentOptions = {
+            DisplayLoadingSpinner: false,
+            HideLoadingSpinnerAfterDataBinding: false,
+            HideSpinnerWhenCallSuccess: false,
+            DisplaySpinnerWhenMWCall: false,
+            DisplayDefaultErrorAlert: true,
+            HideSpinnerWhenMWCallError: true,
+            HideSpinnerWhenAjaxCallError: true,
+            DisplayPageLoadingSpinner: false,
+            HidePageLoadingSpinner: false
+        };
+        //}
+        LoadAndRunForm("GetCeepContent", CeepParams, false, this, GetCeepContentOptions);
+    } else {
+        AjaxCallInfoArr[URL].AjaxCallingThread =
+                    $.ajax({
+
+                        type: LoadResourceOptions.AjaxCallType,
+                        url: LoadResourceOptions.Path,
+                        data: LoadResourceOptions.AjaxCallData,
+                        contentType: "application/x-www-form-urlencoded; charset=utf-8",
+                        dataType: "html",
+                        crossDomain: false,
+                        global: false,
+                        timeout: LoadResourceOptions.Timeout,
+                        success: function (response, textStatus, XMLHttpResponse) {
+                            OnSuccess(response, textStatus, XMLHttpResponse);
+                        },
+                        error: function (xhr, status, error) {
+                            OnFailure(xhr, status, error);
+                        }
+                    });
+
+    }
+}
+
+
+//function LoadResourceFromServer(LoadResourceOptions) {
+//    var CallBackData = {
+//        LoadResourceOptions: LoadResourceOptions,
+//        Succeed: true,
+//        Response: ''
+//    }
+//    AjaxCallInfoArr[URL] = {
+//    };
+//    AjaxCallInfoArr[URL].AjaxCallingThread =
+//                $.ajax({
+
+//                    type: LoadResourceOptions.AjaxCallType,
+//                    url: LoadResourceOptions.Path,
+//                    data: LoadResourceOptions.AjaxCallData,
+//                    contentType: "application/x-www-form-urlencoded; charset=utf-8",
+//                    dataType: "html",
+//                    crossDomain: false,
+//                    global: false,
+//                    timeout: LoadResourceOptions.Timeout,
+//                    success: function (response, textStatus, XMLHttpResponse) {
+//                        try {
+//                            //log('AjaxPostCallURL:- Call was Success for ' + URL);
+//                            if (URL == undefined) {
+//                                return;
+//                            }
+//                            AjaxCallInfoArr[URL].RespHtml = response;
+//                            AjaxCallInfoArr[URL].XMLHttpResponse = XMLHttpResponse;
+//                            try {
+//                                CallBackData.Response = response;
+//                                LoadResourceOptions.OnLoadSuccessFunction(CallBackData)
+//							} catch (e) {
+//								log(e);
+//                            }
+//                        } catch (e) {
+//                            log(e);
+//                        }
+
+//                    },
+//                    error: function (xhr, status, error) {
+//                        AjaxCallInfoArr[URL].Error = error;
+//                        try {
+//                            CallBackData.Succeed = false;
+//                            LoadResourceOptions.OnLoadFailureFunction(CallBackData);
+//                            BusinessVirtualFunctions.GeneralHandleGetResourceError();
+//							console.log("General Handle Get Resource Error: ", error);
+//						} catch (e) {
+//							log(e);
+//                        }
+//                    }
+//                });
+//}
+
+
+
+function LoadResourceFromAppPackage() {
+
+}
+
+function LoadResourceFromCM() {
+
+}
+
+
+/************************ Function Change Language *******************************/
+
+function ChangeLanguage(NewLang) {
+	//$('html').attr("style", "display: none;");
+    //$('#LoadingSpinner').attr("style", "display: none !important");
+    //$('#ALLPageContent').attr("style", "display: none !important");
+	$('html').attr("style", "opacity: 0;");
+    $('#LoadingSpinner').attr("style", "opacity: 0 !important");
+    $('#ALLPageContent').attr("style", "opacity: 0 !important");
+	
+    var PrevLang = config.AppLangID;
+	var LangCssFilesPaths = config.Styles[NewLang];
+	$('[configuredstylecss][' + PrevLang + ']').remove();
+	$('head').append(LangCssFilesPaths);
+	//var a = $(LangCssFilesPaths);
+	//for (var c = 0; c < a.length; c++) {
+	//	var i = a[c].outerHTML;
+	//	var x = a[c].attr('href');
+	//}
+
+    //history.replaceState({}, 'aaaa', (window.location.href.replace(new RegExp(PrevLang, 'g'), NewLang)));
+    ReplaceLanguage(PrevLang, NewLang);
+    config.AppLangID = NewLang;
+	
+    var _LoadSubPageParams = {
+        SubPageID: CurrentSubPageID,
+        LoadSubPageType: config.SubPages[CurrentSubPageID].SubPageLoadType,
+        SubPageInParams: LoadedSubPages[CurrentSubPageID].SubPageInParams,
+        SourceSubPageOutParams: LoadedSubPages[CurrentSubPageID].SourceSubPageOutParams,
+        SubPageURLInParams: LoadedSubPages[CurrentSubPageID].SubPageURLInParams,
+        SubPageOutParams: {
+        },
+        KeepCurrentHistoryState: true
+    }
+    LoadSubPage(_LoadSubPageParams);
+}
+
+function ReplaceLanguage(PrevLang, NewLang) {
+    var originalRouteStr = '';
+    var windowLocation = window.location.href;
+    for (var i = 0; i < config.Settings.RoutePrefixes.length; i++) {
+        if (windowLocation.indexOf(config.Settings.RoutePrefixes[i]) != -1) {
+            originalRouteStr = windowLocation.substring(windowLocation.indexOf(config.Settings.RoutePrefixes[i]) + config.Settings.RoutePrefixes[i].length);
+            break;
+        }
+    }
+    var RouteStr = NewLang + originalRouteStr.substring(originalRouteStr.indexOf(PrevLang) + PrevLang.length);
+    windowLocation = windowLocation.substring(0, windowLocation.indexOf(originalRouteStr)) + RouteStr + windowLocation.substring(windowLocation.indexOf(originalRouteStr) + originalRouteStr.length);
+	history.replaceState({ navi: true}, '', windowLocation);
+}
+
+
+
+/*********************************** Handle Loading Spinner ***********************************/
+
+var spinnerTimer;
+function ShowSpinner() {
+    $('#LoadingSpinner').show();
+    if (config && config.Settings && config.Settings.HideSpinerAfterSecound) {
+        clearTimeout(spinnerTimer);
+        var seconds = parseInt(config.Settings.HideSpinerAfterSecound);
+        spinnerTimer = setTimeout(function () {
+            HideSpinner('Force Hide Spinner From Timer');
+        }, seconds * 1000);
+        //log(" ShowSpinner Timer : " + spinnerTimer);
+    }
+}
+function HideSpinner(CallerInfo) {
+	if (CallerInfo == "Force Hide Spinner From Timer" && XHR.length > 0) {
+        $.each(XHR, function (index, value) {
+            value.ajaxObj.abort();
+        });
+        BusinessVirtualFunctions.AfterCancelPendingCalls();
+    }
+    window.scroll(0, 0);
+    $('#LoadingSpinner').hide();
+    //if (fromTimer) {
+    //    log(" Force HideSpinner FromTimer : " + spinnerTimer);
+    //}
+    //else
+    //    log(" HideSpinner : " + spinnerTimer);
+    if (CallerInfo) {
+        log("Hiding Spinner, CallerInfo: " + CallerInfo);
+    }
+    clearTimeout(spinnerTimer);
+	
+}
+
+function LoadAndRunCMCallHandler(CMCallHandlerInstanceID, InParams, FunCallBack) {
+    var CMCallHandlerID = config.CMCallHandlerInstances[CMCallHandlerInstanceID]["CMCallHandlerID"];
+    var CMCall = new GeneralCMCallHandler();
+    CMCall.CMCallHandlerID = CMCallHandlerID;
+    //CMCall.WidgetConfig = config.Widgets[WidgetID];
+    CMCall.InParameters = InParams;
+    if (!CMCall.CallBackFunc) CMCall.CallBackFunc = [];
+    CMCall.CallBackFunc.push(FunCallBack)
+    CMCall.GetScreenData();
+}
+
+
+var DynamicContentTypes = {
+    Content: 'Content',
+    Item: 'Item'
+}
+function LoadMenuWidgetInstance(WidgetInstanceID, $MenuWidgetInstanceContainer) {
+    var WidgetInstanceConfig;
+    for (var SubPageID in config.SubPages) {
+        for (var ZoneInstanceIndex in config.SubPages[SubPageID].ZoneInstances) {
+            for (var WidgetInstanceIndex in config.SubPages[SubPageID].ZoneInstances[ZoneInstanceIndex].WidgetInstances) {
+                if (WidgetInstanceID == config.SubPages[SubPageID].ZoneInstances[ZoneInstanceIndex].WidgetInstances[WidgetInstanceIndex].WidgetInstanceID) {
+                    WidgetInstanceConfig = config.SubPages[SubPageID].ZoneInstances[ZoneInstanceIndex].WidgetInstances[WidgetInstanceIndex];
+                    break;
+                }
+            }
+        }
+    }
+
+    if (!WidgetInstanceConfig) {
+        logErr("OpenWidgetInstance From SubMenu Error: Can't Find WidgetInstance for: " + WidgetInstanceID);
+    } else {
+        LoadAndRunSingleWidgetInstance(WidgetInstanceConfig, $MenuWidgetInstanceContainer);
+    }
+}
+
+function LoadAndRunSingleWidgetInstance(WidgetInstanceConfig, $MenuWidgetInstanceContainer) {
+    var WidgetInstanceDetails = WidgetInstanceConfig; //SubPageDetails.ZoneInstances[i].WidgetInstances[j];
+    var DOMInstanceWasExist = CreateOrGetCreatedWidgetInstance(WidgetInstanceDetails);
+    var NewWidgetParamsValues = false;
+
+    //Append/Move Widget Instance Container to Its Zone Instance Div
+    var WidgetContainerDivGeneratedID = WidgetInstanceDetails.WidgetInstanceID + '_Container';
+    var $WidgetInstanceContainer = CreatedWidgetInstanceContainers[config.AppLangID][WidgetContainerDivGeneratedID];
+    
+    if ($MenuWidgetInstanceContainer) {
+        $WidgetInstanceContainer.addClass('MenuWidgetInstanceContainer');
+        $WidgetInstanceContainer.bind('click', function (event) {
+            event.stopPropagation();
+            //event.preventDefault();
+        });
+        /*Begin Osama*/$MenuWidgetInstanceContainer[0].innerHTML = '';/*End*/
+        $WidgetInstanceContainer.detach().appendTo($MenuWidgetInstanceContainer);
+
+    }
+    var OnCMCallFinished = undefined;
+
+    if (config.Widgets[WidgetInstanceDetails.WidgetID].WidgetMWDetails.MWServiceID != "") {
+        //WidgetsCallCMArr[WidgetInstanceDetails.WidgetInstanceID] = { CallCMFinished: false };
+
+        var _WidgetID = WidgetInstanceDetails.WidgetID;
+
+        OnCMCallFinished = function (Data) {
+            var _WidgetInstanceDetails = Data.LoadAndRunWidgetInstanceOptions.WidgetInstanceConfig;
+        };
+    }
+
+    var LoadAndRunWidgetInstanceOptions = {
+        WidgetInstanceID: WidgetInstanceDetails.WidgetInstanceID,
+        WidgetConfig: config.Widgets[WidgetInstanceDetails.WidgetID],
+        EventID: undefined,
+        WidgetInstanceConfig: WidgetInstanceDetails,
+        SourceSubPageOutParams: {},//SourceSubPageOutParams,
+        SubPageURLInParams: {},//SubPageURLInParams,
+        ReLoadHTML: false,
+        ReLoadJS: false,
+        ReCallCM: false,
+        ReRunForm: false,
+        CallBackContext: {},
+        OnLoadSuccessFunction: function (Results) {
+            var _WidgetInstanceDetails = Results.LoadAndRunWidgetInstanceOptions.WidgetInstanceConfig;
+
+            if (!DOMInstanceWasExist)
+				try { WidgetsInstancesClasses[_WidgetInstanceDetails.WidgetInstanceID].SetHTMLInputsValues(); } catch (e) { log(e); };
+            
+            //$WidgetInstanceContainer.detach().appendTo($MenuWidgetInstanceContainer);
+        },
+        OnLoadFailureFunction: function (Results) {
+          },
+        OnCMCallFinished: OnCMCallFinished
+    }
+
+    if (!WidgetsInstancesClasses[WidgetInstanceDetails.WidgetInstanceID] || !WidgetsInstancesClasses[WidgetInstanceDetails.WidgetInstanceID].HandleGetScreenDataFinishedSucceed
+            || NewWidgetParamsValues || WidgetInstanceDetails.AlwaysReRunForm) {
+        LoadAndRunWidgetInstance(LoadAndRunWidgetInstanceOptions);
+    }
+    else if (!DOMInstanceWasExist) {
+        LoadAndRunWidgetInstanceOptions.UseCurrentWidgetInstanceClass = true;
+        LoadAndRunWidgetInstance(LoadAndRunWidgetInstanceOptions);
+    }
+    else if (DOMInstanceWasExist) {
+        try {
+            if (config.Widgets[WidgetInstanceDetails.WidgetID].WidgetMWDetails.MWServiceID != "")
+                WidgetsCallCMArr[WidgetInstanceDetails.WidgetInstanceID].CallCMFinished = true;
+            WidgetsInstancesClasses[WidgetInstanceDetails.WidgetInstanceID].$DOMWidgetInstance = CreatedWidgetInstances[config.AppLangID][WidgetInstanceDetails.WidgetInstanceID];
+            WidgetsInstancesClasses[WidgetInstanceDetails.WidgetInstanceID].SetHTMLInputsValues();
+        } catch (e) {
+            log(e);
+        };
+    }
+
+    return $WidgetInstanceContainer;
+}
+
+
+function GenerateDynamicContentHTML(ContentOrItemID, Type, DrawManageContainers, ExtraInfo) {
+    try {
+
+    
+    if (!config.DynamicContent.Contents[ContentOrItemID] && !config.DynamicContent.Items[ContentOrItemID]) {
+        logErr("Invalid Dynamic Content ", Type, "ID: ", ContentOrItemID, ' ExtraInfo: ', ExtraInfo);
+        return;
+    }
+
+    var HTMLTemplate = config.DynamicContent.Templates[Type + 's' + 'Templates'][config.DynamicContent[Type + 's'][ContentOrItemID].TemplateHTMLID].TemplateHTML
+    var PropertiesValues = config.DynamicContent[Type + 's'][ContentOrItemID][Type + 'Data'][config.AppLangID];
+    var TemplatePropertiesAndPlaceHoldersLookup = GetDynamicTemplatePropertiesAndPlaceHoldersLookup(HTMLTemplate);
+    var PropertiesAndPlaceHoldersIDs = GetDynamicContent_TemplatePropertiesAndPlaceHolders(TemplatePropertiesAndPlaceHoldersLookup, PropertiesValues);
+
+    var PlaceHoldersConfig = config.DynamicContent[Type + 's'][ContentOrItemID][Type + 'TemplatePlaceHolders'];
+    if (Type == DynamicContentTypes.Content && config.DynamicContent.ContentSubContent && config.DynamicContent.ContentSubContent[ContentOrItemID]
+        && config.DynamicContent.ContentSubContent[ContentOrItemID].ParentContentID && config.DynamicContent.ContentSubContent[ContentOrItemID].ParentContentID.length > 0
+        && PropertiesAndPlaceHoldersIDs && PropertiesAndPlaceHoldersIDs.PlaceHolders && PropertiesAndPlaceHoldersIDs.PlaceHolders.length > 0) {
+        for (var i = 0; i < PropertiesAndPlaceHoldersIDs.PlaceHolders.length; i++) {
+
+            //If There is no PlaceHolders for the Content, Then Get the Parent PlaceHolders
+            var GetParentPlaceHolders = true;
+            if (PlaceHoldersConfig[PropertiesAndPlaceHoldersIDs.PlaceHolders[i]]) {
+                //GetParentPlaceHolders = false;
+                //If there is PlaceHolders and Groups inside it, But there is no config for all these groups  
+                if (PlaceHoldersConfig[PropertiesAndPlaceHoldersIDs.PlaceHolders[i]].Groups && PlaceHoldersConfig[PropertiesAndPlaceHoldersIDs.PlaceHolders[i]].Groups.length > 0) {
+                    for (var j = 0; j < PlaceHoldersConfig[PropertiesAndPlaceHoldersIDs.PlaceHolders[i]].Groups.length; j++) {
+                        if (config.DynamicContent.ItemsGroups[PlaceHoldersConfig[PropertiesAndPlaceHoldersIDs.PlaceHolders[i]].Groups[j]])
+                            GetParentPlaceHolders = false;
+                    }
+                }
+            }
+            
+            if (GetParentPlaceHolders)
+            {
+                var ParentContentID = config.DynamicContent.ContentSubContent[ContentOrItemID].ParentContentID;
+                PlaceHoldersConfig[PropertiesAndPlaceHoldersIDs.PlaceHolders[i]] = config.DynamicContent.Contents[ParentContentID].ContentTemplatePlaceHolders[PropertiesAndPlaceHoldersIDs.PlaceHolders[i]];
+            }
+        }
+
+    }
+    var PlaceHoldersHTML = GetDynamicContent_PlaceHoldersItemsHTML(PlaceHoldersConfig, Type, ContentOrItemID);
+
+    var ClearEmptyPlaceHolders = true;
+    if (ClearEmptyPlaceHolders && PropertiesAndPlaceHoldersIDs.PlaceHolders) {
+        for (var i = 0; i < PropertiesAndPlaceHoldersIDs.PlaceHolders.length; i++) {
+            PlaceHoldersHTML[PropertiesAndPlaceHoldersIDs.PlaceHolders[i]] = PlaceHoldersHTML[PropertiesAndPlaceHoldersIDs.PlaceHolders[i]] || '';
+        }
+    }
+    
+    //if (ContentOrItemID == 'NBE_DC_AboutUS') {
+    //    
+    //}
+    //if (ContentOrItemID == 'CorporateSubMenu')
+    //    logDetail('for: ', ContentOrItemID, ' PropertiesAndPlaceHoldersIDs: ', PropertiesAndPlaceHoldersIDs, ' PlaceHoldersHTML: ', PlaceHoldersHTML);
+    var PropertiesAndPlaceHoldersValues = $.extend(true, {}, PropertiesAndPlaceHoldersIDs.Properties, PlaceHoldersHTML);
+    //logDetail('PropertiesAndPlaceHoldersValues: ', PropertiesAndPlaceHoldersValues);
+    //var GeneratedHTML = $.tmpl('<div>' + HTMLTemplate + '</div>', PropertiesAndPlaceHoldersValues);
+    //return $(GeneratedHTML).html();
+    var ResultHTML = HTMLTemplate;
+
+    for (var elem in PropertiesAndPlaceHoldersValues) {
+        ResultHTML = ResultHTML.replace(new RegExp('\\$\\{' + elem + '\\}', 'g'), PropertiesAndPlaceHoldersValues[elem])
+    }
+
+    if (Type == DynamicContentTypes.Item) {
+        var $ResultHTML = $(ResultHTML);
+        //var $ResultHTML = $('<div>' + ResultHTML + '<div id="tempcontainer">${WidgetInstance}</div></div>')
+        $ResultHTML.attr('ItemID', ContentOrItemID);
+        if (config.DynamicContent.Items[ContentOrItemID].ItemActionID) {
+
+            var GenerateSubMenu = true;
+            var GenerateWidgetInstance = true;
+            if (config.DynamicContent.ItemsActions[config.DynamicContent.Items[ContentOrItemID].ItemActionID].ActionTypeID == DynamicContentItemsActionsTypes.OpenSubMenu
+&& GenerateSubMenu) {
+                var SubMenuID = config.DynamicContent.ItemsActions[config.DynamicContent.Items[ContentOrItemID].ItemActionID].Param1;
+                //if (ContentOrItemID == "NBEMainMenuPersonal")
+                var SubMenuHTML = GenerateDynamicContentHTML(SubMenuID, DynamicContentTypes.Content, false, {
+                    SubMenuID: SubMenuID,
+                    ItemActionID: config.DynamicContent.Items[ContentOrItemID].ItemActionID,
+                    ContentOrItemID: ContentOrItemID
+                });
+                //ResultHTML = ResultHTML.replace(new RegExp('\\$\\{' + 'SubMenu' + '\\}', 'g'), SubMenuHTML);
+                
+                //$ResultHTML = $($('<div>').append($ResultHTML).html().replace('${SubMenu}', SubMenuHTML));
+                //$ResultHTML = $($('<div>').append($ResultHTML).html().replace('${SubMenu}', 
+                //    $('<div>').append($('<div SubMenuID="' + SubMenuID + '" SubMenuForItemID="' + ContentOrItemID + '">').append(SubMenuHTML)).html()));
+
+                var $SubMenuHTML = $(SubMenuHTML)
+                $SubMenuHTML.attr("SubMenuID", SubMenuID).attr("SubMenuForItemID", ContentOrItemID);
+                $SubMenuHTML.addClass("MenuSlidableElement");
+                $ResultHTML = $($('<div>').append($ResultHTML).html().replace('${SubMenu}',
+                    $('<div>').append($SubMenuHTML).html()));
+                //ResultHTML = ResultHTML
+            } else if (config.DynamicContent.ItemsActions[config.DynamicContent.Items[ContentOrItemID].ItemActionID].ActionTypeID == DynamicContentItemsActionsTypes.OpenWidgetInstance
+                && GenerateWidgetInstance) {
+                
+                var WidgetInstanceID = config.DynamicContent.ItemsActions[config.DynamicContent.Items[ContentOrItemID].ItemActionID].Param1;
+                $ResultHTML.attr("MenuWidgetInstanceID", WidgetInstanceID);
+            }
+            var ItemActionID = config.DynamicContent.Items[ContentOrItemID].ItemActionID;
+            $ResultHTML.attr('ItemActionID', ItemActionID)
+			if($ResultHTML.attr("class"))
+				$ResultHTML.attr("class", $ResultHTML.attr("class") + ' DCItem')
+			else
+				$ResultHTML.attr("class",'DCItem')
+            try {
+                var ItemActionConfig = config.DynamicContent.ItemsActions[ItemActionID];
+                if ((ItemActionConfig && ItemActionConfig.ActionTypeID == DynamicContentItemsActionsTypes.OpenURL && (ItemActionConfig.Param1 + '').replace('/', '') == CurrentSubPageID)
+                    || (ItemActionConfig && ItemActionConfig.ActionTypeID == DynamicContentItemsActionsTypes.OpenContent && (ItemActionConfig.Param2 + '').replace('/', '') == CurrentSubPageID)) {
+                    $ResultHTML.attr("class", $ResultHTML.attr("class") + ' ActiveDCItem');
+                }
+
+            } catch (e) {
+				log(e);
+            }
+            if (DrawManageContainers) {
+                var X = '<div class="ManageItem" style="display:none; Width:60px; height: 30px; position: absolute;"><div class="DeleteItemBtn" style="Width:30px; height: 30px" ItemID="'
+                    + ContentOrItemID + '">X</div><div class="EditItemBtn" style="Width:30px; height: 30px" ItemID="'
+                    + ContentOrItemID + '">E</div></div>'
+                $ResultHTML.append(X);
+            }
+
+            
+
+        }
+        var $Container = $('<div></div>');
+        $ResultHTML.appendTo($Container);
+        ResultHTML = $Container.html();
+
+        ResultHTML = ResultHTML.replace('${SubMenu}', '');
+
+	}
+
+	// set ContentID as ID for propertyid="ContentData" in template
+	if (Type == DynamicContentTypes.Content) {
+		var $ResultHTML = $(ResultHTML);
+		if (config.DynamicContent.Contents[ContentOrItemID].IsRoot || config.DynamicContent.Contents[ContentOrItemID].ContentType == 'ContentMenus')
+			$ResultHTML.find("[DivForStyles]").attr("id", ContentOrItemID)
+		else {
+			var parentId = config.DynamicContent.ContentSubContent[ContentOrItemID].ParentContentID;
+			$ResultHTML.find("[DivForStyles]").attr("id", parentId)
+		}
+		var $Container = $('<div></div>');
+		$ResultHTML.appendTo($Container);
+		ResultHTML = $Container.html();
+	}
+
+    return ResultHTML;
+    } catch (e) {
+        logErr('GenerateDynamicContentHTML Error: ', e, ContentOrItemID, Type);
+    }
+}
+
+
+
+var DynamicContentTemplatePropertiesAndPlaceHolders = {
+    Properties: undefined,
+    PlaceHolders: undefined
+}
+function GetDynamicTemplatePropertiesAndPlaceHoldersLookup(TemplateHTML) {
+    TemplateHTML = replaceAll(TemplateHTML,'src=', 'xsrc=');
+    var $TemplateHTML = $('<div>' + TemplateHTML + '</div>');
+    
+    var PropertiesAndPlaceHoldersLookup = {};
+    PropertiesAndPlaceHoldersLookup.PropertiesHTMLElements = $TemplateHTML.find('[PropertyID]');
+    PropertiesAndPlaceHoldersLookup.PlaceHoldersHTMLElements = $TemplateHTML.find('[PlaceHolderID]');
+    return PropertiesAndPlaceHoldersLookup;
+}
+function GetDynamicContent_TemplatePropertiesAndPlaceHolders(TemplatePropertiesAndPlaceHoldersLookup, PropertiesValues) {
+    var PropertiesAndPlaceHolders = clone(DynamicContentTemplatePropertiesAndPlaceHolders);
+    //var $TemplateHTML = $('<div>' + TemplateHTML + '</div>');
+    var PropertiesHTMLElements = TemplatePropertiesAndPlaceHoldersLookup.PropertiesHTMLElements;
+    var PlaceHoldersHTMLElements = TemplatePropertiesAndPlaceHoldersLookup.PlaceHoldersHTMLElements;
+    PropertiesHTMLElements.each(function (index, PropertyHTMLElement) {
+        PropertiesAndPlaceHolders.Properties = PropertiesAndPlaceHolders.Properties || [];
+        var PropertyID = $(PropertyHTMLElement).attr('PropertyID');
+        PropertiesAndPlaceHolders.Properties[PropertyID] = (PropertiesValues && PropertiesValues[PropertyID]) ? PropertiesValues[PropertyID] : "";
+    });
+
+    PlaceHoldersHTMLElements.each(function (index, PlaceHolderHTMLElement) {
+        PropertiesAndPlaceHolders.PlaceHolders = PropertiesAndPlaceHolders.PlaceHolders || [];
+        PropertiesAndPlaceHolders.PlaceHolders[index] = $(PlaceHolderHTMLElement).attr('PlaceHolderID');
+    });
+    return PropertiesAndPlaceHolders;
+}
+
+function GetDynamicContent_PlaceHoldersItemsHTML(PlaceHoldersArr) {
+    var PlaceHoldersHTMLArr = {};
+    for (var PlaceHolderID in PlaceHoldersArr) {
+        PlaceHoldersHTMLArr[PlaceHolderID] = '';
+        //if (PlaceHoldersArr[PlaceHolderID].Items.length > 0) {
+        //    for (var i = 0; i < PlaceHoldersArr[PlaceHolderID].Items.length; i++) {
+        //        var ItemID = PlaceHoldersArr[PlaceHolderID].Items[i];
+        //        var ItemConfig = config.DynamicContent.Items[ItemID];
+        //        if (!ItemConfig) {
+        //            logErr('Invalid ItemID: ', ItemID, " Will Not Continue");
+        //            return;
+        //        }
+        //        PlaceHoldersHTMLArr[PlaceHolderID] += GenerateDynamicContentHTML(ItemID, DynamicContentTypes.Item);
+        //    }
+        //} else
+            if (PlaceHoldersArr[PlaceHolderID].Groups && PlaceHoldersArr[PlaceHolderID].Groups.length > 0) {
+            for (var i = 0; i < PlaceHoldersArr[PlaceHolderID].Groups.length; i++) {
+                var GroupID = PlaceHoldersArr[PlaceHolderID].Groups[i];
+                var GroupConfig = config.DynamicContent.ItemsGroups[GroupID];
+                if (!GroupConfig) {
+                    console.warn('Invalid GroupID: ', GroupID, "for PlaceHolderID: ", PlaceHolderID, " Will Ignore, and continue", "PlaceHolderID: ", PlaceHolderID);
+                    continue;
+                }
+                if (config.DynamicContent.ItemsGroups[GroupID].Items && config.DynamicContent.ItemsGroups[GroupID].Items.length > 0) {
+                    for (var j = 0; j < config.DynamicContent.ItemsGroups[GroupID].Items.length; j++) {
+                        PlaceHoldersHTMLArr[PlaceHolderID] += GenerateDynamicContentHTML(config.DynamicContent.ItemsGroups[GroupID].Items[j], DynamicContentTypes.Item, false, {
+                            PlaceHolderID: PlaceHolderID,
+                            GroupID: GroupID,
+                            Item: config.DynamicContent.ItemsGroups[GroupID].Items[j]
+                        });
+                    }
+                }
+                    
+            }
+        }
+    }
+
+    return PlaceHoldersHTMLArr;
+}
+
+function GetDynamicContent_PlaceHoldersItemsHTML_Admin(PlaceHoldersArr, Type, ContentID, ParentContentID) {
+    var PlaceHoldersHTMLArr = {};
+    var dynObj = config.DynamicContent;
+    for (var PlaceHolderID in PlaceHoldersArr) {
+        var PlaceHolderItems = [];
+        PlaceHoldersHTMLArr[PlaceHolderID] = '';
+        var groupID = undefined;
+        // Check GroupID or ParentContent GroupID or else // 
+        if (PlaceHoldersArr[PlaceHolderID].Groups != undefined && PlaceHoldersArr[PlaceHolderID].Groups.length != 0) {
+
+            groupID = PlaceHoldersArr[PlaceHolderID].Groups[0];
+            if ((dynObj.ItemsGroups[groupID] == undefined || dynObj.ItemsGroups[groupID].Items.length == 0) && dynObj.ContentSubContent[ContentID] != undefined) {
+                var ParentContents = dynObj.ContentSubContent[ContentID].ParentContentID;
+                if (ParentContents.length == 1) {
+                    try {
+                        var parentID = ParentContents[0];
+                        groupID = dynObj.Contents[parentID].ContentTemplatePlaceHolders[PlaceHolderID].Groups[0];
+                        PlaceHolderItems = dynObj.ItemsGroups[groupID]["Items"];
+					} catch (e) { log(e);}
+                }
+                else { }
+            }
+            else {
+                try {
+                    groupID = PlaceHoldersArr[PlaceHolderID].Groups[0];
+                    PlaceHolderItems = dynObj.ItemsGroups[groupID]["Items"];
+				} catch (e) { log(e);}
+            }
+
+        }
+        else if (ParentContentID != undefined) {
+            try {
+                vm.showSiblingsBtn = true;
+                groupID = dynObj.Contents[ParentContentID].ContentTemplatePlaceHolders[PlaceHolderID].Groups[0];
+                PlaceHolderItems = dynObj.ItemsGroups[groupID]["Items"];
+			} catch (e) { log(e); }
+        }
+        else if (dynObj.ContentSubContent[ContentID] != undefined) {
+            var ParentContent = dynObj.ContentSubContent[ContentID].ParentContentID;
+            try {
+                groupID = dynObj.Contents[ParentContent].ContentTemplatePlaceHolders[PlaceHolderID].Groups[0];
+                PlaceHolderItems = dynObj.ItemsGroups[groupID]["Items"];
+			} catch (e) { log(e);}
+        }
+        else if (PlaceHoldersArr[PlaceHolderID].Items != undefined) {
+            PlaceHolderItems = PlaceHoldersArr[PlaceHolderID].Items;
+        }
+
+        for (var i = 0; i < PlaceHolderItems.length; i++) {
+            var ItemID = PlaceHolderItems[i];
+            var ItemConfig = dynObj.Items[ItemID];
+            if (!ItemConfig) {
+                console.log('Invalid ItemID: ', ItemID, " Will Not Contain");
+                return;
+            }
+            if (Type == DynamicContentTypes.Item)
+                PlaceHoldersHTMLArr[PlaceHolderID] += GenerateDynamicContentHTML(ItemID, DynamicContentTypes.Item, null, PlaceHolderID, groupID, ContentID);
+            else
+                PlaceHoldersHTMLArr[PlaceHolderID] += GenerateDynamicContentHTML(ItemID, DynamicContentTypes.Item, null, PlaceHolderID, groupID, null);
+        }
+    }
+    return PlaceHoldersHTMLArr;
+}
+
+var DynamicContentItemsActionsTypes = {
+	ExecutePortalEvent: 'ExecutePortalEvent',
+	OpenSubMenu: 'OpenSubMenu',
+	OpenSubPage: 'OpenSubPage',
+	OpenURL: 'OpenURL',
+	OpenWidgetInstance: 'OpenWidgetInstance',
+	OpenContent: 'OpenContent',
+	ExecuteJavaScriptFunction: 'ExecuteJavaScriptFunction',
+	OpenParentContent: 'OpenParentContent'
+}
+
+function HandleDynamicContentItemAction(ItemActionID, $Item, Context) {
+    log('HandleDynamicContentItemAction >> ', ItemActionID);
+    var ItemActionConfig = config.DynamicContent.ItemsActions[ItemActionID];
+    switch (ItemActionConfig.ActionTypeID) {
+        case DynamicContentItemsActionsTypes.ExecutePortalEvent:
+            ExecutePortalEvent(ItemActionConfig.Param1);
+            break;
+        case DynamicContentItemsActionsTypes.OpenSubMenu:
+            var ItemID = $Item.attr('ItemID');
+            var $PlaceHolder = $Item.closest('[PlaceHolderID]');
+            var PlaceHolderID = $PlaceHolder.attr('PlaceHolderID');
+            //$PlaceHolder.find('[SubMenuID]').not('[SubMenuForItemID="' + ItemID + '"]').slideUp();
+            //$PlaceHolder.find('.MenuSlidableElement').not('[SubMenuForItemID="' + ItemID + '"]').slideUp();
+            $('Body').find('.MenuSlidableElement').not('[SubMenuForItemID="' + ItemID + '"]').slideUp();
+            $PlaceHolder.find('[SubMenuForItemID="' + ItemID + '"]').slideToggle();
+            BusinessVirtualFunctions.OnToggleSubMenu($Item);
+            break;
+        case DynamicContentItemsActionsTypes.OpenWidgetInstance:
+            var ItemID = $Item.attr('ItemID');
+            var $PlaceHolder = $Item.closest('[PlaceHolderID]');
+            var PlaceHolderID = $PlaceHolder.attr('PlaceHolderID');
+            //$PlaceHolder.find('[WidgetInstanceForItemID]').not('[WidgetInstanceForItemID="' + ItemID + '"]').slideUp();
+            var $MenuWidgetInstanceContainer
+            var $elem = $Item;
+            var WidgetInstanceID = $elem.attr('MenuWidgetInstanceID');
+            var $MenuWidgetInstanceContainer = $elem.find('.MenuWidgetInstance');
+            var MenuWidgetInstanceContainerIsVisible = $MenuWidgetInstanceContainer.is(":visible");
+            if (!MenuWidgetInstanceContainerIsVisible) {
+                $MenuWidgetInstanceContainer.attr("WidgetInstanceForItemID", $elem.closest("[itemid]").attr('itemid'));
+                $MenuWidgetInstanceContainer.addClass("MenuSlidableElement");
+                LoadMenuWidgetInstance(WidgetInstanceID, $MenuWidgetInstanceContainer);
+            }
+            
+
+
+            //$PlaceHolder.find('.MenuSlidableElement').not('[WidgetInstanceForItemID="' + ItemID + '"]').slideUp();
+            $('Body').find('.MenuSlidableElement').not('[WidgetInstanceForItemID="' + ItemID + '"]').slideUp();
+            $PlaceHolder.find('[WidgetInstanceForItemID="' + ItemID + '"]').slideToggle();
+            BusinessVirtualFunctions.OnToggleWidgetInstance($Item);
+            
+
+            break;
+        case DynamicContentItemsActionsTypes.OpenSubPage:
+            var ConfigInParams = {}
+            if (ItemActionConfig.Param2 && ItemActionConfig.Param3) {
+                ConfigInParams[ItemActionConfig.Param2] = ItemActionConfig.Param3;
+                if (ItemActionConfig.Param4 && ItemActionConfig.Param5) {
+                    ConfigInParams[ItemActionConfig.Param4] = ItemActionConfig.Param5;
+                    if (ItemActionConfig.Param6 && ItemActionConfig.Param7) {
+                        ConfigInParams[ItemActionConfig.Param6] = ItemActionConfig.Param7;
+                        if (ItemActionConfig.Param8 && ItemActionConfig.Param9) {
+                            ConfigInParams[ItemActionConfig.Param8] = ItemActionConfig.Param9;
+                        }
+                    }
+                }
+            }
+            var _LoadSubPageParams = {
+                SubPageID: ItemActionConfig.Param1,
+                EventID: undefined,
+                ResetWidgetInstancesHTMLInputs: config.SubPages[CurrentSubPageID].ResetHTMLInputsOnLeavingSubPage,
+                //LoadSubPageType: LoadSubPageTypes[EventConfig.Param3],
+                SourceSubPageOutParams: $.extend(LoadedSubPages[CurrentSubPageID].SubPageOutParams,ConfigInParams),
+                SubPageInParams: {},
+                SubPageOutParams: {}
+            }
+            LoadSubPage(_LoadSubPageParams)
+            break;
+        case DynamicContentItemsActionsTypes.OpenURL:
+		case DynamicContentItemsActionsTypes.OpenContent:
+
+			if (ItemActionConfig.Param1 == 'Add Content Later')
+				return;
+
+            var URL = ItemActionConfig.ActionTypeID == DynamicContentItemsActionsTypes.OpenURL ? ItemActionConfig.Param1 : ItemActionConfig.Param2;
+            if (URL.indexOf("/") == 0) {
+				window.location.href = '#/' + config.AppLangID + URL;
+				var ItemID = $Item.attr('ItemID');
+				var $PlaceHolder = $Item.closest('[PlaceHolderID]');
+				var PlaceHolderID = $PlaceHolder.attr('PlaceHolderID');
+				if (PlaceHolderID == 'SubItems') {
+					var $SubItemsPlaceHolderID = $Item.closest("[placeholderid]");
+					var $ItemIDSubItems = $SubItemsPlaceHolderID.closest("[itemid]");
+					ItemID = $ItemIDSubItems.attr('ItemID');
+					$PlaceHolder = $ItemIDSubItems.closest("[placeholderid]");
+				}
+				$('Body').find('.MenuSlidableElement').not('[WidgetInstanceForItemID="' + ItemID + '"]').slideUp();
+                $PlaceHolder.find('[WidgetInstanceForItemID="' + ItemID + '"]').slideToggle();
+                BusinessVirtualFunctions.OnToggleContent($Item);
+                //onpopstate();
+                //onhashchange();
+            } else if (URL.indexOf("http") == 0) {
+                if (ItemActionConfig.Param2 == 'OpenInSameWindow') {
+                    window.location.href = URL;
+                }
+                else if (ItemActionConfig.Param2 == 'OpenInNewWindow')
+                    window.open(URL);
+            }
+            break;
+        case DynamicContentItemsActionsTypes.ExecuteJavaScriptFunction:
+            var JS = ItemActionConfig.Param1;
+            eval(JS);
+			break;
+
+		case DynamicContentItemsActionsTypes.OpenParentContent:
+			var $ContentID = $Item.closest('[forcontentid]');
+			var ContentID = $ContentID.attr('forcontentid');
+			var ParentContentID = config.DynamicContent.ContentSubContent[ContentID];
+			if (ParentContentID != undefined) {
+				ParentContentID = ParentContentID.ParentContentID;
+				window.location.href = '#/' + config.AppLangID + '/' + ParentContentID;
+			}
+			break;
+    }
+}
+
+// CM Caching //
+var CMCachingConfig = {
+    CachingKey: '',
+    CMConfig: {}
+};
+function GetCMCachingConfig(CMServiceID, ResponseData) {
+    var CMConfig = clone(CMCachingConfig);
+    var newCachingKey;
+    var CurrentCMService = config.MWServicesInfo.find(function (P) {
+        return P.MWServiceID == CMServiceID;
+    });
+    if (CurrentCMService) {
+        newCachingKey = CMServiceID + "_";
+        var CachingIdentifierFieldsKeysArr = CurrentCMService.MW_CachingIdentifierFields.split(',');
+        var CachingMethodType = CurrentCMService.MW_CachingMethodType;
+        if (CachingIdentifierFieldsKeysArr && CachingIdentifierFieldsKeysArr.length > 0) {
+            for (var x = 0; x < CachingIdentifierFieldsKeysArr.length; x++) {
+                var CachingIdentifierFieldValue = getValues(ResponseData, CachingIdentifierFieldsKeysArr[x]);
+                if (CachingIdentifierFieldValue && CachingIdentifierFieldValue.length > 0) {
+                    newCachingKey += CachingIdentifierFieldsKeysArr[x] + "_" + CachingIdentifierFieldValue[0] + "_";
+                }
+            }
+            newCachingKey = newCachingKey.trimEnd('_').concat("_");
+        }
+        newCachingKey = newCachingKey.trimEnd('_');
+        newCachingKey = newCachingKey.replace(/\./g, '$002e');
+        //newCachingKey = newCachingKey.concat("key");
+        CMConfig.CachingKey = newCachingKey;
+        CMConfig.CMConfig = CurrentCMService;
+    }
+    return CMConfig;
+}
+
+
+function GetCurrentSubPageZoneInstances() {
+    var ZoneInstancesIDs = []
+    $('.ZoneInstance').each(function (index, elem) {
+        ZoneInstancesIDs.push($(elem).attr('id'))
+    })
+    return ZoneInstancesIDs;
+}
+
+function GetCurrentZoneInstancesWidgetInstances() {
+    var ZoneInstancesIDs = GetCurrentSubPageZoneInstances();
+    var ZoneInstancesWidgetInstances = [];
+    for (var i = 0; i < ZoneInstancesIDs.length; i++) {
+        $('#' + ZoneInstancesIDs[i] + ' .WidgetInstance').each(function (index, elem) {
+            ZoneInstancesWidgetInstances[i] = ZoneInstancesWidgetInstances[i] || {};
+            ZoneInstancesWidgetInstances[i][ZoneInstancesIDs[i]] = ZoneInstancesWidgetInstances[i][ZoneInstancesIDs[i]] || [];
+            ZoneInstancesWidgetInstances[i][ZoneInstancesIDs[i]].push($(elem).attr('id'))
+        })
+    }
+
+    return ZoneInstancesWidgetInstances;
+
+}
+
+function GetSubpageTitle() {
+	return config.SubPages[CurrentSubPageID].Titles[config.AppLangID];
+}
+
+function Test() { }
+</script>
+
+</body>
+</html>

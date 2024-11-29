@@ -1,0 +1,2830 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>clientlibs.min.216fa36c770f859a477b60b9974d552c.html</title>
+</head>
+<body>
+
+<script>
+/*! JS generated on: Wed Nov 20 2024 15:10:03 GMT+0000 (Coordinated Universal Time)*/
+(function ($) {
+    var urlParams = new URLSearchParams(window.location.search); //get all parameters  
+    var skuids = urlParams.get('skuids');
+    var timestamp = urlParams.get('timestamp');
+    if (skuids) {
+        var addProductsToCart = function addProductsToCart(drSessionToken) {
+            var spinner = new Spinner(opts);
+            $('<div id="spinner_center"><div id="spinner_circle"></div></div>').appendTo('body');
+            spinner.spin($('#spinner_circle')[0]);
+            var cartData = { "cart": { "lineItems": { "lineItem": [] } } };
+            var drlocale = urlParams.get('locale');
+            var skuArr = skuids.split(',');
+            skuArr.forEach(function (element) {
+                var eleArr = element.split(":");
+                obj = { "quantity": eleArr[1], "product": { "externalReferenceId": eleArr[0] } };
+                cartData.cart.lineItems.lineItem.push(obj);
+            });
+            var validDrLocales = ["en_us", "en_gb", "en_is", "fr_fr", "it_it", "de_de", "es_es", "en_ie", "en_pr"];
+            var currentDrLocale = urlParams.get('locale');
+            if (validDrLocales.includes(currentDrLocale.toLowerCase())) {
+                micron.digitalRiver.components.digitalRiver.setCookie('DR-locale', currentDrLocale);
+            }
+            deleteAndAddCart(drSessionToken, currentDrLocale, cartData, spinner);
+        };
+
+        var deleteAndAddCart = function deleteAndAddCart(drSessionToken, currentDrLocale, cartData, spinner) {
+            $.ajax({
+                url: $("li.cart").data("pagepath") + ".digital-river.json?category=deleteCart&locale=" + currentDrLocale,
+                type: "POST",
+                data: {
+                    drsessiontoken: drSessionToken
+                },
+                success: function success(data) {
+                    addNewCart(drSessionToken, currentDrLocale, cartData, spinner);
+                },
+                error: function error(jqXHR, _error, errorThrown) {
+                    console.log('delete error');
+                }
+            });
+        };
+
+        var addNewCart = function addNewCart(drSessionToken, currentDrLocale, cartData, spinner) {
+            $.ajax({
+                url: $("li.cart").data("pagepath") + ".digital-river.json?category=addToCart&bundle=true&locale=" + currentDrLocale,
+                type: "POST",
+                data: {
+                    drsessiontoken: drSessionToken,
+                    cartData: JSON.stringify(cartData)
+                },
+                success: function success(data) {
+                    var cartRedirectUrl = $('.drConfigs').attr('data-drCartRedirectUrl');
+                    window.location = cartRedirectUrl;
+                    spinner.stop();
+                },
+                error: function error(jqXHR, _error, errorThrown) {
+                    var cartRedirectUrl = $('.drConfigs').attr('data-drCartRedirectUrl');
+                    window.location = cartRedirectUrl;
+                    spinner.stop();
+                }
+            });
+        };
+
+        if (micron.digitalRiver.components.digitalRiver.getCookie('DR-session-tkn')) {
+            var drSessionToken = micron.digitalRiver.components.digitalRiver.getCookie('DR-session-tkn');
+            addProductsToCart(drSessionToken);
+        } else {
+            $.when(micron.digitalRiver.components.digitalRiver.getDRSessionToken()).done(function (drSessionToken) {
+                addProductsToCart(drSessionToken);
+            });
+        }
+    }
+})(jQuery);
+(function ($) {
+    micron.dynamicpricing = {
+        components: {
+            dynamicpricing: {
+                init: function init() {
+
+                    $('.crucial').on('updateDRPriceCall:callback', function (e) {
+                        micron.dynamicpricing.components.dynamicpricing.triggerDynamicPricing();
+                    });
+                },
+                'loadDynamicPrice': function loadDynamicPrice() {
+                    if ($(".dynamic-price").length) {
+                        var skus = [];
+                        var parts = '';
+                        var uniqueSku = '';
+                        $('.dynamic-price').each(function () {
+                            sku = $(this).attr('data-partnumber');
+                            $(this).addClass('dynamic-pricing-' + sku);
+                            skus.push(sku);
+                            uniqueSku = micron.util.components.util.uniq(skus);
+                        });
+                        $.ajax({
+                            type: "GET",
+                            url: "/bin/micron/dynamicpricing/clientside",
+                            cache: false,
+                            dataType: "json",
+                            data: {
+                                urlValue: window.location.href,
+                                partnumbers: uniqueSku
+                            },
+                            success: function success(response) {
+                                var keys = Object.keys(response);
+                                for (var i = 0; i < keys.length; i++) {
+                                    var eacPart = keys[i];
+                                    var dynamicPriceElem = $('.dynamic-pricing-' + eacPart);
+                                    if (!micron.util.components.util.isEmpty(response[eacPart])) {
+                                        $('.dynamic-pricing-' + eacPart + ' span:first-child').remove();
+                                        $(dynamicPriceElem).attr('data-prodprice', response[eacPart][0]);
+                                        $(dynamicPriceElem).append('<span class="price-active"></span>');
+                                        if (response[eacPart][1] !== null) {
+                                            $('.dynamic-pricing-' + eacPart + ' .price-active').text(response[eacPart][1]);
+                                        }
+                                        $('.dynamic-pricing-' + eacPart + ' .price-active').attr('data-prodprice', response[eacPart][0]);
+                                        if (response[eacPart][2] !== null) {
+                                            $(dynamicPriceElem).attr('data-taxtext', response[eacPart][2]);
+                                            $(dynamicPriceElem).append('<span class="text-small">' + response[eacPart][2] + '</span>');
+                                            $('.dynamic-pricing-' + eacPart + ' .text-small').attr('data-taxtext', response[eacPart][2]);
+                                        }
+                                    } else {
+                                        $(dynamicPriceElem).remove();
+                                    }
+                                }
+                                micron.productlisting.components.productlisting.createDRPriceURL(keys, 'dynamicPrice');
+                            },
+
+                            error: function error(response) {
+                                console.log("Some thing went wrong");
+                            }
+                        });
+                    }
+                },
+                'hasLoadedPrice': function hasLoadedPrice(sku) {
+                    return $('.dynamic-price[data-partnumber="' + sku + '"]').hasClass('price-completed');
+                },
+
+                'hasPromoTriggered': function hasPromoTriggered(sku) {
+                    return $('.dynamic-price[data-partnumber="' + sku + '"]').hasClass('promo-triggered');
+                },
+
+                'loadDRPriceInDynamic': function loadDRPriceInDynamic(sku, data, offerData) {
+                    if (!micron.util.components.util.isEmpty(data.details.products.product)) {
+
+                        for (var productIt = 0; productIt < data.details.products.product.length; productIt++) {
+
+                            var productData = data.details.products.product[productIt],
+                                drSkuVal = productData.externalReferenceId,
+                                isDrPricingExists = !micron.util.components.util.isNil(productData.pricing) && !micron.util.components.util.isNil(productData.pricing.feePricing) && !micron.util.components.util.isNil(productData.pricing.feePricing.salePriceWithFeesAndQuantity) && !micron.util.components.util.isNil(productData.pricing.feePricing.salePriceWithFeesAndQuantity.value);
+                            if (!micron.dynamicpricing.components.dynamicpricing.hasLoadedPrice(drSkuVal) || micron.dynamicpricing.components.dynamicpricing.hasPromoTriggered(drSkuVal)) {
+                                if (isDrPricingExists) {
+                                    drPriceCurrency = productData.pricing.salePriceWithQuantity.currency;
+                                    if (offerData.length > 0) {
+                                        micron.productlisting.components.productlisting.setOfferedPrice(productData, offerData, 'Dynamic');
+                                    }
+                                }
+                                micron.dynamicpricing.components.dynamicpricing.updateProductPrice(productData, drPriceCurrency, isDrPricingExists);
+                            }
+                        }
+                    }
+                },
+
+                'updateProductPrice': function updateProductPrice(productData, drPriceCurrency, isDrPricingExists) {
+                    var drSkuVal = productData.externalReferenceId,
+                        $dynamicpriceElem = $(".dynamic-pricing-" + drSkuVal),
+                        drPrice = new Number(),
+                        drFormattedPrice = '',
+                        taxText = !micron.util.components.util.isEmpty($dynamicpriceElem) ? $dynamicpriceElem.data('taxtext') : '',
+                        slPrice = new Number($dynamicpriceElem.data('prodprice'));
+                    var drLocale = micron.header.components.header.getDRLocaleValue();
+
+                    if (isDrPricingExists) {
+                        drPrice = new Number(productData.pricing.feePricing.salePriceWithFeesAndQuantity.value);
+                        drFormattedPrice = productData.pricing.feePricing.formattedSalePriceWithFeesAndQuantity;
+                    }
+                    var isPimPriceNotAvail = isNaN(slPrice) || parseFloat(slPrice) === 0 || slPrice === 0 || micron.util.components.util.isNil(slPrice),
+                        isDrPriceNotAvail = isNaN(drPrice) || parseFloat(drPrice) === 0 || drPrice === 0 || micron.util.components.util.isNil(drPrice) || drPrice === '';
+                    if (drLocale === "en_IN") {
+                        if (isDrPriceNotAvail) {
+                            $($dynamicpriceElem).addClass('hide');
+                        } else {
+                            $($dynamicpriceElem).find('.price-active').text(drFormattedPrice);
+                        }
+                    } else if (isDrPricingExists && slPrice > drPrice) {
+
+                        if ($dynamicpriceElem.hasClass("promo-triggered") && $dynamicpriceElem.find(".offer-active").length > 0) {
+
+                            var $offerPriceElem = $dynamicpriceElem.find(".price-active.offer-active");
+                            $offerPriceElem.html(drFormattedPrice);
+                        } else if ($dynamicpriceElem.hasClass("promo-triggered") && $dynamicpriceElem.find(".offer-active").length == 0) {
+
+                            var $dynamicPriceElemWrap = $dynamicpriceElem.find('.price-active').parent();
+                            $dynamicPriceElemWrap.find('.price-active').addClass('offer-prev');
+                            $dynamicPriceElemWrap.append('<span class="price-active offer-active">' + drFormattedPrice + '</span>');
+
+                            if (!micron.util.components.util.isEmpty(taxText)) {
+                                $($dynamicpriceElem).find('.text-small').addClass('offer-prev');
+                                $($dynamicpriceElem).append('<span class="text-small offer-active">' + taxText + '</span>');
+                            }
+                        } else {
+                            $($dynamicpriceElem).find('.price-active').addClass('offer-prev');
+                            $($dynamicpriceElem).append('<span class="price-active offer-active">' + drFormattedPrice + '</span>');
+
+                            if (!micron.util.components.util.isEmpty(taxText)) {
+                                $($dynamicpriceElem).find('.text-small').addClass('offer-prev');
+                                $($dynamicpriceElem).append('<span class="text-small offer-active">' + taxText + '</span>');
+                            }
+                        }
+                    } else if (isPimPriceNotAvail && !isDrPriceNotAvail) {
+                        $($dynamicpriceElem).find('.price-active').text(drFormattedPrice);
+                        $($dynamicpriceElem).find('.text-small').text(taxText);
+                    } else if (isPimPriceNotAvail && isDrPriceNotAvail) {
+                        $($dynamicpriceElem).addClass('hide');
+                    } else {
+                        $($dynamicpriceElem).find('.price-active').text(drFormattedPrice);
+                        $($dynamicpriceElem).find('.text-small').text(taxText);
+                    }
+                    if ($dynamicpriceElem.hasClass("promo-triggered")) {
+                        $dynamicpriceElem.removeClass("promo-triggered");
+                    } else {
+                        micron.dynamicpricing.components.dynamicpricing.markLoadedPrice(drSkuVal);
+                    }
+                },
+
+                'markLoadedPrice': function markLoadedPrice(sku) {
+                    $('.dynamic-price[data-partnumber="' + sku + '"]').addClass('price-completed');
+                    micron.dynamicpricing.components.dynamicpricing.wrapTags(sku);
+                },
+                'triggerDynamicPricing': function triggerDynamicPricing() {
+
+                    var skus = [];
+                    $('.dynamic-price').each(function () {
+                        var sku = $(this).attr('data-partnumber');
+                        $(this).addClass('promo-triggered');
+                        skus.push(sku);
+                    });
+
+                    skus = micron.util.components.util.uniq(skus);
+                    micron.productlisting.components.productlisting.createDRPriceURL(skus, 'dynamicPrice');
+                },
+                'wrapTags': function wrapTags(sku) {
+                    var dynamicPriceElem = $('.dynamic-pricing-' + sku);
+                    $($('.dynamic-pricing-' + sku).children()).each(function (index, element) {
+                        var tag = element.nodeName;
+                        if (tag === 'H1' || tag === 'H2' || tag === 'H3' || tag === 'H4' || tag === 'B' || tag === 'I') {
+                            $(dynamicPriceElem).has(tag).wrapInner('<' + tag + '></' + tag + '>');
+                            $('.dynamic-pricing-' + sku + ' ' + tag + ' ' + tag + ':first-child').remove();
+                        }
+                    });
+                }
+            }
+        },
+
+        init: function init() {
+            // init core components
+            for (var componentName in micron.dynamicpricing.components) {
+                var thisComponent = micron.dynamicpricing.components[componentName];
+                if (typeof thisComponent.init !== "undefined") {
+                    thisComponent.init();
+                }
+            }
+        }
+    };
+})(jQuery);
+(function ($) {
+	micron.productcard = {
+		'components': {
+			'productcard': {
+				'init': function init() {
+					if ($(".tag-container .product-card").length > 0) {
+						$(".card-column .tag-link:first-child").addClass("active");
+						$(".tag-container .product-card:first-child").css("display", "block");
+						$(".product-heading").attr("href", $(".tag-link:first-child").attr('data-pdpurl'));
+						$(".tag-link").on('click keypress', function (event) {
+							if (event.type === "keypress" && event.which === 13 || event.type === "click") {
+								$(this).siblings().removeClass("active");
+								$(this).parent().siblings().find('.product-card').css("display", "none");
+								var prodsku = $(this).attr('data-prodsku');
+								$(".product-heading").attr("href", $(this).attr('data-pdpurl'));
+								$(this).addClass("active");
+								$('.tag-container .product-card[data-prodsku=' + prodsku + ']').addClass("active").css("display", "block");
+							}
+						});
+					}
+				}
+			}
+		},
+		'init': function init() {
+			// init core components
+			for (var componentName in micron.productcard.components) {
+				var thisComponent = micron.productcard.components[componentName];
+				if (typeof thisComponent.init !== 'undefined') {
+					thisComponent.init();
+				}
+			}
+		}
+	};
+})(jQuery);
+(function ($) {
+    if ($("#product-details-content")[0] && typeof relatedProductsJson != 'undefined') {
+        micron.pdConfigurationChips = {
+            'components': {
+                'pdConfigurationChips': {
+                    'init': function init() {
+
+                        filter = {};
+                        kitfilter = {};
+                        Array.prototype.identical = function (a) {
+                            return this.filter(function (i) {
+                                return a.indexOf(i) > -1;
+                            });
+                        };
+                        var relatedProductsJsonObj = JSON.parse(relatedProductsJson);
+                        newset = {
+                            "ModuleDensity": {},
+                            "Speed": {},
+                            "Series": {},
+                            "Thermal": {}
+                        };
+                        kitSet = {
+                            "ModuleDensity": {},
+                            "Speed": {},
+                            "Series": {}
+                        };
+                        relatedProducts = {};
+                        getSet: function getSet() {
+                            tempSet = {};
+                            if ($("#product-block").attr("data-kitQty") == 1) {
+                                tempSet = newset;
+                            } else {
+
+                                tempSet = kitSet;
+                            }
+                            return tempSet;
+                        }
+                        getInActiveSet: function getInActiveSet() {
+                            tempSet = {};
+                            if ($("#product-block").attr("data-kitQty") == 1) {
+                                tempSet = kitSet;
+                            } else {
+
+                                tempSet = newset;
+                            }
+                            return tempSet;
+                        }
+                        assign: function assign(obj, keyPath, value) {
+                            lastKeyIndex = keyPath.length - 1;
+                            for (var i = 0; i < lastKeyIndex; ++i) {
+                                key = keyPath[i];
+                                if (!(key in obj)) {
+                                    obj[key] = {};
+                                }
+                                obj = obj[key];
+                            }
+                            if (obj[keyPath[lastKeyIndex]]) {
+                                obj[keyPath[lastKeyIndex]].push(value);
+                            } else {
+                                obj[keyPath[lastKeyIndex]] = [value];
+                            }
+                        }
+                        linkRedirection: function linkRedirection(destObj) {
+                            if (destObj != undefined) {
+                                destSku = destObj[0];
+                                if (destSku != undefined && relatedProducts[destSku].subCategory != undefined && $("#product-block").attr("data-category") != undefined) {
+                                    var destsubcategory = relatedProducts[destSku].subCategory;
+                                    return "/" + $("#product-block").attr("data-category").toLowerCase() + "/" + destsubcategory.toLowerCase() + "/" + destSku.toLowerCase();
+                                } else {
+                                    return "javascript:void(0)";
+                                }
+                            }
+                        }
+                        //link redirect url for ssds
+                        linkRedirectionForSSD: function linkRedirectionForSSD(destObj) {
+                            if (destObj != undefined) {
+                                for (var i = 0; i < destObj.length; i++) {
+                                    var destsubcategory = relatedProducts[destObj[i]].subCategory;
+                                    var currentThermal = $('.thermal li .active').text().toLowerCase();
+                                    var productThermal = relatedProducts[destObj[i]].thermal;
+                                    if (destsubcategory != undefined && currentThermal != undefined && relatedProducts[destObj[i]].thermal != undefined) {
+                                        if (currentThermal === productThermal.toLowerCase()) {
+                                            return "/" + $("#product-block").attr("data-category").toLowerCase() + "/" + destsubcategory.toLowerCase() + "/" + destObj[i].toLowerCase();
+                                        }
+                                    } else if (relatedProducts[destObj[i]].thermal === undefined && destsubcategory != undefined) {
+                                        return "/" + $("#product-block").attr("data-category").toLowerCase() + "/" + destsubcategory.toLowerCase() + "/" + destObj[i].toLowerCase();
+                                    } else {
+                                        return "javascript:void(0)";
+                                    }
+                                }
+                            }
+                        }
+                        getPricesForCapacities: function getPricesForCapacities(destObj) {
+                            if (destObj != undefined) {
+                                for (var i = 0; i < destObj.length; i++) {
+                                    if (relatedProducts[destObj[i]].thermal != undefined) {
+                                        var currentThermal = $('.thermal li .active').text().toLowerCase();
+                                        var productThermal = relatedProducts[destObj[i]].thermal;
+                                        if (currentThermal === productThermal.toLowerCase()) {
+                                            var slPrice = relatedProducts[destObj[i]].price;
+                                            return slPrice;
+                                        }
+                                    } else {
+                                        var slPrice = relatedProducts[destObj[i]].price;
+                                        return slPrice;
+                                    }
+                                }
+                            }
+                        }
+                        getPartNumber: function getPartNumber(destObj) {
+                            if (destObj != undefined) {
+                                for (var i = 0; i < destObj.length; i++) {
+                                    if (relatedProducts[destObj[i]].thermal != undefined) {
+                                        var currentThermal = $('.thermal li .active').text().toLowerCase();
+                                        var productThermal = relatedProducts[destObj[i]].thermal;
+                                        if (currentThermal === productThermal.toLowerCase()) {
+                                            return destObj[i];
+                                        }
+                                    } else {
+                                        return destObj[i];
+                                    }
+                                }
+                            }
+                        }
+                        isBuyable: function isBuyable(destObj) {
+                            if (destObj != undefined) {
+                                destSku = destObj[0];
+                                if (destSku != undefined && relatedProducts[destSku].is_buyable != undefined && $("#product-block").attr("data-category") != undefined) {
+                                    var buyable = relatedProducts[destSku].is_buyable;
+                                    return buyable;
+                                }
+                            }
+                        }
+                        if ($("#product-block").attr("data-category") == "memory") {
+                            $.each(relatedProductsJsonObj["related-products"], function (key, value) {
+                                relatedProducts = value;
+
+                                $.each(value, function (key1, product) {
+                                    var density = product.moduleDensity;
+                                    var speed = product.Speed;
+                                    var series = product.dram_series;
+                                    var basepart = product.BasePartNumber;
+                                    var modulesPerKit = product.ModulesPerKit;
+                                    if (modulesPerKit == 1) {
+                                        if (newset.ModuleDensity[density]) {
+                                            var densityArr = newset.ModuleDensity[density];
+                                            densityArr.push(product.BasePartNumber);
+                                        } else {
+                                            newset.ModuleDensity[density] = [product.BasePartNumber];
+                                        }
+                                        if (newset.Speed[speed]) {
+                                            var speedArr = newset.Speed[speed];
+                                            speedArr.push(product.BasePartNumber);
+                                        } else {
+                                            newset.Speed[speed] = [product.BasePartNumber];
+                                        }
+                                        if (newset.Series[series]) {
+                                            var seriesArr = newset.Series[series];
+                                            seriesArr.push(product.BasePartNumber);
+                                        } else {
+                                            newset.Series[series] = [product.BasePartNumber];
+                                        }
+                                        assign(filter, [density, speed, series], basepart);
+                                    } else if (modulesPerKit == 2) {
+
+                                        if (kitSet.ModuleDensity[density]) {
+                                            var densityArr = kitSet.ModuleDensity[density];
+                                            densityArr.push(product.BasePartNumber);
+                                        } else {
+                                            kitSet.ModuleDensity[density] = [product.BasePartNumber];
+                                        }
+                                        if (kitSet.Speed[speed]) {
+                                            var speedArr = kitSet.Speed[speed];
+                                            speedArr.push(product.BasePartNumber);
+                                        } else {
+                                            kitSet.Speed[speed] = [product.BasePartNumber];
+                                        }
+                                        if (kitSet.Series[series]) {
+                                            var seriesArr = kitSet.Series[series];
+                                            seriesArr.push(product.BasePartNumber);
+                                        } else {
+                                            kitSet.Series[series] = [product.BasePartNumber];
+                                        }
+                                        assign(kitfilter, [density, speed, series], basepart);
+                                    }
+                                });
+                            });
+                            //code for displaying inactive speed
+                            var activeDensity = $(".product-configuration .is-active .density li a.active").html();
+                            var speedObj;
+                            if ($("#product-block").attr("data-kitQty") == 1) {
+                                speedObj = filter[activeDensity];
+                            } else {
+                                speedObj = kitfilter[activeDensity];
+                            }
+                            if (speedObj != undefined) {
+                                $('.product-configuration .is-active .speed li a').each(function (i, a) {
+                                    if (!($(a).html() in speedObj)) {
+                                        $(a).addClass("inactive");
+                                    }
+                                });
+                            }
+                            //Code for displaying inactive Series
+                            var activeSpeed = $(".product-configuration .is-active .speed li a.active").html();
+                            var seriesObj;
+                            if ($("#product-block").attr("data-kitQty") == 1) {
+                                seriesObj = filter[activeDensity][activeSpeed];
+                            } else {
+                                seriesObj = kitfilter[activeDensity][activeSpeed];
+                            }
+                            if (seriesObj != undefined) {
+                                $('.product-configuration .is-active .series li a').each(function (i, a) {
+                                    if (!($(a).html() in seriesObj)) {
+                                        $(a).addClass("inactive");
+                                    }
+                                });
+                            }
+
+                            //code for memory on click of speed
+                            $(".product-configuration .is-active .speed li a").each(function (index) {
+                                tempSet = getSet();
+
+                                if ($(this).hasClass('inactive')) {
+                                    var destObj = tempSet.Speed[$(this).html()];
+                                    var hreflink = linkRedirection(destObj);
+                                    $(this).attr("href", hreflink);
+                                } else {
+                                    //when click on available option
+                                    var density = $(".density li a.active").attr("data-density");
+                                    var compObj = tempSet.ModuleDensity[density].identical(tempSet.Speed[$(this).html()]);
+                                    var hreflink = linkRedirection(compObj);
+                                    $(this).attr("href", hreflink);
+                                }
+                            });
+                            //code for memory on click of series
+                            $(".product-configuration .is-active .series li a").each(function (index) {
+                                tempSet = getSet();
+                                if ($(this).hasClass('inactive')) {
+                                    var destObj = tempSet.Series[$(this).html()];
+                                    var hreflink = linkRedirection(destObj);
+                                    $(this).attr("href", hreflink);
+                                } else {
+                                    //when click on available option
+                                    var density = $(".density li a.active").attr("data-density");
+                                    var speed = $(".speed li a.active").attr("data-speed");
+                                    var compObj = tempSet.ModuleDensity[density].identical(tempSet.Speed[speed]);
+                                    var seriesObj = compObj.identical(tempSet.Series[$(this).html()]);
+                                    var hreflink = linkRedirection(seriesObj);
+                                    $(this).attr("href", hreflink);
+                                }
+                            });
+
+                            //code for memory density and ssd capacity on click
+                            $(".product-configuration .is-active .density li a").each(function (index) {
+                                tempSet = getSet();
+                                var destObj = tempSet.ModuleDensity[$(this).html()];
+                                var hreflink = linkRedirection(destObj);
+                                $(this).attr("href", hreflink);
+                            });
+
+                            $(".product-configuration .is-inactive .density li a").each(function (index) {
+                                tempSet = getInActiveSet();
+                                var destObj = tempSet.ModuleDensity[$(this).html()];
+                                var hreflink = linkRedirection(destObj);
+                                $(this).attr("href", hreflink);
+                            });
+                            $(".product-configuration .is-inactive .series li a").each(function (index) {
+                                tempSet = getInActiveSet();
+                                var destObj = tempSet.Series[$(this).html()];
+                                var hreflink = linkRedirection(destObj);
+                                $(this).attr("href", hreflink);
+                            });
+                            $(".product-configuration .is-inactive .speed li a").each(function (index) {
+                                tempSet = getInActiveSet();
+                                var destObj = tempSet.Speed[$(this).html()];
+                                var hreflink = linkRedirection(destObj);
+                                $(this).attr("href", hreflink);
+                            });
+                        } else if ($("#product-block").attr("data-category") == "SSD") {
+                            $.each(relatedProductsJsonObj["related-products"], function (key, value) {
+                                relatedProducts = value;
+
+                                $.each(value, function (key1, product) {
+                                    var density = product.moduleDensity;
+                                    var thermal = product.thermal;
+                                    var basepart = product.BasePartNumber;
+
+                                    if (newset.ModuleDensity[density]) {
+                                        var densityArr = newset.ModuleDensity[density];
+                                        densityArr.push(product.BasePartNumber);
+                                    } else {
+                                        newset.ModuleDensity[density] = [product.BasePartNumber];
+                                    }
+                                    if (newset.Thermal[thermal]) {
+                                        var speedArr = newset.Thermal[thermal];
+                                        speedArr.push(product.BasePartNumber);
+                                    } else {
+                                        newset.Thermal[thermal] = [product.BasePartNumber];
+                                    }
+
+                                    assign(filter, [density, thermal], basepart);
+                                });
+                            });
+                            $(".capacity li a").each(function (index) {
+                                var destObj = newset.ModuleDensity[$(this).html()];
+                                var hreflink = linkRedirectionForSSD(destObj);
+                                var slPrice = getPricesForCapacities(destObj);
+                                var partNumber = getPartNumber(destObj);
+                                var buyable = isBuyable(destObj);
+                                $(this).attr("href", hreflink);
+                                $(this).attr("data-slprice", slPrice);
+                                $(this).attr("data-partnumber", partNumber);
+                                $(this).attr("data-isbuyable", buyable);
+                            });
+                            $(".thermal li a").each(function (index) {
+
+                                if ($(this).hasClass('inactive')) {
+                                    var destObj = newset.Thermal[$(this).html()];
+                                    var hreflink = linkRedirection(destObj);
+                                    $(this).attr("href", hreflink);
+                                } else {
+                                    //when click on available option
+                                    var capacity = $(".capacity li a.active").html();
+                                    var compObj = newset.ModuleDensity[capacity].identical(newset.Thermal[$(this).html()]);
+                                    var hreflink = linkRedirection(compObj);
+                                    $(this).attr("href", hreflink);
+                                }
+                            });
+
+                            //code for displaying inactive Thermal options for ssds
+                            var activeCapacity = $(".capacity li .active").text();
+                            var thermalObj = filter[activeCapacity];
+                            if (thermalObj != undefined) {
+                                $('.thermal li a').each(function (i, a) {
+                                    if (!($(a).html() in thermalObj)) {
+                                        $(a).addClass("inactive");
+                                    }
+                                });
+                            }
+                            //code for displaying inactive capacities for ssds
+                            var activeThermal = $(".thermal li .active").text();
+                            if (activeThermal) {
+                                $('.capacity li a').each(function (i, a) {
+                                    var capacity = $(this).text();
+                                    var thermal = filter[capacity];
+                                    if (!(activeThermal in thermal)) {
+                                        $(a).addClass("inactive");
+                                    }
+                                });
+                            }
+                        }
+                    }
+                }
+            },
+            'init': function init() {
+                // init core components
+                for (var componentName in micron.pdConfigurationChips.components) {
+                    var thisComponent = micron.pdConfigurationChips.components[componentName];
+                    if (typeof thisComponent.init !== 'undefined') {
+                        thisComponent.init();
+                    }
+                }
+            }
+        };
+    }
+})(jQuery);
+(function ($) {
+    var urlParams = new URLSearchParams(window.location.search); //get all parameters
+    var quantityParam = urlParams.get('quantity');
+    if (quantityParam) {
+        var qtyID = "quantity_" + $(".product-block").attr("data-sku");
+        $("#" + qtyID).val(quantityParam);
+    }
+    if ($(".buying-options #notify-me").length > 0) {
+        var drUserData = micron.digitalRiver.components.digitalRiver.getCookie('DR-user-data');
+        var drLoggedIn = micron.digitalRiver.components.digitalRiver.getCookie('DR-logged-in');
+        var notifyMeData = micron.digitalRiver.components.digitalRiver.getCookie('notifyMe-data');
+        if (drLoggedIn && drUserData) {
+            userData = JSON.parse(drUserData);
+            $(".buying-options #customer-email").val(userData.email).attr("disabled", "disabled");
+            $(".buying-options #customer-fname").val(userData.name).attr("disabled", "disabled");
+            $(".buying-options #customer-lname").val(userData.lastName).attr("disabled", "disabled");
+            $('.buying-options #notify-submit').removeAttr('disabled');
+        } else if (notifyMeData) {
+            userData = JSON.parse(notifyMeData);
+            $(".buying-options #customer-email").val(userData.email).attr("disabled", "disabled");
+            $(".buying-options #customer-fname").val(userData.name).attr("disabled", "disabled");
+            $(".buying-options #customer-lname").val(userData.lastName).attr("disabled", "disabled");
+            $('.buying-options #notify-submit').removeAttr('disabled');
+        }
+    };
+    micron.productdetail = {
+        components: {
+            productdetail: {
+                init: function init() {
+                    // Notify Me Popup quantity increase and decrease on arrows click.
+                    $('#qty-up').click(function () {
+                        var qty = parseInt($('#quantity').val());
+                        var max = parseInt($('#quantity').attr('max'));
+                        qty = qty < max ? qty + 1 : qty;
+                        $('#quantity').val(qty);
+                        if (qty == max) {
+                            $(this).attr('disabled', 'true');
+                        } else {
+                            $('#qty-down').removeAttr('disabled');
+                        }
+                    });
+                    $('#qty-down').click(function () {
+                        var qty = parseInt($('#quantity').val());
+                        var min = parseInt($('#quantity').attr('min'));
+                        qty = qty > min ? qty - 1 : qty;
+                        $('#quantity').val(qty);
+                        if (qty == min) {
+                            $(this).attr('disabled', 'true');
+                        } else {
+                            $('#qty-up').removeAttr('disabled');
+                        }
+                    });
+
+                    // Email validation.
+                    function isEmail(email) {
+                        var regex = /^([a-zA-Z0-9_.+-])+\@(([a-zA-Z0-9-])+\.)+([a-zA-Z0-9]{2,4})+$/;
+                        return regex.test(email);
+                    }
+                    $('#customer-email').blur(function () {
+                        if (!isEmail($(this).val())) {
+                            $(this).addClass('error');
+                            $('#notify-submit').attr('disabled', 'true');
+                        } else {
+                            $(this).removeClass('error');
+                            $('#notify-submit').removeAttr('disabled');
+                        }
+                    });
+
+                    var pdpSku = $('#product-block').data("sku"),
+                        $qtyInputId = "#quantity_" + pdpSku,
+                        $buttonAdd = "#buttonAdd_" + pdpSku,
+                        $buttonSubtract = "#buttonSubtract_" + pdpSku;
+
+                    $(document).on("click", $buttonAdd, function () {
+                        micron.productdetail.components.productdetail.addItem(pdpSku);
+                    });
+                    $(document).on("click", $buttonSubtract, function () {
+                        micron.productdetail.components.productdetail.subtractItem(pdpSku);
+                    });
+                    $(document).on("blur", $qtyInputId, function () {
+                        micron.productdetail.components.productdetail.qtyValidation(pdpSku);
+                    });
+
+                    if ($("#product-block").length > 0) {
+                        var showAddToCart = $("#product-block").data('showaddtocart');
+
+                        if (showAddToCart) {
+                            var sku = $("#product-block").data('sku');
+
+                            if ($("#product-block").attr("data-category") == "SSD") {
+                                $('.capacity li a').each(function () {
+                                    if ($(this).attr('data-partnumber') != $("#product-block").data('sku')) {
+                                        sku = sku + "," + $(this).attr('data-partnumber');
+                                    }
+                                });
+                            }
+                            $('.product-card').each(function () {
+                                sku = sku + ',' + $(this).attr('data-recprodsku');
+                            });
+                            micron.productlisting.components.productlisting.createDRPriceURL(sku, 'PDP');
+                        }
+                        if (micron.digitalRiver.components.digitalRiver.getCookie('cm_mmc') !== null && micron.digitalRiver.components.digitalRiver.getCookie('cm_mmc') !== '' && micron.digitalRiver.components.digitalRiver.getCookie('cm_mmc') !== 'undefined') {
+                            var bannerId = micron.digitalRiver.components.digitalRiver.getCookie('cm_mmc');
+                            $('.cswidget').attr('data-bannerid', bannerId);
+                        }
+                    }
+                    var $benefits = $('section#benefits');
+                    var $prodResBenefits = $('div.product-resources-benefits');
+                    if ($benefits.length > 0 && $prodResBenefits.length > 0) {
+                        $prodResBenefits.html($benefits.html());
+                    }
+
+                    $(document).on("click", ".dramrohsenglish", function () {
+                        var selector = $(this).data('custom-class');
+                        micron.productdetail.components.productdetail.downloadEnvRegCertPDF(selector);
+                    });
+
+                    $(document).on("click", ".ssdrohsenglish", function () {
+                        var selector = $(this).data('custom-class');
+                        micron.productdetail.components.productdetail.downloadEnvRegCertPDF(selector);
+                    });
+
+                    $(document).on("click", ".dramrohschina", function () {
+                        var selector = $(this).data('custom-class');
+                        micron.productdetail.components.productdetail.downloadEnvRegCertPDF(selector);
+                    });
+
+                    $(document).on("click", ".ssdrohschina", function () {
+                        var selector = $(this).data('custom-class');
+                        micron.productdetail.components.productdetail.downloadEnvRegCertPDF(selector);
+                    });
+
+                    $(document).on("click", ".ssdbmsitaiwan", function () {
+                        var selector = $(this).data('custom-class');
+                        micron.productdetail.components.productdetail.downloadEnvRegCertPDF(selector);
+                    });
+                    $(document).on("click", ".notifyMe", function () {
+                        if ($(".buying-options").length == 0) {
+                            $('#notify-me .product-title').html($(this).attr('data-product-title'));
+                            $('#notify-me .product-sku').html($(this).attr('data-sku'));
+                            $('#notify-me #pdpURL').val("/" + $(this).attr('data-product-category') + "/" + $(this).attr('data-product-subcategory') + "/" + $(this).attr('data-sku'));
+                            $('#notify-me .product-image').attr({ 'alt': $(this).attr('data-product-title'), 'src': $(this).attr('data-prodimage') });
+                            var drUserData = micron.digitalRiver.components.digitalRiver.getCookie('DR-user-data');
+                            var drLoggedIn = micron.digitalRiver.components.digitalRiver.getCookie('DR-logged-in');
+                            var notifyMeData = micron.digitalRiver.components.digitalRiver.getCookie('notifyMe-data');
+                            if (drLoggedIn && drUserData) {
+                                userData = JSON.parse(drUserData);
+                                $("#customer-email").val(userData.email).attr("disabled", "disabled");
+                                $("#customer-fname").val(userData.name).attr("disabled", "disabled");
+                                $("#customer-lname").val(userData.lastName).attr("disabled", "disabled");
+                                $('#notify-submit').removeAttr('disabled');
+                            } else if (notifyMeData) {
+                                userData = JSON.parse(notifyMeData);
+                                $("#customer-email").val(userData.email).attr("disabled", "disabled");
+                                $("#customer-fname").val(userData.name).attr("disabled", "disabled");
+                                $("#customer-lname").val(userData.lastName).attr("disabled", "disabled");
+                                $('#notify-submit').removeAttr('disabled');
+                            }
+
+                            $('#email-list').prop('checked', true);
+                            $('#notify-me').foundation('open');
+                        }
+                    });
+                    $(document).on("click", "#notify-submit", function () {
+                        var pagePath = $("li.cart").attr("data-pagepath");
+                        var emailId = $("#customer-email").val();
+                        var quantity = $("#quantity").val();
+                        var endpointURL = pagePath + ".notifyme.nocache.json";
+                        var data = {
+                            email: emailId,
+                            notifyMeQuantity: quantity,
+                            firstName: $("#customer-fname").val(),
+                            lastName: $("#customer-lname").val(),
+                            notifyMePDPURL: $("#pdpURL").val(),
+                            notifyMesku: $(".product-sku").text(),
+                            locale: $(".drConfigs").attr('data-drlocale'),
+                            notifymeProdoct: $("#notify-me .product-title").text(),
+                            notifyMeMailSubcription: $("#notify-me #email-list").prop('checked')
+                        };
+                        var cookieData = {
+                            email: emailId,
+                            name: $("#customer-fname").val(),
+                            lastName: $("#customer-lname").val()
+                        };
+                        micron.digitalRiver.components.digitalRiver.setCookie('notifyMe-data', JSON.stringify(cookieData), '');
+                        $.ajax({
+                            type: 'POST',
+                            url: endpointURL,
+                            dataType: 'json',
+                            data: data,
+                            success: function success(data) {
+                                if ($(".buying-options #notify-me").length > 0) {
+                                    if (data.success == true) {
+                                        $(".notify-me-wrapper .notify-meSuccess").removeClass("hide");
+                                    }
+                                } else {
+                                    $('#notify-me').foundation('close');
+                                }
+                            }
+                        });
+                    });
+
+                    $(document).on("click", ".buyingoptions", function () {
+                        var buyingOptionsUrl = $("#product-block").attr('data-buyingoptionsurl');
+                        window.open(buyingOptionsUrl, "_self");
+                    });
+
+                    // Execute when enter is pressed whilst focus is on buying options button
+                    $(document).on("keyup", ".buyingoptions", function (event) {
+                        // Number 13 is the "Enter" key on the keyboard
+                        if (event.keyCode === 13) {
+                            var buyingOptionsUrl = $("#product-block").attr('data-buyingoptionsurl');
+                            window.open(buyingOptionsUrl, "_self");
+                        }
+                    });
+
+                    $(document).on("click", ".buyBundleCartBtn", function () {
+                        var spinner = micron.productdetail.components.productdetail.startSpinner();
+                        var skuToAdd = $(this).data('prodskuval');
+                        var qtyNumber = $(this).data('prodquantityval');
+                        var configs = $(this).data('prodconfigval');
+                        var pagePath = $(this).data('pagepath');
+                        var prodCategory = $(this).data('prodcategory');
+
+                        micron.productdetail.components.productdetail.addBundleToCart(skuToAdd, qtyNumber, configs, pagePath, spinner, prodCategory);
+                    });
+
+                    $(document).on("keyup", ".buyBundleCartBtn", function (event) {
+                        // Number 13 is the "Enter" key on the keyboard
+                        if (event.keyCode === 13) {
+                            var spinner = micron.productdetail.components.productdetail.startSpinner();
+                            var skuToAdd = $(this).data('prodskuval');
+                            var qtyNumber = $(this).data('prodquantityval');
+                            var configs = $(this).data('prodconfigval');
+                            var pagePath = $(this).data('pagepath');
+                            var prodCategory = $(this).data('prodcategory');
+
+                            micron.productdetail.components.productdetail.addBundleToCart(skuToAdd, qtyNumber, configs, pagePath, spinner, prodCategory);
+                        }
+                    });
+
+                    //product page Share url on toggle of "Copy" drop dpwn
+                    var productPageShareUrl = window.location.href;
+                    $('#share-input').val(productPageShareUrl);
+                    $('#share-input-score').val(productPageShareUrl);
+                    $('#share-input-reverse').val(productPageShareUrl);
+
+                    // Defining the startsWith for IE
+                    if (!String.prototype.startsWith) {
+                        String.prototype.startsWith = function (searchString, position) {
+                            position = position || 0;
+                            return this.indexOf(searchString, position) === position;
+                        };
+                    }
+                    // reset the serach box
+                    $('.reverse-selector #reversemodelid').val('');
+
+                    // Apply Select2
+                    $('.reverse-selector #manufacturer').select2();
+                    $('.reverse-selector #productline').select2();
+                    $('.reverse-selector #model').select2();
+
+                    // Only trigger the select element change event after page is loaded and the select element has been populated
+                    $(document).off('change', '.reverse-selector #manufacturer').on('change', '.reverse-selector #manufacturer', function () {
+                        var manufacturerId = $('.reverse-selector #manufacturer option:selected').attr("mfg-key");
+                        micron.productdetail.components.productdetail.productlineAjax($reverseselector, dataElements, manufacturerId);
+                    });
+
+                    // Only trigger the select element change event after page is loaded and the select element has been populated
+                    $(document).off('change', '.reverse-selector #productline').on('change', '.reverse-selector #productline', function () {
+                        var prodlineId = $('.reverse-selector #productline option:selected').attr("pl-key");
+                        micron.productdetail.components.productdetail.modelAjax($reverseselector, dataElements, prodlineId);
+                    });
+
+                    // Only trigger the select element change event after page is loaded and the select element has been populated
+                    $(document).off('change', '.reverse-selector #model').on('change', '.reverse-selector #model', function () {
+                        var modelid = $('.reverse-selector #model option:selected').val();
+                        if (modelid == -1) $('.reverse-selector .compatibility').prop('disabled', true).addClass('invisible');else $('.reverse-selector .compatibility').removeAttr('disabled').removeClass('invisible').focus();
+                    });
+
+                    $(".reverse-selector #reversemodelid").keyup(function () {
+                        micron.productdetail.components.productdetail.enableButton(this);
+                    });
+
+                    $(".reverse-selector #reversemodelid").change(function () {
+                        micron.productdetail.components.productdetail.enableButton(this);
+                    });
+
+                    // get the component's main div
+                    var $reverseselector = $('.reverse-selector');
+                    // Find elements from the dialog
+                    var dataElements = micron.productdetail.components.productdetail.findDataElements();
+                    $(".reverse-selector .compatibility").click(function () {
+                        $('#offCanvasReverseSelector').addClass('is-closed');
+                        $('#offCanvasReverseSelector').removeClass('is-open');
+                        $('.js-off-canvas-overlay').removeClass('is-visible is-closable');
+                        micron.productdetail.components.productdetail.checkCompatibility($reverseselector, dataElements);
+                    });
+
+                    $(".compatibility-selector-icon").click(function (e) {
+                        e.preventDefault();
+                        $(this).find('svg').toggleClass("rotate");
+                        $(this).closest('.reverse-selectortool-inner').find('.compatibility-selector').toggleClass("show-for-large");
+                    });
+
+                    $("#checkCompatibility").click(function (e) {
+                        e.preventDefault();
+                        $('#offCanvasReverseSelector').removeClass('is-closed');
+                        $('#offCanvasReverseSelector').addClass('is-open');
+                        $('.js-off-canvas-overlay').addClass('is-visible is-closable');
+                        $(".reverse-selector #manufacturer").focus();
+                    });
+
+                    // Add dropdown text on page load
+                    $(".reverse-selector #manufacturer").append(new Option(dataElements.mfgrdropdowntext, "-1"));
+                    $(".reverse-selector #productline").append(new Option(dataElements.prodlinedropdowntext, "-1"));
+                    $(".reverse-selector #model").append(new Option(dataElements.modeldropdowntext, "-1"));
+
+                    // Ajax for the Manufacturer list. This only gets called on page load
+                    if ($('.reverse-selector #manufacturer').length > 0) {
+                        micron.productdetail.components.productdetail.manufacturerAjax($reverseselector, dataElements);
+                    }
+                    // Models Autocomplete
+                    micron.productdetail.components.productdetail.modelAutoComplete(dataElements);
+
+                    // Attaching spin.js spinner to global micron object
+                    // micron.selectortool.components.selectortool.spinner = "";
+
+                    // initiate carousel
+                    micron.productdetail.components.productdetail.recommendedProductsCarousel();
+                },
+
+                'addItem': function addItem(skuValue) {
+                    var qtyNumber = document.getElementById("quantity_" + skuValue);
+                    var newNumber = parseInt(qtyNumber.value) + 1;
+                    qtyNumber.value = newNumber;
+                    // The value of the input box has changed
+                    $(qtyNumber).trigger('change');
+                    micron.productdetail.components.productdetail.qtyValidation(skuValue);
+                },
+
+                'subtractItem': function subtractItem(skuValue) {
+                    var qtyNumber = document.getElementById("quantity_" + skuValue);
+                    var newNumber = parseInt(qtyNumber.value) - 1;
+                    qtyNumber.value = newNumber;
+                    // The value of the input box has changed
+                    $(qtyNumber).trigger('change');
+                    micron.productdetail.components.productdetail.qtyValidation(skuValue);
+                },
+
+                'qtyValidation': function qtyValidation(skuValue) {
+                    var qtyNumber = document.getElementById("quantity_" + skuValue);
+                    var minQuantity = qtyNumber.getAttribute('min');
+                    var maxQuantity = qtyNumber.getAttribute('max');
+                    if (parseInt(qtyNumber.value) <= minQuantity || qtyNumber.value == '') {
+                        qtyNumber.value = minQuantity;
+                        $('#buttonSubtract_' + skuValue).attr('disabled', true);
+                        $('#buttonAdd_' + skuValue).attr('disabled', false);
+                    } else if (parseInt(qtyNumber.value) >= maxQuantity) {
+                        qtyNumber.value = maxQuantity;
+                        $('#buttonSubtract_' + skuValue).attr('disabled', false);
+                        $('#buttonAdd_' + skuValue).attr('disabled', true);
+                    } else {
+                        $('#buttonSubtract_' + skuValue).attr('disabled', false);
+                        $('#buttonAdd_' + skuValue).attr('disabled', false);
+                    }
+                },
+
+                'upSell': function upSell(productInfo, upsellProdInfo, spinner) {
+                    var productRow = $('#upsell .products .row').first().html();
+                    $('#upsell .products').html('<div class="row">' + productRow + '</div>');
+                    var formattedPriceDiff = micron.productlisting.components.productlisting.getFormattedProductPrice(upsellProdInfo.priceDiff, productInfo.currency).slice(0, -3);
+                    var upsellTitleText = $('.upsell-offer-title').text().replace('{Xtimes}', upsellProdInfo.capacityDiff).replace('{priceDiff}', formattedPriceDiff);
+                    $('.upsell-offer-title').text(upsellTitleText);
+                    var upsellOfferDescription = $('.upsell-offer-description').text().replace('{upsellProdTitle}', upsellProdInfo.prodTitle).replace('{priceDiff}', formattedPriceDiff);
+                    $('.upsell-offer-description').text(upsellOfferDescription);
+                    var upsellConfirmationText = $('.upsell-offer-confirmation').text().replace('{priceDiff}', formattedPriceDiff);
+                    $('.upsell-offer-confirmation').text(upsellConfirmationText);
+                    $('#upsell .product-title').text(upsellProdInfo.prodTitle);
+                    $('#upsell .product-image').attr({ 'alt': upsellProdInfo.prodTitle, 'src': upsellProdInfo.prodImage });
+                    $('#upsell .product-quantity .val').text(productInfo.qtyNumber);
+                    var formattedPrice = micron.productlisting.components.productlisting.getFormattedProductPrice(upsellProdInfo.prodPrice * upsellProdInfo.qtyNumber, productInfo.currency);
+                    $('#upsell .product-price .original-price').text(formattedPrice);
+                    if (upsellProdInfo.offerPrice != '' && upsellProdInfo.offerPrice != upsellProdInfo.prodPrice) {
+                        var formattedOfferPrice = micron.productlisting.components.productlisting.getFormattedProductPrice(upsellProdInfo.offerPrice * upsellProdInfo.qtyNumber, upsellProdInfo.currency);
+                        $('#upsell .product-price .offer-price').text(formattedOfferPrice);
+                        $('#upsell .product-price .original-price').addClass('inactive');
+                    } else {
+                        $('#upsell .product-price .original-price').removeClass('inactive');
+                        $('#upsell .product-price .offer-price').text('');
+                    }
+                    $('#upgrade-btn').data({
+                        'prodskuval': upsellProdInfo.skuToAdd,
+                        'pagepath': upsellProdInfo.pagePath,
+                        'prodconfigval': upsellProdInfo.configToAdd,
+                        'prodquantityval': upsellProdInfo.qtyNumber,
+                        'rfgpn': upsellProdInfo.rfgpn,
+                        'modout': upsellProdInfo.modOut,
+                        'productTitle': upsellProdInfo.prodTitle,
+                        'productCategory': upsellProdInfo.prodCategory,
+                        'productSubcategory': upsellProdInfo.prodSubCategory,
+                        'prodprice': upsellProdInfo.prodPrice,
+                        'offerprice': upsellProdInfo.offerPrice,
+                        'currency': upsellProdInfo.currency,
+                        'prodimage': upsellProdInfo.prodImage,
+                        'upsellPromoOffer': upsellProdInfo.promoOffer
+
+                    });
+                    $('#decline-btn').data({
+                        'prodskuval': productInfo.skuToAdd,
+                        'pagepath': productInfo.pagePath,
+                        'prodconfigval': productInfo.configToAdd,
+                        'prodquantityval': productInfo.qtyNumber,
+                        'rfgpn': productInfo.rfgpn,
+                        'modout': productInfo.modOut,
+                        'productTitle': productInfo.prodTitle,
+                        'productCategory': productInfo.prodCategory,
+                        'productSubcategory': productInfo.prodSubCategory,
+                        'prodprice': productInfo.prodPrice,
+                        'offerprice': productInfo.offerPrice,
+                        'currency': productInfo.currency,
+                        'prodimage': productInfo.prodImage
+                    });
+                    micron.productdetail.components.productdetail.stopSpinner(spinner);
+                    $('#upsell').foundation('open');
+                },
+
+                'convertToGb': function convertToGb(capacity) {
+
+                    if (capacity.includes('GB')) {
+                        capacity = capacity.slice(0, -2);
+                    } else if (capacity.includes('TB')) {
+                        capacity = capacity.slice(0, -2);
+                        capacity = capacity * 1000;
+                    }
+                    return capacity;
+                },
+
+                'addToCart': function addToCart(productInfo, spinner) {
+                    var qtyInput = '#quantity_' + productInfo.skuToAdd;
+                    var qtyWrapper = '#qty-' + productInfo.skuToAdd;
+                    var qtyIncreaseBtnPLP = qtyWrapper + " .qty-button[data-quantity='plus']";
+                    var $qtyInputVal = parseInt($(qtyInput).val());
+                    var $qtyAvailablePLP = parseInt($('.pagination-layout ' + qtyWrapper).closest('.product-card').attr('data-quantity-count'));
+                    var $qtyAvailablePDP = parseInt($('.product-block').attr('data-quantity-count'));
+                    var $qtyMaxPLP = parseInt($('.pagination-layout ' + qtyWrapper).closest('.product-card').attr('data-maxquantity-count'));
+                    var $qtyMaxPDP = parseInt($("#product-block").attr('data-maxquantity-count'));
+                    if (!micron.util.components.util.isNil($qtyMaxPLP) && $qtyInputVal > $qtyMaxPLP || !micron.util.components.util.isNil($qtyMaxPDP) && $qtyInputVal > $qtyMaxPDP) {
+                        micron.productdetail.components.productdetail.toastDisplay(qtyInput, qtyWrapper, qtyIncreaseBtnPLP, $qtyInputVal, $qtyAvailablePLP, $qtyAvailablePDP, $qtyMaxPLP, $qtyMaxPDP, 'exceedMaxQty');
+                        return false;
+                    }
+                    var $productOfferIdPLP = $('.pagination-layout ' + qtyWrapper).closest('.product-card').attr('data-offer-code');
+                    var $productOfferIdPDP = $("#product-block").attr('data-offer-code');
+                    var productOfferId;
+                    if (!micron.util.components.util.isNil($productOfferIdPLP)) {
+                        productOfferId = $productOfferIdPLP;
+                    }
+                    if (!micron.util.components.util.isNil($productOfferIdPDP)) {
+                        productOfferId = $productOfferIdPDP;
+                    }
+
+                    productInfo.productOfferId = productOfferId;
+
+                    var drSessionToken = micron.digitalRiver.components.digitalRiver.getCookie('DR-session-tkn');
+
+                    if (!drSessionToken) {
+                        //call this getDRSessionToken() to get the access token and wait for the response to get the token
+                        $.when(micron.digitalRiver.components.digitalRiver.getDRSessionToken()).done(function (drSessionToken) {
+                            micron.productdetail.components.productdetail.invokeCartAPI(drSessionToken, productInfo, spinner);
+                            return false;
+                        });
+                    } else {
+                        micron.productdetail.components.productdetail.invokeCartAPI(drSessionToken, productInfo, spinner);
+                    }
+                },
+                invokeCartAPI: function invokeCartAPI(drsessiontoken, productInfo, spinner) {
+
+                    var cartData = micron.productdetail.components.productdetail.getCartObject(productInfo);
+                    var orderOfferCodes = micron.productdetail.components.productdetail.fetchActiveOrderOfferCodes();
+                    var data = {
+                        drsessiontoken: drsessiontoken,
+                        cartData: JSON.stringify(cartData),
+                        orderOffers: orderOfferCodes.toString()
+                    };
+                    var cartRedirectUrl = $('.drConfigs').attr('data-drCartRedirectUrl');
+                    var addToCartUrlVal = productInfo.pagePath + ".digital-river.json?category=addToCart";
+                    var addToCartAjaxCall = micron.productdetail.components.productdetail.postData(data, addToCartUrlVal);
+                    addToCartAjaxCall.done(function (data, textStatus, jQxhr) {
+
+                        if (data.details.appliedProductOfferId) {
+                            productInfo.appliedProductOfferId = data.details.appliedProductOfferId;
+                        }
+
+                        if (data.details.appliedOrderOfferId) {
+                            productInfo.appliedOrderOfferId = data.details.appliedOrderOfferId;
+                        }
+
+                        if (data.details.cart && data.details.cart.id) {
+
+                            productInfo.cartID = data.details.cart.id;
+                        }
+                        if (typeof micron.addtocart.components.datalayer.triggerAnalyticsTracking !== 'undefined') {
+
+                            micron.addtocart.components.datalayer.triggerAnalyticsTracking(productInfo);
+                        }
+
+                        if (data.details.invalidOfferIds && data.details.invalidOfferIds.length > 0) {
+                            var offer_array = data.details.invalidOfferIds.split(',');
+                            for (var i = 0; i < offer_array.length; i++) {
+                                micron.simpleLinkTrigger.components.simpleLinkTrigger.deleteOrderOffer(offer_array[i]);
+                            }
+                        }
+
+                        micron.productdetail.components.productdetail.stopSpinner(spinner);
+                        micron.addcart.components.addcart.addToCartPopup(productInfo);
+                        micron.digitalRiver.components.digitalRiver.getCartQuantity(drsessiontoken);
+                    }).fail(function (jqXhr, textStatus, errorMessage) {
+                        var addtoCarturl = $('.drConfigs').attr('data-cartUrl');
+                        micron.productdetail.components.productdetail.stopSpinner(spinner);
+                        errToast = '.toast.addtocart-error';
+                        $(errToast).removeClass('hide');
+                        $(errToast).css("display", "block");
+                        var errorstatusCode = jqXhr.status;
+                        var devemailids = $(".addtocart-failure").attr("data-devemailids");
+                        var emailSub = $(".addtocart-failure").attr("data-emailsub") + " in " + window.location.hostname;
+                        var emailDes = $(".addtocart-failure").attr("data-emaildes") + " for part number " + productInfo.skuToAdd + ". Error status code : " + errorstatusCode + ", Error Message : " + errorMessage;
+                        micron.dellBoomi.components.dellBoomi.triggerEmailNotification(devemailids, emailSub, emailDes);
+                        micron.digitalRiver.components.digitalRiver.logError(addtoCarturl, jqXhr.status, errorMessage);
+                    });
+                },
+                postData: function postData(data, dataURL) {
+                    // Return the $.ajax promise
+                    return $.ajax({
+                        method: 'POST',
+                        dataType: 'json',
+                        data: data,
+                        url: dataURL
+                    });
+                },
+
+                'replaceOfferIdInDescription': function replaceOfferIdInDescription(description, data) {
+                    var orderLevelOffer = data.cart.appliedOrderOffers && data.cart.appliedOrderOffers.offer && data.cart.appliedOrderOffers.offer.offerId,
+                        productLevelOffer = data.cart.lineItems && data.cart.lineItems.appliedProductOffers && data.cart.lineItems.appliedProductOffers.offer && data.cart.lineItems.appliedProductOffers.offer.offerId;
+                    if (orderLevelOffer && productLevelOffer) {
+                        description = description.replace("or offer external reference ID", orderLevelOffer);
+                    } else if (productLevelOffer) {
+                        description = description.replace("or offer external reference ID", productLevelOffer);
+                    } else if (orderLevelOffer) {
+                        description = description.replace("or offer external reference ID", orderLevelOffer);
+                    }
+                    return description;
+                },
+
+                'addBundleToCart': function addBundleToCart(skus, qtyNumbers, configs, pagePath, spinner, prodCategory) {
+                    var analyticsBundleData = micron.productdetail.components.productdetail.buildBundleObject(skus, qtyNumbers, configs, prodCategory);
+
+                    var bundleData = micron.productdetail.components.productdetail.getProductsToAdd(skus, qtyNumbers, configs);
+                    var drSessionToken = micron.digitalRiver.components.digitalRiver.getCookie('DR-session-tkn');
+
+                    if (!drSessionToken) {
+                        //call this getDRSessionToken() to get the access token and wait for the response to get the token
+                        $.when(micron.digitalRiver.components.digitalRiver.getDRSessionToken()).done(function (drSessionToken) {
+                            micron.productdetail.components.productdetail.invokeBundleCartAPI(drSessionToken, bundleData, pagePath, skus, qtyNumbers, spinner, analyticsBundleData);
+                            return false;
+                        });
+                    } else {
+                        micron.productdetail.components.productdetail.invokeBundleCartAPI(drSessionToken, bundleData, pagePath, skus, qtyNumbers, spinner, analyticsBundleData);
+                    }
+                },
+                invokeBundleCartAPI: function invokeBundleCartAPI(drsessiontoken, bundleData, pagePath, skus, qtyNumbers, spinner, analyticsBundleData) {
+
+                    var data = {
+                        drsessiontoken: drsessiontoken,
+                        cartData: JSON.stringify(bundleData)
+                    };
+
+                    var cartRedirectUrl = $('.drConfigs').attr('data-drCartRedirectUrl');
+                    var addToCartUrlVal = pagePath + ".digital-river.json?category=addToCart&bundle=true";
+                    var addToCartAjaxCall = micron.productdetail.components.productdetail.postData(data, addToCartUrlVal);
+
+                    addToCartAjaxCall.done(function (data, textStatus, jQxhr) {
+                        $('.buyBundleCartBtn').trigger('buyBundle:callback', [cartRedirectUrl]);
+                        micron.productdetail.components.productdetail.stopSpinner(spinner);
+
+                        if (data.details.cart && data.details.cart.id) {
+
+                            analyticsBundleData.cartID = data.details.cart.id;
+                        }
+
+                        if (typeof micron.addtocart.components.datalayer.triggerBundleAnalyticsTracking !== 'undefined') {
+
+                            micron.addtocart.components.datalayer.triggerBundleAnalyticsTracking(analyticsBundleData);
+                        }
+                        micron.productdetail.components.productdetail.addBundleToPopup(skus, qtyNumbers);
+                        micron.digitalRiver.components.digitalRiver.getCartQuantity(drsessiontoken);
+                    }).fail(function (jqXhr, textStatus, errorMessage) {
+                        var addtoCarturl = $('.drConfigs').attr('data-cartUrl');
+                        micron.digitalRiver.components.digitalRiver.logError(addtoCarturl, jqXhr.status, errorMessage);
+                    });
+                },
+
+                'getProductsToAdd': function getProductsToAdd(skus, qtyNumbers, configs) {
+                    var items = [];
+                    var skuArray = skus.split(',');
+                    var qtyNumberArray = qtyNumbers.split(',');
+                    var configArray = configs.split(',');
+                    var skuLength = skuArray.length;
+
+                    for (var iterator = 0; iterator < skuLength; iterator++) {
+
+                        var attributes = [];
+                        var modelNumber = $('.scanner-result-header').attr('data-model-id');
+                        var productBundleSku = skuArray[iterator];
+                        var $cartBtn = $('#cartBtn-' + productBundleSku);
+                        var rfgpn = $cartBtn.data('rfgpn');
+                        var modOut = $cartBtn.data('modout');
+
+                        var qtyWrapper = '#qty-' + productBundleSku;
+                        var $productOfferIdPLP = $('.pagination-layout ' + qtyWrapper).closest('.product-card').attr('data-offer-code');
+                        var $productOfferIdPDP = $("#product-block").attr('data-offer-code');
+
+                        if (configArray[iterator]) {
+                            var configAttribute = { "name": "externalPartNumber", "value": configArray[iterator] };
+                            attributes.push(configAttribute);
+                        }
+
+                        if (rfgpn) {
+                            var rfgpnAttribute = { "name": "rfgpNumber", "value": rfgpn };
+                            attributes.push(rfgpnAttribute);
+                        }
+
+                        if (modOut) {
+                            var modOutAttribute = { "name": "modOutNumber", "value": modOut };
+                            attributes.push(modOutAttribute);
+                        }
+
+                        if (modelNumber) {
+                            var modelNumberAttribute = { "name": "modelNumber", "value": modelNumber };
+                            attributes.push(modelNumberAttribute);
+                        }
+
+                        items.push({
+                            "quantity": qtyNumberArray[iterator],
+                            "product": {
+                                "externalReferenceId": skuArray[iterator]
+                            },
+                            "customAttributes": {
+                                "attribute": attributes
+                            }
+
+                        });
+                    }
+
+                    return {
+                        "cart": {
+                            "lineItems": {
+                                "lineItem": items
+                            }
+                        }
+                    };
+                },
+
+                'addBundleToPopup': function addBundleToPopup(skus, qtyNumbers) {
+                    var skuArray = skus.split(',');
+                    var qtyNumberArray = qtyNumbers.split(',');
+                    var products = '';
+
+                    for (var iterator = 0; iterator < skuArray.length; iterator++) {
+
+                        var productInfo = [];
+                        var productBundleSku = skuArray[iterator];
+                        var $cartBtn = $('#cartBtn-' + productBundleSku);
+                        productInfo['prodTitle'] = $cartBtn.data('product-title');
+                        productInfo['prodImage'] = $cartBtn.data('prodimage');
+                        productInfo['prodPrice'] = $cartBtn.data('prodprice');
+                        productInfo['offerPrice'] = $cartBtn.data('offerprice') ? $cartBtn.data('offerprice') : '';
+                        productInfo['currency'] = $cartBtn.data('currency');
+                        productInfo['qtyNumber'] = qtyNumberArray[iterator];
+
+                        micron.addcart.components.addcart.addToCartPopup(productInfo);
+                        products += $('#added-to-cart .products').html();
+                    }
+
+                    $('#added-to-cart .products').html(products);
+                },
+
+                'enableModelInput': function enableModelInput() {
+                    var manufacturer = $('.reverse-selector #manufacturer option:selected').text();
+                    var manufacturerVal = $('.reverse-selector #manufacturer option:selected').val();
+                    // reset the serach box
+                    $('.reverse-selector #reversemodelid').val('');
+                    $('.reverse-selector .compatibility').prop('disabled', true);
+                    if (manufacturerVal.indexOf("-1") == -1) {
+                        // enable the input
+                        $('.reverse-selector #reversemodelid').removeAttr('disabled');
+                        // If element is an input we need to wrap it in a div so that we can position the spinner absolutely
+                        $('.reverse-selector #reversemodelid').wrap('<div class="styled-input" id="styled-input-model"></div>');
+                    } else {
+                        // Disable and clear the value
+                        $('.reverse-selector #reversemodelid').prop('disabled', true);
+                    }
+                },
+
+                'enableButton': function enableButton() {
+                    var reversemodelid = $('.reverse-selector #reversemodelid').val();
+                    if (reversemodelid.length == 0) $('.reverse-selector .compatibility').prop('disabled', true);else $('.reverse-selector .compatibility').removeAttr('disabled');
+                },
+
+                replaceCharactersForOEMName: function replaceCharactersForOEMName(oemName) {
+                    return oemName.replace(/[ |+|\/|=,]/g, '-').replace(/[_]/g, '').replace(/[.]/g, '*').toLowerCase();
+                },
+
+                /****
+                 *
+                 * This function will return an object containing all the data attributes that were
+                 * store in the html from the dialog.
+                 *
+                 ****/
+                'findDataElements': function findDataElements() {
+                    // get the component's main div
+                    var $reverseselector = $('.reverse-selector');
+                    var dataElements = {};
+                    // Get the links to be used in the ajax calls
+                    dataElements.manufacturerUrl = $('#reversemanupath').val() + '.mfgrlistdata.json';
+                    dataElements.productlineUrl = $('#reverseproductlinepath').val() + '.productlinelistdata.json';
+                    dataElements.modelUrl = $('#reverseproductlinepath').val() + '.modelslistdata.json';
+                    dataElements.compUrl = $('#checkcompatibilitypath').val() + '.checkcompatibility.json';
+                    dataElements.sku = $reverseselector.data('sku');
+                    dataElements.mfgrdropdowntext = $reverseselector.data('mfgrdropdown');
+                    dataElements.prodlinedropdowntext = $reverseselector.data('prodlinedropdown');
+                    dataElements.modeldropdowntext = $reverseselector.data('modeldropdown');
+                    return dataElements;
+                },
+
+                'checkCompatibility': function checkCompatibility($reverseselector, dataElements) {
+                    var partNumber = $(".reverse-selector").attr("data-sku").toLowerCase();
+                    if ($reverseselector.length != 0) {
+                        var manufacturer = $('.reverse-selector #manufacturer option:selected').text();
+                        var modelId = $('.reverse-selector #model option:selected').val();
+                        var searchTerm = $('.reverse-selector #model option:selected').text();
+                        var deferred = $.Deferred();
+                        $.ajax({
+                            type: "GET",
+                            url: dataElements.compUrl,
+                            cache: false,
+                            dataType: "json",
+                            data: {
+                                modelid: modelId,
+                                partnumber: dataElements.sku
+
+                            },
+                            success: function success(response) {
+                                deferred.resolve(response);
+                                if (response != null && response != "" && !response.errorResponseCode) {
+                                    var dataresponse = response.result;
+                                    if (dataresponse.compatible == 'true') {
+                                        var url = window.location.href;
+                                        if (url.endsWith(".html")) {
+                                            url = url.substring(0, url.lastIndexOf("."));
+                                        }
+                                        var urlSplit = url.toLowerCase().split(partNumber + "/");
+                                        if (urlSplit.length > 1) {
+                                            url = urlSplit[0] + partNumber;
+                                        }
+                                        $('.reverse-selector .compatibility').trigger('reverseselector:callback');
+                                        window.location = url + '/' + dataresponse.configid;
+                                    } else {
+                                        $('.reverse-selector .reverse-selectortool-inner .default-text').addClass('hide');
+                                        $('.reverse-selector .reverse-selectortool-inner .compatible-text').addClass('hide');
+                                        $('.reverse-selector .reverse-selectortool-inner .not-compatible-text').removeClass('hide');
+                                        $('.reverse-selector .reverse-selectortool-inner .not-compatible-text .selector-tool-subtitle span').html(searchTerm);
+                                        $('.reverse-selector .reverse-selectortool-inner').removeClass('default').removeClass('compatible').addClass('not-compatible');
+                                        $('.reverse-selector .compatibility').trigger('reverseselector:callback');
+                                        manufacturer = manufacturer.replace(/[ |+|\/|=,]/g, "-").replace(/[_]/g, "").replace(/[.]/g, "*");
+                                        searchTerm = searchTerm.replace(/[ |+|\/|=,]/g, "-").replace(/[_]/g, "").replace(/[.]/g, "*");
+                                        $('.reverse-selector #noCompatibility').attr("href", "/compatible-upgrade-for/" + manufacturer.toLowerCase() + "/" + searchTerm.toLowerCase());
+                                    }
+                                }
+                            },
+                            error: function error(response) {
+                                deferred.reject(response);
+                                console.log("Failed to check the compatibility");
+                                $('.reverse-selector .compatibility').trigger('reverseselector:callback');
+                            }
+                        });
+                        return deferred.promise();
+                    }
+                },
+
+                /****
+                 *
+                 * This function will fire the ajax call to get the list of manufacturers
+                 *
+                 ****/
+                'manufacturerAjax': function manufacturerAjax($reverseselector, dataElements) {
+
+                    if ($reverseselector.length != 0) {
+                        var deferred = $.Deferred();
+                        $.ajax({
+                            type: "GET",
+                            url: dataElements.manufacturerUrl,
+                            cache: false,
+                            contentType: "application/json; charset=utf-8",
+                            dataType: "json",
+                            success: function success(response) {
+                                $(".reverse-selector #manufacturer").get(0).options.length = 1;
+                                deferred.resolve(response);
+                                if (response != "" && response != null && !response.errorResponseCode) {
+                                    var dataresponse = response.result;
+                                    $.each(dataresponse.manufacturer, function (index, item) {
+                                        $(".reverse-selector #manufacturer").get(0).options[$(".reverse-selector #manufacturer").get(0).options.length] = new Option(item.name, item.id);
+                                        var mfgKey = item["manufacturer-key"];
+                                        $(".reverse-selector #manufacturer option[value=" + item.id + "]").attr("mfg-key", mfgKey);
+                                        $(".reverse-selector #manufacturer  option[value=' ']").attr('disabled', 'disabled');
+                                    });
+                                    $('.reverse-selector #manufacturer').trigger('reverseselector:callback');
+                                }
+                            },
+                            error: function error(response) {
+                                deferred.reject(response);
+                                $('.reverse-selector #manufacturer').trigger('reverseselector:callback');
+                                console.log("Failed to load the Manufacturers");
+                            }
+                        });
+
+                        return deferred.promise();
+                    }
+                },
+
+                /****
+                 *
+                 * This function will fire the ajax call to get the list of product lines
+                 *
+                 ****/
+                'productlineAjax': function productlineAjax($reverseselector, dataElements, manufacturerId) {
+
+                    if ($reverseselector.length != 0) {
+                        var deferred = $.Deferred();
+                        $.ajax({
+                            type: "GET",
+                            url: dataElements.productlineUrl,
+                            cache: false,
+                            contentType: "application/json; charset=utf-8",
+                            dataType: "json",
+                            data: {
+                                mfgrid: manufacturerId
+                            },
+                            success: function success(response) {
+                                $(".reverse-selector #productline").get(0).options.length = 1;
+                                deferred.resolve(response);
+                                if (response != "" && response != null && !response.errorResponseCode) {
+                                    var dataresponse = response.result;
+                                    $.each(dataresponse['product-line'], function (index, item) {
+                                        $(".reverse-selector #productline").get(0).options[$(".reverse-selector #productline").get(0).options.length] = new Option(item.name, item.id);
+                                        var plKey = item["productline-key"];
+                                        $(".reverse-selector #productline option[value=" + item.id + "]").attr("pl-key", plKey);
+                                        $(".reverse-selector #productline  option[value=' ']").attr('disabled', 'disabled');
+                                    });
+                                    $('.reverse-selector #productline').trigger('reverseselector:callback');
+                                    $('.reverse-selector #productline').parents('.selector-dropdown').removeClass('disabled');
+                                    $('.reverse-selector #productline').removeAttr('disabled').focus();
+                                    var $reverseSelector = $('#offCanvasReverseSelector');
+                                    var dropdownPosition = $reverseSelector.scrollTop() + $('.reverse-selector #manufacturer').parents('.selector-dropdown').offset().top - $reverseSelector.offset().top;
+                                    $reverseSelector.animate({ scrollTop: dropdownPosition }, 500);
+                                }
+                            },
+                            error: function error(response) {
+                                deferred.reject(response);
+                                $('.reverse-selector #productline').trigger('reverseselector:callback');
+                                console.log("Failed to load the Product lines");
+                            }
+                        });
+
+                        return deferred.promise();
+                    }
+                },
+
+                /****
+                 *
+                 * This function will fire the ajax call to get the list of models
+                 *
+                 ****/
+                'modelAjax': function modelAjax($reverseselector, dataElements, prodlineId) {
+
+                    if ($reverseselector.length != 0) {
+                        var deferred = $.Deferred();
+                        $.ajax({
+                            type: "GET",
+                            url: dataElements.modelUrl,
+                            cache: false,
+                            contentType: "application/json; charset=utf-8",
+                            dataType: "json",
+                            data: {
+                                productlineid: prodlineId
+                            },
+                            success: function success(response) {
+                                $(".reverse-selector #model").get(0).options.length = 1;
+                                deferred.resolve(response);
+                                if (response != "" && response != null && !response.errorResponseCode) {
+                                    var dataresponse = response.result;
+                                    $.each(dataresponse.models, function (index, item) {
+                                        $(".reverse-selector #model").get(0).options[$(".reverse-selector #model").get(0).options.length] = new Option(item.name, item.id);
+                                        $(".reverse-selector #model  option[value=' ']").attr('disabled', 'disabled');
+                                    });
+                                    $('.reverse-selector #model').trigger('reverseselector:callback');
+                                    $('.reverse-selector #model').parents('.selector-dropdown').removeClass('disabled');
+                                    $('.reverse-selector #model').removeAttr('disabled').focus();
+                                    var $reverseSelector = $('#offCanvasReverseSelector');
+                                    var dropdownPosition = $reverseSelector.scrollTop() + $('.reverse-selector #productline').parents('.selector-dropdown').offset().top - $reverseSelector.offset().top;
+                                    $reverseSelector.animate({ scrollTop: dropdownPosition }, 500);
+                                }
+                            },
+                            error: function error(response) {
+                                deferred.reject(response);
+                                $('.reverse-selector #model').trigger('reverseselector:callback');
+                                console.log("Failed to load the Models");
+                            }
+                        });
+
+                        return deferred.promise();
+                    }
+                },
+
+                /****
+                 *
+                 * This function is responsible for the autocomplete logic for the models
+                 *
+                 ****/
+                'modelAutoComplete': function modelAutoComplete(dataElements) {
+                    // Ajax for the Model lookup
+                    $('.reverse-selector #reversemodelid').autocomplete({
+                        minLength: 3,
+                        source: function source(request, response) {
+                            var matcher = new RegExp($.ui.autocomplete.escapeRegex(request.term), 'i');
+                            // Get form information (manufacturers and search term)
+                            var manufacturerId = $('.reverse-selector #manufacturer option:selected').val();
+                            var searchTerm = encodeURIComponent($('.reverse-selector #reversemodelid').val());
+
+                            // Override default options. Need to position spinner to the right of the input box. Relative to the parent.
+                            var options = {};
+                            options.left = 'auto'; // Left position relative to parent. Right position is set in css file, applied to class.
+                            // Right isn't accepted by spin.js as an option
+
+                            var inputTarget = this.element[0];
+
+                            var spinner = micron.spinner.components.spinner.init(inputTarget, options);
+                            spinner.start();
+                            var deferred = $.Deferred();
+                            $.ajax({
+                                url: dataElements.modelsUrl,
+                                type: "GET",
+                                dataType: 'json',
+                                data: {
+                                    mfgrid: manufacturerId,
+                                    searchterm: searchTerm
+                                },
+                                contentType: 'application/json; charset=utf-8',
+                                cache: false,
+                                success: function success(dataresult) {
+                                    //micron.selectortool.components.selectortool.spinner.stop();
+                                    spinner.stop();
+                                    deferred.resolve(dataresult);
+                                    if (dataresult != "" && dataresult != null && !dataresult.errorResponseCode) {
+                                        var dataresponse = dataresult.result;
+                                        response($.map(dataresponse.data, function (v, i) {
+                                            var text = v.id;
+                                            if (text) {
+                                                return {
+                                                    label: v.name,
+                                                    id: v.id
+                                                };
+                                            }
+                                        }));
+                                    }
+                                    if (typeof dataresponse.data === "undefined") {
+                                        $('.reverse-selector .compatibility').prop('disabled', true);
+                                    } else {
+                                        $('.reverse-selector .compatibility').removeAttr('disabled');
+                                    }
+                                },
+                                error: function error(response) {
+                                    spinner.stop();
+                                    deferred.reject(response);
+                                    console.log('Failed to load the Models');
+                                }
+                            });
+                            return deferred.promise();
+                        },
+                        select: function select(event, ui) {
+                            try {
+                                var manufacturer = $('.reverse-selector #manufacturer option:selected').val();
+                                $('.reverse-selector #reversemodelid').removeAttr('disabled');
+                                $('.reverse-selector .compatibility').removeAttr('disabled');
+                                $('.reverse-selector #reversemodelid').attr("value", ui.item.id);
+                                $('.reverse-selector #reversemodelid').attr("itemlabel", ui.item.label);
+                                $('.reverse-selector #reversemodelid').trigger('reverseselector:callback');
+                            } catch (err) {}
+                        }
+                    });
+                },
+
+                /****
+                 *
+                 * This function is for populating productInfo we use to build cart object
+                 *
+                 ****/
+                'buildBundleObject': function buildBundleObject(skus, qtyNumbers, configs, prodCategorys) {
+
+                    var items = [];
+
+                    var bundleObject = void 0;
+
+                    var skuArray = skus.split(',');
+                    var qtyNumberArray = qtyNumbers.split(',');
+                    var configArray = configs.split(',');
+                    var skuLength = skuArray.length;
+                    var prodCategory = prodCategorys.split(',');
+
+                    for (var iterator = 0; iterator < skuLength; iterator++) {
+                        items.push(micron.addcart.components.addcart.buildProductInfo(skuArray[iterator], configArray[iterator], qtyNumberArray[iterator], prodCategory[iterator]));
+                    }
+
+                    bundleObject = { "items": items };
+
+                    return bundleObject;
+                },
+
+                /****
+                 *
+                 * This function will load the Digital River price in PDP
+                 *
+                 ****/
+                'loadDRPriceInPDP': function loadDRPriceInPDP(sku, data, offerData) {
+                    var skuArray = sku.split(',');
+                    var outOfStockTxt = $("#product-block").attr('data-outofstock');
+                    var pdpSku = $("#product-block").data('sku');
+                    var enableBuyingOptions = $("#product-block").attr('data-enablebuyingoptions');
+                    var buyingOptionsLabel = $("#product-block").attr('data-buyingoptionslabel');
+                    var buyingOptionsUrl = $("#product-block").attr('data-buyingoptionsurl');
+                    var releaseDateTxt = $("#product-block").attr('data-releaseDatetext');
+                    var slideoutBannerTxt = $("#product-block").attr('data-slideoutBannertext');
+                    var drPrices = [];
+                    var drLocale = micron.header.components.header.getDRLocaleValue();
+
+                    if (data.details.products.product != undefined && data.details.products.product != null) {
+
+                        var rfgpn = $("#product-block").attr('data-rfgpn');
+                        var modOut = $("#product-block").attr('data-modout');
+
+                        for (var product = 0; product < data.details.products.product.length; product++) {
+                            var productData = data.details.products.product[product],
+                                drPrice = new Number(),
+                                drFormattedPrice = '',
+                                currency = '',
+                                skuFromSL = productData.externalReferenceId,
+                                dealPrice = new Number(),
+                                dealFormattedPrice = '',
+                                isDrPricingExists = !micron.util.components.util.isNil(productData.pricing) && !micron.util.components.util.isNil(productData.pricing.feePricing) && !micron.util.components.util.isNil(productData.pricing.feePricing.salePriceWithFeesAndQuantity) && !micron.util.components.util.isNil(productData.pricing.feePricing.salePriceWithFeesAndQuantity.value);
+                            if (isDrPricingExists) {
+                                dealPrice = productData.pricing.dealPrice.value;
+                                dealFormattedPrice = productData.pricing.dealPrice.formattedDealprice;
+                                if (offerData.length > 0) {
+                                    micron.productlisting.components.productlisting.setOfferedPrice(productData, offerData, 'PDP');
+                                }
+                                drPrice = new Number(productData.pricing.feePricing.salePriceWithFeesAndQuantity.value);
+                                drFormattedPrice = productData.pricing.feePricing.formattedSalePriceWithFeesAndQuantity;
+                                currency = productData.pricing.feePricing.salePriceWithFeesAndQuantity.currency;
+                                $('#addToCartBtn').attr('data-currency', currency);
+                                $('#addToCartBtnStickyMenu').attr('data-currency', currency);
+                            }
+                            var taxText = $("#product-block").data('taxtext'),
+                                availlableToBuy = productData.inventoryStatus.productIsInStock === 'true' && productData.inventoryStatus.status === 'PRODUCT_INVENTORY_IN_STOCK' && productData.purchasable;
+                            var preorderEnabled = false;
+                            var releaseDate;
+                            for (var i = 0; i < productData.customAttributes.attribute.length; i++) {
+
+                                if (productData.customAttributes.attribute[i].name === 'preorderEnabled') {
+                                    preorderEnabled = productData.customAttributes.attribute[i].value;
+                                }
+                                if (productData.customAttributes.attribute[i].name === 'releaseDate') {
+                                    var dateString = productData.customAttributes.attribute[i].value;
+                                    var date = new Date(dateString);
+                                    var locale = $('.drConfigs').attr('data-drlocale').replace(/_/g, "-");
+                                    var options = { month: 'long', day: 'numeric', year: 'numeric' };
+                                    releaseDate = date.toLocaleDateString(locale, options);
+                                }
+                            }
+                            if (skuArray.includes(skuFromSL)) {
+                                skuArray.splice(skuArray.indexOf(skuFromSL), 1);
+                            }
+                            if (pdpSku == skuFromSL) {
+                                var pimPrice = new Number($('#product-block').data('prodprice'));
+                                var isPimPriceNotAvail = isNaN(pimPrice) || parseFloat(pimPrice) === 0 || pimPrice === 0 || micron.util.components.util.isNil(pimPrice);
+                                var isDrPriceNotAvail = isNaN(drPrice) || parseFloat(drPrice) === 0 || drPrice === 0 || micron.util.components.util.isNil(drPrice) || drPrice === '';
+                                var preorderTxt = $("#product-block").data('preordertext');
+                                if (drLocale === "en_IN") {
+
+                                    if (drPrice > dealPrice) {
+                                        $(".drprice .price-active").attr('class', 'offer-prev').html(drFormattedPrice);
+                                        var priceTextElem = document.createElement('span');
+                                        var offerPriceSpan = document.createElement('span');
+                                        offerPriceSpan.className = "price-active offer-active";
+                                        offerPriceSpan.appendChild(document.createTextNode(dealFormattedPrice));
+                                        $(".drprice").prepend(priceTextElem);
+                                        $(".drprice").prepend(offerPriceSpan);
+                                        $('#addToCartBtn').attr('data-prodprice', drPrice);
+                                        $('#addToCartBtnStickyMenu').attr('data-prodprice', drPrice);
+                                        $('#addToCartBtn').attr('data-offerprice', dealPrice);
+                                        $('#addToCartBtnStickyMenu').attr('data-offerprice', dealPrice);
+                                    } else {
+                                        $('#addToCartBtn').attr('data-prodprice', drPrice);
+                                        $('#addToCartBtnStickyMenu').attr('data-prodprice', drPrice);
+                                        $(".drprice .price-active").html(drFormattedPrice);
+                                    }
+                                    if (productData.purchasable === "true") {
+                                        $(".drprice").removeClass("hide");
+                                    } else {
+                                        $(".product-pricing").addClass("hide");
+                                    }
+                                } else if (isDrPricingExists && drPrice < pimPrice) {
+                                    $(".drprice .price-active").attr('class', 'offer-prev');
+                                    var priceTextElem = document.createElement('span');
+                                    if (taxText != '' && taxText != null && taxText != 'undefined') {
+                                        $('#tax-text-' + skuFromSL).addClass('offer-prev');
+                                        $('#tax-text-sticky-' + skuFromSL).addClass('offer-prev');
+                                        priceTextElem.className = "text-small offer-active";
+                                        priceTextElem.appendChild(document.createTextNode(taxText));
+                                    }
+                                    var offerPriceSpan = document.createElement('span');
+                                    offerPriceSpan.className = "price-active offer-active";
+                                    offerPriceSpan.appendChild(document.createTextNode(drFormattedPrice));
+                                    $(".drprice").prepend(priceTextElem);
+                                    $(".drprice").prepend(offerPriceSpan);
+                                } else if (isDrPricingExists && drPrice >= pimPrice) {
+                                    $('#addToCartBtn').attr('data-prodprice', drPrice);
+                                    $('#addToCartBtnStickyMenu').attr('data-prodprice', drPrice);
+                                    $(".drprice .price-active").html(drFormattedPrice);
+                                } else if (isPimPriceNotAvail && !isDrPriceNotAvail) {
+                                    $(".drprice .price-active").html(drFormattedPrice);
+                                } else if (isPimPriceNotAvail && isDrPriceNotAvail) {
+                                    $('#product-block').find('.product-pricing').addClass('hide');
+                                    $('#product-block').find('.product-quantity').addClass('hide');
+                                    $('#product-block').find('#addToCartBtn').parent().addClass('hide');
+                                    $("#addToCartBtnStickyMenu").addClass('hide');
+                                }
+
+                                if (availlableToBuy && (!isPimPriceNotAvail || !isDrPriceNotAvail)) {
+                                    var addToCartTxt = $("#product-block").data('addtocarttxt');
+
+                                    var pageType = $("#product-block").data('pagetype');
+                                    $(".product-quantity").removeClass('hide');
+                                    if (drLocale != "en_IN") {
+                                        $(".wtb-button").removeClass('hide');
+                                    }
+                                    $("#addToCartBtn").removeClass('disabled secondary');
+                                    $("#addToCartBtn").addClass('addCart');
+
+                                    if (preorderEnabled) {
+                                        $("#addToCartBtn").text(preorderTxt);
+                                        $("#addToCartBtnStickyMenu").text(preorderTxt);
+                                        $('.product-release-date').each(function () {
+                                            $('.product-release-date').removeClass('hide');
+                                        });
+                                        $('.product-release-date').children('p').children('span').text(releaseDate);
+                                    } else {
+                                        $("#addToCartBtn").text(addToCartTxt);
+                                        $("#addToCartBtnStickyMenu").text(addToCartTxt);
+                                    }
+
+                                    $("#addToCartBtn").attr('data-prodskuval', pdpSku);
+                                    $("#addToCartBtn").attr('data-rfgpn', rfgpn);
+                                    $("#addToCartBtn").attr('data-modout', modOut);
+
+                                    $("#addToCartBtnStickyMenu").removeClass('disabled secondary');
+                                    $("#addToCartBtnStickyMenu").addClass('addCart');
+                                    $("#addToCartBtnStickyMenu").attr('data-prodskuval', pdpSku);
+                                    $("#addToCartBtnStickyMenu").attr('data-rfgpn', rfgpn);
+                                    $("#addToCartBtnStickyMenu").attr('data-modout', modOut);
+                                    if (drLocale != "en_IN") {
+                                        $('#addToCartBtn').attr('data-offerprice', drPrice);
+                                        $('#addToCartBtnStickyMenu').attr('data-offerprice', drPrice);
+                                    }
+                                    var availableStock = productData.inventoryStatus.availableQuantity;
+                                    var maxQty = productData.maximumQuantity;
+                                    $("#product-block").attr('data-quantity-count', availableStock);
+                                    $("#product-block").attr('data-maxquantity-count', maxQty);
+                                    if (pageType == 'externalpdp') {
+                                        var prodConfigVal = $("#product-block").data('prodconfigval');
+                                        $("#addToCartBtn").attr('data-prodconfigval', prodConfigVal);
+                                        $("#addToCartBtnStickyMenu").attr('data-prodconfigval', prodConfigVal);
+                                    }
+                                    if (productData.maximumQuantity != null) {
+                                        $('.limitstock').removeClass('hide');
+                                        $('.limitstock span').text(productData.maximumQuantity);
+                                    }
+                                } else if (preorderEnabled && !availlableToBuy) {
+                                    $("#addToCartBtn").removeClass('secondary').addClass('disabled gray').html(preorderTxt);
+                                    $('.product-release-date').removeClass('hide');
+                                    $(".product-quantity").addClass('disabled');
+                                    $("#addToCartBtnStickyMenu").removeClass('secondary').addClass('disabled gray').text(preorderTxt);
+                                    $('.product-release-date').children('p').children('span').text(releaseDateTxt);
+                                    $('.product-release-date').children('p').children('span').text(releaseDateTxt);
+                                } else {
+                                    var addToCartTxt = $("#product-block").data('addtocarttxt');
+                                    $("#notifyMeBtn").removeClass('disabled hide');
+                                    if (enableBuyingOptions === 'true') {
+                                        $("#addToCartBtn").addClass('disabled hide').html(addToCartTxt);
+                                        $("#addToCartBtn").parent().hide();
+                                        $("#buyingOptionsBtn").removeClass('hide');
+                                        $("#addToCartBtnStickyMenu").addClass('hide');
+                                        $("#buyingOptionsBtnStickyMenu").removeClass('hide');
+                                    } else {
+                                        $('#addToCartBtn').html(outOfStockTxt).parent().hide();
+                                        $("#addToCartBtnStickyMenu").html(outOfStockTxt);
+                                    }
+                                    if (drLocale === "en_IN") {
+                                        $(".wtb-button a").html(buyingOptionsLabel);
+                                        $(".wtb-button").removeClass('hide');
+                                        $("#addToCartBtnStickyMenu").addClass('hide');
+                                    }
+                                }
+                            } else {
+                                var activeSku = $('#product-block .capacity li a.active').data('partnumber');
+                                if (skuFromSL === activeSku) {
+                                    var recProdPrice = new Number($("#prod-price-" + skuFromSL).data('recprodprice'));
+                                    var isrecPriceNotAvail = isNaN(recProdPrice) || parseFloat(recProdPrice) === 0 || recProdPrice === 0 || micron.util.components.util.isNil(recProdPrice);
+                                    var isDrPriceNotAvail = isNaN(drPrice) || parseFloat(drPrice) === 0 || drPrice === 0 || micron.util.components.util.isNil(drPrice) || drPrice === '';
+                                    if (drPrice < recProdPrice) {
+                                        $("#prod-price-" + skuFromSL).attr('class', 'offer-prev');
+                                        var priceTextElem = document.createElement('span');
+                                        if (taxText != '' && taxText != null) {
+                                            $('#taxt-text-' + skuFromSL).addClass('offer-prev');
+                                            priceTextElem.className = "text-small offer-active";
+                                            priceTextElem.appendChild(document.createTextNode(taxText));
+                                        }
+                                        var offerPriceSpan = document.createElement('span');
+                                        offerPriceSpan.className = "price-active offer-active";
+                                        offerPriceSpan.appendChild(document.createTextNode(drFormattedPrice));
+                                        $(".recprodprice-" + skuFromSL).append(offerPriceSpan);
+                                        $(".recprodprice-" + skuFromSL).append(priceTextElem);
+                                    } else if (isrecPriceNotAvail && !isDrPriceNotAvail) {
+                                        $("#prod-price-" + skuFromSL).html(drFormattedPrice);
+                                    } else if (isrecPriceNotAvail && isDrPriceNotAvail) {
+                                        $('#addToCartBtn-' + skuFromSL).addClass('hide');
+                                        $('#prod-price-' + skuFromSL).addClass('hide');
+                                    }
+
+                                    if (availlableToBuy && (!isrecPriceNotAvail || !isDrPriceNotAvail)) {
+                                        var addToCartTxt = $("#product-block").data('addtocarttxt');
+
+                                        $("#addToCartBtn-" + skuFromSL).empty();
+                                        $("#addToCartBtn-" + skuFromSL).addClass('addCart');
+                                        $("#addToCartBtn-" + skuFromSL).removeClass('disabled secondary');
+                                        $("#addToCartBtn-" + skuFromSL).html(addToCartTxt);
+                                        $("#addToCartBtn-" + skuFromSL).attr('data-prodskuval', skuFromSL);
+                                    } else {
+                                        if (enableBuyingOptions === 'true') {
+                                            var addToCartTxt = $("#product-block").data('addtocarttxt');
+                                            $("#addToCartBtn").addClass('disabled').html(addToCartTxt);
+                                            $("#buyingOptionsBtn").removeClass('hide');
+                                            $("#addToCartBtnStickyMenu").addClass('hide');
+                                            $("#buyingOptionsBtnStickyMenu").removeClass('hide');
+                                        } else {
+                                            $('#addToCartBtn-' + skuFromSL).html(outOfStockTxt);
+                                            $("#addToCartBtnStickyMenu-" + skuFromSL).html(outOfStockTxt);
+                                        }
+                                    }
+                                }
+                            }
+                            $('#product-details-content').find('.cswidget').attr('data-wtb-analytics-category', micron.productlisting.components.productlisting.getWhereToBuyAnalyticsCategory(productData));
+                            // load prices for capacities as well
+                            if ($("#product-block").attr("data-category") == "SSD") {
+                                var separator = '<span class="separator">|</span>';
+                                var dealFlag = '<span class="label deal">' + $("#product-block .capacity").attr('data-deallabel') + '</span>';
+                                $('#product-block .capacity li a').each(function () {
+                                    var partNumber = $(this).attr('data-partnumber');
+                                    if (partNumber === skuFromSL && typeof drFormattedPrice != 'undefined') {
+                                        var isBuyable = $(this).attr('data-isbuyable') === 'true' ? true : false;
+                                        var isDrPriceAvailable = Number($(this).attr('data-slprice')) > Number(drPrice);
+                                        if (drLocale === "en_IN") {
+                                            isDrPriceAvailable = Number(drPrice) > Number(dealPrice);
+                                            if (isDrPriceAvailable) {
+                                                drFormattedPrice = dealFormattedPrice;
+                                            }
+                                        }
+                                        if (availlableToBuy && isBuyable && isDrPriceAvailable) {
+                                            $(this).append(separator + drFormattedPrice + dealFlag).attr('data-dealavailable', 'true');
+                                        } else {
+                                            $(this).append(separator + drFormattedPrice).attr("data-dealavailable", "false");
+                                        }
+                                    }
+                                });
+                                if ($('#product-block .capacity li a.active').attr('data-dealavailable') == 'true') {
+                                    $('.deal-description-wrapper').removeClass('hide');
+                                }
+                            }
+                            if ($("#product-block").data('sku') === skuFromSL) {
+                                drPrices[product] = drPrice;
+                            }
+                        }
+                    }
+
+                    if ($("#recommended-products-section").length > 0) {
+                        for (var i = 0; i < skuArray.length; i++) {
+                            $('#addToCartBtn-' + skuArray[i]).html(outOfStockTxt);
+                            $("#addToCartBtnStickyMenu-" + skuArray[i]).html(outOfStockTxt);
+                        }
+                    }
+                    if ($("#product-block").length > 0) {
+                        if (skuArray != null && skuArray.includes(pdpSku)) {
+                            if (enableBuyingOptions === 'true') {
+                                var addToCartTxt = $("#product-block").data('addtocarttxt');
+                                $("#addToCartBtn").addClass('disabled').html(addToCartTxt);
+                                $("#buyingOptionsBtn").removeClass('hide');
+                                $("#addToCartBtnStickyMenu").addClass('hide');
+                                $("#buyingOptionsBtnStickyMenu").removeClass('hide');
+                            } else {
+                                $('#addToCartBtn').html(outOfStockTxt);
+                                $("#addToCartBtnStickyMenu").html(outOfStockTxt);
+                            }
+                        }
+                    }
+                    return drPrices;
+                },
+                'loadKlarna': function loadKlarna(drPrices) {
+                    drPrices.forEach(function (drPrice) {
+                        var isKlarnaValidCountry = false;
+                        if ($("klarna-placement").length > 0) {
+                            isKlarnaValidCountry = true;
+                            var exCountries = $("klarna-placement").attr('data-exclude');
+                            if (exCountries) {
+                                exCountriesArr = exCountries.split(',');
+                                var loqateUrl = $("klarna-placement").attr('data-loqateurl');
+                                $.ajax({
+                                    dataType: "json",
+                                    url: loqateUrl,
+                                    async: false,
+                                    success: function success(data) {
+                                        var geoLocationCode = data.Items[0].Iso2;
+                                        isKlarnaValidCountry = exCountries.indexOf(geoLocationCode) < 0;
+                                    }
+                                });
+                            }
+                            var pimPrice = new Number($('#product-block').data('prodprice'));
+                            var isPimPriceNotAvail = isNaN(pimPrice) || parseFloat(pimPrice) === 0 || pimPrice === 0 || micron.util.components.util.isNil(pimPrice);
+                            var isDrPriceNotAvail = isNaN(drPrice) || parseFloat(drPrice) === 0 || drPrice === 0 || micron.util.components.util.isNil(drPrice) || drPrice === '';
+                            if (!isPimPriceNotAvail || !isDrPriceNotAvail) {
+                                if (isKlarnaValidCountry) {
+                                    $("klarna-placement").attr("data-purchase-amount", (drPrice.toFixed(2) * 100).toFixed());
+                                    if (window.Klarna && window.Klarna.OnsiteMessaging) {
+                                        window.Klarna.OnsiteMessaging.refresh();
+                                    }
+                                    $("klarna-placement").removeClass('hide');
+                                }
+                            }
+                        }
+                    });
+                },
+
+                'startSpinner': function startSpinner() {
+                    var options = {};
+                    options.left = 'auto';
+                    options.top = 'auto';
+                    var spinner = new Spinner(options);
+                    $('<div id="spinner_center"><div id="spinner_circle"></div></div>').appendTo('body');
+                    spinner.spin($('#spinner_circle')[0]);
+                    return spinner;
+                },
+
+                'stopSpinner': function stopSpinner(spinner) {
+                    if ($('#spinner_center').length > 0) {
+                        spinner.stop();
+                        $('#spinner_center').remove();
+                    }
+                },
+                'downloadEnvRegCertPDF': function downloadEnvRegCertPDF(selector) {
+                    var pagePath = $('.language.simple-link--icon').data('pagepath');
+                    var sku = $('.product-specs-resources').data('sku');
+                    var subcategory = $('.product-specs-resources').data('subcategory');
+                    window.open(pagePath + "." + selector + ".pdf/" + subcategory + "/" + sku + ".pdf");
+                },
+                /****
+                 *
+                 * This function will set the options for the recommended products carousel
+                 *
+                 ****/
+                'recommendedProductsCarousel': function recommendedProductsCarousel() {
+
+                    $('#recommended-products-section .carousel').slick({
+                        "slidesToShow": 3,
+                        "slidesToScroll": 3,
+                        "arrows": true,
+                        "dots": true,
+                        "slide": ".item",
+                        "rows": 0,
+                        "responsive": [{
+                            "breakpoint": 1200,
+                            "settings": {
+                                "slidesToShow": 2,
+                                "slidesToScroll": 2,
+                                "arrows": true,
+                                "dots": true
+                            }
+                        }, {
+                            "breakpoint": 640,
+                            "settings": {
+                                "slidesToShow": 1,
+                                "slidesToScroll": 1,
+                                "arrows": true,
+                                "dots": true
+                            }
+                        }]
+                    });
+                }
+            }
+        },
+
+        init: function init() {
+            // init core components
+            for (var componentName in micron.productdetail.components) {
+                var thisComponent = micron.productdetail.components[componentName];
+                if (typeof thisComponent.init !== "undefined") {
+                    thisComponent.init();
+                }
+            }
+        }
+    };
+})(jQuery);
+(function ($) {
+    micron.productlisting = {
+        components: {
+            productlisting: {
+                /****
+                 *
+                 * This function used to create DR price URL
+                 *
+                 ****/
+                'createDRPriceURL': function createDRPriceURL(sku, priceOnPage) {
+
+                    var pagePath = $("li.language").data("pagepath");
+                    var drURL = pagePath + '.digital-river.nocache.json';
+                    var urlParams = new URLSearchParams(window.location.search);
+                    var drLocale = micron.header.components.header.getDRLocaleValue();
+                    var commerceElementExists = document.querySelector('#adobe-commerce-details');
+                    if (sku != '' && sku != undefined && sku != null && !commerceElementExists) {
+
+                        if (urlParams.has('loggedin') || urlParams.has('employee') || micron.digitalRiver.components.digitalRiver.getCookie('DR-session-tkn') != null && micron.digitalRiver.components.digitalRiver.getCookie('DR-session-tkn') != '' && micron.digitalRiver.components.digitalRiver.getCookie('DR-session-tkn') != 'undefined') {
+                            var drSessionToken = micron.digitalRiver.components.digitalRiver.getCookie('DR-session-tkn');
+                            if (!drSessionToken) {
+                                $.when(micron.digitalRiver.components.digitalRiver.getDRSessionToken()).done(function (drSessionToken) {
+                                    drURL = drURL + '?category=fetchUserProductPrice&drsessiontoken=' + drSessionToken + '&externalReferenceId=' + sku;
+                                    micron.productlisting.components.productlisting.fetchDRProdPrice(drURL, sku, priceOnPage);
+                                });
+                            } else {
+                                drURL = drURL + '?category=fetchUserProductPrice&drsessiontoken=' + drSessionToken + '&externalReferenceId=' + sku;
+                                micron.productlisting.components.productlisting.fetchDRProdPrice(drURL, sku, priceOnPage);
+                            }
+                        } else {
+                            drURL = drURL + '?category=fetchProductPrice&externalReferenceId=' + sku;
+                            micron.productlisting.components.productlisting.fetchDRProdPrice(drURL, sku, priceOnPage);
+                        }
+                    }
+                },
+                /****
+                 *
+                 * This function will fetch the price of the products
+                 *
+                 ****/
+                'fetchDRProdPrice': function fetchDRProdPrice(drURL, sku, priceOnPage) {
+                    var spinner = micron.productdetail.components.productdetail.startSpinner();
+                    var drLocale = micron.header.components.header.getDRLocaleValue();
+
+                    var drURL = drURL + '&locale=' + drLocale;
+
+                    var offerCodes = micron.productlisting.components.productlisting.fetchActiveOfferCodes();
+                    var apiDeferredCalls = [];
+
+                    // deferred for Product Pricing
+                    apiDeferredCalls.push(micron.productlisting.components.productlisting.fetchDRProductPrice(drURL, spinner));
+
+                    offerCodes.forEach(function (offer) {
+                        if (!micron.util.components.util.isNil(offer)) {
+                            apiDeferredCalls.push(micron.productlisting.components.productlisting.fetchDROfferPrice(offer));
+                        }
+                    });
+
+                    $.when.apply($, apiDeferredCalls).then(function () {
+
+                        var productPricingRes;
+                        var offersRes = [];
+
+                        $.each(apiDeferredCalls, function (index) {
+                            this.done(function (response) {
+                                if (index == 0) {
+                                    productPricingRes = response;
+                                } else {
+                                    if (response) {
+                                        if (response.removeFlag && response.offerCode) {
+                                            micron.simpleLinkTrigger.components.simpleLinkTrigger.deleteProductOffer(response.offerCode);
+                                        } else {
+                                            offersRes.push(response);
+                                        }
+                                    }
+                                }
+                            });
+                        });
+
+                        if (productPricingRes.details.products && !micron.util.components.util.isEmpty(productPricingRes.details.products.product)) {
+                            micron.productlisting.components.productlisting.loadDRPrice(priceOnPage, sku, productPricingRes, offersRes, spinner);
+                        }
+                        micron.productdetail.components.productdetail.stopSpinner(spinner);
+                    });
+                },
+                /****
+                 *
+                 * This function will get the active offer codes
+                 *
+                 ****/
+                'fetchActiveOfferCodes': function fetchActiveOfferCodes() {
+                    var offerId = $('.drConfigs').attr('data-drProductOfferCode');
+                    var offerCodes = [];
+
+                    if (window.localStorage.getItem('DR-offer') === '1' && offerId) {
+                        offerCodes.push(offerId);
+                    }
+
+                    var promoStr = localStorage.getItem("triggerData");
+
+                    var promoObj = JSON.parse(promoStr);
+                    if (promoObj && promoObj.promocodes && promoObj.promocodes.productLevelOfferCodes && promoObj.promocodes.productLevelOfferCodes.length > 0) {
+                        for (var i = 0; i < promoObj.promocodes.productLevelOfferCodes.length; i++) {
+                            var currentPromo = promoObj.promocodes.productLevelOfferCodes[i].promocode;
+                            if (currentPromo) {
+                                offerCodes.push(currentPromo.toString());
+                            }
+                        }
+                    }
+
+                    offerCodes = micron.util.components.util.uniq(offerCodes);
+
+                    return offerCodes;
+                },
+                /****
+                 *
+                 * This function will Load the price of the products as per page
+                 *
+                 ****/
+                'loadDRPrice': function loadDRPrice(priceOnPage, sku, res, offerRes, spinner) {
+                    if (priceOnPage == 'PLP') {
+                        micron.productlisting.components.productlisting.loadDRPriceInPLP(sku, res, '', offerRes);
+                    } else if (priceOnPage == 'PDP') {
+                        var drPrices = micron.productdetail.components.productdetail.loadDRPriceInPDP(sku, res, offerRes);
+                        micron.productdetail.components.productdetail.stopSpinner(spinner);
+                        micron.productdetail.components.productdetail.loadKlarna(drPrices);
+                    } else if (priceOnPage == 'ProdCompare') {
+                        micron.productlisting.components.productlisting.loadDRPriceInPLP(sku, res, 'comp', offerRes);
+                    } else if (priceOnPage == 'dynamicPrice') {
+                        micron.dynamicpricing.components.dynamicpricing.loadDRPriceInDynamic(sku, res, offerRes);
+                    }
+                },
+                /****
+                 *
+                 * This function will call the Digital River API to fetch the price of the products without offer
+                 *
+                 ****/
+                'fetchDRProductPrice': function fetchDRProductPrice(drUrl, spinner) {
+                    var deferred = $.Deferred();
+                    $.ajax({
+                        type: "GET",
+                        url: drUrl,
+                        dataType: "json",
+                        success: function success(data) {
+                            deferred.resolve(data);
+                        },
+                        error: function error(jqXHR, exception) {
+                            deferred.reject();
+                            console.log("Failed to retrieve price without offer");
+                            micron.productdetail.components.productdetail.stopSpinner(spinner);
+                            micron.digitalRiver.components.digitalRiver.logError(drUrl, jqXHR.status, exception);
+                        }
+                    });
+                    return deferred.promise();
+                },
+                /****
+                 *
+                 * This function will call the Digital River API to fetch the offer details based on offer id
+                 *
+                 ****/
+                'fetchDROfferPrice': function fetchDROfferPrice(drOfferCode) {
+
+                    var pagePath = $("li.cart").attr("data-pagepath");
+                    var drLocale = micron.header.components.header.getDRLocaleValue();
+                    var drOffersURL = pagePath + '.digital-river.nocache.json?category=offers&locale=' + drLocale + '&promoCode=' + drOfferCode;
+
+                    var deferred = $.Deferred();
+                    $.ajax({
+                        type: "GET",
+                        url: drOffersURL,
+                        dataType: "json",
+                        success: function success(data) {
+                            deferred.resolve(data);
+                        },
+                        error: function error(jqXHR, exception) {
+                            var errorJson = JSON.parse(jqXHR.responseText);
+
+                            if (jqXHR.status == 409 && errorJson && errorJson.details && errorJson.details.removeFlag) {
+                                deferred.resolve(errorJson.details);
+                            } else {
+                                deferred.resolve({});
+                            }
+                            console.log("Failed to retrieve price with product level offer");
+                            micron.digitalRiver.components.digitalRiver.logError(drOffersURL, jqXHR.status, exception);
+                            if (errorJson && errorJson.details && errorJson.details.drOfferError && errorJson.details.drOfferError.errors && errorJson.details.drOfferError.errors.error && errorJson.details.drOfferError.errors.error.length > 0) {
+                                micron.dellBoomi.components.dellBoomi.triggerEmailNotification($('.drConfigs').attr('data-drOfferErrorEmailId'), $('.drConfigs').attr('data-drOfferErrorEmailSub'), errorJson.details.drOfferError.errors.error[0].description);
+                            }
+                        }
+                    });
+                    return deferred.promise();
+                },
+                /****
+                 *
+                 * This function will set the offer price to the products
+                 *
+                 ****/
+                'setOfferedPrice': function setOfferedPrice(productData, offers, pageType) {
+                    var offerPrice = 0,
+                        bestOfferPromo;
+
+                    offers.forEach(function (offer) {
+                        if (!micron.util.components.util.isNil(offer.details) && !micron.util.components.util.isNil(offer.details.products) && !micron.util.components.util.isNil(offer.details.products[productData.externalReferenceId])) {
+
+                            if (offerPrice == 0 || parseFloat(offerPrice).toFixed(2) > parseFloat(offer.details.products[productData.externalReferenceId]).toFixed(2)) {
+                                offerPrice = offer.details.products[productData.externalReferenceId];
+                                bestOfferPromo = offer.details.offerCode;
+                            }
+                        }
+                    });
+
+                    if (parseFloat(offerPrice).toFixed(2) > 0) {
+                        var priceObj = productData.pricing;
+                        var isDrSalePriceExists = !micron.util.components.util.isNil(priceObj.salePriceWithQuantity) && !micron.util.components.util.isNil(priceObj.salePriceWithQuantity.value);
+                        if (isDrSalePriceExists && offerPrice && priceObj.salePriceWithQuantity.value > offerPrice) {
+
+                            var feePrice = priceObj.feePricing.salePriceWithFeesAndQuantity.value - priceObj.salePriceWithQuantity.value;
+                            priceObj.feePricing.salePriceWithFeesAndQuantity.value = Number((Number(offerPrice) + feePrice).toFixed(2));
+                            priceObj.feePricing.formattedSalePriceWithFeesAndQuantity = micron.productlisting.components.productlisting.getFormattedProductPrice(priceObj.feePricing.salePriceWithFeesAndQuantity.value, priceObj.feePricing.salePriceWithFeesAndQuantity.currency);
+
+                            if (pageType == 'PLP') {
+                                $('.product-card[data-prodsku="' + productData.externalReferenceId + '"]').attr("data-offer-applied", "true");
+                                $('.product-card[data-prodsku="' + productData.externalReferenceId + '"]').attr("data-offer-code", bestOfferPromo);
+                            } else if (pageType == 'PDP') {
+                                $('.product-block[data-sku="' + productData.externalReferenceId + '"]').attr("data-offer-applied", "true");
+                                $('.product-block[data-sku="' + productData.externalReferenceId + '"]').attr("data-offer-code", bestOfferPromo);
+                            }
+                        }
+                    }
+                },
+
+                /****
+                 *
+                 * This function will load the price details in PLP
+                 *
+                 ****/
+                'loadDRPriceInPLP': function loadDRPriceInPLP(sku, data, idVal, offerRes) {
+                    var skuArray = sku.split(','),
+                        validProducts = [],
+                        drPriceCurrency = '',
+                        outOfStockTxt = $("#product-compare").attr('data-outOfStockText'),
+                        buyingOptionsLabel = $("#product-compare").attr('data-buyingOptionsLabel'),
+                        buyingOptionsUrl = $("#product-compare").attr('data-buyingOptionsUrl');
+
+                    if (!micron.util.components.util.isEmpty(data.details.products.product)) {
+
+                        for (var productIt = 0; productIt < data.details.products.product.length; productIt++) {
+
+                            var productData = data.details.products.product[productIt],
+                                drSkuVal = productData.externalReferenceId,
+                                isDrPricingExists = !micron.util.components.util.isNil(productData.pricing) && !micron.util.components.util.isNil(productData.pricing.feePricing) && !micron.util.components.util.isNil(productData.pricing.feePricing.salePriceWithFeesAndQuantity) && !micron.util.components.util.isNil(productData.pricing.feePricing.salePriceWithFeesAndQuantity.value);
+                            if (idVal === 'comp' || !micron.productlisting.components.productlisting.hasLoadedPrice(drSkuVal)) {
+                                if (isDrPricingExists) {
+                                    drPriceCurrency = productData.pricing.salePriceWithQuantity.currency;
+                                    if (offerRes.length > 0) {
+                                        micron.productlisting.components.productlisting.setOfferedPrice(productData, offerRes, 'PLP');
+                                    }
+                                }
+                                micron.productlisting.components.productlisting.updateProductPrice(productData, idVal, drPriceCurrency, isDrPricingExists);
+                                micron.productlisting.components.productlisting.updateProductButtonsDisplay(productData, idVal, outOfStockTxt, isDrPricingExists, buyingOptionsLabel, buyingOptionsUrl);
+                            }
+
+                            if (idVal !== 'comp') {
+                                $('.product-card[data-prodsku="' + drSkuVal + '"]').find('button.cswidget').attr('data-wtb-analytics-category', micron.productlisting.components.productlisting.getWhereToBuyAnalyticsCategory(productData));
+                            }
+
+                            validProducts.push(drSkuVal);
+                        }
+                    }
+
+                    for (var i = 0; i < skuArray.length; i++) {
+                        var prodSku = skuArray[i];
+                        if (!micron.productlisting.components.productlisting.hasLoadedPrice(prodSku) && !validProducts.includes(prodSku)) {
+                            if ($("#product-compare").attr('data-enableBuyingOptions') === 'true') {
+                                var altPart = $('#prod-price-' + drSkuVal).data('altpart');
+                                var addToCartTxt = $("#product-compare").attr('addToCartText');
+                                var productTitleLink = $('.product-card[data-prodsku="' + prodSku + '"] .product-title').attr('href');
+                                var buyingOptionsLink = productTitleLink ? buyingOptionsUrl + productTitleLink : buyingOptionsUrl;
+                                var recommendedCartObj = $('.recommendedCartBtn-' + prodSku);
+                                var cartBtnObj = $('#cartBtn-' + prodSku + idVal);
+                                var cartBuyBtnObj = $('#cartBtn-buy-' + drSkuVal + idVal);
+                                cartBtnObj.html(addToCartTxt);
+                                if (altPart) {
+                                    cartBuyBtnObj.removeClass('disabled secondary hide').addClass('primary').attr("href", buyingOptionsLink);
+                                }
+                                recommendedCartObj.removeClass('disabled secondary').addClass('primary').html(buyingOptionsLabel).attr("href", buyingOptionsLink);
+                                if (cartBtnObj.length > 0) {
+                                    cartBtnObj.attr('id', 'buyingOptionsBtn-' + prodSku + idVal);
+                                }
+                            } else {
+                                $('#cartBtn-' + prodSku + idVal).html(outOfStockTxt);
+                                $('.recommendedCartBtn-' + prodSku).html(outOfStockTxt);
+                            }
+                            micron.productlisting.components.productlisting.markLoadedPrice(drSkuVal);
+                        }
+                    }
+                    micron.productlisting.components.productlisting.updateBuyBundleDisplay(drPriceCurrency);
+                },
+
+                'updateProductPrice': function updateProductPrice(productData, idVal, drPriceCurrency, isDrPricingExists) {
+                    var drSkuVal = productData.externalReferenceId,
+                        $priceElem = $("#prod-price-" + drSkuVal),
+                        drPrice = new Number(),
+                        drFormattedPrice = '',
+                        currency = '',
+                        dealPrice = new Number(),
+                        dealFormattedPrice = '',
+                        $recommendedPriceElem = $('.recommended-product-price-' + drSkuVal),
+                        taxText = micron.util.components.util.isEmpty($priceElem) ? $recommendedPriceElem.data('taxtext') : $priceElem.data('taxtext'),
+                        slPrice = new Number(micron.util.components.util.isEmpty($priceElem) ? $recommendedPriceElem.data('prodprice') : $priceElem.data('prodprice'));
+                    if (isDrPricingExists) {
+                        drPrice = new Number(productData.pricing.feePricing.salePriceWithFeesAndQuantity.value);
+                        drFormattedPrice = productData.pricing.feePricing.formattedSalePriceWithFeesAndQuantity;
+                        currency = productData.pricing.feePricing.salePriceWithFeesAndQuantity.currency;
+                        dealPrice = new Number(productData.pricing.dealPrice.value);
+                        dealFormattedPrice = productData.pricing.dealPrice.formattedDealprice;
+                        $('#cartBtn-' + drSkuVal + idVal).attr('data-currency', currency);
+                    }
+                    var isPimPriceNotAvail = isNaN(slPrice) || parseFloat(slPrice) === 0 || slPrice === 0 || micron.util.components.util.isNil(slPrice),
+                        isDrPriceNotAvail = isNaN(drPrice) || parseFloat(drPrice) === 0 || drPrice === 0 || micron.util.components.util.isNil(drPrice) || drPrice === '';
+                    if (isDrPricingExists && slPrice > drPrice) {
+                        $('#price-' + drSkuVal + idVal).removeClass('price-active').attr('class', 'offer-prev');
+                        $('.recommended-price-text-' + drSkuVal).removeClass('price-active').attr('class', 'offer-prev');
+                        var priceTextElem = document.createElement('span');
+                        if (!micron.util.components.util.isEmpty(taxText)) {
+                            $('#tax-text-' + drSkuVal + idVal).addClass('offer-prev');
+                            $('.recommended-tax-text-' + drSkuVal).addClass('offer-prev');
+                            priceTextElem.className = "text-small offer-active";
+                            priceTextElem.appendChild(document.createTextNode(taxText));
+                        }
+                        var offerPriceSpan = document.createElement('span');
+                        offerPriceSpan.className = "price-active offer-active";
+                        offerPriceSpan.appendChild(document.createTextNode(drFormattedPrice));
+                        $('#prod-price-' + drSkuVal + idVal).append(offerPriceSpan).append(priceTextElem);
+                        $('#cartBtn-' + drSkuVal + idVal).attr('data-offerprice', drPrice);
+                        micron.productlisting.components.productlisting.updateRecommendedProductTotal(drSkuVal, drPriceCurrency, drPrice, true, priceTextElem);
+                    } else if (isPimPriceNotAvail && !isDrPriceNotAvail) {
+                        $('#price-' + drSkuVal + idVal).html(drFormattedPrice);
+                        micron.productlisting.components.productlisting.updateRecommendedProductTotal(drSkuVal, drPriceCurrency, drPrice, false);
+                    } else if (!isPimPriceNotAvail && isDrPriceNotAvail) {
+                        micron.productlisting.components.productlisting.updateRecommendedProductTotal(drSkuVal, drPriceCurrency, drPrice, false);
+                    } else if (isPimPriceNotAvail && isDrPriceNotAvail) {
+                        $('#price-' + drSkuVal + idVal).addClass('hide');
+                        $('#qty-' + drSkuVal + idVal).addClass('hide');
+                        $('#cartBtn-' + drSkuVal + idVal).addClass('hide');
+                    } else {
+                        if (drPrice > dealPrice) {
+                            $('#price-' + drSkuVal + idVal).html(drFormattedPrice);
+                            $('#price-' + drSkuVal + idVal).removeClass('price-active').attr('class', 'offer-prev');
+                            $('.recommended-price-text-' + drSkuVal).removeClass('price-active').attr('class', 'offer-prev');
+                            var priceTextElem = document.createElement('span');
+                            var offerPriceSpan = document.createElement('span');
+                            offerPriceSpan.className = "price-active offer-active";
+                            offerPriceSpan.appendChild(document.createTextNode(dealFormattedPrice));
+                            $('#prod-price-' + drSkuVal + idVal).append(offerPriceSpan).append(priceTextElem);
+                            $('#cartBtn-' + drSkuVal + idVal).attr('data-offerprice', dealPrice);
+                            $('#cartBtn-' + drSkuVal + idVal).attr('data-prodprice', drPrice);
+                        } else {
+                            $('#price-' + drSkuVal + idVal).html(drFormattedPrice);
+                            $('#cartBtn-' + drSkuVal + idVal).attr('data-prodprice', drPrice);
+                        }
+                        micron.productlisting.components.productlisting.updateRecommendedProductTotal(drSkuVal, drPriceCurrency, drPrice, false);
+                    }
+
+                    micron.productlisting.components.productlisting.markLoadedPrice(drSkuVal);
+                },
+
+                'updateProductButtonsDisplay': function updateProductButtonsDisplay(productData, idVal, outOfStockTxt, isDrPricingExists, buyingOptionsLabel, buyingOptionsUrl) {
+                    var drLocale = micron.header.components.header.getDRLocaleValue();
+                    var productIsInStock = productData.inventoryStatus.productIsInStock === 'true' && productData.inventoryStatus.status === 'PRODUCT_INVENTORY_IN_STOCK' && productData.purchasable,
+                        drPrice = '',
+                        drSkuVal = productData.externalReferenceId,
+                        $priceElem = $("#prod-price-" + drSkuVal),
+                        $recommendedPriceElem = $('.recommended-product-price-' + drSkuVal),
+                        slPrice = new Number(micron.util.components.util.isEmpty($priceElem) ? $recommendedPriceElem.data('prodprice') : $priceElem.data('prodprice'));
+                    var releaseDateTxt = $("#product-compare").attr('data-releasedatetext');
+                    var slideoutBannerTxt = $("#product-compare").attr('data-slideoutbannertext');
+                    var preorderTxt = $("#product-compare").attr('data-preordertext');
+                    var preorderEnabled = false;
+                    var releaseDate;
+                    var isPLPpage = $('.section-compatible-products').hasClass('plp');
+
+                    for (var i = 0; i < productData.customAttributes.attribute.length; i++) {
+
+                        if (productData.customAttributes.attribute[i].name === 'preorderEnabled') {
+                            preorderEnabled = productData.customAttributes.attribute[i].value;
+                        }
+                        if (productData.customAttributes.attribute[i].name === 'releaseDate') {
+                            var dateString = productData.customAttributes.attribute[i].value;
+                            var date = new Date(dateString);
+                            var locale = $('.drConfigs').attr('data-drlocale');
+                            var options = { month: 'long', day: 'numeric', year: 'numeric' };
+                            if (locale != null && locale.length > 0) {
+                                var formattedlocale = locale.replace(/_/g, "-");
+                                releaseDate = date.toLocaleDateString(formattedlocale, options);
+                            } else {
+                                releaseDate = date.toLocaleDateString("en-US", options);
+                            }
+                        }
+                    }
+
+                    if (isDrPricingExists) {
+                        drPrice = new Number(productData.pricing.feePricing.salePriceWithFeesAndQuantity.value);
+                    }
+                    var isPimPriceNotAvail = isNaN(slPrice) || parseFloat(slPrice) === 0 || slPrice === 0 || micron.util.components.util.isNil(slPrice),
+                        isDrPriceNotAvail = isNaN(drPrice) || parseFloat(drPrice) === 0 || drPrice === 0 || micron.util.components.util.isNil(drPrice) || drPrice === '';
+
+                    if (productIsInStock && (!isPimPriceNotAvail || !isDrPriceNotAvail)) {
+                        var wtbObj = $("#wtb-" + drSkuVal);
+                        if (drLocale != "en_IN") {
+                            wtbObj.removeClass('hide');
+                        } else {
+                            $('#prod-price-' + drSkuVal).removeClass("hide");
+                            $('[data-prodsku="' + drSkuVal + '"]').find('.wtb-button').addClass('hide');
+                        }
+                        var addToCartTxt = $("#product-compare").attr('addToCartText');
+                        var recommendedAddToCartTxt = $("#product-compare").attr('recommendedAddToCartText');
+                        var availableStock = productData.inventoryStatus.availableQuantity;
+                        var maxQty = productData.maximumQuantity;
+                        var modVal = $('#prod-price-' + drSkuVal).data('modout');
+                        var rfgpnVal = $('#prod-price-' + drSkuVal).data('rfgpn');
+                        var pagePathVal = $('#prod-price-' + drSkuVal).data('pagepath');
+                        $('[data-prodsku="' + drSkuVal + '"]').attr('data-quantity-count', availableStock);
+                        $('[data-prodsku="' + drSkuVal + '"]').attr('data-maxquantity-count', maxQty);
+                        $("#qty-" + drSkuVal).removeClass('hide');
+
+                        if (preorderEnabled) {
+                            $('#cartBtn-' + drSkuVal + idVal).removeClass('disabled').addClass('addCart').attr('data-prodskuval', drSkuVal).attr('data-pagepath', pagePathVal).attr('data-modout', modVal).attr('data-rfgpn', rfgpnVal).html(preorderTxt);
+                            if (!isPLPpage) {
+                                $('#cartBtn-' + drSkuVal + idVal).removeClass('secondary').addClass('primary');
+                            }
+                            $('[data-prodsku="' + drSkuVal + '"]').find('.wtb-button').addClass('hide');
+                            $('[data-prodsku="' + drSkuVal + '"]').find('.product-release-date').removeClass('hide');
+                            $('[data-prodsku="' + drSkuVal + '"]').find('.product-release-date').children('p').children('span').text(releaseDate);
+                        } else {
+                            $('#cartBtn-' + drSkuVal + idVal).removeClass('disabled').addClass('addCart').attr('data-prodskuval', drSkuVal).attr('data-pagepath', pagePathVal).attr('data-modout', modVal).attr('data-rfgpn', rfgpnVal).html(addToCartTxt);
+                            if (!isPLPpage) {
+                                $('#cartBtn-' + drSkuVal + idVal).removeClass('secondary').addClass('primary');
+                            }
+                            if (drLocale != "en_IN") {
+                                $('#wtb-' + drSkuVal + idVal).removeClass('hide');
+                            }
+                        }
+
+                        $('.recommendedCartBtn-' + drSkuVal).removeClass('disabled secondary').addClass('addCart recommendationAvailable primary').attr('data-modout', modVal).attr('data-rfgpn', rfgpnVal).html(recommendedAddToCartTxt);
+
+                        if ($('#product-compare').data('page-type') === 'externalpdp') {
+                            var configIdVal = $('#prod-price-' + drSkuVal).data('prodconfigval');
+                            $('#cartBtn-' + drSkuVal + idVal).attr('data-prodconfigval', configIdVal);
+                        }
+                    } else if (preorderEnabled && !productIsInStock) {
+
+                        $('#cartBtn-' + drSkuVal + idVal).html(preorderTxt).addClass('disabled');
+                        $('[data-prodsku="' + drSkuVal + '"]').find('.product-quantity').addClass('hide');
+                        $('[data-prodsku="' + drSkuVal + '"]').find('.wtb-button').addClass('hide');
+                        $('[data-prodsku="' + drSkuVal + '"]').find('.product-release-date').removeClass('hide');
+                        $('[data-prodsku="' + drSkuVal + '"]').find('.product-release-date').children('p').children('span').text(releaseDateTxt);
+                    } else {
+                        if (drLocale != "en_IN") {
+                            var notifyBtnObj = $('#cartBtn-notify-' + drSkuVal + idVal);
+                            notifyBtnObj.removeClass('disabled secondary hide').addClass('primary');
+                        } else {
+                            if (productData.purchasable === "true") {
+                                $('#prod-price-' + drSkuVal).removeClass("hide");
+                            }
+                            var wtbObj = $("#wtb-" + drSkuVal);
+                            $("#wtb-" + drSkuVal + " a").html(buyingOptionsLabel);
+                            wtbObj.removeClass('hide');
+                        }
+                        if ($("#product-compare").attr('data-enableBuyingOptions') === 'true') {
+                            var addToCartTxt = $("#product-compare").attr('addToCartText');
+                            var altPart = $('#prod-price-' + drSkuVal).data('altpart');
+                            var productTitleLink = $('.product-card[data-prodsku="' + drSkuVal + '"] .product-title').attr('href');
+                            var buyingOptionsLink = productTitleLink ? buyingOptionsUrl + productTitleLink : buyingOptionsUrl;
+                            var recommendedCartObj = $('.recommendedCartBtn-' + drSkuVal);
+                            var cartBtnObj = $('#cartBtn-' + drSkuVal + idVal);
+                            var cartBuyBtnObj = $('#cartBtn-buy-' + drSkuVal + idVal);
+                            cartBtnObj.html(addToCartTxt);
+                            //if(altPart){
+                            cartBuyBtnObj.removeClass('disabled hide').html(buyingOptionsLabel).attr("href", buyingOptionsLink);
+                            if (!isPLPpage) {
+                                cartBuyBtnObj.removeClass('secondary').addClass('primary');
+                            }
+                            //}
+                            recommendedCartObj.removeClass('disabled secondary').addClass('primary').html(buyingOptionsLabel).attr("href", buyingOptionsLink);
+                            if (cartBtnObj.length > 0) {
+                                cartBtnObj.attr('id', 'buyingOptionsBtn-' + drSkuVal + idVal);
+                                cartBtnObj.addClass('hide');
+                            }
+                        } else {
+                            $('#cartBtn-' + drSkuVal + idVal).html(outOfStockTxt).addClass('hide');
+                            if (drLocale != "en_IN") {
+                                $('.recommendedCartBtn-' + drSkuVal).html(outOfStockTxt);
+                            } else {
+                                $('.recommendedCartBtn-' + drSkuVal).html(outOfStockTxt).addClass('hide');
+                            }
+                        }
+                        if ($(".buying-options .product-card").length > 0) {
+                            if ($(".buying-options .product-card").length == 1) {
+                                $('#prod-price-' + drSkuVal + idVal).parents('.first-section').remove();
+                                $(".buying-options .second-section").removeClass("second-section").addClass("first-section");
+                                $(".buying-options .third-section").addClass("second-section").removeClass("third-section");
+                            } else {
+                                $('#prod-price-' + drSkuVal + idVal).parents('.product-card').remove();
+                            }
+                        }
+                    }
+                },
+
+                'updateBuyBundleDisplay': function updateBuyBundleDisplay(drPriceCurrency) {
+                    var buyBundleTxt = $("#product-compare").attr('buyBundleText');
+                    $('.buyBundleSection').each(function () {
+                        var buyBundleButton = $(this).find('.buyBundleCartBtn'),
+                            $recommendationSection = $(this).parent();
+                        if (!micron.util.components.util.isEmpty(buyBundleButton) && !buyBundleButton.hasClass('recommendations-completed')) {
+                            var bundleProductsTotal = 0;
+                            $recommendationSection.find('.bundle-product').each(function () {
+                                bundleProductsTotal += $(this).data('totalproduct');
+                            });
+
+                            var buyBundleFormattedPrice = micron.productlisting.components.productlisting.getFormattedProductPrice(bundleProductsTotal, drPriceCurrency);
+                            $(this).find('.buyBundlePriceText').html(buyBundleFormattedPrice);
+                            buyBundleButton.addClass('recommendations-completed');
+                            var buyBundleUnavailabilityCount = $recommendationSection.find('.recommendedCartBtn').not('.recommendationAvailable').length;
+                            if (buyBundleUnavailabilityCount === 0) {
+                                $(this).removeClass('hide');
+                                $recommendationSection.find('.bundle-user-actions').removeClass('hide');
+                                $recommendationSection.find('.user-actions').addClass('hide');
+                                buyBundleButton.removeClass('disabled secondary').addClass('primary').html(buyBundleTxt);
+                            }
+                        }
+                    });
+                },
+                'getWhereToBuyAnalyticsCategory': function getWhereToBuyAnalyticsCategory(productData) {
+
+                    if (productData.purchasable && productData.inventoryStatus.availableQuantity > 0 && productData.inventoryStatus.status === 'PRODUCT_INVENTORY_IN_STOCK') {
+                        return 'wtb-available';
+                    }
+
+                    if (productData.purchasable && productData.inventoryStatus.availableQuantity <= 0 && productData.inventoryStatus.status === 'PRODUCT_INVENTORY_OUT_OF_STOCK') {
+                        return 'wtb-unavailable';
+                    }
+
+                    return 'wtb-uncategorized';
+                },
+                'getFormattedProductPrice': function getFormattedProductPrice(price, currency) {
+                    var locale = micron.productlisting.components.productlisting.getLocale();
+                    var options = {
+                        style: 'currency',
+                        currency: currency,
+                        currencyDisplay: 'symbol',
+                        minimumFractionDigits: 2
+                    };
+                    if (locale === 'it-CH') {
+                        return Number(price).toLocaleString(locale, options).replace('.', ',');
+                    }
+                    return Number(price).toLocaleString(locale, options);
+                },
+
+                'getLocale': function getLocale() {
+                    var locale = micron.header.components.header.getDRLocaleValue().replace('_', '-');
+
+                    //Special cases
+                    if (locale.toUpperCase() === 'IT-IT') {
+                        locale = 'it-CH';
+                    }
+
+                    return locale;
+                },
+
+                'updateRecommendedProductTotal': function updateRecommendedProductTotal(drSkuVal, drPriceCurrency, drPrice, isAnOffer, priceTextElem) {
+
+                    $('.recommended-product-price-' + drSkuVal).each(function () {
+                        if (!$(this).hasClass('price-loaded')) {
+                            var recommendedQuantity = $(this).data('recommendedProductQuantity'),
+                                recommendedProductTotal = drPrice * recommendedQuantity;
+
+                            var drRecommendedFormattedPrice = micron.productlisting.components.productlisting.getFormattedProductPrice(recommendedProductTotal, drPriceCurrency);
+
+                            if ($(this).hasClass('bundle-product')) {
+                                $(this).data('totalproduct', recommendedProductTotal);
+                            }
+
+                            if (isAnOffer) {
+                                var offerPriceSpan = document.createElement('span');
+                                offerPriceSpan.className = "price-active offer-active";
+                                offerPriceSpan.appendChild(document.createTextNode(drRecommendedFormattedPrice));
+                                $(this).append(offerPriceSpan);
+                                var recommendedPriceText = priceTextElem.cloneNode(true);
+                                recommendedPriceText.classList.add('recommended-tax-text');
+                                $(this).append(recommendedPriceText);
+                                $('.recommendedCartBtn-' + drSkuVal).attr('data-offerprice', drPrice);
+                            } else {
+                                $(this).find('.recommended-price-text').html(drRecommendedFormattedPrice);
+                            }
+                            $(this).addClass('price-loaded');
+                        }
+                    });
+                },
+
+                'hasLoadedPrice': function hasLoadedPrice(sku) {
+                    return $('.product-card[data-prodsku="' + sku + '"]').hasClass('price-completed');
+                },
+
+                'markLoadedPrice': function markLoadedPrice(sku) {
+                    $('.product-card[data-prodsku="' + sku + '"], .recommendedCartBtn-' + sku).addClass('price-completed');
+                },
+
+                'getProductWithoutDrPrice': function getProductWithoutDrPrice() {
+                    var skus = "";
+                    $('.product-card:not(.price-completed)').each(function () {
+                        skus += micron.util.components.util.isEmpty(skus) ? $(this).attr('data-prodsku') : ',' + $(this).attr('data-prodsku');
+                    });
+                    $('.recommendedCartBtn:not(.price-completed)').each(function () {
+                        var recommendedSku = $(this).attr('data-prodskuval');
+                        if (!micron.util.components.util.includes(skus, recommendedSku)) {
+                            skus += micron.util.components.util.isEmpty(skus) ? recommendedSku : ',' + recommendedSku;
+                        }
+                    });
+                    return skus;
+                },
+
+                'completeProductDetails': function completeProductDetails() {
+
+                    var showAddToCart = $("#product-compare").attr('data-showAddtoCart');
+                    if (showAddToCart !== 'false') {
+
+                        var displayedSkus = micron.productlisting.components.productlisting.getProductWithoutDrPrice();
+                        micron.productlisting.components.productlisting.createDRPriceURL(displayedSkus, 'PLP');
+                    }
+
+                    if ($.isFunction(window.initializePowerReview)) {
+                        if (document.readyState === 'complete') {
+                            initializePowerReview();
+                        } else {
+                            window.addEventListener('load', initializePowerReview);
+                        }
+                    }
+
+                    if (document.contains(document.getElementById('cswidgetloaderjs')) && document.contains(document.getElementById('cswidgetjs'))) {
+                        document.getElementById('cswidgetloaderjs').remove();
+                        document.getElementById('cswidgetjs').remove();
+                        var channelsightScript = document.createElement('script');
+                        channelsightScript.id = 'cswidgetloaderjs';
+                        channelsightScript.defer = true;
+                        channelsightScript.src = 'https://cdn.channelsight.com/widget/scripts/cswidget.loader.js';
+                        document.head.appendChild(channelsightScript);
+                    }
+                }
+            }
+        },
+
+        init: function init() {
+            // init core components
+            for (var componentName in micron.productlist.components) {
+                var thisComponent = micron.productlist.components[componentName];
+                if (typeof thisComponent.init !== "undefined") {
+                    thisComponent.init();
+                }
+            }
+        }
+    };
+})(jQuery);
+(function ($) {
+	var urlParams = new URLSearchParams(window.location.search); //get all parameters  
+	var token = urlParams.get('token');
+	if (token) {
+		var eduStoreCall = function eduStoreCall(drSessionToken) {
+			var now = new Date();
+			var yyyy = now.getFullYear();
+			var mm = now.getMonth() + 1; // Months start at 0!
+			var dd = now.getDate();
+			var hh = now.getHours();
+			var min = now.getMinutes();
+			if (dd < 10) dd = '0' + dd;
+			if (mm < 10) mm = '0' + mm;
+			if (hh < 10) hh = '0' + hh;
+			if (min < 10) min = '0' + min;
+			var currentDate = dd + '-' + mm + '-' + yyyy + ' ' + hh + ':' + min;
+			//var currentDate = moment(now).format('DD-MM-YYYY');
+			var drLocale = micron.header.components.header.getDRLocaleValue();
+			$.ajax({
+				url: $("li.cart").data("pagepath") + ".digital-river.json?category=privateStore&locale=" + drLocale,
+				type: "POST",
+				data: { 'drsessiontoken': drSessionToken, 'currentURL': window.location.pathname,
+					'currentPage': $("li.cart").data("pagepath"), 'token': token, 'date': currentDate },
+				success: function success(data) {
+					if (data.details.status == 'success') {
+						$('.private-store-token-expiry').addClass('hide');
+						$('#popup-flyin-container').removeClass('hide');
+						$('#popup-modal').foundation('open');
+						micron.digitalRiver.components.digitalRiver.setCookie('private-store', urlParams.get('program'), '');
+					}if (data.details.status == 'Token Expired' && $('.private-store-token-expiry').length > 0) {
+						$('.private-store-success').addClass('hide');
+						$('#popup-flyin-container').removeClass('hide');
+						$('#popup-modal').foundation('open');
+						document.cookie = 'private-store=; path=/';
+					}
+					micron.dynamicpricing.components.dynamicpricing.loadDynamicPrice();
+				},
+				error: function error(jqXHR, _error, errorThrown) {
+					micron.dynamicpricing.components.dynamicpricing.loadDynamicPrice();
+				}
+
+			});
+		};
+
+		var validDrLocales = ["en_us", "en_gb", "en_is", "fr_fr", "it_it", "de_de", "es_es", "en_ie", "en_pr"];
+		var currentDrLocale = urlParams.get('locale');
+		if (validDrLocales.includes(currentDrLocale.toLowerCase())) {
+			micron.digitalRiver.components.digitalRiver.setCookie('DR-locale', currentDrLocale);
+		}
+		if (micron.digitalRiver.components.digitalRiver.getCookie('DR-session-tkn')) {
+			var drSessionToken = micron.digitalRiver.components.digitalRiver.getCookie('DR-session-tkn');
+			eduStoreCall(drSessionToken);
+		} else {
+			$.when(micron.digitalRiver.components.digitalRiver.getDRSessionToken()).done(function (drSessionToken) {
+				eduStoreCall(drSessionToken);
+			});
+		}
+	} else {
+		micron.dynamicpricing.components.dynamicpricing.loadDynamicPrice();
+	}
+})(jQuery);
+</script>
+
+</body>
+</html>

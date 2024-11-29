@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>modules.min.html</title>
+</head>
+<body>
+
+<script>
+var ListPagination = ( function () {
+    'use strict';
+
+    function keydownPaginate( event, page, listID, nodePath, selector ) {
+        if ( event.key === 'Enter' ) {
+            paginate( page, listID, nodePath, selector );
+        }
+    }
+
+    function paginate( page, listID, nodePath, selector ) {
+        var params = ListUtil.updateQueryString( { 'page': page }, listID );
+        ListUtil.applyParameters( params, listID, nodePath, selector );
+    }
+
+    return {
+        keydownPaginate: keydownPaginate,
+        paginate: paginate
+    }
+})();
+var ListFiltering = ( function () {
+    'use strict';
+
+      // TODO: Connect to value in ListUtil
+    var filterDelimiter = '$';
+
+    function keydownSearch( event, el, listID, nodePath, selector ) {
+        if ( event.key === 'Enter' ) {
+            search( el, listID, nodePath, selector );
+        }
+    }
+
+    function search( el, listID, nodePath, selector ) {
+        var params = ListUtil.updateQueryString( { 'query': el.value, 'page': 1 }, listID );
+        ListUtil.applyParameters( params, listID, nodePath, selector );
+    }
+
+    function keydownFilter( event, el, listID, nodePath, selector ) {
+        if ( event.key === 'Enter' || event.key == 'Space' ) {
+            filter( el, listID, nodePath, selector );
+        }
+    }
+
+    function filter( el, listID, nodePath, selector ) {
+        switch ( el.tagName.toLowerCase() ) {
+            case 'input':
+                  // Key input on dropdown checkbox
+                var value = el.value;
+                break;
+            case 'i':
+                  // Key input on pill X
+                var value = el.dataset.value;
+                break;
+            default:
+                  // Clicks
+                var value = $( el ).find( 'input[type="checkbox"]' ).val();
+        }
+
+        var params = ListUtil.updateQueryString( { 'filters': value, 'page': 1 }, listID );
+        ListUtil.applyParameters( params, listID, nodePath, selector );
+    }
+
+    function prepopulateFilters( listID ) {
+        var filters = new URLSearchParams( window.location.search ).get( listID + ':filters' );
+
+        if ( filters ) {
+            var $filterPanel = $( '#' + listID + ' .uscb-list__filters' );
+            filters.split( filterDelimiter ).forEach( tag => {
+                  // Easiest to just use CSS selectors to find elements with the correct value. Otherwise, several nested loops would be necessary
+                    // and would duplicate checks against multiple filters if they shared items
+                var $matchingItems = $filterPanel.find( 'input[type="checkbox"][value="' + tag + '"]' );
+                if ( $matchingItems ) {
+                    $matchingItems.prop( 'checked', true );
+                    $matchingItems.attr( 'aria-checked', true );
+                }
+            });
+        }
+    }
+
+    function prepopulateSearch( listID ) {
+        var query = new URLSearchParams( window.location.search ).get( listID + ':query' );
+        $( '#' + listID + ' .uscb-form-text__search-container input' ).val( query );
+    }
+
+    function keydownClearFilters( event, listID, nodePath, selector ) {
+        if ( event.key === 'Enter' ) {
+            clearFilters( listID, nodePath, selector );
+        }
+    }
+
+    function clearFilters( listID, nodePath, selector ) {
+        var params = ListUtil.updateQueryString( { 'filters': undefined, 'page': undefined, 'query': undefined }, listID );
+        ListUtil.applyParameters( params, listID, nodePath, selector );
+
+        togglePanel( listID + '_panel', false );
+    }
+
+    function keydownTogglePanel( event, panelID, open ) {
+        if ( event.key === 'Enter' ) {
+            togglePanel( panelID, open );
+        }
+    }
+
+    function togglePanel( panelID, open ) {
+        var $panel = $( '#' + panelID );
+
+        if ( open ) {
+            $panel.removeClass( 'uscb-hide' );
+        } else {
+            $panel.addClass( 'uscb-hide' );
+        }
+    }
+
+    function toggleToUpdateProps(ele, panelID) {
+        var $dropDownButton = $( ele );
+        var $panel = $( '#' + panelID );
+
+        if ( $panel[0] ) {
+        	if ( $panel[0].className.includes('uscb-hide')) {
+                $dropDownButton.attr('aria-expanded', 'false');
+        	} else {
+                $dropDownButton.attr('aria-expanded', 'true');
+        	}
+        }
+    }
+
+    return {
+        keydownSearch: keydownSearch,
+        search: search,
+        prepopulateSearch: prepopulateSearch,
+
+        keydownFilter: keydownFilter,
+        filter: filter,
+        prepopulateFilters: prepopulateFilters,
+
+        clearFilters: clearFilters,
+        keydownClearFilters: keydownClearFilters,
+
+        togglePanel: togglePanel,
+        keydownTogglePanel: keydownTogglePanel,
+        toggleToUpdateProps: toggleToUpdateProps
+    }
+})();
+var ListTabs = ( function() {
+    'use strict';
+
+    function keydownChangeTab( event, tab, listID, nodePath, selector ) {
+        if ( event.key === 'Enter' ) {
+            changeTab( tab, listID, nodePath, selector );
+        }
+    }
+
+    function changeTab( tab, listID, nodePath, selector ) {
+        var params = ListUtil.updateQueryString( { 'tab': tab, 'page': undefined }, listID );
+        ListUtil.applyParameters( params, listID, nodePath, selector );
+    }
+
+    return {
+        changeTab: changeTab,
+        keydownChangeTab: keydownChangeTab
+    }
+})();
+var ListUtil = ( function() {
+    'use strict';
+
+    var filterDelimiter = '$';
+
+    function updateQueryString( updates, listID ) {
+        var params = new URLSearchParams( window.location.search );
+
+        var updateKeys = Object.keys( updates );
+        for ( var i = 0; i < Object.keys( updates ).length; i++ ) {
+            var key = updateKeys[ i ];
+            var namespacedKey = listID + ':' + key;
+
+              // If the incoming value is undefined, clear the key
+            if ( updates[ key ] == undefined ) {
+                params.delete( namespacedKey );
+                continue;
+            }
+
+              // Tags are a special case. If they already exist as a parameter, they will be removed. If they don't exist, they will be appended, not replaced.
+            if ( key === 'filters' && params.get( namespacedKey ) ) {
+                var tagParam = params.get( namespacedKey );
+
+                if ( tagParam.includes( updates[ key ] ) ) {
+                      // Remove the existing tag
+                        // If it's the only tag, remove the whole parameter
+                    if ( tagParam === updates[ key ] ) {
+                        params.delete( namespacedKey );
+                    } else {
+                          // Determine where the delimiter is relative to the incoming tag
+                        var pattern = tagParam.startsWith( updates[ key ] ) ? updates[ key ] + filterDelimiter : filterDelimiter + updates[ key ];
+                        params.set( namespacedKey, tagParam.replace( pattern, '' ).trim() );
+                    }
+                } else {
+                      // Add new tag
+                    params.set( namespacedKey, tagParam + filterDelimiter + updates[ key ] );
+                }
+            } else {
+                params.set( namespacedKey, updates[ key ] );
+            }
+        }
+
+        var url = window.location.protocol + "//" + window.location.host + window.location.pathname + '?' + params.toString();
+        window.history.pushState( { path: url }, '', url );
+
+        return params;
+    }
+
+    function applyParameters( params, listID, nodePath, selector ) {
+        var url = nodePath + '.' + selector + '.html?' + params.toString();
+
+          // Add loading indicator on 500ms delay. If added immediately, some variants of lists are fast enough to return almost immediately
+            // so content appears to flash. Adding the delay means that quick-responding lists won't do this but slower ones will still give user feedback
+        var timer = setTimeout( () => {
+            replaceHTML( '<div id="' + listID + '" class="uscb-loading-circular-indeterminate" style="margin: 0 auto" aria-label="Loading"></div>', listID );
+            document.dispatchEvent( new Event( 'activate-loading-indicators' ) );
+        }, 500 );
+
+        $.get( url ).then( response => {
+            clearTimeout( timer );
+            replaceHTML( response, listID );
+
+              // Updates
+            ListFiltering.prepopulateSearch( listID );
+            ListFiltering.prepopulateFilters( listID );
+
+            document.dispatchEvent( new Event( 'adjust-lists' ) );
+            window.location.hash = listID;
+        });
+    }
+
+    function replaceHTML( html, listID ) {
+        var $root = $( '#' + listID );
+        if ( $root.length > 0 ) {
+            $root[0].outerHTML = html;
+        }
+    }
+
+    return {
+        updateQueryString: updateQueryString,
+        applyParameters: applyParameters
+    };
+})();
+  // TODO: Genericize this entire utility and move to other clientlib
+var DropdownUtil = ( function() {
+    function keydownToggle( event, dropdownID ) {
+        if ( event.key === 'ArrowDown' ) {
+            toggle( dropdownID );
+            event.preventDefault();
+        }
+    }
+
+    function toggle( dropdownID ) {
+        $( '.' + dropdownID ).toggleClass( 'uscb-hide' );
+    }
+
+    return {
+        keydownToggle: keydownToggle,
+        toggle: toggle
+    }
+})();
+
+</script>
+
+</body>
+</html>

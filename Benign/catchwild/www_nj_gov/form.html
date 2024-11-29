@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>form.html</title>
+</head>
+<body>
+
+<script>
+$(document).ready(function() {
+
+  // Set configuration variables
+  var signupConfig = {
+    key: 'ujWE_WtoGaPyP9UcKdBAU8RC4YXQ7xvzXIbqiN-64wxhJAAtQ2KwM17ri2cpuFI8Keim2jNJ5_-A8CCVIQZJDA',
+    endpoint: 'https://api.govdelivery.com/api/add_script_subscription',
+    topic: 'NJGOV_1',
+    urlQuestion: 'q_86783',
+    error: {
+      missingEmail: 'Please enter an email address above.',
+      missingConsent: 'Please consent to the privacy policy by checking the box above.'
+    },
+    dev: false
+  };
+
+  if (!signupConfig.dev) {
+    window.console = {};
+    window.console.log = function(){};
+  }
+
+  // Apply styles
+  var style = new RegExp('[\?&]style=([^&#]*)').exec(window.location.search);
+  style = style && style[1];
+
+  switch (style) {
+    case 'header':
+      $('body').addClass('dark');
+      $('button[type="submit"]').removeClass('btn-primary').addClass('btn-light');
+      $('.sign-up-form').addClass('small');
+      break;
+    case 'footer':
+      $('body').addClass('dark');
+      $('button[type="submit"]').removeClass('btn-primary').addClass('btn-light');
+      break;
+    case 'overlay':
+      $('body').addClass('dark');
+      $('body').addClass('overlay');
+      $('button[type="submit"]').removeClass('btn-primary').addClass('btn-light');
+      break;
+    case 'inline':
+      $('body').addClass('inline');
+      $('.sign-up-form').removeClass('text-left').addClass('text-center');
+      break;
+    default:
+  }
+
+  // Set ID
+  var parentID = new RegExp('[\?&]id=([^&#]*)').exec(window.location.search);
+  parentID = parentID && parentID[1];
+
+  // Set parent location
+  var parentLocation = new RegExp('[\?&]location=([^&#]*)').exec(window.location.search);
+  parentLocation = parentLocation && parentLocation[1] && decodeURIComponent(parentLocation[1]);
+
+  // Set Topic
+  var topic = new RegExp('[\?&]topic=([^&#]*)').exec(window.location.search);
+  topic = (topic && topic[1]) || signupConfig.topic;
+
+  $('.sign-up-form').submit(function(e) {
+    e.preventDefault();
+
+    $('button[type=submit]', this).attr('disabled', 'disabled');
+    $('.response-message', this).addClass('d-none');
+
+    var values = {};
+    $.each($(this).serializeArray(), function(i, field) {
+      if (field.value.length > 0) {
+        values[field.name] = field.value;
+      }
+    });
+    switch (values['a']) {
+      case '1':
+        values['k'] = signupConfig.key;
+        break;
+    }
+    if (!values['e']) {
+      showResponse(this, signupConfig.error.missingEmail);
+      return false;
+    }
+    if (!values['consent']) {
+      showResponse(this, signupConfig.error.missingConsent);
+      return false;
+    }
+    values[signupConfig.urlQuestion] = parentLocation;
+    values.t = topic;
+
+    // Global reference to form so response messages show up inline
+    window.lastForm = this;
+    window.jsonpcallback = jsonpcallback;
+
+    $.ajax({
+      url: signupConfig.endpoint,
+      data: values,
+      dataType: 'jsonp',
+      jsonp: 'c',
+      jsonpCallback: 'jsonpcallback'
+    });
+    return false;
+  });
+
+  // Named callback function from the ajax call when jsonpbtn2 clicked
+  function jsonpcallback(response) {
+    console.log('received ajax callback', response);
+    showResponse(window.lastForm, response.message);
+  }
+
+  function showResponse(scope, message) {
+    console.log('formatting response', scope, message);
+
+    var $currentFS = $('fieldset.active', scope);
+    var $nextFS = $currentFS.parent().find('fieldset:not(.active, .completed)');
+
+    $('button[type=submit]', scope).removeAttr('disabled');
+
+    switch (message) {
+      case 'Subscriber profile successfully created.':
+        if ($nextFS.length) {
+          $currentFS.removeClass('active').addClass('d-none completed');
+          $nextFS.addClass('active').removeClass('d-none');
+          message = '';
+        } else {
+          $currentFS.removeClass('active').addClass('d-none');
+          message = 'Thank you for signing up!';
+        }
+        break;
+      default:
+    }
+    $('.response-message', scope).removeClass('d-none');
+    $('.response-message', scope).html('<p><strong>' + message + '</strong></p>');
+  }
+
+});
+
+</script>
+
+</body>
+</html>

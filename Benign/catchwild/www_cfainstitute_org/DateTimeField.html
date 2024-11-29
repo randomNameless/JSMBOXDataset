@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DateTimeField.html</title>
+</head>
+<body>
+
+<script>
+import {
+  resultContext,
+} from "https://static.cloud.coveo.com/atomic/v2/index.esm.js";
+import dayjs from 'https://cdn.jsdelivr.net/npm/dayjs@1/+esm'
+import utc from 'https://cdn.jsdelivr.net/npm/dayjs/plugin/utc/+esm'
+import timezone from 'https://cdn.jsdelivr.net/npm/dayjs/plugin/timezone/+esm'
+import advancedFormat from 'https://cdn.jsdelivr.net/npm/dayjs/plugin/advancedFormat/+esm'
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+dayjs.extend(advancedFormat);
+
+//Title
+export class DateTimeField extends HTMLElement {
+  shadow;
+  result;
+  initialized = false;
+
+  date;
+  timezoneField;
+  timezone;
+  format;
+
+  static observedAttributes = [
+    'field',
+    'timezone',
+    'format',
+    'use-source-timezone',
+  ];
+
+  attrIsTruthy(value) {
+    return value === 'true' || value === true || value === '';
+  }
+
+  async connectedCallback() {
+    if (this.initialized) {
+      return;
+    }
+
+    this.initialized = true;
+    this.shadow = this.attachShadow({ mode: "open" });
+
+    try {
+      this.result = await resultContext(this);
+
+      if (this.attrIsTruthy(this.getAttribute('use-source-timezone'))) {
+        this.timezoneField = 'field_event_timezone';
+      } else {
+        this.timezoneField = this.getAttribute('timezone-field') || 'field_event_timezone';
+      }
+      this.timezone = this.result.raw[this.timezoneField] || 'UTC';
+
+      this.date = dayjs.tz(
+        this.result.raw[this.getAttribute('field')],
+        this.result.raw.field_event_timezone || 'UTC'
+      ).tz(this.timezone);
+
+      this.format = this.getAttribute('format') || 'D MMM YYYY h:mm A z';
+
+      this.render();
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  render() {
+    let itemContent = "";
+
+    if (this.date.$isDayjsObject) {
+      itemContent = `
+        <span>
+          ${this.date.format(this.format)}
+        <span>
+      `;
+    }
+    this.shadow.innerHTML = itemContent;
+  }
+}
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>scriptPlayer.html</title>
+</head>
+<body>
+
+<script>
+import { reactive } from 'https://unpkg.com/petite-vue?module';
+import {postMessageScript} from '/scripts/scriptPostMessage.js';
+import {commentsScript} from '/scripts/scriptComments.js';
+import {chapterScript} from '/scripts/scriptChapter.js';
+import {subtitlesScript} from '/scripts/scriptSubtitles.js';
+import {displayScript} from '/scripts/scriptDisplay.js';
+import {stitchingScript} from '/scripts/scriptStitching.js';
+import loadScript from '/scripts/scriptLoad.js';
+import {$store} from '/scripts/store.js';
+import scriptHelpers from '/scripts/scriptHelpers.js';
+import {redirectSoundScript} from '/scripts/scriptRedirectSound.js';
+import {radioMetadataScript} from '/scripts/scriptRadioMetadata.js';
+let isInitHls = false;
+let isInitStitching = false;
+export const playerScript = reactive({
+  updateTimeToSend(i, seconds) {
+    if (
+      seconds - $store.state[i].lastSendTime >= 10 &&
+      $store.state[i].downloadId
+    ) {
+      $store.state[i].lastSendTime = seconds;
+      this.sendTimeListen(i, Math.round(seconds));
+    }
+    $store.state[i].timeToSend = seconds;
+  },
+  sendTimeListen(i, seconds) {
+    fetch(
+      new Request(
+        Api_url +
+          "/podcast/listen/" +
+          $store.state[i].downloadId +
+          "?seconds=" +
+          seconds,
+        { method: "PUT" },
+      ),
+    );
+  },
+  timeUpdateDisplay(i, time) {
+    if (0 === time || radio) {
+      return;
+    }
+    $store.info[i].timeElapsedSeconds = time;
+    $store.info[i].timeElapsed = scriptHelpers.relativeTimeFormat(
+      Math.round(time * 1000),
+    );
+    let duration = $store.getDuration(i);
+    if (listPodcasts.length && "READY_TO_RECORD" === listPodcasts[i].processingStatus) {
+      if ( Math.round(duration * 1000) < listPodcasts[i].duration) {
+        $store.info[i].timeRemaining = scriptHelpers.relativeTimeFormat(
+          listPodcasts[i].duration,
+        );
+        $store.info[i].positionPercent  =
+          (100 / listPodcasts[i].duration) * 1000 * time;
+          $store.live[i].positionLivePercent =
+          (100 / listPodcasts[i].duration) * 1000 * duration;
+      } else {
+        $store.info[i].timeRemaining = scriptHelpers.relativeTimeFormat(
+          Math.round(duration * 1000)
+        );
+        $store.live[i].positionLivePercent = 100;
+        $store.live[i].positionLiveTotal = ((listPodcasts[i].duration/1000) /duration) * 100;
+        $store.info[i].positionPercent =(100 /duration) * time;
+      }
+    } else {
+      $store.info[i].positionPercent = (100 / duration) * time;
+      $store.info[i].timeRemaining = scriptHelpers.relativeTimeFormat(
+        Math.round((duration - time) * 1000),
+      );
+      subtitlesScript.handleTranscriptDisplay(i, time);
+      $store.live[i].positionLivePercent = 0;
+    }
+    chapterScript.findActualChapter(i, time);
+  },
+  onTimeUpdate(i) {
+    if($store.isAutoplayFirstPlay && "RADIO"!==miniplayerRequestParams.type){
+      $store.isAutoplayFirstPlay = false;
+      displayScript.changePlayPauseButton(i);
+      $store.state[i].is_playing = true;
+      $store.state[i].paused = false;
+      return this.playAudio(i);
+    }
+    if (
+      !$store.state[i].init &&
+      $store.source(i).currentTime !== 0
+    ) {
+      $store.state[i].is_loaded = true;
+      if ($store.state[i].is_playing) {
+        displayScript.changePlayPauseButton(i, "play");
+      }
+      $store.state[i].init = true;
+    }
+    if (
+      listPodcasts[i]?.processingStatus === "READY_TO_RECORD" &&
+      $store.state[i].timeToSend === 0 &&
+      $store.source(i).currentTime !== 0
+    ) {
+      $store.state[i].notListenTime = $store.source(i).currentTime;
+      this.updateTimeToSend(i, 1);
+    } else {
+      this.updateTimeToSend(
+        i,
+        $store.source(i).currentTime -
+          $store.state[i].notListenTime,
+      );
+    }
+    this.timeUpdateDisplay(i, $store.source(i).currentTime);
+  },
+  onStalled(i) {
+    /*postMessageScript.postMessage("octopus_player_stop");
+    $store.state[i].is_playing = false;*/
+  },
+  endListeningProgress(i) {
+    if (typeof i === "number" && $store.state[i].downloadId) {
+      this.sendTimeListen(i, Math.round($store.state[i].timeToSend));
+      $store.state[i].downloadId = undefined;
+      return;
+    }
+    for (let index = 0; index < listPodcasts.length; i++) {
+      if ($store.state[index].downloadId) {
+        this.sendTimeListen(
+          index,
+          Math.round($store.state[index].timeToSend),
+        );
+        $store.state[index].downloadId = undefined;
+      }
+    }
+    postMessageScript.handleResizedUnbind();
+  },
+  onEnded(i) {
+    postMessageScript.postMessage({event:'octopus_player_ended', data: postMessageScript.getDataToPost(i)});
+    postMessageScript.postMessage("octopus_player_stop");
+    this.endListeningProgress(i);
+    this.stateEnded(i);
+    if ($store.proceedWithNext && undefined !== $store.state[i + 1]) {
+      document.getElementById("play-pause-button-podcast"+listPodcasts[i+1].podcastId).click();
+    }
+  },
+  onError(i) {
+    if (document.location.href===$store.source(i).src || $store.state[i].error) {
+      $store.state[i].is_playing = false;
+      return;
+    }
+    $store.state[i].error = true;
+    $store.source(i).src = decodeURI(listPodcasts[i].audioStorageUrl);
+    $store.source(i).load();
+    this.playAudio(i);
+  },
+  onSeeked(i) {
+    subtitlesScript.changeSubtitlesOnSeek(i);
+    this.timeUpdateDisplay(i, $store.source(i).currentTime);
+  },
+  async getDownloadId(i) {
+    if ($store.state[i].downloadId || "RADIO"===miniplayerRequestParams.type) {
+      return;
+    }
+    let uri =
+      Api_url +
+      "/podcast/download/register/" +
+      listPodcasts[i].podcastId +
+      ".mp3";
+    if ("READY_TO_RECORD" === listPodcasts[i].processingStatus) {
+      $store.state[i].downloadId = await scriptHelpers.makeRequest(
+        Api_url + "/podcast/prepare/live/" + listPodcasts[i].podcastId + "?mediaType=AUDIO",
+        "PUT",
+        false,
+      );
+      uri =
+        Api_url +
+        "/podcast/download/live/" +
+        listPodcasts[i].podcastId +
+        ".m3u8";
+    }
+    uri = uri + "?origin=miniplayer" + $store.customInfo + "&accepted="+$store.useVast;
+    if (document.referrer) {
+      uri += "&referrer=" + document.referrer;
+    }
+    if (distributorId) {
+      uri += "&distributorId=" + distributorId;
+    }
+    if ("" !== miniplayerRequestParams.consent) {
+      uri += "&consent=" + miniplayerRequestParams.consent;
+    }
+    if ("READY_TO_RECORD" === listPodcasts[i].processingStatus) {
+      if ($store.state[i].downloadId) {
+        uri += "&downloadId=" + $store.state[i].downloadId;
+      }
+      await scriptHelpers.makeRequest(uri, "GET", false);
+    } else {
+      let result = await scriptHelpers.makeRequest(uri, "GET", false);
+      $store.state[i].downloadId = result?.downloadId;
+      $store.source(i).src = result?.location ?? decodeURI(listPodcasts[i].audioStorageUrl);
+    }
+  },
+  async playAudio(i, sendEvent = true) {
+    if(sendEvent){
+      postMessageScript.postMessage({event:'octopus_player_played', data: postMessageScript.getDataToPost(i)});
+      postMessageScript.postMessage("octopus_player_play");
+    }
+    if ($store.live[i].hls) {
+      $store.live[i].hls.startLoad(-1);
+    }
+    await this.getDownloadId(i);
+    subtitlesScript.getSubtitles(i);
+    if ($store.source(i).seeking) {
+      return;
+    }
+    if (!$store.state[i].paused) {
+      let promise = $store.source(i).play();
+      $store.state[i].is_playing = true;
+      if (promise !== undefined) {
+        promise
+          .then(async () => {
+            redirectSoundScript.resumeRedirect();
+            await subtitlesScript.handleStitchBehavior(i);
+          })
+          .catch((error) => {
+            console.log("automatic playback failed with error " + error);
+            $store.state[i].is_playing = false;
+            displayScript.changePlayPauseButton(i, "pause");
+          });
+      }
+      $store.state[i].paused = false;
+    } else {
+      $store.source(i).pause();
+      $store.state[i].is_playing = false;
+      $store.state[i].paused = true;
+    }
+  },
+  pauseAudio(i, sendEvent = true) {
+    if(sendEvent){
+      postMessageScript.postMessage({event:'octopus_player_paused', data: postMessageScript.getDataToPost(i)});
+      postMessageScript.postMessage("octopus_player_pause");
+    }
+    $store.state[i].paused = true;
+    $store.state[i].is_playing = false;
+    $store.source(i).pause();
+  },
+  resumeAudio(i, sendEvent = true) {
+    if(sendEvent){
+      postMessageScript.postMessage({event:'octopus_player_played', data: postMessageScript.getDataToPost(i)});
+      postMessageScript.postMessage("octopus_player_play");
+    }
+    $store.state[i].paused = false;
+    $store.state[i].is_playing = true;
+    $store.source(i).play();
+  },
+  stateEnded(i) {
+    $store.info[i].positionPercent = 0;
+    $store.live[i].positionLivePercent = 0;
+    $store.info[i].timeElapsedSeconds = 0;
+    $store.info[i].timeElapsed = "00:00";
+    $store.info[i].timeRemaining = scriptHelpers.relativeTimeFormat(
+      listPodcasts[i].duration,
+    );
+    subtitlesScript.removeCurrentSubtitles(i);
+    $store.state[i].is_playing = true;
+    displayScript.changePlayPauseButton(i);
+    $store.state[i].is_playing = false;
+  },
+  seekAudio(i, seconds) {
+    if (isNaN(seconds)) {
+      return;
+    }
+    $store.state[i].notListenTime = seconds - $store.state[i].timeToSend;
+    $store.source(i).currentTime = seconds;
+  },
+  onSeekButton(i, seconds) {
+    this.seekAudio(i, $store.source(i).currentTime + seconds);
+  },
+  onProgressbarClick(event, i) {
+    if ("RADIO"===miniplayerRequestParams.type){
+      return;
+    }
+    const p = event.clientX - event.target.getBoundingClientRect().left;
+    let width = event.target.offsetWidth;
+    if ("READY_TO_RECORD" === listPodcasts[i].processingStatus) {
+      width = document.getElementById(
+        "progressbar-track-live-podcast" + listPodcasts[i].podcastId,
+      ).offsetWidth;
+    }
+    this.seekAudio(i, ($store.getDuration(i) / width) * p);
+  },
+  forcePause(){
+    if ("RADIO"===miniplayerRequestParams.type && $store.state[0].is_playing) {
+      return this.clickPlayRadio();
+    }
+    this.clickPlay($store.getCurrentPlayed());
+  },
+  async clickPlayRadio(fromStitching) {
+    if(!isInitStitching){
+      stitchingScript.onStitchingInit(0);
+      isInitStitching = true;
+    }
+    if ($store.state[0].is_playing && !$store.state[0].is_loaded) {
+      return;
+    }
+    if(!fromStitching){
+      displayScript.changePlayPauseButton(0);
+    }
+    let isHls = !miniplayerRequestParams.stream.length || miniplayerRequestParams.stream.includes(".m3u8");
+    const ua = navigator.userAgent.toLowerCase();
+    const isAndroid = ua.indexOf("android") > -1;
+    const useHls = !$store.source(0).canPlayType( "application/vnd.apple.mpegurl",) &&!isAndroid && isHls;
+    if ($store.state[0].is_playing) {
+      redirectSoundScript.suspendRedirectSoundScript();
+      radioMetadataScript.radioMetadata.dateSessionId = dayjs().toISOString();
+      if (useHls) {
+        $store.live[0].hls.destroy();
+        $store.live[0].hls = undefined;
+        $store.state[0].is_playing = false;
+        if(!fromStitching){
+          postMessageScript.postMessage({event:'octopus_player_paused', data: postMessageScript.getDataToPost(0)});
+          postMessageScript.postMessage("octopus_player_pause");
+        }
+      } else {
+        this.pauseAudio(0, false);
+        $store.source(0).src = "";
+        setTimeout(()=> { 
+          $store.source(0).load(); // This stops the stream from downloading
+        });
+        $store.state[0].paused = false;
+      }
+      if(miniplayerRequestParams.stream.length){
+        $store.info[0].positionPercent = 0;
+        $store.live[0].positionLivePercent = 0;
+        $store.info[0].timeElapsedSeconds = 0;
+        $store.info[0].timeElapsed = "00:00";
+        $store.info[0].timeRemaining = "";
+      }
+      return;
+    }
+    radioMetadataScript.handleSessionIdRadio();
+    let stream = miniplayerRequestParams.stream;
+    if(radio){
+      stream = "https://" + radio.url + "/live.m3u8?"+radioMetadataScript.radioMetadata.manifestParameters+"&sessionId="+radioMetadataScript.radioMetadata.sessionId;
+    }
+    if (useHls) {
+      await this.initHls(0, stream);
+    }else if($store.source(0).src !== stream){
+      $store.source(0).src = stream;
+    }
+    this.playAudio(0, !fromStitching);
+  },
+  clickPlay(i, justDisplay = false) {
+    
+    if(justDisplay && $store.state[i].paused===$store.source(i).paused){
+      return;
+    }
+    if($store.isAutoplayFirstPlay){
+      $store.isAutoplayFirstPlay = false;
+    }
+    if ("RADIO"===miniplayerRequestParams.type) {
+      return this.clickPlayRadio();
+    }
+    if ($store.live[i].loading) {
+      return;
+    }
+    subtitlesScript.removeCurrentSubtitlesOtherPodcasts(i);
+    if (
+      "READY_TO_RECORD" === listPodcasts[i].processingStatus &&
+      undefined === $store.live[i].hls
+    ) {
+      return this.launchLoadingLive(i);
+    }
+    $store.lastPlayIndex = i;
+    if ($store.state[i].is_playing && !$store.state[i].is_loaded) {
+      return;
+    }
+    displayScript.changePlayPauseButton(i);
+    if ($store.state[i].is_playing) {
+      if(justDisplay){
+        $store.state[i].is_playing = false;
+        $store.state[i].paused = true;
+      }else{
+        this.pauseAudio(i);
+      }
+      return;
+    }
+    this.stopAllOtherPodcasts(i, justDisplay);
+    if(justDisplay){
+      $store.state[i].is_playing = true;
+      $store.state[i].paused = false;
+      return;
+    }
+    if (!$store.state[i].is_playing && !$store.state[i].paused) {
+      this.playAudio(i);
+    } else {
+      this.resumeAudio(i);
+    }
+  },
+  handleStitchingPlay(i) {
+    if ("RADIO"===miniplayerRequestParams.type) {
+      return this.clickPlayRadio(true);
+    }
+    if ($store.state[i].is_playing) {
+      this.pauseAudio(i, false);
+      return;
+    }
+    if (!$store.state[i].is_playing && !$store.state[i].paused) {
+      this.playAudio(i, false);
+    } else {
+      this.resumeAudio(i, false);
+    }
+  },
+  stopAllOtherPodcasts(i, justDisplay){
+    listPodcasts.forEach((el, index) => {
+      if (index == i || !$store.state[index].is_playing) {
+        return;
+      }
+      displayScript.changePlayPauseButton(index);
+      if(!justDisplay){
+        this.pauseAudio(index);
+      }else{
+        $store.state[index].is_playing = false;
+        $store.state[index].paused = true;
+      }
+    });
+  },
+
+
+  /**Player live */
+
+  getUrlStatusLive(i) { 
+    return studioUrl + "/conference/info/" + listPodcasts[i].conferenceId;
+  },
+  launchLoadingLive(i){
+    displayScript.changePlayPauseButton(i);
+    this.attachHlsSrc(i);
+    $store.live[i].loading = true;
+  },
+  async initPodcastLive(i) { 
+    const data = await scriptHelpers.makeRequest(
+      this.getUrlStatusLive(i),
+      "GET",
+      false,
+    );
+    $store.live[i].liveStatus = data.status; 
+    if ("no_video" !== data.videoProfile){
+      $store.live[i].isVideo = true;
+    }
+    if ("ERROR" === $store.live[i].liveStatus) {
+      return;
+    }
+    commentsScript.initWebsocket(i);
+    if ("RECORDING" !== $store.live[i].liveStatus) {
+      if (
+        "PLANNED" !== $store.live[i].liveStatus &&
+        "PENDING" !== $store.live[i].liveStatus
+      ) {
+        return;
+      }
+      $store.live[i].timeBeforeLive = dayjs(listPodcasts[i].pubDate).diff(
+        dayjs(),
+        "seconds",
+      );
+      $store.live[i].timerBeforeLive = setInterval(() => {
+        this.counterTimeLive(i);
+      }, 1000);
+      return;
+    }
+    this.attachHlsSrc(i);
+  },
+  async counterTimeLive(i) {
+    const data = await scriptHelpers.makeRequest(
+      this.getUrlStatusLive(i),
+      "GET",
+      false,
+    );
+    $store.live[i].liveStatus = data.status;
+    if ($store.live[i].timeBeforeLive > 0) {
+      const days = Math.floor($store.live[i].timeBeforeLive / 24 / 60 / 60);
+      const hoursLeft = Math.floor($store.live[i].timeBeforeLive - days * 86400);
+      const hours = Math.floor(hoursLeft / 3600);
+      const minutesLeft = Math.floor(hoursLeft - hours * 3600);
+      const minutes = Math.floor(minutesLeft / 60);
+      const quotient = Math.floor($store.live[i].timeBeforeLive / 60);
+      const remainingSeconds = $store.live[i].timeBeforeLive - quotient * 60;
+      $store.live[i].displayLiveCounter =
+        days +
+        " " +
+        locales["days"] +
+        ", " +
+        hours +
+        " " +
+        locales["hours"] +
+        ", " +
+        minutes +
+        " " +
+        locales["minutes"] +
+        ", " +
+        remainingSeconds +
+        " " +
+        locales["seconds"];
+      $store.live[i].timeBeforeLive = $store.live[i].timeBeforeLive - 1;
+    }
+    if ("RECORDING" === $store.live[i].liveStatus) {
+      clearInterval($store.live[i].timerBeforeLive);
+      $store.live[i].timerBeforeLive = undefined;
+      $store.live[i].timeBeforeLive = 0;
+      this.attachHlsSrc(i);
+    }
+  },
+  async attachHlsSrc(i) {
+    let audioSrc = hlsUrl + "/live/dev." + listPodcasts[i].conferenceId + "/index.m3u8";
+    if ($store.live[i].isVideo){
+      audioSrc = hlsUrl + "/live/video_dev." + listPodcasts[i].conferenceId + "/index.m3u8";
+      //audioSrc = "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8";
+    }
+    const ua = navigator.userAgent.toLowerCase();
+    const isAndroid = ua.indexOf("android") > -1;
+    if (
+      $store.source(i).canPlayType("application/vnd.apple.mpegurl") &&
+      !isAndroid
+    ) {
+      $store.source(i).src = audioSrc;
+    } else {
+      try {
+        await this.initHls(i, audioSrc);
+      } catch (error) {
+        setTimeout(() => {
+          this.attachHlsSrc(i);
+        }, 1000);
+      }
+    }
+  },
+  async initHls(i, audioSrc) {
+    return new Promise(async (resolve, reject) => {
+      if (!isInitHls) {
+        await loadScript.lazyLoadScript('https://cdn.jsdelivr.net/hls.js/latest/hls.js');
+        isInitHls = true;
+      }
+      if (!Hls.isSupported()) {
+        reject("Hls is not supported ! ");
+      }
+      $store.live[i].hls = new Hls({ autoStartLoad: false});
+      $store.live[i].hls.on(Hls.Events.MANIFEST_PARSED, async () => {
+        if ("RADIO"!==miniplayerRequestParams.type) {
+          await this.getDownloadId(i);
+        }
+        $store.live[i].hls.attachMedia($store.source(i));
+        if ($store.live[i].loading) {
+          $store.live[i].loading = false;
+          setTimeout(() => {
+            this.clickPlay(i);
+          }, 1000);
+        }
+        resolve();
+      });
+      $store.live[i].hls.on(Hls.Events.ERROR, function (event, data) {
+        console.log("There is an error while reading media content");
+        if (data.fatal) {
+          switch (data.type) {
+            case Hls.ErrorTypes.MEDIA_ERROR:
+              console.log('fatal media error encountered, try to recover');
+              $store.live[i].hls.recoverMediaError();
+              break;
+            default:
+              console.log('fatal error encountered, try to recover');
+              /* if(!miniplayerRequestParams.sticky){
+                $store.live[i].hls.destroy();
+                return;
+              } */
+              setTimeout(() => {
+                $store.live[i].hls.startLoad();
+              }, 5000);
+              break;
+          }
+        }
+      });
+      $store.live[i].hls.loadSource(audioSrc);
+    });
+  },
+  invertVideoDisplay(i) {
+    $store.live[i].displayVideo = !$store.live[i].displayVideo;
+  },
+});
+</script>
+
+</body>
+</html>

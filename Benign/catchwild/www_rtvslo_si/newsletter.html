@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>newsletter.html</title>
+</head>
+<body>
+
+<script>
+/* eslint-disable indent */
+/* eslint-disable quotes */
+/* eslint-disable semi */
+/* eslint-disable space-before-function-paren */
+/* eslint-disable no-undef */
+(function() {
+    function setCookie(cname, cvalue, exdays) {
+        const d = new Date();
+        d.setTime(d.getTime() + (exdays * 24 * 60 * 60 * 1000));
+        const expires = "expires=" + d.toUTCString();
+        document.cookie = cname + "=" + cvalue + ";" + expires + ";domain=.rtvslo.si;path=/";
+    }
+
+    function getCookie(cname) {
+        const name = cname + "=";
+        const decodedCookie = decodeURIComponent(document.cookie);
+        const ca = decodedCookie.split(';');
+        for (let i = 0; i < ca.length; i++) {
+            let c = ca[i];
+            while (c.charAt(0) === ' ') {
+                c = c.substring(1);
+            }
+            if (c.indexOf(name) === 0) {
+                return c.substring(name.length, c.length);
+            }
+        }
+        return "";
+    }
+
+    function convertToNewsLetterId(obj, id) {
+        if (obj[id]) {
+            return obj[id];
+        } else {
+            return false;
+        }
+    }
+
+    function checkIfSingedToNL(array, id) {
+        let found = false;
+        array.map(function(value) {
+            if (parseInt(value, 10) === id) {
+                if (parseInt(value, 10) === 11) {
+                    setCookie("VARUH_SIGNED", 11, 365);
+                }
+                if (parseInt(value, 10) === 12) {
+                    setCookie("TV_SIGNED", 12, 365);
+                }
+                found = true;
+            }
+        });
+        return found;
+    }
+    /*
+    function getSectionName(id) {
+        let newsNames = {
+            '5': 'na e-novice MMC Teden.',
+            '8': 'e-novice iz sveta športa.',
+            '9': 'e-novice iz sveta kulture.',
+            '10': 'e-novice iz sveta zabave.',
+            '11': 'e-novice o delovanju varuhinje pravic gledalcev in poslušalcev RTV Slovenija.',
+            '12': 'pregled programskih novosti in priporočili za ogled vsebin spletne videoteke Televizije Slovenija.',
+            '13': 'na E-spored – RTV Slovenija'
+        }
+        return newsNames[id];
+    }
+    */
+    function getSectionDesc(id) {
+        const newsNames = {
+            5: 'Vsi poglobljeni prispevki, intervjuji, analize in reportaže preteklega tedna na enem mestu. ',
+            8: 'Vsi pomembni športni dogodki dneva in odzivi na njih na enem mestu.',
+            9: 'Vsi pomembni kulturni dogodki dneva in odzivi na njih na enem mestu.',
+            10: 'Vsi pomembni dogodki dneva iz sveta zabave in življenjskega sloga ter odzivi na njih.',
+            11: 'Mesečna poročila, mnenja in priporočila ter novice o delovanju varuhinje pravic gledalcev in poslušalcev RTV Slovenija enkrat mesečno na enem mestu.',
+            12: 'Pregled programskih novosti, priporočeni podkasti in bogat nabor žanrsko pestrih filmov, serij, dokumentarcev!',
+            13: 'Ne zamudite kakovostnih vsebin RTV Slovenija. Popoln spored vseh televizijskih in radijskih programov za naslednji dan.',
+        }
+        return newsNames[id];
+    }
+
+    function hidePopUp(newsLetterID) {
+        // let hidePopupCookie = getCookie('HIDEPOPUP_' + newsLetterID);
+        daysIdle = 0;
+        if (newsLetterID === 11) {
+            daysIdle = 1;
+        } else {
+            daysIdle = 20;
+        }
+        setCookie("HIDEPOPUP_" + newsLetterID, true, daysIdle);
+    }
+
+    function checkIfPopUpHidden(newsLetterID) {
+        const hidePopupCookie = getCookie('HIDEPOPUP_' + newsLetterID);
+        if (hidePopupCookie.length > 0) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    function checkIfSignedToletuhOrTVorSpored() {
+        const varuhSignedTo = getCookie('VARUH_SIGNED');
+        const tvSignedTo = getCookie('TV_SIGNED');
+        const sporedSignedTo = getCookie('SPORED_SIGNED');
+        let currentNLSubscription = getCookie('APISESSION_USER_NL');
+        let singedTo = "";
+        let isVaruhPresent = false;
+        let isTvPresent = false;
+        if (varuhSignedTo) {
+            singedTo = getCookie('APISESSION_USER_NL').split('-');
+            isVaruhPresent = singedTo.includes(singedTo, '11')
+            if (!isVaruhPresent) {
+                currentNLSubscription = checkIfSub(currentNLSubscription);
+                currentNLSubscription = currentNLSubscription + '11'
+                setCookie("APISESSION_USER_NL", currentNLSubscription, 365);
+            }
+        }
+
+        if (tvSignedTo) {
+            singedTo = getCookie('APISESSION_USER_NL').split('-');
+            isTvPresent = singedTo.includes('12')
+            if (!isTvPresent) {
+                currentNLSubscription = checkIfSub(currentNLSubscription);
+                currentNLSubscription = currentNLSubscription + '12'
+                setCookie("APISESSION_USER_NL", currentNLSubscription, 365);
+            }
+        }
+
+        if (sporedSignedTo) {
+            singedTo = getCookie('APISESSION_USER_NL').split('-');
+            isTvPresent = singedTo._includes('13')
+            if (!isTvPresent) {
+                currentNLSubscription = checkIfSub(currentNLSubscription);
+                currentNLSubscription = currentNLSubscription + '13'
+                setCookie("APISESSION_USER_NL", currentNLSubscription, 365);
+            }
+        }
+    }
+
+    function checkIfSub(currentNLSubscription) {
+        if (currentNLSubscription.length !== 0) {
+            currentNLSubscription = currentNLSubscription + '-';
+        } else {
+            currentNLSubscription = '';
+        }
+
+        return currentNLSubscription;
+    }
+
+    function signToNewsLetter(newsLetterID, DOMelement) {
+      //  let sessionId = getCookie('APISESSION');
+        let currentNLSubscription = getCookie('APISESSION_USER_NL');
+        currentNLSubscription = checkIfSub(currentNLSubscription);
+        DOMelement.classList.remove("is-visible");
+        setTimeout(function() {
+            animationHide()
+            setTimeout(function() {
+                DOMelement.classList.add("d-none");
+            }, 4000);
+        }, 5000);
+    }
+// <--- se trenutno ne izvaja
+
+    function animationHide(unsigned) {
+        const x = document.getElementById("newsletter-popup");
+        if (x.classList.contains("hide")) {
+            x.classList.remove("hide");
+        } else {
+            x.classList.add("hide");
+        }
+    }
+
+    function showNewsLetterPopup(id, name, unsigned) {
+        if (name === 'tv') {
+            name = 'rtv365';
+        }
+        const newsLetterElement = document.getElementById('newsletter-popup');
+        const imageClass = newsLetterElement.querySelector('.card-img-top');
+        imageClass.setAttribute('data-large', '//img.rtvslo.si/_static/novi/newsletter/' + name + '.jpg');
+        newsLetterElement.classList.remove("d-none");
+        const close = newsLetterElement.querySelector(".close");
+        const signToNL = newsLetterElement.querySelector(".signToNewsletter");
+        const linkElement = document.createElement("a");
+        linkElement.setAttribute("href", "https://www.rtvslo.si/newsletters/subscribe?id=" + id + "");
+        linkElement.setAttribute("target", "_blank");
+        linkElement.appendChild(signToNL);
+        newsLetterElement.appendChild(linkElement);
+        const paragraph = newsLetterElement.querySelector(".small");
+        paragraph.innerHTML = getSectionDesc(id);
+
+        /** zapri pojavno okno */
+       close.addEventListener('click', function(e) {
+            gemiusCall('closed', name)
+            animationHide();
+            hidePopUp(id);
+            setTimeout(function() {
+                newsLetterElement.classList.add("d-none");
+            }, 3000);
+        });
+
+       /** prijava na e-novice */
+        signToNL.addEventListener('click', function(e) {
+            signToNewsLetter(id, newsLetterElement);
+            gemiusCall('subscribed', name)
+            animationHide();
+            hidePopUp(id);
+        });
+    }
+
+    // analitika
+    function gemiusCall(action, section) {
+        // Najprej preveri, če obstaja gemius instanca
+        if (typeof gemius_event === "function") {
+            // Poslji akcijo v statistiko s parametri
+            gemius_event('_action_', '', 'event=newsletter', 'popup_action=' + action, 'newsletter_section=' + section);
+        }
+    }
+
+    function init() {
+        const resolveNewsletters = {
+            mmcteden: 5,
+            sport: 8,
+            kultura: 9,
+            "svet-zabave": 10,
+            varuh: 11,
+            tv: 12,
+            spored: 13,
+        }
+
+       // if (userId) {
+
+            const newsletterSignOn = getCookie('APISESSION_USER_NL').split('-');
+            let locationUrlArray = window.location.pathname.split('/');
+            locationUrlArray = locationUrlArray.filter(function(el) {
+                return el.length > 0;
+            });
+            let section = locationUrlArray[0] || 'mmcteden';
+            if (section === 'zivljenjski-slog') {
+                section = 'svet-zabave';
+            }
+            if (locationUrlArray[1] === 'spored') {
+                section = 'spored';
+            }
+
+            const convertedId = convertToNewsLetterId(resolveNewsletters, section);
+            const hide = checkIfPopUpHidden(convertedId);
+            const found = checkIfSingedToNL(newsletterSignOn, convertedId);
+
+            if (!found && convertedId && !hide && navigator.cookieEnabled) {
+                try {
+                    setTimeout(function() {
+                        if (convertedId !== 5) {
+                            showNewsLetterPopup(convertedId, section);
+                        }
+                    }, 3500);
+        } catch (e) {}
+        }
+    }
+
+    init();
+}());
+
+</script>
+
+</body>
+</html>

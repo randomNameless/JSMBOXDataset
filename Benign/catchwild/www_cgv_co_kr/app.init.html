@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>app.init.html</title>
+</head>
+<body>
+
+<script>
+// app.utils namespace change.
+$.each(app.utils, function (n, v) {
+    if (!app[n]) app[n] = v;
+});
+
+//initialize : document.ready
+(function($) {
+	$(function(){
+		var app = window.app, appConfig = app.config, appUtils = app.utils,
+            dateFormat = 'yy-mm-dd', timeFormat = 'HH:mm';
+
+        $.ajaxSetup({ cache: false, contentType: 'application/json' });
+
+        checkBrowser();
+        initLink();
+
+        //img src blank인 경우 FF에서 onerror 동작 안함 강제로 값 넣어주면 동작함.
+        if(browser.name == "mozilla") {
+            $.each($("img"), function(){
+                if($(this).attr("src") == "") {
+                    $(this).attr("src", "about:blank");
+                }
+            });
+        }
+
+        // init validate
+        if (typeof $.validator == 'function') {
+            initValidate();
+            $('form:not([novalidate])').each(function (i, v) {
+                $(v).validate({ submitHandler: function (form) { form && form.submit(); } });
+            });
+        }
+
+	    // init date
+        $.datepicker.regional['ko'] = {
+            closeText: '닫기',
+            prevText: '이전달',
+            nextText: '다음달',
+            currentText: '오늘',
+            monthNames: ['1월', '2월', '3월', '4월', '5월', '6월',
+            '7월', '8월', '9월', '10월', '11월', '12월'],
+            monthNamesShort: ['1월', '2월', '3월', '4월', '5월', '6월',
+            '7월', '8월', '9월', '10월', '11월', '12월'],
+            dayNames: ['일', '월', '화', '수', '목', '금', '토'],
+            dayNamesShort: ['일', '월', '화', '수', '목', '금', '토'],
+            dayNamesMin: ['일', '월', '화', '수', '목', '금', '토'],
+            weekHeader: 'Wk',
+            dateFormat: 'yy-mm-dd',
+            firstDay: 0,
+            isRTL: false,
+            duration: 200,
+            showAnim: 'show',
+            showMonthAfterYear: true,
+            yearRange:"c-50:c+50"
+        };
+        $.datepicker.setDefaults($.datepicker.regional['ko']);
+        if (typeof $.fn.datepicker == 'function') {
+
+            $.datepicker.setDefaults({
+                changeMonth: true,
+                changeYear: true,
+                showOn: "button"
+                , buttonImage: app.config('staticDomain') + "/images/common/ico/ico_calendar.gif",
+            });
+
+
+            $('form input[datepicker]').each(function (i, v) {
+                $(v).datepicker({ dateFormat: dateFormat }).attr('readonly', true);
+                /* datepicker button text update */
+                var $dp = $($(v).next());
+                if ($dp.attr('class') === 'ui-datepicker-trigger') {
+                    $dp.attr('title', '월이동:PageUp/PageDown, 일이동:Ctrl+방향키')
+                    var id = $(v).attr('id');
+                    switch (id) {
+                        case 'startdate':
+                            $dp.empty().append('<span>시작일 선택</span>');
+                            break;
+                        case 'enddate':
+                            $dp.empty().append('<span>종료일 선택</span>');
+                            break;
+                        default:
+                            break;
+                    }
+
+                }
+            });
+        }
+
+        // init validate
+        if (typeof $.fn.placeholder == 'function') {
+            $('input[placeholder], textarea[placeholder]').each(function (i, v) {
+                $(v).placeholder();
+            });
+        }
+
+        var $header = $('#header'), $gnbItems = $('#gnb_list').find('>li');
+        $header.find('a, button, input').on('focusin', function () {
+            if(!$('#gnb_list').has($(this)).length){
+                $gnbItems.removeClass('on');
+            }
+            return false;
+        });
+        $gnbItems.each(function (i, v) {
+            var $item = $(v);
+            $item.find('>a').on('focusin', inHandler);
+            $item.on('mouseenter', mouseenterHandler).on('mouseleave', mouseleaveHandler);
+
+            function inHandler (e) {
+                $gnbItems.removeClass('on');
+                $(this).parent().addClass('on');
+                return false;
+            }
+            function mouseleaveHandler (e) {
+                $gnbItems.removeClass('on');
+                $item.removeClass('on');
+                return false;
+            }
+            function mouseenterHandler (e) {
+                $gnbItems.removeClass('on');
+                $item.addClass('on');
+                return false;
+            }
+        });
+        
+        // init point
+        app.movieInfo().reset();
+
+        function checkBrowser() {
+            var agt = navigator.userAgent.toLowerCase();
+            if (agt.indexOf("msie") != -1) {
+                var rv = -1; // Return value assumes failure.
+                if (navigator.appName == 'Microsoft Internet Explorer') {
+                    var ua = navigator.userAgent;
+                    var re = new RegExp("MSIE ([0-9]{1,}[\.0-9]{0,})");
+                    if (re.exec(ua) != null) rv = parseFloat(RegExp.$1);
+                }
+            }
+        };
+
+        function initLink() {
+            
+            var isLogin = app.config('isLogin');
+
+            // twitter, facebook share button.
+            $('#link_twitter').on('click', share.twitterHandler);
+	        $('#link_facebook').on('click', share.facebookHandler);
+            $('#move_family').on('click', app.moveFamilySite);
+
+            // 자주가는 CGV링크 app.utils.js에 있음.
+            setFavMovieLink();
+
+            $('#btn_set_my_favorite').on('click', function() {
+                if (isLogin) {
+                    var win = window.open("/user/popup/favoritetheaters.aspx", "url", "left=0,top=o,width=645,height=370,toolbar=no,scrollbars=no");
+                    win.focus();
+                }
+                else {
+                    app.goLogin();
+                }
+            });
+
+            //로그인페이지로 넘겨야 하는 메뉴
+            $('.required-login').on('click', function () {
+                if (!app.config('isLogin')) {                
+                    if (confirm(_LANGUAGE.loginConfirm)) {                        
+                        var returnURL = $(this).data('url');
+                        if(!returnURL) { returnURL = top.location.href; }
+                        parent.location.href = "/user/login/?returnURL=" + escape(returnURL);
+                    }
+                    return false;
+                }
+            });
+
+            // 상영시간표 관람등급 안내 팝업 스크립트
+			// 국문 
+			$('#viewgrade').on('click', function () {
+				var $target = $(this);
+                //alert("관람등급 클릭1");
+				app.htmlLoad($target, app.config('html').grade_info);
+                //alert("관람등급 클릭2");
+				return false;
+			});
+			//영문			
+			$('#viewgradeEn').on('click', function () {
+				var $target = $(this);
+				app.htmlLoad($target, app.config('html').grade_info_en);
+				return false;
+			});
+
+            //관람가격
+            //var $priceinfo = $('#view_price');
+            $('#view_price').on('click', function () {
+                //alert("가격 클릭");
+                var $std = $(this),
+				    options = {
+				        '$target': $std,
+				        'html': $("#ifrm_movie_time_table").contents().find("#temp_priceinfo").html(),
+				        'position': 'absolute',
+				        'mask': 'none'
+				    };
+
+                    $('#priceinfo_online').html($("#ifrm_movie_time_table").contents().find("#temp_priceinfo_online").html());
+                app.instWin.add(options);
+
+                $('#wrap_theater_price .tab-menu-round li').on('click', function () {
+                    var $this = $(this);
+                    var $onItem = $('#wrap_theater_price .tab-menu-round li.on');
+                    var thisClass = $this.data('screen-type');
+                    var onItemClass = $onItem.data('screen-type');
+
+                    if ($this.data('screen-type') == $onItem.data('screen-type')) { return false; }
+
+                    $onItem.removeClass("on");
+                    $this.addClass("on");
+
+                    $('#wrap_theater_price div.' + onItemClass).hide();     //기존 애 숨김
+                    $('#wrap_theater_price div.' + thisClass).show();       //클릭한 애 보여줌
+
+                    if ($this.data('screen-type') == 'cgv')
+                        $('#priceinfo_online').html($("#ifrm_movie_time_table").contents().find("#temp_priceinfo_online").html());
+                    else
+                        $('#priceinfo_online').html("");
+
+                    return false;
+                });
+                return false;
+            });
+
+            $('span.screentype a').specialTheater();    //특별관 링크
+        }
+        
+        /*
+        * @name : validatorInit {jQuery}
+        * @desc : set $.validator custom extend
+        */
+        function initValidate() {
+            
+            $.extend($.validator.messages, {
+                required: "필수 입력 항목입니다.",
+                remote: "이 항목을 수정해주세요.",
+                email: "올바른 이메일을 입력해주세요.",
+                url: "올바른 URL 을 입력해주세요.",
+                date: "올바른 날짜를 입력해주세요.",
+                dateISO: "ISO 표준에 맞는 날짜형식으로 입력해주세요.",
+                number: "올바른 값을 입력해주세요.",
+                digits: "숫자만 입력 가능합니다.",
+                creditcard: "올바른 카드번호를 입력해주세요.",
+                equalTo: "입력하신 내용이 일치하지 않습니다.",
+                length: $.validator.format("{0}자리로 입력해주세요."),
+                maxlength: $.validator.format("{0}자 이하로 입력해주세요."),
+                minlength: $.validator.format("{0}자 이상 입력해주세요."),
+                rangelength: $.validator.format("{0}자 이상 {1}자 이하로 입력해주세요."),
+                range: $.validator.format("{0} ~ {1} 사이의 값만 입력해주세요."),
+                max: $.validator.format("{0} 이하의 값을 입력해주세요."),
+                min: $.validator.format("{0} 이상의 값을 입력해주세요."),
+                engnum : $.validator.format("영문 또는 숫자만 입력해주세요..")
+            });
+
+            $.validator.setDefaults({
+                //			debug:true,
+                ignore: '',
+                onkeyup: false,
+                onfocusout: false,
+                focusInvalid: true,
+                showErrors: function (errorMap, errorList) {
+
+                    appUtils.log('showErrors');
+                    appUtils.log(errorList);
+                    //return;
+
+                    if (errorList.length === 0) return false;
+
+                    var labelWrap = $('<div />').addClass('label-lists'), textLabels = '', textAlert = '';
+
+                    $.each(errorList, function (i, v) {
+                        var _$element = $(v.element);
+                        if (i != 0) return;
+                        textLabels += $('<label />')
+						    .attr('for', _$element.attr('id'))
+						    .html('<strong>' + getMessage(_$element) + ' : </strong>' + (_$element.data('message') || v.message))
+						    .appendTo(labelWrap);
+                        if (i == 0) {
+                            textAlert += getMessage(_$element) + (_$element.data('message') || v.message);
+                        }
+                    });
+
+                    function getMessage(_$element) {
+                        return _$element.data('title')
+						    || $('[for=' + _$element.attr('id') + ']').text()
+						    || _$element.parent('label').text()
+						    || _$element.attr('placeholder')
+						    || _$element.attr('name');
+                    };
+
+                    alert(textAlert);
+                    appUtils.log(textAlert); //error display.
+                    return;
+                },
+                submitHandler: function (form) { form.submit(); }
+            });
+
+            $.validator.addMethod('engnum', function(value, element, params){
+                return this.optional(element) || /^[A-Za-z0-9+]*$/.test(value);
+		    });
+
+            $.validator.addMethod('length', function(value, element, params){
+			    return this.optional(element) || value.length == element.getAttribute('length');
+		    });
+
+
+            //숫자만입력 가능하도록 처리
+            $('input.only-number').css('imeMode','disabled').keypress(function(event) {
+                if(event.which && (event.which < 48 || event.which > 57) ) {
+                    event.preventDefault();
+                }
+            }).keyup(function(){
+                if( $(this).val() != null && $(this).val() != '' ) {
+                    $(this).val( $(this).val().replace(/[^0-9]/g, '') );
+                }
+            });
+
+        };
+	});
+})(jQuery);
+
+
+
+
+
+</script>
+
+</body>
+</html>

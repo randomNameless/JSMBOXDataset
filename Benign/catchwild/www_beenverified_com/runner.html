@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>runner.html</title>
+</head>
+<body>
+
+<script>
+///////////////////////////////////|
+//////////// CONTENTS /////////////|
+///////////////////////////////////|
+// --| UTILS
+// --| STORAGE
+// --| MOBILE NAV
+// --| CAROUSELS
+// --| RAPIDS AUTOCOMPLETE
+// --| VALIDATION
+// --| MISCELANEOUS
+// --| INITIALIZE
+///////////////////////////////////|
+
+(function ($) {
+  // =======================================================================
+  // UTILS -----------------------------------------------------------------
+  // =======================================================================
+  const Utils = (function () {
+
+    const trackLocal = (event, params) => {
+      console.log('tracking:', event, params);
+    };
+
+    const analyticsLocal = { track: trackLocal };
+    const analytics = window.analytics || analyticsLocal;
+
+    function googleAnalyticsTracking(obj) {
+      var gaData = {
+        event: obj.trigger || 'flowrida_visitor_event',
+        eventAction: obj.action || 'uncategorized',
+        eventCategory: obj.category || 'uncategorized',
+        eventLabel: obj.label || '',
+      };
+      // visitorEventInfo is a custom dimension that can be used to send over JSON data
+      if (obj.props) gaData.visitorEventInfo = JSON.stringify(obj.props);
+      if (window.dataLayer) window.dataLayer.push(gaData);
+    }
+
+    // GA click event tracking
+    // Retrieve data from click event
+    document.addEventListener('click', function (event) {
+      if (!event.target.matches('[data-track="ga"]')) return;
+      var gaData = {
+        event: event.target.getAttribute('data-ga-trigger') || 'flow_visitor_event',
+        eventLabel: event.target.getAttribute('data-ga-label') || '',
+      }
+      // Value must be an integer and these values get accumulated/added together in the GA data
+      if (event.target.getAttribute('data-ga-value')) {
+        gaData.value = event.target.getAttribute('data-ga-value');
+      }
+      if (window.dataLayer) window.dataLayer.push(gaData);
+    });
+
+    function __capitalize(text) {
+      if (!text) return '';
+
+      const letters = text.split('');
+      if (letters.length === 0) {
+        return '';
+      }
+      letters[0] = letters[0].toUpperCase();
+      return letters.join('');
+    }
+
+    function __nameize(text) {
+      const SPACE = ' ';
+      const EMPTY_STR = '';
+      var result = text;
+
+      if (result === null || result === undefined) {
+        return EMPTY_STR;
+      }
+
+      if (result.match(/\s+/)) {
+        return _.map(result.split(SPACE), function (part) {
+          return __nameize(part);
+        }).join(SPACE);
+      } else if (result.match(/^[A-Z][A-Z]+/)) {
+        result = result.toLowerCase();
+      } else {
+        result = result.toLowerCase();
+      }
+
+      if (result.match(/^mac/)) {
+        var capitalizedText = __capitalize(result.replace(/^mac/, EMPTY_STR));
+        result = "Mac".concat(capitalizedText);
+      } else if (result.match(/^mc/)) {
+        var _capitalizedText = __capitalize(result.replace(/^mc/, EMPTY_STR));
+        result = "Mc".concat(_capitalizedText);
+      } else if (result.match(/-/)) {
+        result = _.map(result.split('-'), function (part) {
+          return __capitalize(part);
+        }).join(SPACE);
+      } else {
+        result = __capitalize(result);
+      }
+
+      return $.trim(result);
+    }
+
+    function __removeDiacritics(str) {
+      if (typeof String.prototype.normalize !== 'undefined') {
+        return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      }
+      return str;
+    }
+
+    function cleanAndFormatData(data) {
+      var pattern = new RegExp("[^ A-Za-z'-]", 'gi');
+      var formattedData = __nameize(data);
+      // replace diacritics and remove special characters/numbers
+      return __removeDiacritics(formattedData).replace(pattern, '');
+    }
+
+    function storeQuery(formData, storeKey) {
+      var STORE_KEY = storeKey || 'searchData';
+      var parsedData = formData.reduce(function (prev, item) {
+        prev[item.name] = item.value.trim();
+        return prev;
+      }, amplify.store(STORE_KEY) || {});
+
+      amplify.store(STORE_KEY, parsedData);
+    }
+
+    function encodeData(valueToEncode) {
+      try {
+        return encodeURIComponent(window.btoa(valueToEncode));
+      } catch (e) {
+        // just URL encode for now if base64 encoding fails
+        return encodeURIComponent(valueToEncode);
+      }
+    }
+
+    function goToNextPage(url, form) {
+      url ? window.location = url : window.location = $(form).attr('action');
+    }
+
+    return {
+      analytics,
+      track: googleAnalyticsTracking,
+      cleanAndFormatData,
+      storeQuery,
+      encodeData,
+      goToNextPage
+    };
+  })();
+
+  // =======================================================================
+  // STORAGE -----------------------------------------------------------------
+  // =======================================================================
+
+  const Storage = (function () {
+    const legacyPrefix = '__amplify__';
+
+    function set(value, key = 'searchData') {
+      localStorage.setItem(key, JSON.stringify(value));
+      localStorage.setItem(legacyPrefix + key, JSON.stringify({ data: value }));
+    }
+
+    function get(key = 'searchData') {
+      let storedData = JSON.parse(localStorage.getItem(legacyPrefix + key)) || JSON.parse(localStorage.getItem(key));
+      if (storedData && storedData.data) storedData = storedData.data; // legacy code is inside storedData.data, new code is not.
+      return storedData || {};
+    }
+
+    function remove(key = 'searchData') {
+      localStorage.removeItem(key);
+      localStorage.removeItem(legacyPrefix + key);
+    }
+
+    function clear() {
+      localStorage.clear();
+    }
+
+    return {
+      set,
+      get,
+      remove,
+      clear,
+    };
+  })();
+  
+  // =======================================================================
+  // MOBILE NAV ------------------------------------------------------------
+  // =======================================================================
+  const Navigation = (function () {
+    const $navBar = $('.js-nav-bar');
+    const $mobileNavToggleBtn = $('.js-mobile-nav-toggle-btn');
+    const navOpenClassName = 'nav-open';
+    const $navToggleBtn = $('.js-nav-toggle-btn');
+    const $navBarContent = $('.js-nav-collapse');
+
+    // toggle Search Tools menu
+    function toggleMobileNavCollapse() {
+      $mobileNavToggleBtn.click(function () {
+        if ($navBar.hasClass(navOpenClassName)) {
+          $navBar.toggleClass(navOpenClassName);
+          $navBarContent.animate({
+            right: '-100%'
+          }, 500);
+        } else {
+          $navBar.toggleClass(navOpenClassName);
+          $navBarContent.animate({
+            right: '0'
+          }, 500);
+        }
+      });
+    }
+
+    function toggleNavCollapse() {
+      $navToggleBtn.click(function () {
+        $navBar.find('.nav__search-tools').toggleClass(navOpenClassName);
+      });
+    }
+
+    function setLoginButtonGAEvent() {
+      $('.js-login-button').on('click', function (event) {
+        event.preventDefault();
+        const linkURL = $(this).attr('href');
+
+        // The UA events will be deprecated in the future
+        Utils.analytics.track('site_event', {
+          event_name: 'flow_click',
+          name: 'login',
+        });
+
+        window.location = linkURL;
+      });
+    }
+
+    function init() {
+      setLoginButtonGAEvent();
+      toggleMobileNavCollapse();
+      toggleNavCollapse();
+
+      // close menu on desktop on window click
+      $(window).click(function (event) {
+        if (!$(event.target).hasClass('js-nav-toggle-btn')) {
+          $navBar.find('.nav__search-tools').removeClass(navOpenClassName);
+        }
+      });
+    }
+
+    return {
+      init
+    }
+  })();
+
+  // =======================================================================
+  // CAROUSELS -------------------------------------------------------------
+  // =======================================================================
+  const Carousels = (function () {
+
+    function init() {
+
+      // Search Type Carousel selector
+      $('.js-search-type').on('click', function (event) {
+        const trackLabel = event.currentTarget.dataset.track;
+        Utils.analytics.track('site_event', {
+          event_name: 'search_type_toggle',
+          type: trackLabel,
+        });
+
+        $('.js-search-type').removeClass('active');
+        $(this).addClass('active');
+      });
+
+      // Testimonial Carousel
+      $('.js-testimonial-carousel').owlCarousel({
+        center: true,
+        loop: true,
+        nav: true,
+        navText:
+          [
+            '<span class="sr-only">Prev</span>',
+            '<span class="sr-only">Next</span>'
+          ],
+        navContainerClass: 'owl-nav carousel__nav',
+        navClass:
+          [
+            'owl-prev carousel__nav-prev',
+            'owl-next carousel__nav-next'
+          ],
+        stageOuterClass: 'owl-stage-outer testimonial-carousel',
+        dots: false,
+        responsive: {
+          0: {
+            items: 1.2,
+            center: false,
+            margin: 10,
+          },
+          768: {
+            items: 2.6
+          }
+        }
+      });
+
+    }
+
+    return {
+      init
+    }
+  })();
+
+  // =======================================================================
+  // RAPIDS AUTOCOMPLETE ---------------------------------------------------
+  // =======================================================================
+
+function trackFormSubmitEvent(type, trigger) {
+  const payload = { event_name: 'flow_search_submitted', type };
+  if (trigger) payload.trigger = trigger;
+  Utils.analytics.track('site_event', payload);
+}
+
+  const REDIRECT = {
+    phone: 'https://www.beenverified.com/lp/596a06/2/loading',
+    email: 'https://www.beenverified.com/lp/c38ceb/2/loading',
+    address: 'https://www.beenverified.com/lp/076d4f/2/loading',
+  };
+
+  ; (function () {
+    function buildDisplayFor(type, suggestion) {
+      var suggestionCopy = Object.assign({}, suggestion);
+      var whiteSpace = '';
+      if (suggestionCopy.secondary) {
+        if (suggestionCopy.entries > 1) {
+          if (type === 'selected') {
+            suggestionCopy.secondary += ' (' + suggestionCopy.entries + ')';
+          } else {
+            suggestionCopy.secondary += ' (' + suggestionCopy.entries + ' entries)';
+          }
+        }
+        whiteSpace = ' ';
+      }
+      return suggestionCopy.street_line + whiteSpace + suggestionCopy.secondary + ' ' + suggestionCopy.city + ', ' + suggestionCopy.state + ' ' + suggestionCopy.zipcode;
+    }
+
+    function __storeSuggestion(fullAddress, suggestionObj) {
+      var obj = {
+        address: fullAddress,
+        street: suggestionObj.street_line,
+        city: suggestionObj.city,
+        state: suggestionObj.state,
+        unit: suggestionObj.secondary,
+        zip5: suggestionObj.zipcode,
+      };
+
+      // Set last_line of address (city, state, zip) "New York NY 10005"
+      obj.last_line = [obj.city, obj.state, obj.zip5].filter(Boolean).join(' ');
+      Storage.set(obj, 'propertySearchData');
+
+      // keys with empty values are from when we were using liveaddress
+      // there isn't an equivalent rapids version so they are blank for now
+      // We will eventually deprecate this `propertyCurrentRecord` LS object
+      const propertyCurrentRecordObj = {
+        _framerida_click: 'store propertySearchData',
+        _framerida_mapped: 'TeaserRecord',
+        parcel_address: {
+          address: fullAddress,                     // Full address "20 Exchange Pl New York NY 10005-3201"
+          full: suggestionObj.street_line,          // Street line "20 Exchange Pl"
+          parts: {
+            carrier_route: '',
+            city: suggestionObj.city,               // City "New York"
+            house_number: '',                       // Street number "20"
+            post_direction: '',
+            pre_direction: '',
+            state: suggestionObj.state,             // State "NY"
+            street_name: suggestionObj.street_line, // Street Line* "Exchange"
+            street_type: '',                        // Street Type "Pl"
+            unit: suggestionObj.secondary,          // Unit (e.g. for apartments)
+            zip5: suggestionObj.zipcode,            // Main Zipcode "10005"
+            zip4: '',                               // Secondary Zip "3201"
+          },
+          // **street_name is getting the full street line here
+          // note: subscribe page displays this value by itself
+          // (without house_number or street_type)
+        },
+      }
+      Storage.set(propertyCurrentRecordObj, 'propertyCurrentRecord');
+    }
+
+    (function autocomplete() {
+      var addressAutoCompleteApiUrl = 'https://rpds.beenverified.com/rpds/lookup?';
+      var addressAutoCompleteApiKey = 'GPvhPVhEJBD6vmxdopZy';
+      var selected = '';
+      var maxResults = 5;
+      var addressSelectedHasMultipleEntries = false;
+
+      $('.js-address-input').autocomplete({
+        minLength: 1,
+        autoFocus: true,
+        source: function (request, response) {
+          $.ajax({
+            url: addressAutoCompleteApiUrl,
+            type: 'GET',
+            dataType: 'json',
+            headers: { 'X-Api-Key': addressAutoCompleteApiKey },
+            data: {
+              type: selected !== '' ? 'address' : '',
+              search: request.term,
+              selected: selected,
+              max_results: maxResults,
+            },
+            success: function (jsonResponse) {
+              selected = '';
+              var suggestions = [];
+              if (jsonResponse && jsonResponse.suggestions) {
+                suggestions = jsonResponse.suggestions.map(function (suggestion) {
+                  return {
+                    suggestionObj: suggestion,
+                    label: buildDisplayFor('address', suggestion),
+                    value: buildDisplayFor('address', suggestion),
+                  };
+                });
+              }
+              response(suggestions);
+            },
+          });
+        },
+        close: function (event, ui) {
+          if (addressSelectedHasMultipleEntries) {
+            // This scenario is when the user selects an address with multiple secondary
+            // entries and we need to generate a new search but this time including
+            // 'selected' query param value so that SmartyStreets knows that we want suggestions
+            // related to the option selected.
+            // To more information look for `Secondary Number Expansion` section in the docs
+            // (https://www.smartystreets.com/docs/cloud/us-autocomplete-pro-api#pro-secondary-expansion)
+            var multipleEntriesEvent = {
+              action: 'address search',
+              category: 'flowrida-search',
+              label: 'apartment search'
+            }
+            Utils.track(multipleEntriesEvent);
+            $(this).autocomplete('search');
+          }
+        },
+        select: function (event, ui) {
+          if (ui && ui.item && ui.item.suggestionObj) {
+            if (ui.item.suggestionObj.entries > 1) {
+              // Address has multiple secondary entries that matched the user input.
+              addressSelectedHasMultipleEntries = true;
+              selected = buildDisplayFor('selected', ui.item.suggestionObj);
+              ui.item.value = $(this).val();
+            } else {
+              trackFormSubmitEvent('property', 'autocomplete');
+              selected = '';
+              addressSelectedHasMultipleEntries = false;
+              $(this).val(ui.item.label);
+              __storeSuggestion(ui.item.label, ui.item.suggestionObj);
+              const nextPage = REDIRECT.address;
+              const encodedAddress = encodeURIComponent(btoa(ui.item.label));
+              window.location = nextPage + '?address=' + encodedAddress;
+            }
+          }
+        },
+      }).data('ui-autocomplete')._renderItem = function (ul, item) {
+        var expression = new RegExp(this.term, 'gi');
+        var matchedText = '<span class="matched-text">' + this.term + '</span>';
+        var newLabel = item.label.replace(expression, matchedText);
+        return $('<li></li>')
+          .append('<div>' + newLabel + '</div>')
+          .appendTo(ul);
+      };
+    })();
+  })();
+
+  // =======================================================================
+  // VALIDATION ------------------------------------------------------------
+  // =======================================================================
+  const ValidateForms = (function () {
+
+    const $input = $('.input__field');
+
+    function __applyStateClasses() {
+      // Apply active class to input when it is focused on.
+      $input.on('focus', function () {
+        $(this).parent().addClass('active');
+      });
+      $input.on('focusout', function () {
+        $(this).parent().removeClass('active');
+      });
+    }
+
+    function __initDesktopFocus() {
+      const IS_DESKTOP = window.matchMedia('(min-width: 992px)');
+
+      // Set focus on input of active slide on page load
+      if (IS_DESKTOP.matches) {
+        var $activeSlideInput = $('.carousel-item.active').find('input:eq(0)');
+        $activeSlideInput.focus();
+        $activeSlideInput.parent().addClass('active');
+      }
+
+      // Focus input field when switching forms
+      $('.js-search-carousel').on('slid.bs.carousel', function () {
+        var $currentSlide = $('.carousel-item.active');
+        var $currentSlideInput = $currentSlide.find('input:eq(0)');
+        if (IS_DESKTOP.matches) {
+          if ($currentSlideInput.hasClass('js-address-input')) {
+            // Re-validate address field for google autocomplete
+            __validateAddress();
+            $currentSlideInput.focus();
+          } else {
+            $currentSlideInput.focus();
+          }
+        }
+      });
+    }
+
+    function __initCustomMethods() {
+      // Custom validation methods ----------------
+      $.validator.addMethod('noEmptySpacesOnly', function (value) {
+        return value === '' || value.trim().length !== 0;
+      }, 'Empty/blank search not allowed');
+      $.validator.addMethod('phoneUS', function (phoneNumber, element) {
+        phoneNumber = phoneNumber.replace(/\s+/g, '');
+        return (
+          this.optional(element) ||
+          (phoneNumber.length > 9 &&
+            phoneNumber.match(
+              /^(\+?1-?)?(\([2-9]([02-9]\d|1[02-9])\)|[2-9]([02-9]\d|1[02-9]))-?[2-9]([02-9]\d|1[02-9])-?\d{4}$/
+            )
+          )
+        );
+      }, 'Please specify a valid phone number');
+      // Custom email validation
+      $.validator.methods.email = function (value, element) {
+        return this.optional(element) || /^([^*@\s]+)@((?:[-a-z0-9]+\.)+[a-z]{2,})$/i.test(value);
+      };
+    }
+
+    // People Search Validation
+    function __validatePeople() {
+      const $peopleForm = $('.js-people-search');
+
+      $peopleForm.validate({
+        normalizer: function (value) {
+          $(this).val(Utils.cleanAndFormatData(value));
+          return Utils.cleanAndFormatData(value);
+        },
+        rules: {
+          fn: {
+            required: true,
+            noEmptySpacesOnly: true,
+          },
+          ln: {
+            required: true,
+            noEmptySpacesOnly: true,
+          }
+        },
+        messages: {
+          fn: {
+            required: 'Please enter a first name',
+          },
+          ln: {
+            required: 'Please enter a last name',
+          }
+        },
+        onsubmit: true,
+        submitHandler: function (form) {
+          // The UA events will be deprecated in the future
+          Utils.track('Submitted Search Form - People');
+          trackFormSubmitEvent('people');
+
+          var data = $(form).serializeArray();
+          Utils.storeQuery(data);
+          Utils.goToNextPage('', form);
+        }
+      });
+    }
+
+    // Email Validation
+    function __validateEmail() {
+      const $emailForm = $('.js-email-search');
+
+      $emailForm.validate({
+        rules: {
+          emailaddress: {
+            required: true,
+            noEmptySpacesOnly: true,
+            email: true,
+          }
+        },
+        messages: {
+          emailaddress: {
+            required: 'Please enter an email address',
+          }
+        },
+        onsubmit: true,
+        submitHandler: function (form) {
+          // The UA events will be deprecated in the future
+          Utils.track('Submitted Search Form - Email');
+          trackFormSubmitEvent('email');
+
+          var inputVal = $(form).find('input').val();
+          var encodedData = Utils.encodeData(inputVal);
+          var nextPageURL = REDIRECT.email + '?emailaddress=' + encodedData;
+          Utils.goToNextPage(nextPageURL);
+        }
+      });
+    }
+
+    // Address Validation
+    function __validateAddress() {
+      const $addressForm = $('.js-address-search');
+
+      $addressForm.validate({
+        rules: {
+          address: {
+            required: true,
+            noEmptySpacesOnly: true,
+          },
+        },
+        messages: {
+          address: {
+            required: 'Please enter an address',
+          }
+        },
+        onsubmit: true,
+        submitHandler: function (form) {
+          // The UA events will be deprecated in the future
+          Utils.track('Submitted Search Form - Property');
+          trackFormSubmitEvent('property', 'submit');
+
+          var data = $(form).serializeArray();
+          Utils.storeQuery(data);
+          Utils.storeQuery(data, 'propertySearchData');
+          var encodedData = Utils.encodeData(data[0].value);
+          var nextPageURL = REDIRECT.address + '?' + 'address=' + encodedData;
+          Utils.goToNextPage(nextPageURL);
+        }
+      });
+    }
+
+    function initialize() {
+      __applyStateClasses();
+      __initDesktopFocus();
+      __initCustomMethods();
+
+      __validatePeople();
+      __validateEmail();
+      __validateAddress();
+    }
+
+    return {
+      init: initialize
+    }
+
+  })();
+
+
+  // =======================================================================
+  // MISCELANEOUS ------------------------------------------------------------
+  // =======================================================================
+  $('.js-banner-cta-btn').on('click', function (event) {
+    Utils.analytics.track('site_event', {
+      event_name: 'flow_click',
+      name: 'language_banner_homepage',
+    });
+  });
+
+  // =======================================================================
+  // INITIALIZE ------------------------------------------------------------
+  // =======================================================================
+  (function initialize() {
+    // Clear local storage
+    localStorage.removeItem('__amplify__searchData');
+    localStorage.removeItem('__amplify__propertySearchData');
+
+    // Reload if loaded from cache
+    window.onpageshow = function (event) {
+      if (event.persisted) {
+        window.location.reload();
+      }
+    }
+
+    Navigation.init();
+    Carousels.init();
+    ValidateForms.init();
+  })();
+})(jQuery);
+
+</script>
+
+</body>
+</html>

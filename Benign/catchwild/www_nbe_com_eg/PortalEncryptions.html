@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PortalEncryptions.html</title>
+</head>
+<body>
+
+<script>
+////////////////////////////  Encryption ///////////////
+
+
+function EncryptRequest(Req) {
+    try {
+        Globals.PublicKeyStr = Globals.PublicKeyStr || '<RSAKeyValue><Modulus>39G5TV6TKL2vWItRhMLSipy51RTwY3UdJwP5I31GiPbETAtS3UErLDV496NWZSSzLfcJeQlo+YMDDPxr/UstbWW6kZYyFB4JgPGc7sS+kBFu2JJDF5vFJEJ/OfVFeevUz5R3LsW+mrZFY+o+asye48rn9DTuvCwYTtWwWd8qPS8=</Modulus><Exponent>AQAB</Exponent></RSAKeyValue>';
+        if (!Globals.PublicKey) {
+            Globals.PublicKey = (new System.Security.Cryptography.RSACryptoServiceProvider(1024));
+            Globals.PublicKey.FromXmlString(Globals.PublicKeyStr);
+        }
+        var OutputObj = { EncReq: "", EncKey: "", Key: {} };
+        var RandRJ = new System.Security.Cryptography.RijndaelManaged();
+        var desKey = RandRJ.Key; //
+        var desIV = RandRJ.IV;
+        OutputObj.Key = RandRJ;
+        OutputObj.EncKey = BytesTo64Str(EncryptDataRSA(RandRJ.Key.concat(RandRJ.IV), Globals.PublicKey, false));
+        OutputObj.EncReq = EncryptStrRJ(Req, desKey, desIV);
+        return OutputObj;
+    } catch (e) {
+        log(e);
+    }
+}
+
+
+function DecryptResponse(Rsp, Key) {
+    try {
+        var desKey = Key.Key; //
+        var desIV = Key.IV;
+        return DecryptStrRJ(Rsp, desKey, desIV);
+    } catch (e) {
+        log(e);
+    }
+}
+
+//////////////////////////// Encryption ///////////////
+
+//////////////////////////// Common Encryption ///////////////
+
+function EncryptRSA(PublicKeyStr, StrIn) {
+    var EncStr;
+    try {
+        var data = System.Text.Encoding.UTF8.GetBytes(StrIn);
+        var rsa = window["RSAProvFor_" + PublicKeyStr];
+        if (rsa == undefined || rsa == null) {
+            // Create a new instance of RSACryptoServiceProvider.
+            var rsa = new System.Security.Cryptography.RSACryptoServiceProvider();
+            // Import parameters from xml.
+            rsa.FromXmlString(PublicKeyStr);
+            window["RSAProvFor_" + PublicKeyStr] = rsa;
+        }
+        // Encrypt data (use OAEP padding).
+        var encryptedBytes = rsa.Encrypt(data, false);
+        // Convert encrypted data to Base64.
+        EncStr = System.Convert.ToBase64String(encryptedBytes);
+    } catch (e) {
+        log(e);
+    }
+    return EncStr;
+};
+
+function EncryptDataRJ(InputBuff, desKey, desIV) {
+    try {
+        var InStream = new System.IO.MemoryStream(InputBuff);
+        var OutStream = new System.IO.MemoryStream();
+        var RJ = new System.Security.Cryptography.RijndaelManaged();
+        var encStream = new System.Security.Cryptography.CryptoStream(OutStream, RJ.CreateEncryptor(desKey, desIV), System.Security.Cryptography.CryptoStreamMode.Write);
+        encStream.Write(InputBuff, 0, InputBuff.length);
+        encStream.FlushFinalBlock();
+        var outputBuffer = OutStream.ToArray();
+        // Close both streams.
+        encStream.Close();
+        InStream.Close();
+        OutStream.Close();
+        return outputBuffer;
+    } catch (e) {
+        log(e);
+    }
+}
+
+function EncryptStrRJ(Str, desKey, desIV) {
+    try {
+        var InputBuff = StrToBytesUnicode(Str);
+        var outputBuffer = EncryptDataRJ(InputBuff, desKey, desIV);
+        var base64String = BytesTo64Str(outputBuffer);
+        return base64String;
+    } catch (e) {
+        log(e);
+    }
+}
+
+function DecryptDataRJ(input, desKey, desIV) {
+    try {
+        var RJ = new System.Security.Cryptography.RijndaelManaged();
+        var Decryptor = RJ.CreateDecryptor(desKey, desIV);
+        var inputBuffer = new System.Byte(input.length);
+        System.Buffer.BlockCopy(input, 0, inputBuffer, 0, inputBuffer.length);
+        var MemoryStreamObj = new System.IO.MemoryStream();
+        var cryptoStream = new System.Security.Cryptography.CryptoStream(MemoryStreamObj, Decryptor, System.Security.Cryptography.CryptoStreamMode.Write);
+        cryptoStream.Write(inputBuffer, 0, inputBuffer.length);
+        cryptoStream.FlushFinalBlock();
+        var outputBuffer = cryptoStream.ToArray();
+        // Close both streams.
+        MemoryStreamObj.Close();
+        cryptoStream.Close();
+        return outputBuffer;
+    } catch (e) {
+        console.log(e);
+    }
+}
+
+function DecryptStrRJ(Str, desKey, desIV) {
+    try {
+        var input = Str64ToBytes(Str);
+        var outputBuffer = DecryptDataRJ(input, desKey, desIV);
+        var s = BytesUnicodeToStr(outputBuffer);
+        // Return decrypted string.   
+        return s;
+    } catch (e) {
+        console.log(e);
+    }
+}
+
+function EncryptDataRSA(Buff, RSACryptoServiceProviderObj, doOaepPadding) {
+    try {
+        return RSACryptoServiceProviderObj.Encrypt(Buff, doOaepPadding);
+    } catch (e) {
+        log(e);
+    }
+}
+
+function EncryptStrRSA(Str, RSACryptoServiceProviderObj, doOaepPadding) {
+    try {
+        var Buff = StrToBytesUTF8(Str);
+        var outputBuffer = EncryptDataRSA(Buff, RSACryptoServiceProviderObj, doOaepPadding);
+        var base64String = BytesTo64Str(outputBuffer);
+        return base64String;
+    } catch (e) {
+        log(e);
+    }
+}
+
+function DecryptDataRSA(Buff, RSACryptoServiceProviderObj, doOaepPadding) {
+    try {
+        return RSACryptoServiceProviderObj.Decrypt(Buff, doOaepPadding);
+    } catch (e) {
+        log(e);
+    }
+}
+
+function DecryptStrRSA(Str, RSACryptoServiceProviderObj, doOaepPadding) {
+    try {
+        var Buff = Str64ToBytes(Str);
+        var outputBuffer = DecryptDataRSA(Buff, RSACryptoServiceProviderObj, doOaepPadding);
+        var s = BytesUTF8ToStr(outputBuffer);
+        return s;
+    } catch (e) {
+        log(e);
+    }
+}
+//////////////////////////// End Common Encryption ///////////////
+</script>
+
+</body>
+</html>

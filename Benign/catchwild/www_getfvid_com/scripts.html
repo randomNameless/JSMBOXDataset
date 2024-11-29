@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>scripts.html</title>
+</head>
+<body>
+
+<script>
+String.prototype.toHHMMSS = function () {
+    var sec_num = parseInt(this, 10); // don't forget the second param
+    var hours   = Math.floor(sec_num / 3600);
+    var minutes = Math.floor((sec_num - (hours * 3600)) / 60);
+    var seconds = sec_num - (hours * 3600) - (minutes * 60);
+
+    if (hours   < 10) {hours   = "0"+hours;}
+    if (minutes < 10) {minutes = "0"+minutes;}
+    if (seconds < 10) {seconds = "0"+seconds;}
+    return hours+':'+minutes+':'+seconds;
+}
+
+function validateHhMm(inputField) {
+        var isValid = /^([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]?$/.test(inputField.value);
+
+        return isValid;
+}
+
+$(document).ready(function() {
+
+    if(window.ads != true) {
+        $('.adsAdblock').removeClass('hidden');
+    }
+    /*if(window.ads != true &&  Cookies.get("adblock") != "yes") {
+        $(".adblock").show();
+    }
+    $(".btn-dimiss").click(function() {
+        Cookies.set("adblock", "yes", {
+            expires: 3
+        }), $(".adblock").hide();
+    });*/
+
+    $(".alert-download .alert").fadeOut(5e3), $("#myModalVideo .close").click(function() {
+        $("#video").get(0).pause()
+    }), $("#myModalVideo").on("hide.bs.modal", function() {
+        $("#video").get(0).pause()
+    }), $("#video").parent().click(function() {
+        $("#video").get(0).paused ? ($("#video").get(0).play()) : ($("#video").get(0).pause())
+    });
+    var video = document.getElementById("video"),
+        d = document.getElementById("time");
+    video && video.addEventListener("loadedmetadata", function() {
+        var e = parseInt(video.duration),
+            a = Math.floor(e / 3600),
+            n = Math.floor((e - 3600 * a) / 60),
+            o = e - 3600 * a - 60 * n;
+        a < 10 && (a = "0" + a), n < 10 && (n = "0" + n), o < 10 && (o = "0" + o), d.innerHTML = "00" != a ? a + ":" + n + ":" + o : n + ":" + o
+    });
+});
+
+$(function() {
+    $("#convert-format").change(function(e) {
+        e.preventDefault();
+        var t = $(":selected", this);
+        type = t.val(), "Audio Formats" == t.closest("optgroup").attr("label") ? ($("#audio-quality").css("display", "block"), $("#video-quality").css("display", "none")) : ($("#audio-quality").css("display", "none"), $("#video-quality").css("display", "block"), quality = "")
+    }), $("#audio-quality").change(function(e) {
+        e.preventDefault();
+        var t = $(":selected", this);
+        quality = t.val();
+    });
+    var title = $("#title_video").val();
+
+    $("#convertBtn").on("click", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        setTimeout(function() {
+            $("#convertBtn").hide(); 
+            $("#processBtn").removeClass("hidden");
+        }, 200); 
+
+    settings_from = $("#settings_from").val();
+    settings_to = $("#settings_to").val();
+
+        $.ajax({
+            type: "POST",
+            url: base_url+"/download_",
+            data: {
+                url: url,
+                id: id,
+                type: type,
+                quality: quality,
+                settings_from: settings_from,
+                settings_to: settings_to
+            },
+            success: function(data){
+                if(data.status == 'ready'){
+                    post_url(base_url+'/success', {
+                          id_:id,
+                          id:data.id,
+                          title:title,
+                          url:url_,
+                          type:data.type,
+                          size:data.size
+                      }, 'post');
+                }else{
+                    $("#processBtn").addClass("hidden");
+                    $("#convert_Btn").removeClass('hidden');
+                    $("#download_progress").append(data);
+                }
+            },
+            error: function(e, t, d) {
+                $("#errors").css('display','block');
+                $("#processBtn").addClass('hidden');
+                $("#convertBtn").show();
+            }
+        });
+    });
+    
+    $(".downloadLink a:nth-child(1)").click(function() {
+        setTimeout(function() {
+                $("#exlink a:nth-child(1)").addClass("hidden");
+                $("#exlink a:nth-child(2)").removeClass("hidden");
+            setTimeout(function() {
+                $("#exlink a:nth-child(2)").addClass("hidden");
+                $("#exlink a:nth-child(3)").removeClass("hidden");
+            }, 3500);
+        }, 1500);
+            
+    });
+
+    $("#sdlink").click(function() {
+        var id = "#" + this.id;
+        setTimeout(function() {
+                if($("#hdlink a:nth-child(2)").is(":visible") || $("#hdlink a:nth-child(3)").is(":visible")){
+                    $("#hdlink a:nth-child(1)").removeClass("hidden");
+                    $("#hdlink a:nth-child(2)").addClass("hidden");
+                    $("#hdlink a:nth-child(3)").addClass("hidden");
+                }
+                $(id + " a:nth-child(1)").addClass("hidden");
+                $(id + " a:nth-child(2)").removeClass("hidden");
+            setTimeout(function() {
+                $(id + " a:nth-child(2)").addClass("hidden");
+                $(id + " a:nth-child(3)").removeClass("hidden");
+            }, 3500);
+        }, 1500);
+            
+    });
+
+    $("#hdlink").click(function() {
+        var id = "#" + this.id;
+        setTimeout(function() {
+                if($("#sdlink a:nth-child(2)").is(":visible") || $("#sdlink a:nth-child(3)").is(":visible")){
+                    $("#sdlink a:nth-child(1)").removeClass("hidden");
+                    $("#sdlink a:nth-child(2)").addClass("hidden");
+                    $("#sdlink a:nth-child(3)").addClass("hidden");
+                }
+                $(id + " a:nth-child(1)").addClass("hidden");
+                $(id + " a:nth-child(2)").removeClass("hidden");
+            setTimeout(function() {
+                $(id + " a:nth-child(2)").addClass("hidden");
+                $(id + " a:nth-child(3)").removeClass("hidden");
+            }, 3500);
+        }, 1500);
+            
+    });
+
+
+    $('#selectStart').on('click', function() {
+        var currentTime = video.currentTime;
+        currentTime = Math.round( currentTime * 1000 ) / 1000;
+        $('#settings_from').val(currentTime.toString().toHHMMSS());
+    });
+
+    $('#selectEnd').on('click', function() {
+        var currentTime = video.currentTime;
+        currentTime = Math.round( currentTime * 1000 ) / 1000;
+        $('#settings_to').val(currentTime.toString().toHHMMSS());
+    });
+
+    $('input[name=hms]').on("change", function() {
+        var videoTime = video.duration;
+        var vidtConv = videoTime.toString().toHHMMSS();
+        var hms = $(this).val();  
+        var a = hms.split(':'); 
+
+        var seconds = (+a[0]) * 60 * 60 + (+a[1]) * 60 + (+a[2]);
+
+        if(hms){
+            if(validateHhMm(hms)){
+                $(this).val(hms);
+            }else{
+                if(isNaN(hms)){
+                    if(!isNaN(seconds)){
+                        $(this).val(seconds.toString().toHHMMSS());
+                    }else{
+                        $(this).val("0".toHHMMSS()); 
+                    }
+                }else{
+                    $(this).val(hms.toHHMMSS());
+                }
+            }
+       }else{
+            $(this).val("0".toHHMMSS()); 
+       }
+
+       if($(this).val()>=vidtConv){
+            $(this).val(vidtConv); 
+        }
+
+    });
+
+});
+
+
+function post_url(path, params, method) {
+    method = method || "post";
+    var form = document.createElement("form");
+    form.setAttribute("method", method);
+    form.setAttribute("action", path);
+    for(var key in params) {
+        if(params.hasOwnProperty(key)) {
+            var hiddenField = document.createElement("input");
+            hiddenField.setAttribute("type", "hidden");
+            hiddenField.setAttribute("name", key);
+            hiddenField.setAttribute("value", params[key]);
+            form.appendChild(hiddenField);
+         }
+    }
+    document.body.appendChild(form);
+    form.submit();
+}
+
+</script>
+
+</body>
+</html>

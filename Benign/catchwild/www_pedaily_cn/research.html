@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>research.html</title>
+</head>
+<body>
+
+<script>
+var rid = 0, type = 0;
+
+//downfiles
+function DownFile(id, tp) {
+    rid = id;
+    type = tp;
+    //checkdownfile
+    $.ajax({
+        url: "/top/handler.ashx?action=checkdownfile&id=" + id + "&type=" + tp + "&t=" + Math.random(),
+        beforeSend: win.wait,
+        success: function (s) {
+            if (s == '200') {
+                if (tp == 1) {
+                    if (!users.logined) {
+                        users.globalLogin(openUserData);
+                    } else {
+                        openUserData();
+                    }
+                    return;
+                }
+                win.close();
+                if (typeof (DownFile.iframe) == "undefined") {
+                    var iframe = document.createElement("iframe");
+                    DownFile.iframe = iframe;
+                    document.body.appendChild(DownFile.iframe);
+                }
+                DownFile.iframe.src = "/top/handler.ashx?action=downfiles&id=" + id + "&type=" + tp + "&t=" + new Date().getTime();
+                DownFile.iframe.style.display = "none";
+            } else if (s == '402') {
+                win.show({ title: '下载提示', content: '抱歉，每份报告每天限下载三次。', timeout: 3000 });
+            } else {
+                win.show({ title: '下载提示', content: '抱歉，该报告尚未上传。', timeout: 3000 });
+            }
+        }
+    });
+}
+
+function DownWeeklyFile(id, tp) {
+    rid = id;
+    type = tp;
+    if (typeof (DownWeeklyFile.iframe) == "undefined") {
+        var iframe = document.createElement("iframe");
+        DownWeeklyFile.iframe = iframe;
+        document.body.appendChild(DownWeeklyFile.iframe);
+    }
+    DownWeeklyFile.iframe.src = "/top/handler.ashx?action=downweekly&id=" + id + "&tp=" + tp + "&t=" + new Date().getTime();
+    DownWeeklyFile.iframe.style.display = "none";
+}
+
+function DownReport(id, tp) {
+    rid = id;
+    if (!tp)
+        tp = 2;
+    type = tp;
+    //checkdownfile
+    $.ajax({
+        url: '/top/handler.ashx?action=checkdownfile&id=' + id + '&type=' + tp,
+        beforeSend: win.wait,
+        success: function (s) {
+            if (s == '200') {
+                if (!users.logined) {
+                    users.globalLogin(openUserData);
+                    return;
+                } else {
+                    openUserData();
+                    return;
+                }
+                win.close();
+                if (typeof (DownReport.iframe) == "undefined") {
+                    var iframe = document.createElement("iframe");
+                    DownReport.iframe = iframe;
+                    document.body.appendChild(DownReport.iframe);
+                }
+                DownReport.iframe.src = "/top/handler.ashx?action=downurlfile&id=" + id + "&tp=" + tp + "&t=" + new Date().getTime();
+                DownReport.iframe.style.display = "none";
+            } else if (s == '402') {
+                win.show({ title: '下载提示', content: '抱歉，每份报告每天限下载三次。', timeout: 3000 });
+            } else {
+                win.show({ title: '下载提示', content: '抱歉，该报告尚未上传。', timeout: 3000 });
+            }
+        }
+    });
+}
+function loadprovince(jlocation) {
+    var province_val = '', city_val = '';
+    var cities = [];
+    jlocation = jlocation || '';
+    if (jlocation.indexOf(',') == -1) {
+        province_val = jlocation;
+    } else {
+        var tmparr = jlocation.split(',');
+        province_val = tmparr[0];
+        city_val = tmparr[1];
+        cities = dAddress[province_val];
+    }
+    for (var s in dAddress) {
+        $('#province').append('<option value="' + s + '" ' + (s == province_val ? 'selected="selected"' : '') + '>' + s + '</option>');
+    }
+    $('#province').change(function () {
+        var pval = $(this).val();
+        var cities = dAddress[pval];
+        if (!cities) return;
+        $('#city').empty();
+        for (var i = 0; i < cities.length; i++) {
+            $('#city').append('<option value="' + cities[i] + '">' + cities[i] + '</option>');
+        }
+    });
+    if ($('#city').find('option').length == 0) {
+        $('#province').change();
+    }
+}
+
+function openUserData() {
+    var func = function (json) {
+        if (json.err == 1) return;
+        for (var key in json) {
+            if ($obj(key))
+                $obj(key).value = json[key];
+        }
+        var loca = json['province'] + ',' + json['city'];
+        if (!window.provinces) {
+            $.getScript('/top/js/provinces.js', function () {
+                loadprovince(loca);
+            });
+        } else {
+            loadprovince(loca);
+        }
+        $('#needservice').click(function () {
+            if ($(this).is(':checked')) {
+                $('#reason').show();
+            } else {
+                $('#reason').hide();
+            }
+        });
+    };
+    win.show({
+        url: '/head/apply/userdata.html',
+        btntype: 'none',
+        ready: function () {
+            $.getJSON('/top/handler.ashx?action=getuserdata&callback=?', func);
+        }
+    });
+}
+
+function SubmitData() {
+    var ck = function (id, msgid, msg) {
+        if ($obj(id).value == '') {
+            $obj(msgid).innerHTML = msg;
+            $obj(id).focus();
+            return false;
+        } else {
+            $obj(msgid).innerHTML = "正确";
+            return true;
+        }
+    };
+    if (!ck('truename', 'truename_Span', '请输入您的真实姓名')) return;
+    if (!ck('companyname', 'companyname_Span', '请输入您当前所在公司全称')) return;
+    if (!ck('department', 'department_Span', '请输入您所在的部门名称')) return;
+    if (!ck('job', 'job_Span', '请输入您的职位名称')) return;
+    if (!ck('email', 'email_Span', '请输入您的电子邮箱')) return;
+    if (!ck('mobile', 'mobile_Span', '请输入您的手机号码')) return;
+    if (!ck('province', 'province_Span', '请选择您所在地区')) return;
+    var ei = encodeURIComponent;
+    //关闭窗口，下载文件
+    var urls = "&truename=" + ei($('#truename').val()) + "&companyname=" + ei($('#companyname').val()) + "&department=" + ei($('#department').val()) + "&job=" + ei($('#job').val()) + "&email=" + ei($('#email').val()) + "&mobile=" + ei($('#mobile').val()) + "&iscontact=" + $('#needservice').is(':checked') + "&reason=" + ei($('#reason').val()) + "&location=" + ei($('#province').find("option:selected").text()) + "," + ei($('#city').find("option:selected").text());
+    var posting = false, wtitle = '分享到微博';
+    if (users.logintype > 0 && type >= 1) {
+        win.show({
+            title: wtitle,
+            content: '<div class="txt_center"><textarea id="weibocontent" name="weibocontent" style="width:475px;height:90px;"></textarea></div><div class="clear"></div><div class="m_10 txt_center"><input type="button" value="分享到微博" class="subimtbtn" id="sharebtn"/></div>',
+            ready: function () {
+                $obj('weibocontent').value = String.format("分享一下，我在投资界网站下载了一份关于【{0}】的一份报告，报告内容详细，清科出的报告真给力！", $t('h1').innerHTML);
+                $obj('sharebtn').onclick = function () {
+                    if (posting) return;
+                    posting = true;
+                    this.value = '请稍后...';
+                    var myAjax = Request.sendPOST("/top/handler.ashx?action=postweibo&report=1&t=" + Math.random(),
+                        "&id=" + rid + "&content=" + encodeURIComponent($obj('weibocontent').value) + "&url=" + encodeURIComponent(document.URL),
+                        function (response) {
+                            win.alert({ title: wtitle, content: '分享成功。', timeout: 2000 });
+                        }
+                    );
+                }
+            }
+        });
+    } else {
+        win.close();
+    }
+    if (typeof (SubmitData.iframe) == "undefined") {
+        var iframe = document.createElement("iframe");
+        SubmitData.iframe = iframe;
+        document.body.appendChild(SubmitData.iframe);
+    }
+    if (type > 1) {
+        SubmitData.iframe.src = "/top/handler.ashx?action=downurlfile&id=" + rid + "&tp=" + type + urls + "&t=" + new Date().getTime();
+    }
+    else {
+        SubmitData.iframe.src = "/top/handler.ashx?action=downfiles&id=" + rid + "&type=" + type + urls + "&t=" + new Date().getTime();
+    }
+    SubmitData.iframe.style.display = "none";
+}
+
+
+</script>
+
+</body>
+</html>

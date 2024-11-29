@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>easyliao.html</title>
+</head>
+<body>
+
+<script>
+/*
+		打开对话框接入到指定的客服
+		cId:公司id
+		tar：客服登陆账号
+		tag:标签ID
+		msg:待发送消息
+		*/
+		function openJesongChatByCus(cId, targetCustomer, tag, msg) {
+		    return openJesongChat(cId, 'c', targetCustomer, tag, msg);
+		}
+		
+		/*
+		打开对话框接入到指定的客服分组
+		cId:公司id
+		tar：客服分组ID
+		tag:标签ID
+		msg:待发送消息
+		*/
+		function openJesongChatByGroup(cId, targetGroup, tag, msg) {
+		    return openJesongChat(cId, 'g', targetGroup, tag, msg);
+		}
+		
+		
+		/*
+		* 弹出窗口
+		* */
+		function openJesongChat(cId, type, target, tag, msg) {
+		    var arr = [];
+		    // 将每一个键值对保存在数组中
+			if(tag != undefined){
+				arr.push('tag=' + tag);
+			}
+			if(msg != undefined){
+				arr.push('msg=' + window.encodeURIComponent(msg));
+			}
+			if(target !== true){
+				if (type == 'c') {
+				    arr.push('n=' + target);
+				} else if (type == 'g') {
+				    arr.push('g=' + target);
+				}
+			}else{
+				if ("undefined" !== typeof jesong) {
+					if (jesong.webcallChat) {
+					    if (type == 'g') {
+					        arr.push('g=' + _jesong.g);
+					    }
+					} else if (jesong.util) {
+					    if (type == 'g') {
+					        arr.push('g=' + jesong.monitor.config.groupId);
+					    }
+					}
+				}
+			}
+		    
+		    var param = arr.join("&");
+		
+		    if ("undefined" == typeof jesong) {
+		        openNoJesongJsChat(cId, param);
+		    } else {
+		        if (jesong.webcallChat) {
+		            jesong.webcallChat.openChat(param);
+		        } else if (jesong.util) {
+		            jesong.util.openChat(param);
+		        } else {
+		            openNoJesongJsChat(cId, param);
+		        }
+		    }
+		    // if ("undefined" == typeof jesong || !jesong.util || !jesong.util.openChat) {
+		    //     openNoJesongJsChat(cId, param);
+		    // } else {
+		    //     jesong.util.openChat(param);
+		    // }
+		}
+		
+		
+		/*
+		* 直链
+		* */
+		function openNoJesongJsChat(cId, supplyParams) {
+		    var arr = [];
+		    // 将每一个键值对保存在数组中
+		    arr.push('c=' + cId);
+		    arr.push('chatUrl=' + window.encodeURIComponent(window.location.href));
+		    arr.push('v=' + getCookie('JESONG_VISITOR_ID'));
+		    arr.push('u=' + getCookie('JESONG_USER_ID'));
+		    arr.push('config=' + getEmbedConfigIdOfPage());
+		    arr.push('ref=' + window.encodeURIComponent(document.referrer));
+		
+		    if (typeof supplyParams == 'string' && supplyParams.length != 0) {
+		        arr.push(supplyParams);
+		    }
+		    var exts = null;
+		    if (getCookie("JESONG_EXT_DATA")) {
+		        exts = getCookie("JESONG_EXT_DATA");
+		    }
+		    if (typeof (JESONG_EXT_DATA) != "undefined") {
+		        exts = JESONG_EXT_DATA;
+		    }
+		    arr.push('ext=' + buildExt(exts));
+		    var paramData = arr.join('&');
+		    var url = "https://live.easyliao.com/live/" + 'chat.do?' + paramData;
+		
+		    if (easyliaoIsPC()) {
+		        try {
+		            var p = "height=600,width=800,directories=no,location=no,menubar=no,resizeable=no,status=no,toolbar=no,top=100,left=200";
+		            var cw = window.open(url, 'chat_' + cId, p);
+		            cw.focus();
+		        } catch (e) {
+		            window.location = url;
+		        }
+		    } else {
+		        window.location = url;
+		    }
+		}
+		
+		/**
+		 * 获取cookie
+		 * @param name
+		 * @returns {string|null}
+		 */
+		function getCookie(name) {
+		    var arr, reg = new RegExp("(^| )" + name + "=([^;]*)(;|$)");
+		    arr = document.cookie.match(reg);
+		    if (arr) {
+		        return unescape(arr[2]);
+		    } else {
+		        return "";
+		    }
+		}
+    var getCook = getCookie; // 旧版适配
+		
+		function easyliaoIsPC() {
+		    var userAgentInfo = navigator.userAgent;
+		    var Agents = ["Android", "iPhone", "SymbianOS", "Windows Phone", "iPad", "iPod"];
+		    var flag = true;
+		    for (var v = 0; v < Agents.length; v++) {
+		        if (userAgentInfo.indexOf(Agents[v]) > 0) {
+		            flag = false;
+		            break;
+		        }
+		    }
+		    return flag;
+		}
+		
+		function buildExt(exts) {
+		    if (exts != null && typeof exts == "object") {
+		        var stamp = "#params:";
+		        var arr = [];
+		        for (key in exts) {
+		            arr.push(key + '=' + exts[key])
+		        }
+		        return stamp + arr.join(',');
+		    }
+		    if (exts != null && exts != "") {
+		        return window.encodeURIComponent(exts);
+		    }
+		    return "";
+		}
+		
+		function getEmbedConfigIdOfPage() {
+		    try {
+		        var _scripts = document.getElementsByTagName("script");
+		        var _reg = /\/\/scripts\.easyliao\.com\/[0-9]+\/([0-9]+)\.js/;
+		        for (var i = 0; i < _scripts.length; i++) {
+		            var _url = _scripts[i].src;
+		            if (_url && _reg.test(_url)) {
+		                var _config = _url.match(_reg);
+		                if (_config.length == 2) {
+		                    return _config[1];
+		                    break;
+		                }
+		            }
+		        }
+		    } catch (e) {
+		    }
+		    return "";
+		}
+
+     // 旧版适配
+    function initJesongRefer() {
+      var refer = getPageRefer();
+      if (refer != "") {
+        setCook('im_refer', refer, 10 * 60 * 1000);
+      }
+    }
+     // 旧版适配
+    function getPageRefer() {
+      if (document.referrer) {
+        try {
+          var refer = document.referrer;
+    
+          if (refer) {
+            var referDomain = jesongGetDomain(refer);
+            var currDomain = window.location.host;
+            if (referDomain && referDomain == currDomain) {
+              refer = "";
+            }
+          }
+    
+          if (refer != "") {
+            return refer;
+          }
+        } catch (e) { };
+      }
+      return "";
+    }
+     // 旧版适配
+    function jesongGetDomain(url) {
+      var domain = url.match(/(\w+):\/\/([^\:|\/]+)(\:\d*)?(.*\/)([^#|\?|\n]+)?(#.*)?(\?.*)?/i);
+      if (domain.length > 2) {
+        return domain[2];
+      } else {
+        return null;
+      }
+    }
+     // 旧版适配
+    function setCook(name, value, t) {
+      if (typeof t == 'undefined' || t == null) t = 60 * 30 * 24 * 60 * 60 * 1000;
+      var exp = new Date(); exp.setTime(exp.getTime() + t);
+      document.cookie = name + "=" + escape(value) + ";expires=" + exp.toGMTString();
+    }
+
+</script>
+
+</body>
+</html>

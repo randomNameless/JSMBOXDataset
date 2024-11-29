@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>chartload.html</title>
+</head>
+<body>
+
+<script>
+(function(){
+chartLoadObj.iframeURL='/DJJSLib/CanvasChartSVC/extend/chartLoadObj/ChartFrameSVC_FundDefault.htm';	
+chartLoadObj.config[''] = {
+    LegendValsPos:'right'
+}
+
+var ETFView = {};
+function GetView(id)
+{
+	if (ETFView[id]) { 
+		return ETFView[id];
+	}
+}
+
+var globalReg=function(){
+    window.ChartLoad=ChartLoad;
+    window.HTML5chart=HTML5chart;
+    window.FlashChart=FlashChart;
+    window.getSWF=getSWF;
+};
+
+function ChartLoad(sBCD, sParams,drawCallback) {
+	if (!useCanvas) {
+		FlashChart(sBCD, sParams);
+	} else {
+	    HTML5chart(sBCD, sParams,drawCallback);
+	}
+}
+
+function HTML5chart(sBCD, sParams,drawCallback) {
+	var nodatastr = sParams.NoData,isAutoH=false;
+	if ($.trim(nodatastr) == ""){nodatastr = "loading...";}
+	//if (sBCD) {
+        chartLoadObj.initView(sParams.ID,sParams.fSrc,sParams.fWidth,sParams.fHeight,function(view){      
+        	if(drawCallback) chartLoadObj.setDrawCall(sParams.ID,drawCallback);
+        	chartLoadObj.poster(sParams.ID,"loading...",isAutoH);
+         	//return;
+			setTimeout(function(){ //防止一開始ajax太多時，會卡住，所以慢一點作
+				isAutoH=true;//無資料的時候poster要自動縮小
+				clearTimeout(this);
+				//判斷sBCD是url還是數據 
+				if (typeof(sBCD) == "string" && (sBCD.indexOf("xdjhtm") != -1 || sBCD.indexOf("xdjjson") != -1 || sBCD.indexOf("xdjbcd") != -1) ){
+					$.get(sBCD, function(data){
+						chartLoadObj.setParams(sParams.ID,sParams);
+						//
+	    				if ($.trim(data) == ""){ 
+	    					chartLoadObj.poster(sParams.ID,nodatastr,isAutoH);return;
+	    				} else {
+	    					chartLoadObj.setData(sParams.ID,data);
+	    				}
+					},'html');
+				}else{
+					chartLoadObj.setParams(sParams.ID,sParams);
+					if ($.trim(sBCD) == ""){ 
+						if ($.trim(sParams.PC) != ""){chartLoadObj.setData(sParams.ID,['']);return;}//因應分時圖台股早上清盤時 20161209 by Estar
+						chartLoadObj.poster(sParams.ID,nodatastr,isAutoH);return;
+					}else{ 
+						chartLoadObj.setData(sParams.ID,sBCD);
+					}
+				}	
+			},100);
+        });
+	//}
+}
+
+//Flash
+function FlashChart(id,sW,sH,sflashVars,sSrc,sBGColor){		
+		// -----------------------------------------------------------------------------  
+		// Globals																		   
+		// Major version of Flash required												   
+		var requiredMajorVersion = 9;													   
+		// Minor version of Flash required												   
+		var requiredMinorVersion = 0;													   
+		// Minor version of Flash required												   
+		var requiredRevision = 124;													   
+		// -----------------------------------------------------------------------------  
+		// Version check for the Flash Player that has the ability to start Player Product Install (6.0r65)
+		var hasProductInstall = DetectFlashVer(6, 0, 65);
+		// Version check based upon the values defined in globals
+		var hasRequestedVersion = DetectFlashVer(requiredMajorVersion, requiredMinorVersion, requiredRevision);
+
+		if (hasProductInstall && !hasRequestedVersion ) {                                  
+			// DO NOT MODIFY THE FOLLOWING FOUR LINES                                        
+			// Location visited after installation is complete if installation is required   
+			var MMPlayerType = (isIE == true) ? "ActiveX" : "PlugIn";                    
+			var MMredirectURL = window.location;                                             
+		    var MMdoctitle = document.title;                                                
+
+			AC_FL_RunContent(                                                                
+				"src", "/funddj/flash/playerProductInstall",					 
+				"FlashVars", "MMredirectURL="+MMredirectURL+'&MMplayerType='+MMPlayerType+'&MMdoctitle='+MMdoctitle+"",  
+				"width", sW,							 
+				"height", sH,							 
+				"align", "middle",                                                   
+				"id", id,                                                    
+				"quality", "high",                                                   
+				"bgcolor", "#"+sBGColor,                                       
+				"name", "CURVE",                                                  
+				"allowScriptAccess","sameDomain",                                    
+				"type", "application/x-shockwave-flash",                             
+				"wmode", "transparent",												 
+				"pluginspage", "http://www.adobe.com/go/getflashplayer"              
+			);										 
+		} else if (hasRequestedVersion) {                                           
+			// if we've detected an acceptable version                               
+			// embed the Flash Content SWF when all tests are passed                 
+		  AC_FL_RunContent(														 
+			"src", "/funddj/flash/"+sSrc,											 
+			"FlashVars", sflashVars,  
+			"width", sW,                                             
+			"height",  sH,                                            
+			"align", "middle",												 
+			"id", id,											     
+			"quality", "high",												 
+			"bgcolor", "#"+sBGColor,									 
+			"name", id,												 
+			"allowScriptAccess","sameDomain",								 
+			"type", "application/x-shockwave-flash",						 
+			"wmode", "transparent",											 
+			"pluginspage", "http://www.adobe.com/go/getflashplayer"	
+		  );                                                                               
+  		} else {  // flash is too old or we can't detect the plugin                       
+    		var alternateContent = '<a href=http://www.adobe.com/go/getflash >很抱歉，如果您的螢幕無法正常顯示Flash player線圖，請點這裡安裝最新的 Flash player。</a> '
+			document.write(alternateContent);  // insert non-flash content                  
+  		}  	
+}
+
+	
+
+/*
+'***********************************************************************
+' Purpose: Flash Get Obj Function
+' Param:
+'	name : Flash ID
+' Return:
+'	Flash Dom
+'***********************************************************************
+*/
+function getSWF(FlashID) {
+	var argv = getSWF.arguments;
+	var argc = getSWF.arguments.length;
+	var formName = (argc > 0) ? argv[1] : null;  
+	
+	if (navigator.appName.indexOf("Microsoft")!=-1) {  
+		if (formName != null) {	    
+			return document.forms[formName][FlashID];
+		}else{
+			return window[FlashID];
+		}
+     } else {
+        return document[FlashID];
+     }
+}
+
+globalReg();
+
+})();
+</script>
+
+</body>
+</html>

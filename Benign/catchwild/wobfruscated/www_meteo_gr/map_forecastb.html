@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>map_forecastb.html</title>
+</head>
+<body>
+<script>var map1;
+var mapcities_m=Array();
+var is_wind=true;
+
+var map_maxZoom = 11.5;
+var map_minZoom = 6.5;
+var zoom_lvl_num=map_maxZoom-map_minZoom+1;
+var icons_sz=[30,30];
+var icons_anchor=[Math.floor(icons_sz[0]/2),Math.floor(icons_sz[0]/2)];
+var zoom0=6.5;
+
+var areas=[
+{ID:1,Na:"thraki",P:[41.85,24.75,40.1,27.25]},
+{ID:2,Na:"makedonia",P:[41.85,20.25,39.8,24.75]},
+{ID:3,Na:"ypeiros",P:[39.8,19.25,38.25,24.75]},
+{ID:5,Na:"peloponisos",P:[38.25,20,36,24.1]},
+{ID:6,Na:"ba aigaio",P:[40.1,24.75,37.5,27.25]},
+{ID:7,Na:"dodekanisa",P:[37.5,26.5,35,28.5]},
+{ID:8,Na:"kyklades",P:[38.25,24.1,36,26.5]},
+{ID:9,Na:"krhth",P:[36,22.5,34.5,26.5]},
+{ID:4,Na:"attiki",P:[38.25,22.75,37.5,24.1]},
+
+];
+
+
+var zooms = {"6":[1,3,8,10,12,16,22,23,31,32,47,58,264],
+			 "7":[21,34,36,41,7,24,6,11,18,20,172,4,73],
+			 "8":[38,39,13,15,5,40,43,44,52,33,14,82,77,17,56,57,19,49,48,66,63,9,74,59,116,112,54],
+			 "9":[206,70,69,191,37,46,65,270,75,83,78,92,415,96,149,121],
+			 "10":[86,61,89,261,157]
+			};
+
+function str_pad(pad, str, padLeft) {
+	if (typeof str === 'undefined') 
+		return pad;
+	if (padLeft) {
+		return (pad + str).slice(-pad.length);
+	} else {
+		return (str + pad).substring(0, pad.length);
+	}
+}
+
+function init(){
+	var mapopen = L.tileLayer('/sailMapNew/mapnik/{z}/{x}/{y}.jpg', {
+								attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>',
+								maxZoom: 13
+					});
+	var mapcustom = L.tileLayer('/alerts/tiles/{z}/{x}/{y}.png', {
+								attribution: '',
+								maxZoom: 11
+					});
+	var gridcustom = L.tileLayer('/sailMapNew/custommap/Z{z}/{y}/{x}_coord.png', {
+								attribution: '',
+								maxZoom: 11
+					});
+
+	var control_home =  L.Control.extend({
+		options: {position: 'topright'},
+		onAdd: function (map) {
+			var container = L.DomUtil.create('div', 'leaflet-bar leaflet-control leaflet-control-custom Lbt Lbt_home');
+			$(container).attr('title','Home');
+			container.onclick = function(){
+				resetView();
+				//console.log('home Clicked');
+			}
+			return container;
+		}
+	});
+	var control_grid =  L.Control.extend({
+		options: {position: 'topright'},
+		onAdd: function (map) {
+			var container = L.DomUtil.create('div', 'leaflet-bar leaflet-control leaflet-control-custom Lbt Lbt_grid selected');
+			$(container).attr('title','Συντεταγμένες');
+			container.onclick = function(){
+				if(map.hasLayer(gridcustom)) {
+					$(this).removeClass('selected');
+					map.removeLayer(gridcustom);
+				} else {
+					map.addLayer(gridcustom);        
+					$(this).addClass('selected');
+				}
+			}
+			return container;
+		}
+	});
+	
+
+
+	map1 = L.map('map1', {
+						maxBounds: [[32, 16.93],[45.07,33.74]],
+		 dragging: !L.Browser.mobile,
+       zoomSnap: 0.5,
+						layers: [mapcustom]
+						}).setView([37.977402,23.746948], 6.5);
+	
+	map1.addControl(new control_home());
+	map1.addControl(new control_grid());
+	map1.options.minZoom=6.5;	
+	map1.options.maxZoom=10;	
+map1.scrollWheelZoom.disable();
+
+	map1.on('mousemove', showCoords);
+	
+
+}
+
+function showCoords(e) {
+	var lat=e.latlng.lat;
+	var lng=e.latlng.lng;
+    $("#lat").text(Math.floor(lat)+"°"+str_pad('00',Math.floor((lat-Math.floor(lat))*60),true)+"'");
+	$("#lon").text(Math.floor(lng)+"°"+str_pad('00',Math.floor((lng-Math.floor(lng))*60),true)+"'");
+}
+
+function resetCities(){
+	var z = map1.getZoom();
+	for(var c in mapcities_m){
+		map1.removeLayer(mapcities_m[c]);
+	}
+	for(var c in mapcities_m){
+		for(var c_z in zooms){
+			if(parseInt(c_z)<=z && zooms[c_z].indexOf(mapcities_m[c].city_ID)>-1){
+				mapcities_m[c].addTo(map1);
+			}
+		}
+	}
+}
+function resetView(){
+	map1.setView([37.977402,23.746948], 6.5).closePopup();
+}
+
+function loadData_areas(){
+	rect=new Array();
+	activeRect={};
+	hoverObjMID=-1;
+	hoverObjLast = null;
+	for(k=0;k<areas.length;k++){
+		var bounds=[[areas[k].P[0],areas[k].P[1]],[areas[k].P[2],areas[k].P[3]]];
+		
+		rect[k]=L.rectangle(
+				bounds, 
+				{color: "#cccccc", weight: 1, opacity:0.6, fillOpacity:0
+			}).on('click',function(e){
+				activeRect=this;
+				if(activeRect.MID==4){
+				map1.setView({lat: 38, lng: 23.7}, 10, {"animate":true}).closePopup();
+				}else{
+				map1.setView(e.latlng, 9, {"animate":true}).closePopup();
+				}
+				map1.removeLayer(areasGroupL);
+			}).on('mouseover',function(e){
+				if(hoverObjMID==-1){
+					this.setStyle({color: "#cccccc", fillOpacity:0.2});
+					hoverObjMID=e.target._leaflet_id;
+					hoverObjLast=this;
+				}
+				if(e.target._leaflet_id>hoverObjMID){
+					hoverObjLast.setStyle({color: "#cccccc", fillOpacity:0});
+					this.setStyle({color: "#cccccc", fillOpacity:0.2});
+					hoverObjMID=e.target._leaflet_id;
+					hoverObjLast=this;
+				}	
+			}).on('mouseout',function(e){
+				this.setStyle({color: "#cccccc", fillOpacity:0});
+				hoverObjMID=-1;
+				hoverObjLast=null;
+			});
+			
+		rect[k].MID=areas[k].ID;
+	}	
+	areasGroupL=L.layerGroup(rect).addTo(map1);
+	map1.on('zoomend',function(e){
+		resetCities();
+		if(this.getZoom()<=7){
+			map1.addLayer(areasGroupL).closePopup();
+		}else if(this.getZoom()>7){
+			map1.removeLayer(areasGroupL);
+		}
+	});	
+}
+
+function loadData_cities(){
+	$.getJSON('/ReusableCode/CFCs/mainmap2017.cfc?method=getData&returnformat=json', null, function(data){
+			//console.log(data);
+			for(var key in data){
+				var marker = L.marker([data[key].lat, data[key].long], {title: data[key].city_name, icon: L.divIcon({
+									html:'<svg style="position: absolute;left: 0px;top: 0px;z-index:100" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 71 71" width="40" height="40"><circle cx="35" cy="35" r="35" stroke="#cccccc" stroke-width="1" fill="#ffffff" fill-opacity="0.75" /></svg>'+
+							'<img style="position: absolute;left: 0px;top: 0px;z-index:101" src="/graphics/forecasticons/3/'+data[key].phenomenographic+'" />'+
+							'<svg style="position: absolute;left: 22px;top: 22px;z-index:102" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50" width="25" height="25"><circle cx="25" cy="25" r="25" stroke="#cccccc" stroke-width="1" fill="#ffffff" fill-opacity="0.75" /><text x="25" y="34" font-size="25" text-anchor="middle" >'+data[key].temperature+'</text></svg>',
+						className: 'markerdiv',
+						iconSize: [40, 40],
+						iconAnchor: [25, 25],
+						popupAnchor:  [0, -30]
+					})
+				}).on('click',function(e){
+					var popup =  L.popup();
+					var thisMark=e.target;
+					var d = new Date(thisMark.fdata.localtime);
+					var dd = str_pad('00', d.getDate(), true)+'/'+str_pad('00', d.getMonth()+1, true)+'/'+d.getFullYear();
+					var tt = str_pad('00', d.getHours(), true)+':'+str_pad('00', d.getMinutes(), true);
+					popup.setLatLng(thisMark.getLatLng()).
+						setContent(	"<h3 style='margin:0 0 5px 0;' >"+thisMark.fdata.city_name+"</h3>"+
+									""+thisMark.fdata.nefosi_title+"<br />"+
+									"Θερμοκρασία: "+thisMark.fdata.temperature+" °C<br /><br />"+
+									"Ημερομηνία: "+dd+"<br>"+
+									"Ώρα: "+tt+"<br>"+
+									"<a style='display:block; width:130px;' href='/cf.cfm?city_id="+thisMark.city_ID+"'>Αναλυτική πρόγνωση <img style='vertical-align:text-bottom' src='/sailMapNew/js/leaflet/images/Icon_External_Link.png'/></a>").openOn(map1);
+				});
+				marker.fdata=data[key];
+				marker.city_ID = data[key].city_ID;
+				mapcities_m.push(marker);
+			}
+			resetCities();
+	});
+	
+}
+
+
+$(document).ready(function(){
+	init();
+	loadData_areas();
+	loadData_cities();
+});</script>
+</body>
+</html>

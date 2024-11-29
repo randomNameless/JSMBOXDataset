@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>book.html</title>
+</head>
+<body>
+
+<script>
+//cookie处理
+var Cookie = {
+    get: function (n) {
+        var dc = "; " + document.cookie + "; ";
+        var coo = dc.indexOf("; " + n + "=");
+        if (coo != -1) {
+            var s = dc.substring(coo + n.length + 3, dc.length);
+            return unescape(s.substring(0, s.indexOf("; ")));
+        } else {
+            return null;
+        }
+    },
+    set: function (name, value, expires, path, domain, secure) {
+        var expDays = expires * 24 * 60 * 60 * 3;
+        var expDate = new Date();
+        expDate.setTime(expDate.getTime() + expDays);
+        var expString = expires ? "; expires=" + expDate.toGMTString() : "";
+        var pathString = "; path=" + (path || "/");
+        var domain = domain ? "; domain=" + domain : "";
+        document.cookie = name + "=" + escape(value) + expString + domain + pathString + (secure ? "; secure" : "");
+    },
+    del: function (n) {
+        var exp = new Date();
+        exp.setTime(exp.getTime() - 1);
+        var cval = this.get(n);
+        if (cval != null) document.cookie = n + "=" + cval + ";expires=" + exp.toGMTString();
+    }
+}
+
+function saveCookie(name, value, days) {
+    if (days) {
+        var date = new Date();
+        date.setTime(date.getTime() + (days * 24 * 60 * 60 * 3));
+        var expires = "; expires=" + date.toGMTString();
+    } else {expires = "";}
+    document.cookie = name + "=" + value + expires + "; path=/";
+}
+
+function readCookie(name) {
+    var nameEQ = name + "=";
+    var ca = document.cookie.split(';');
+    for (var i = 0; i < ca.length; i++) {
+        var c = ca[i];
+        while (c.charAt(0) == ' ') {c = c.substring(1, c.length);}
+        if (c.indexOf(nameEQ) == 0) {return c.substring(nameEQ.length, c.length);}
+    }
+    return null;
+}
+
+function check_bid_by_cookie(bid){
+    var clickbids = readCookie('clickbids');
+    if(null == clickbids){
+        return false;
+    }
+    var arr_bid = clickbids.split(',');
+    for (var i = arr_bid.length - 1; i >= 0; i--) {
+        if( parseInt(bid) == parseInt(arr_bid[i])){
+            return true;
+        }
+    }
+    return false;
+}
+function set_bid_in_cookie(bid){
+    var clickbids = readCookie('clickbids');
+    if(null == clickbids){
+        clickbids = bid;
+    }else{
+        clickbids = clickbids + "," +bid;
+    }
+    saveCookie('clickbids', clickbids, 1);
+}
+//增加阅读数
+function readbook(bid) {
+    if(!check_bid_by_cookie(bid)){
+        $.get("/modules/article/articlevisit.php?id=" + bid);
+        set_bid_in_cookie(bid);
+    }
+}
+
+function vote_nomsg(aid) {
+    $.get('/modules/article/uservote.php?id=' + aid + '&ajax_request=1');
+}
+
+function addBookmark(title, url) {
+    if (!title) {
+        title = document.title
+    }
+    if (!url) {
+        url = window.location.href
+    }
+    if (window.sidebar) {
+        window.sidebar.addPanel(title, url, "");
+    } else if (document.all) {
+        window.external.AddFavorite(url, title);
+    } else if (window.opera || window.print) {
+        alert('浏览器不支持，请使用Ctrl + D 收藏！');
+        return true;
+    }
+}
+
+function killErrors() {
+    return true;
+}
+window.onerror = killErrors;
+
+/**
+ * 用户信息Cookie显示
+ */
+var jieqiUserInfo = new Array();
+jieqiUserInfo['jieqiUserId'] = 0;
+jieqiUserInfo['jieqiUserUname'] = '';
+jieqiUserInfo['jieqiUserName'] = '';
+jieqiUserInfo['jieqiUserGroup'] = 0;
+if (document.cookie.indexOf('jieqiUserInfo') >= 0) {
+    var cookieInfo = get_cookie_value('jieqiUserInfo');
+    start = 0;
+    offset = cookieInfo.indexOf(',', start);
+    while (offset > 0) {
+        tmpval = cookieInfo.substring(start, offset);
+        tmpidx = tmpval.indexOf('=');
+        if (tmpidx > 0) {
+            tmpname = tmpval.substring(0, tmpidx);
+            tmpval = tmpval.substring(tmpidx + 1, tmpval.length);
+            jieqiUserInfo[tmpname] = tmpval
+        }
+        start = offset + 1;
+        if (offset < cookieInfo.length) {
+            offset = cookieInfo.indexOf(',', start);
+            if (offset == -1) offset = cookieInfo.length
+        } else {
+            offset = -1
+        }
+    }
+}
+
+function get_cookie_value(Name) {
+    var search = Name + "=";
+    var returnvalue = "";
+    if (document.cookie.length > 0) {
+        offset = document.cookie.indexOf(search);
+        if (offset != -1) {
+            offset += search.length;
+            end = document.cookie.indexOf(";", offset);
+            if (end == -1) end = document.cookie.length;
+            returnvalue = unescape(document.cookie.substring(offset, end))
+        }
+    }
+    return returnvalue
+}
+var isLogin = jieqiUserInfo['jieqiUserId'] > 0;
+function login() {
+    if (isLogin) {
+        document.writeln("<li><a href=\"\/modules\/article\/bookcase.php\">书架<\/a></li>")
+        document.writeln("<li><a href=\"\/userdetail.php\">" + unescape(jieqiUserInfo['jieqiUserName_un']) + "<\/a></li>")
+        document.writeln("<li><a href=\"\/logout.php\">退出<\/a></li>")
+    } else {
+        document.writeln("<li><a href=\"\/login.php\">登录</a></li><li><a href=\"\/register.php\">注册</a></li>")
+    }
+}
+
+//是否UC浏览器
+var isUC=/UCBrowser/i.test(navigator.userAgent);
+//是否移动端
+var isMobile=(function(){var b=/(nokia|iphone|android|motorola|^mot-|softbank|foma|docomo|kddi|up.browser|up.link|htc|dopod|blazer|netfront|helio|hosin|huawei|novarra|CoolPad|webos|techfaith|palmsource|blackberry|alcatel|amoi|ktouch|nexian|samsung|^sam-|s[cg]h|^lge|ericsson|philips|sagem|wellcom|bunjalloo|maui|symbian|smartphone|midp|wap|phone|windows ce|iemobile|^spice|^bird|^zte-|longcos|pantech|gionee|^sie-|portalmmm|jigs browser|hiptop|^benq|haier|^lct|operas*mobi|opera*mini|320x320|240x320|176x220)/i;var a=navigator.userAgent;return(null==a||null!=b.exec(a))})();
+
+// 搜索框
+function searchBox() {
+    document.writeln("<form class='navbar-form navbar-left' action=\'/modules/article/search.php\' target='_blank'><div class=\'input-group\'><input type=\'search\'class=\'form-control\'placeholder=\'搜索作品\' name=\'searchkey\'><span class=\'input-group-btn\'><button class=\'btn btn-default\'type=\'submit\'>搜索</button></span></div></form>");
+}
+
+// 底部展示内容
+function foot() {
+    var date=new Date();
+    var year=date.getFullYear();
+
+    document.writeln("<footer class='text-center'>");
+    if (!isMobile) {
+        document.writeln("<p>所有小说和章节均由网友上传，转载只为宣传本书让更多读者欣赏。</p>");
+    }
+    document.writeln("<p>Copyright &copy; "+year+" "+location.host.replace("www.","").toUpperCase()+"</p>");
+    document.writeln("</footer>");
+
+    //书籍简介展开收缩
+    $("#bookIntroMore").off("click").on("click", function () {
+        var that = $(this);
+        var isExpand = that.data("isExpand");
+        var expandHtml = '展开<i class="fa fa-angle-double-down fa-fw"></i>';
+        var shrinkHtml = '收起<i class="fa fa-angle-double-up fa-fw"></i>';
+        var normalHeight = 200;
+
+        function setNormal() {
+            that.html(expandHtml);
+            $("#bookIntro").height(normalHeight);
+            that.data("isExpand", "no");
+        }
+
+        function setExpand() {
+            that.html(shrinkHtml);
+            $("#bookIntro").height("auto");
+            that.data("isExpand", "yes");
+        }
+
+        isExpand == "yes" ? setNormal() : setExpand();
+    });
+
+    backToTop();
+}
+
+//阅读页键盘操作事件
+function readkey() {
+    var index_page = $("#linkIndex").attr("href");
+    var prev_page =  $("#linkPrev").attr("href");
+    var next_page = $("#linkNext").attr("href");
+
+    function jumpPage() {
+        var event = document.all ? window.event : arguments[0];
+        if (event.keyCode == 37) document.location = prev_page;
+        if (event.keyCode == 39) document.location = next_page;
+        if (event.keyCode == 13) document.location = index_page;
+    }
+
+    document.onkeydown = jumpPage;
+}
+
+function readguide(){
+    document.writeln("<p class=\"clear text-muted text-center hidden-xs\">提示：回车[Enter]键 返回目录，←键 返回上一页，→键 进入下一页，加入书签方便下次继续阅读。</p>");
+}
+
+//处理ajax返回的消息
+function showMsg(msg){
+    isLogin = isLogin && msg.indexOf("您需要登录")<=0;
+    if(!isLogin){
+        if(confirm("对不起，您需要登录才能使用本功能！点击确定立即登录。")){
+            window.location.href = "/login.php?jumpurl="+location.href;
+        }
+        return false;
+    }
+
+    alert(msg.replace(/<br[^<>]*>/g, '\n'));
+}
+
+//推荐书籍
+function BookVote(article_id) {
+    $.get('/modules/article/uservote.php?id=' + article_id + '&ajax_request=1', function (data) {showMsg(data);});
+}
+
+//加入书架
+function BookCaseAdd(article_id) {
+    var url = '/modules/article/addbookcase.php?bid=' + article_id + '&ajax_request=1';
+    $.get(url,function(res){showMsg(res);});
+}
+
+//加入书签
+function BookCaseMark(article_id, chapter_id) {
+    var url = '/modules/article/addbookcase.php?bid=' + article_id + '&cid=' + chapter_id + '&ajax_request=1';
+    $.get(url,function(res){showMsg(res);});
+}
+
+//back to top
+function backToTop() {
+    document.writeln("<div class=\"back-to-top\" id=\"back-to-top\" title='返回顶部'><i>∧</i></div>");
+
+    var left = ($(document).width() - $(".body-content").width()) / 2 + $(".body-content").width() + 10;
+    if(isMobile){
+        $("#back-to-top").css({right:10,bottom:"30%"});
+    }else{
+        $("#back-to-top").css({left: left});
+    }
+
+    $(window).resize(function () {
+        if ($(document).width() - $(".body-content").width() < 100) {
+            $("#back-to-top").hide();
+        } else {
+            $("#back-to-top").show();
+            var left = ($(document).width() - $(".body-content").width()) / 2 + $(".body-content").width() + 10;
+
+            if(isMobile){
+                $("#back-to-top").css({right:10,bottom:"30%"});
+            }else{
+                $("#back-to-top").css({left: left});
+            }
+        }
+    });
+
+    var isie6 = window.XMLHttpRequest ? false : true;
+
+    function newtoponload() {
+        var c = $("#back-to-top");
+
+        function b() {
+            var a = document.documentElement.scrollTop || window.pageYOffset || document.body.scrollTop;
+            if (a > 100) {
+                if (isie6) {
+                    c.hide();
+                    clearTimeout(window.show);
+                    window.show = setTimeout(function () {
+                        var d = document.documentElement.scrollTop || window.pageYOffset || document.body.scrollTop;
+                        if (d > 0) {
+                            c.fadeIn(100);
+                        }
+                    }, 300)
+                } else {
+                    c.fadeIn(100);
+                }
+            } else {
+                c.fadeOut(100);
+            }
+        }
+
+        if (isie6) {
+            c.style.position = "absolute"
+        }
+        window.onscroll = b;
+        b()
+    }
+
+    if (window.attachEvent) {
+        window.attachEvent("onload", newtoponload)
+    } else {
+        window.addEventListener("load", newtoponload, false)
+    }
+    document.getElementById("back-to-top").onclick = function () {
+        window.scrollTo(0, 0)
+    };
+}
+
+// 百度自动推送
+function bd_push() {
+    var bp = document.createElement('script');
+    var curProtocol = window.location.protocol.split(':')[0];
+    if (curProtocol === 'https') {
+        bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+    }
+    else {
+        bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+    }
+    var s = document.getElementsByTagName("script")[0];
+    s.parentNode.insertBefore(bp, s);
+}
+
+//统计代码
+function tongji(tid){
+    var _hmt = _hmt || [];
+    (function () {
+        var hm = document.createElement("script");
+        hm.src = "https://hm.baidu.com/hm.js?"+tid;
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(hm, s);
+    })();
+}
+</script>
+
+</body>
+</html>

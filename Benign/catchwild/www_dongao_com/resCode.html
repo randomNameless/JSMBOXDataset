@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>resCode.html</title>
+</head>
+<body>
+
+<script>
+/* 
+ * @author hcp  @date 2021/12/27  @description 全局广告位js
+ */
+(function (_W) {
+	var _B = $('body'),
+		resCode = {
+			config: {
+				_URL: location.protocol + '//content.api.dongao.com',  // 接口域名
+				_CODEKEY: 'data-wsp-code',  // 广告图Code标识
+				_LOCATIONHREF: location.origin + location.pathname,
+				_CODEARR: [], // 编码code
+				_platformType: location.origin.indexOf('m.dongao.com') != -1 || /(.*MIDP.*)|(.*WAP.*)|(.*UP.Browser.*)|(.*Smartphone.*)|(.*Obigo.*)|(.*Mobile.*)|(.*AU.Browser.*)|(.*wxd.Mms.*)|(.*WxdB.Browser.*)|(.*CLDC.*)|(.*UP.Link.*)|(.*KM.Browser.*)|(.*UCWEB.*)|(.*SEMC\-Browser.*)|(.*Mini.*)|(.*Symbian.*)|(.*Palm.*)|(.*Nokia.*)|(.*Panasonic.*)|(.*MOT.*)|(.*SonyEricsson.*)|(.*NEC.*)|(.*Alcatel.*)|(.*Ericsson.*)|(.*BENQ.*)|(.*BenQ.*)|(.*Amoisonic.*)|(.*Amoi.*)|(.*Capitel.*)|(.*PHILIPS.*)|(.*SAMSUNG.*)|(.*Lenovo.*)|(.*Mitsu.*)|(.*Motorola.*)|(.*SHARP.*)|(.*WAPPER.*)|(.*LG.*)|(.*EG900.*)|(.*CECT.*)|(.*Compal.*)|(.*kejian.*)|(.*Bird.*)|(.*BIRD.*)|(.*G900\/V1.0.*)|(.*Arima.*)|(.*CTL.*)|(.*TDG.*)|(.*Daxian.*)|(.*DAXIAN.*)|(.*DBTEL.*)|(.*Eastcom.*)|(.*EASTCOM.*)|(.*PANTECH.*)|(.*Dopod.*)|(.*Haier.*)|(.*HAIER.*)|(.*KONKA.*)|(.*KEJIAN.*)|(.*LENOVO.*)|(.*Soutec.*)|(.*SOUTEC.*)|(.*SAGEM.*)|(.*SEC.*)|(.*SED.*)|(.*EMOL.*)|(.*INNO55.*)|(.*ZTE.*)|(.*iPhone.*)|(.*Android.*)|(.*Windows CE.*)|(.*Wget.*)|(.*Java.*)|(.*curl.*)|(.*Opera.*)|(.*Sonic.*)/.test(navigator.userAgent) ? 'M' : 'PC',
+				_PAGECODARR: {}, //当前页面code值的params
+				_codeObj: {}
+			},
+			/**
+			 * 初始化代码
+			 * @param {*} conf 
+			 */
+			init: function (conf) {
+				// 需求
+				// 1 正常获取页面code 且 存放到页面上
+				var _t = this, codes = _t.getCode();
+				if (_t.urlParams.viewFlag == 'Y') {
+					//如果是预览用户去调用预览接口
+					!!codes.length && _t.getPContent(codes.join(','), function (data) {
+						var data = data && data.advList;
+						if (!data && !data.length) {
+							console.warn('da not data')
+							return false;
+						}
+						$.each(data, function (index, item) {
+							_t.creatHtml(item)
+						})
+					})
+				} else {
+					// 获取code 且 获取code的数据
+					!!codes.length && _t.getContent(codes.join(','), function (data) {
+						var data = data && data.advList;
+						if (!data && !data.length) {
+							console.warn('da not data')
+							return false;
+						}
+						$.each(data, function (index, item) {
+							_t.creatHtml(item)
+						})
+					})
+				}
+			},
+			/**
+			 * 获取页面URL 参数
+			 * return JSON 
+			 */
+			urlParams: function () {
+				var data = {}, url = location.search.slice(1);
+				if (url) {
+					url = url.split("&");
+					for (var n = 0; n < url.length; n++) {
+						var strArr = url[n].split("=");
+						data[strArr[0]] = decodeURIComponent(strArr[1])
+					}
+				}
+				return data;
+			}(),
+			/**
+			 * 设置参数
+			 * @param {} conf 
+			 */
+			setConfig: function (conf) {
+				$.extend(this.config, conf);
+			},
+			/**
+			 * 获取预览广告图数据 2022/01/27新增预览效果
+			 * @param {*} code 
+			 */
+			getPContent: function (code, call) {
+				var _t = this, params = {};
+				params.url = _t.config._LOCATIONHREF;
+				params.advCode = code;
+				params.platformType = _t.config._platformType // 平台类型
+				_t.ajaxFnPre(
+					_t.config._URL + '/content/v2/preview', _t.md5Data(params), function (sucss) {
+						call && call(sucss.obj);
+					}
+				)
+			},
+			/**
+			 * 获取广告图数据
+			 * @param {*} code 
+			 */
+			getContent: function (codes, call) {
+				var _t = this, params = {};
+				params.url = _t.config._LOCATIONHREF;
+				params.code = window.btoa(codes);
+				// params.examName = '高级会计师',   考种名称获取问题
+				params.platformType = _t.config._platformType // 平台类型
+				_t.ajaxFn(
+					_t.config._URL + '/content/v4/content', _t.md5Data(params), function (sucss) {
+						call && call(sucss.obj);
+					}
+				)
+			},
+			/**
+			 * 报错返回接口
+			 */
+			errorFn: function (url, errCode, desc) {
+				var _t = this, errparams = {};
+				errparams.url = url;
+				errparams.errorCode = errCode;
+				errparams.description = desc;
+				_t.ajaxFn(_t.config._URL + '/error/v1/saveErrorRecord', _t.md5Data(errparams),'','','error');
+			},
+			/**
+			 * 获取页面中的code
+			 */
+			getCode: function () {
+				var _t = this, JQcodeArr = _B.find('*[' + _t.config._CODEKEY + ']'), codeArrr = [];
+				!!JQcodeArr.length && (
+					$.each(JQcodeArr, function (index, item) {
+						var _item = $(item), key = _item.attr(_t.config._CODEKEY);
+						_t.config._PAGECODARR[key] = {
+							// isshow:_item.attr('isshow'),
+							fun: _item.attr('data-swfun'),
+							$this: _item
+						}
+						codeArrr.push(key);
+						_t.config._codeObj[key] = _item;
+					})
+				)
+				return codeArrr;
+			},
+			/**
+			 * 生成dom接口并且存放
+			 * @param {*} item 
+			 * @returns 
+			 */
+			creatHtml: function (item) {
+				var _t = this, advStatus = item.advStatus; 
+				//1图片广告、2吸顶广告、3游飘广告、6胶囊/文字链   4轮播广告、5皮肤、 113标题图片广告
+				if(advStatus == 0){ return}
+				if (item.platform == "M" || item.platform == "M站") {
+					if (item.type == 4) { //如果接口返回数据是轮播图类型，就删掉files文件块内容
+						$('#banner_include').remove();
+						var _width = parseInt($('.swiper-slide').width());
+						var _height = parseInt($('.swiper-container .swiper-wrapper .swiper-slide img').height());
+					} else {
+						var _lengthArr = item.length.split('*').length > 1 ? item.length.split('*') : false, _width = _lengthArr ? _lengthArr[0] : '100%', _height = _lengthArr ? _lengthArr[1] : '100%';
+					}
+				} else {
+					if (item.type == 4) { //如果接口返回数据是轮播图类型，就删掉files文件块内容
+						$('#banner_include').remove();
+					}
+					var _lengthArr = item.length.split('*').length > 1 ? item.length.split('*') : false, _width = _lengthArr ? _lengthArr[0] : '100%', _height = _lengthArr ? _lengthArr[1] : '100%';
+				}
+				var _thisCode = _t.config._PAGECODARR[item.advCode];
+				// 轮播图
+				if (item.type == 4) {
+					var _swThis = _thisCode.$this.children().eq(0),
+						html = _t.creatDom(item, _swThis.clone().removeAttr('href').css({
+							width: _width,
+							height: _height
+						}));
+					// 清除轮播图
+					_swThis.remove();
+					for (i = 0; i < html.length; i++) {
+						_thisCode.$this.append(html[i]);
+					}
+					
+				} else {
+					if (item.title != null) { //有标题的广告位
+						var html = _t.creatDomTitle(item);
+						// 生成dom 并存放到页面内
+						_thisCode.$this
+							.css('position', 'relative').removeAttr('href').css({
+								width: item.type == 2 ? '100%' : _width,
+								height: Number(_height) + Number($('.title_span').outerHeight(true)) + 'px',
+								display: 'block'
+							}).empty()
+						for (i = 0; i < html.length; i++) {
+							_thisCode.$this.append(html[i]);
+						}
+					} else {
+						var html = _t.creatDom(item);
+						// 生成dom 并存放到页面内
+						_thisCode.$this
+							.css('position', 'relative').removeAttr('href').css({
+								width: item.type == 2 || item.platform == 'M' || item.platform == 'M站'? '100%' : _width,
+								height: item.platform == 'M' || item.platform == 'M站'? '100%' : _height,
+								display: 'block'
+							}).empty()
+						for (i = 0; i < html.length; i++) {
+							_thisCode.$this.append(html[i]);
+						}
+					}
+				}
+				_thisCode.fun && eval( _thisCode.fun);
+			},
+			/**
+			 * 生成titleAdv dom结构
+			 * @param {*} item 
+			 * @returns 
+			 */
+			creatDomTitle: function (item, cloneHtml) {  //cloneHtml为轮播图参数
+				var _t = this, _materials = item.materials, html = [];
+				var _lengthArr = item.length.split('*').length > 1 ? item.length.split('*') : false, _width = _lengthArr ? _lengthArr[0] : '100%', _height = _lengthArr ? _lengthArr[1] : '100%';
+				$.each(_materials, function (_i, _eachData) {
+					var _html = $('<div>', {
+						css: {
+							width: '100%',
+							height: '100%',
+							position: 'absolute',
+							'z-index': '2',
+							cursor: 'pointer',
+							left: '50%',
+							top: '0',
+							"margin-left": -_width / 2,
+						},
+						click: function () {
+							window.open(_eachData.linkurl, _t.config._platformType == 'M' ? '_self' : '_blank');
+							return false;
+						}
+					})
+					// title + img 图片拼接
+					_html.append('<h5 class="title_span">' + item.title + '</h5>');
+					_html.append($('<img>', {
+						src: _eachData.imgUrl,
+						alt: _eachData.alt,
+						decoding:"async",
+						 loading:"lazy"
+						// width:'100%',
+						// height:'100%',
+					}))
+					// 判断预览
+					if (_t.urlParams.viewFlag == 'Y' && item.advCode == _t.urlParams.viewAdvCode) {//处理预览广告位遮罩层	
+						_html.append($('<div>', {
+							html: '预览',
+							css: {
+								'position': 'absolute',
+								'top': 0,
+								'left': 0,
+								'z-index': 300,
+								'width': '100%',
+								'height': '100%',
+								'background': 'rgba(0,0,0,0.4)',
+								'font-size': '24px',
+								'text-align': 'center',
+								'color': '#fff',
+								'line-height': '100%',
+								'display': 'flex',
+								'align-items': 'center',
+								'justify-content': 'center',
+							}
+						}))
+					}
+					// 轮播图
+					if (!!cloneHtml) {
+						var dom = cloneHtml.clone().empty().append($('<div>').css({ width: '100%', height: '100%', position: 'relative' }).append(_html));
+						html.push(dom);
+					} else {
+						var dom = _html;
+						html.push(_html);
+					}
+					// _html.data('$box',_t.config._PAGECODARR[item.advCode].$this);
+					// !!_eachData.deadline && _t.createDJS(_html);
+
+				})
+				return html;
+			},
+			/**
+			 * 生成dom结构
+			 * @param {*} item 
+			 * @returns 
+			 */
+			creatDom: function (item, cloneHtml) {  //cloneHtml为轮播图参数
+				var _t = this, _materials = item.materials, html = [];
+				if (item.platform == "M" || item.platform == "M站") {
+					if (item.type == 4) {
+						var _width = parseInt($('.swiper-slide').width());
+					}
+				} else {
+					var _lengthArr = item.length.split('*').length > 1 ? item.length.split('*') : false, _width = _lengthArr ? _lengthArr[0] : '100%', _height = _lengthArr ? _lengthArr[1] : '100%';
+				}
+				$.each(_materials, function (_i, _eachData) {
+					var _html = $('<div>', {
+						css: {
+							width: item.type == 2 ? '' :'100%',
+							height: '100%',
+							position: 'absolute',
+							'z-index': '2',
+							cursor: 'pointer',
+							left: '50%',
+							top: '0',
+							"margin-left": -_width / 2,
+						},
+						data: {
+							// 倒计时时间
+							time: _eachData.deadline,
+							//  倒计时参数
+							countdownFormat: _eachData.countdownFormat,
+							type: item.type,
+							code: item.advCode
+						},
+						click: function () {
+							window.open(_eachData.linkurl, _t.config._platformType == 'M' ? '_self' : '_blank');
+							return false;
+						},
+					})
+					// img 图片
+					_html.append($('<img>', {
+						src: _eachData.imgUrl,
+						alt: _eachData.alt,
+						decoding:"async",
+						loading:"lazy",
+						width: _t.config._platformType == 'M' ? _width : '100%',
+						height: _t.config._platformType == 'M' ? '' : '100%',
+						css:{
+							'max-width':'100%'
+						}
+					}))
+					// 判断预览
+					if (_t.urlParams.viewFlag == 'Y' && item.advCode == _t.urlParams.viewAdvCode) {//处理预览广告位遮罩层	
+						_html.append($('<div>', {
+							html: '预览',
+							css: {
+								'position': 'absolute',
+								'top': 0,
+								'left': 0,
+								'z-index': 300,
+								'width': '100%',
+								'height': '100%',
+								'background': 'rgba(0,0,0,0.4)',
+								'font-size': '24px',
+								'text-align': 'center',
+								'color': '#fff',
+								'line-height': '100%',
+								'display': 'flex',
+								'align-items': 'center',
+								'justify-content': 'center',
+							}
+						}))
+					}
+					//  如果有时分秒 有deadline 就有时分秒
+					// 添加时分秒的框
+					// 生成倒计时的信息
+					if (!!_eachData.deadline) {
+						//天
+						if (_eachData.countdownFormat.indexOf('d') != -1) {
+							_html.append($('<div>', {
+								class: '__TIME_D',
+								css: {
+									position: 'absolute',
+									left: _eachData.dCoordinate.split('*')[0] + 'px',
+									top: _eachData.dCoordinate.split('*')[1] + 'px',
+									'font-size': _eachData.dFontSize + 'px',
+									color: _eachData.dColour,
+									'font-weight': !!_eachData.dFontWeight ? 'bold' : 'normal'
+								}
+							}))
+						}
+						// 时
+						if (_eachData.countdownFormat.indexOf('h') != -1) {
+							_html.append($('<div>', {
+								class: '__TIME_H',
+								css: {
+									position: 'absolute',
+									left: _eachData.hCoordinate.split('*')[0] + 'px',
+									top: _eachData.hCoordinate.split('*')[1] + 'px',
+									'font-size': _eachData.hFontSize + 'px',
+									color: _eachData.hColour,
+									'font-weight': !!_eachData.hFontWeight ? 'bold' : 'normal'
+								}
+							}))
+						}
+						// 分
+						if (_eachData.countdownFormat.indexOf('m') != -1) {
+							_html.append($('<div>', {
+								class: '__TIME_M',
+								css: {
+									position: 'absolute',
+									left: _eachData.mCoordinate.split('*')[0] + 'px',
+									top: _eachData.mCoordinate.split('*')[1] + 'px',
+									'font-size': _eachData.mFontSize + 'px',
+									color: _eachData.mColour,
+									'font-weight': !!_eachData.mFontWeight ? 'bold' : 'normal'
+								}
+							}))
+						}
+						// 秒
+						if (_eachData.countdownFormat.indexOf('s') != -1) {
+							_html.append($('<div>', {
+								class: '__TIME_S',
+								css: {
+									position: 'absolute',
+									left: _eachData.sCoordinate.split('*')[0] + 'px',
+									top: _eachData.sCoordinate.split('*')[1] + 'px',
+									'font-size': _eachData.sFontSize + 'px',
+									color: _eachData.sColour,
+									'font-weight': !!_eachData.sFontWeight ? 'bold' : 'normal'
+								}
+							}))
+						}
+						// 仅显示小时的倒计时
+						// cH
+						if (_eachData.parentFlag == 1) {
+							_html.data('parentFlag', true);
+							_html.data('childCountdownFormat', _eachData.childCountdownFormat);
+							_html.data('childImgUrl', _eachData.childImgUrl);
+							_html.append($('<div>', {
+								class: '__TIME_PH',
+								css: {
+									position: 'absolute',
+									left: _eachData.childHCoordinate.split('*')[0],
+									top: _eachData.childHCoordinate.split('*')[1],
+									'font-size': _eachData.childHFontSize + 'px',
+									color: _eachData.childHColour,
+									'font-weight': !!_eachData.childHFontWeight ? 'bold' : 'normal'
+								}
+							}))
+						}
+
+					}
+					// 轮播图
+					if (!!cloneHtml) {
+						var dom = cloneHtml.clone().empty().append($('<div>').css({ width: '100%', height: '100%', position: 'relative' }).append(_html));
+						html.push(dom);
+						_html.data('$box', dom);
+					} else {
+						var dom = _html;
+						html.push(_html);
+						_html.data('$box', _t.config._PAGECODARR[item.advCode].$this);
+					}
+					!!_eachData.deadline && _t.createDJS(_html);
+
+					// 创建倒计时方法
+				})
+				return html;
+			},
+			/**
+			 * 将页面所有倒计时进行存储
+			 */
+			createDJS: function ($html) {
+				var _t = this;
+				if (!!$html.data('time')) {
+					_t.timer($html.data('time'), function (stime, otime) {
+						var countdownFormat = $html.data('countdownFormat'),
+							time = +new Date(otime) - stime, time = time < 0 ? 0 : time, date = {};
+						// 过时就删除当时间 且删除内容
+						if (!time || !countdownFormat) {
+							_t.rmtimer(otime);
+							setTimeout(function () {
+								$html.data('$box').remove();
+								//处理如果是轮播图重新执行 轮播图js
+								eval($.slideFun());
+							}, 0)
+						} else {
+							date.d = Math.floor(time / 86400000);
+							time -= date.d * 86400000;
+							date.h = Math.floor(time / 3600000);
+							time -= date.h * 3600000;
+							date.m = Math.floor(time / 60000);
+							time -= date.m * 60000;
+							date.s = Math.floor(time / 1000);
+							//处理一位数天数、小时数
+							if(countdownFormat == 'd' ||countdownFormat == 'h'){
+								for (var i in date) date[i] < 10 && (date[i] = '' + date[i]);
+							}else{
+								for (var i in date) date[i] < 10 && (date[i] = '0' + date[i]);
+							}
+							// 备用情况
+							if (!!$html.data('parentFlag')) {
+								var childCountdownFormat = $html.data('childCountdownFormat'), _fg = false, dataPh = date, time = '';
+								if (childCountdownFormat.indexOf(d) != -1) {
+									_fg = true;
+									time = dataPh.d;
+								} else if (childCountdownFormat.indexOf(h) != -1) {
+									!!(dataPh.d - 0) ? (dataPh.h = dataPh.d * 24 + dataPh.h) : (_fg = true);
+									time = dataPh.h;
+								} else if (childCountdownFormat.indexOf(m) != -1) {
+									!!(dataPh.h - 0) ? (dataPh.m = dataPh.d * 60 + dataPh.m) : (_fg = true);
+									time = dataPh.m;
+								} else if (childCountdownFormat.indexOf(s) != -1) {
+									!!(dataPh.m - 0) ? (dataPh.s = dataPh.d * 24 + dataPh.h) : (_fg = true);
+									time = dataPh.s;
+								}
+								if (_fg) {
+									$html.find(img).src($html.data('$html')).end()
+										.find('.__TIME_PH').html(time).end()
+										.find('.__TIME_D,.__TIME_H,.__TIME_M,.__TIME_S').html('');
+									return;
+								}
+							}
+							// 普通情况
+							// 天
+							var _length = countdownFormat.split('d').length-1, _thisHtml = $html.find('.__TIME_D')
+							if (!!_length) {
+								_length > 1 ? (_thisHtml.html(date.d)) : (_thisHtml.html(date.d - 0));
+							} else {
+								// 没有天 
+								_thisHtml.html('');
+								date.h = date.d * 24 + date.h
+							}
+							// 时
+							_length = countdownFormat.split('h').length-1, _thisHtml = $html.find('.__TIME_H')
+							if (!!_length) {
+								_length > 1 ? (_thisHtml.html(date.h)) : (_thisHtml.html(date.h - 0));
+							} else {
+								// 没有时
+								_thisHtml.html('');
+								date.m = date.h * 60 + date.m
+							}
+							// 分
+							_length = countdownFormat.split('m').length-1, _thisHtml = $html.find('.__TIME_M')
+							if (!!_length) {
+								_length > 1 ? (_thisHtml.html(date.m)) : (_thisHtml.html(date.m - 0));
+							} else {
+								// 没有分
+								_thisHtml.html('');
+								date.s = date.m * 60 + date.s
+							}
+							// 秒
+							_length = countdownFormat.split('s').length-1, _thisHtml = $html.find('.__TIME_S')
+							if (!!_length) {
+								_length > 1 ? (_thisHtml.html(date.s)) : (_thisHtml.html(date.s - 0));
+							} else {
+								// 没有天 
+								_thisHtml.html('');
+							}
+						}
+					})
+				}
+			},
+			/**
+			 * 时时获取当前时间戳
+			 * 时时获取
+			 */
+			timer: function (time, fun) {
+				var _t = this,
+					_time = null,
+					_obj = {},
+					_index = 0;
+				// 设置 obj 时间  
+				_obj[fun ? time : _index++] = fun || time;
+				// 重置 timer 事件
+				_t.timer = function (time, fun) {
+					if (time in _obj) {
+						!$.isArray(_obj[time]) && (_obj[time] = [_obj])
+						_obj[time].push(fun);
+					} else {
+						_obj[fun ? time : _index++] = fun || time;
+					}
+					!_time && func();
+				}
+				// 删除timer
+				_t.rmtimer = function (fun) {
+					if ($.isFunction(fun)) {
+						$.each(_obj, function (i) {
+							if ($.isArray(_obj[i])) {
+								$.each(_obj[i], function (index, item) {
+									_obj[i][index] == fun && delete _obj[i][fun];
+								})
+							} else {
+								_obj[i] == fun && delete _obj[i];
+							}
+						});
+					} else {
+						delete _obj[fun];
+					}
+					if ($.isEmptyObject(_obj)) {
+						clearTimeout(_time);
+						_time = null;
+					}
+				}
+				func();
+				function func() {
+					_time && (clearTimeout(_time), _time = null);
+					$.each(_obj, function (i, n) {
+						if (n) {
+							if ($.isArray(n)) {
+								$.each(n, function (j, m) {
+									m && m.call(null, +new Date(), i);
+								});
+							} else {
+								n.call(null, +new Date(), i);
+							}
+						}
+					});
+					!$.isEmptyObject(_obj) && (_time = setTimeout(func, 1000));
+				}
+			},
+			/**
+			 * ajax通用方法
+			 * @param {*} url 
+			 * @param {*} params 
+			 * @param {*} call 
+			 * @param {*} eCall 
+			 */
+			ajaxFn: function (url, params, call, eCall, error) {
+				var _t = this;
+				$.ajax({
+					url: url,
+					type: "POST",
+					data: params,
+					dataType: 'jsonp',
+					jsonp: 'callback',
+					complete: function (params, status) {
+						var ajaxStatus = status;
+						if (ajaxStatus == "timeout" && error != 'error') {// 接口请求完成后的状态status  "success","error", "timeout",
+							_t.errorFn(location.href, 'E1001', "请求超时");
+						}
+					},
+					success: function (data) {
+						var decObj = decodeURIComponent(escape(window.atob(data.obj)));
+						data.obj = JSON.parse(decObj);
+						typeof data == 'string' && (data = decodeURIComponent(data));
+						call && call(typeof data == 'object' ? data : JSON.parse(data));
+						if (data.obj.advList == "" && error != 'error' || data.obj == "" && error != 'error') {
+							_t.errorFn(location.href, 'E1004', "请求成功返回数据对象为空");
+						}
+					},
+					error: function (jqXHR, textStatus, errorThrown) {
+						eCall && eCall();
+						var edata = {};
+						edata.mark = jqXHR.status + '==' + textStatus + '==' + errorThrown;   //对应状态码的错误信息 + 服务器抛出返回的错误信息
+						if (jqXHR.status != 200 && error != 'error' || textStatus == "parsererror" && error != 'error') {
+							_t.errorFn(location.href, 'E1005', edata.mark);
+						}
+					} 
+				})
+			},
+		/**
+		 * 预览接口ajax通用方法
+		 * @param {*} url 
+		 * @param {*} params 
+		 * @param {*} call 
+		 * @param {*} eCall 
+		 */
+			ajaxFnPre: function (url, params, call, eCall, error) {
+				var _t = this;
+				$.ajax({
+					url: url,
+					type: "POST",
+					data: params,
+					dataType: 'jsonp',
+					jsonp: 'callback',
+					complete: function (params, status) {
+						var ajaxStatus = status;
+						if (ajaxStatus == "timeout" && error != 'error') {// 接口请求完成后的状态status  "success","error", "timeout",
+							_t.errorFn(location.href, 'E1001', "请求超时");
+						}
+					},
+					success: function (data) {
+						typeof data == 'string' && (data = decodeURIComponent(data));
+						call && call(typeof data == 'object' ? data : JSON.parse(data));
+						if (data.obj.advList == "" && error != 'error' || data.obj == "" && error != 'error') {
+							_t.errorFn(location.href, 'E1004', "请求成功返回数据对象为空");
+						}
+					},
+					error: function (jqXHR, textStatus, errorThrown) {
+						eCall && eCall();
+						var edata = {};
+						edata.mark = jqXHR.status + '==' + textStatus + '==' + errorThrown;   //对应状态码的错误信息 + 服务器抛出返回的错误信息
+						if (jqXHR.status != 200 && error != 'error' || textStatus == "parsererror" && error != 'error') {
+							_t.errorFn(location.href, 'E1005', edata.mark);
+						}
+					}
+				})
+			},
+			/**
+			 * 
+			 * @returns  当前时间戳
+			 */
+			getTime: function () {
+				return Math.round((+new Date()) / 1000);
+			},
+			/**
+			 * MD5 加密数据
+			 * @param {*} data 
+			 * @returns 
+			 */
+			md5Data: function (data) {
+				delete data.timeStamp;
+				delete data.sign;
+				var arr = [],
+					str = '';
+				for (var i in data) { //遍历key
+					arr.push(i);
+				}
+				$.each(arr.sort(),function(i,item){ //先排序，在遍历
+					str += data[arr[i]];
+				});
+				data.timeStamp = this.getTime(); //时间 s
+				str += data.timeStamp;
+				data.key = "Ei@bc_da";
+				str += data.key;
+				data.sign = $.md5(str); //sign
+				delete data.key;
+				return data;
+			},
+		};
+	_W.resCode = resCode;
+	resCode.init();
+}(window))
+
+</script>
+
+</body>
+</html>

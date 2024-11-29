@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>carnival.tracking.coreweb.html</title>
+</head>
+<body>
+
+<script>
+"use strict";
+Carnival.Tracking.Core = Carnival.Tracking.Core || (function (tracking) {
+    var ta = tracking.TrackableAction;//shortcut
+    return {
+        headerCountrySelected: function(domElem, selectedCountry) {
+            new ta()
+                .domElem(domElem)
+                .name(": Country Selector", true)
+                .prop("header_country_selection", selectedCountry)
+                .fire();
+        },
+        headerPopularSearchLinkClicked: function (domElem, keyword) {
+            new ta()
+                .domElem(domElem)
+                .name(": Popular Searches", true)
+                .prop("search_keyword", keyword)
+                .fire();
+        },
+        headerSearchSubmitted: function(domElem, keyword) {
+            new ta()
+                .domElem(domElem)
+                .name(": Search", true)
+                .prop("search_keyword", keyword)
+                .fire();
+        },
+        signupFormSubmitted: function (domElem, source, emailAddress) {
+            new ta()
+                .domElem(domElem)
+                .name("Email Quick Signup")
+                .prop("registered_email_address_source", source)
+                .prop("registered_email_address", emailAddress)
+                .scEvents("event20")
+                .fire();
+        },
+        learnMapPortClicked: function(domElem, portName) {
+            new ta()
+                .domElem(domElem)
+                .name("Map port: " + portName, true)
+                .fire();
+        },
+        learnSocialChannelClicked: function(domElem, socialChannel) {
+            new ta()
+                .domElem(domElem)
+                .name("Social channel: " + socialChannel, true)
+                .fire();
+        },
+        learnExpirienceClicked: function(domElem, expirience) {
+            new ta()
+                .domElem(domElem)
+                .name(expirience, true)
+                .prop("expirience", expirience)
+                .fire();
+        },
+        learnMapDestinations: function(domElem, destinationName) {
+            new ta()
+                .domElem(domElem)
+                .name(destinationName, true)
+                .fire();
+        },
+        vacationCustomizerShareTrip: function(domElem, trip) {
+            new ta()
+                .domElem(domElem)
+                .name("Results Sharing", true)
+                .prop("vacation_customizer_share_trip", trip)
+                .fire();
+        },
+        vacationCustomizerDatesSelected: function(domElem, linkText, dates) {
+            new ta()
+                .domElem(domElem)
+                .name(linkText, true)
+                .prop("vacation_customizer_dates", dates)
+                .fire();
+        },
+        vacationCustomizerResultsOpened: function(domElem, dates) {
+            new ta()
+                .domElem(domElem)
+                .name(": Results Open View", true)
+                .fire();
+        },
+        vacationCustomizerSavedCruises: function(domElem, linkText) {
+            new ta()
+                .domElem(domElem)
+                .name(linkText, true)
+                .prop("page_section", "Vacation-Customizer: Saved Cruises")
+                .fire();
+        },
+        vacationCustomizerTypeSelected: function(domElem, vacationType) {
+            new ta()
+                .domElem(domElem)
+                .name(":Type of  Vacation", true)
+                .prop("vacation_customizer_type", vacationType)
+                .fire();
+        },
+        vacationCustomizerLengthSelected: function(domElem, length) {
+            new ta()
+                .domElem(domElem)
+                .name(":How Long", true)
+                .prop("vacation_customizer_length", length)
+                .fire();
+        },
+        shipDetailsTabClicked: function (domElem, linkText, shipCode) {
+            var value = shipCode + ":" + linkText;
+            new ta()
+                .domElem(domElem)
+                .name(value)
+                .prop("tabbed_content", value)
+                .fire();
+        },
+        faqQuestionClicked: function (domElem, question) {
+            new ta()
+                .domElem(domElem)
+                .name("[faq:" + question + "]")
+                .fire();
+        },
+        faqSearchExecuted: function(domElem, searchTerm, totalResults) {
+            new ta()
+                .domElem(domElem)
+                .name(": Search FAQ", true)
+                .prop("faq_search_term", searchTerm)
+                .prop("faq_search_total_results", totalResults)
+                .fire();
+        },
+        favoritesAddFavClicked: function (domElem, itinId) {
+            new ta()
+                .domElem(domElem)
+                .name(":Add to Favorites", true)
+                .prop("itin_id", itinId)
+                .fire();
+        },
+        itineraryTabSelected: function(domElem) {
+            new ta()
+                .domElem(domElem)
+                .name("-Tabs", true)
+                .prop("itinerary_tab_selected", "List View")
+                .fire();
+        },
+        loyaltySpecialOffersViewDetailsClicked: function(domElem) {
+            new ta()
+                .domElem(domElem)
+                .name(":view_special_offer_details", true)
+                .fire();
+        }
+    };
+})(Carnival.Tracking);
+
+$(function () {
+    if (!window.utag_data) {return;}
+    var pages = {
+        "___": $.noop,
+        
+        "ship-details": function (tracking) {
+            
+            //Onboard experiences, staterooms, deck plans links
+            $("#hero-nav li a").on("click", function () {
+                var navtxt = $(this).find("span").text(),
+                    shipCode = $("#hero-nav").attr("data-shipcode");
+
+                tracking.shipDetailsTabClicked(this, navtxt, shipCode);
+            });
+        },
+                
+        "faq": function(tracking, bus) {
+            
+            //question links
+            $(document).on("click", ".faq-title", function () {
+                var question = $(this).text().replace(/[\"'.]/g, ""); //replace ', ", and .
+
+                tracking.faqQuestionClicked(this, question);
+            });
+
+            function searchExecuted(data) {
+                tracking.faqSearchExecuted(document.getElementById("search-faq-btn"), data.searchTerm, data.totalResults);
+            }
+
+            bus.subscribe("faq-search-executed", searchExecuted);
+        },
+        
+        "itinerary-legacy": function() {
+            
+            //tabs
+            $("#tabs > ul > li > a[data-tag]").linkTracking();
+        },
+        
+        "specials": function() {
+            
+            //tabs
+            $("#tabs-home > ul > li > a[data-tag]").linkTracking();
+        },
+        
+        "itinerary": function (tracking) {
+            
+            //tabs
+            $("#list-view-tab").on("click", function () {
+                tracking.itineraryTabSelected(this);
+            });
+        },
+        
+        "SpecialOffers-0cc289f0-7494-473c-a671-1900439475a8": function(tracking) {
+            //loyalty specials offers page
+            $("#special-offers-container").on("click", "a.view-details", function (e) {
+                tracking.loyaltySpecialOffersViewDetailsClicked(this);
+                var href = this.href;
+                if (href !== "#") {
+                    e.preventDefault();
+
+                    //this timeout is needed to give time for the 
+                    //tag to reach its server before the page unloads
+                    setTimeout(function () {
+                        window.location.href = href;
+                    }, 0);
+                }
+            });
+        },
+
+        "Overview-58267d75-85ae-4812-90f8-421aa2f264f3": function (tracking) {
+            //loyalty overview page
+            $(document).on("click", ".faq-title", function () {
+                var question = $(this).text().replace(/[\"'.]/g, ""); //replace ', ", and .
+
+                tracking.faqQuestionClicked(this, question);
+            });
+        }
+    },        
+    currentPage = pages[window.utag_data["page_id"] || "___"] || $.noop,
+    tracking = Carnival.Tracking.Core;
+
+    currentPage(tracking, Carnival.Tracking.bus);
+});
+</script>
+
+</body>
+</html>

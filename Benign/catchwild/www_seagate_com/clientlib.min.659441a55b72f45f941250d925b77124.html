@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>clientlib.min.659441a55b72f45f941250d925b77124.html</title>
+</head>
+<body>
+
+<script>
+var cardLayoutFeaturedProductsNodeList = document.querySelectorAll(".CardLayoutFeaturedProductsWrapper");
+if (cardLayoutFeaturedProductsNodeList && cardLayoutFeaturedProductsNodeList.length > 0) {
+    var host = "";
+    if (document.location.hostname == "localhost") {
+        host = "https://wwwdevaem.seagate.com";
+    }
+    var solrURL = host + "/ww/solrQueryResponseRetrieval";
+    
+    var FeaturedProducts = (function () {
+        var featuredProducts = function (featuredProductsNode, featuredProductsData) {
+            var t = this;
+            console.log("----------Featured Products----------");
+            t.settings = featuredProductsData;
+
+            t.initElements(featuredProductsNode);
+
+            t.initSolrData();
+
+            if (t.settings.featuredProducts.length > 0) {
+                t.getSolrData(t.solrData, function (data) {
+                    console.log(data);
+                    t.buildCards(data);
+                });
+            }
+        };
+
+        featuredProducts.prototype.initElements = function (featuredProductsNode) {
+            var t = this;
+            t.cards = featuredProductsNode.querySelector(".CardLayoutFeaturedProducts-cards");
+            t.cardTemp = t.getTemplate(t.cards.querySelector(".CardLayoutFeaturedProducts-card.card--product"));
+            t.promoCard = t.cards.querySelector(".CardLayoutFeaturedProducts-card.card--promo");
+        };
+
+        featuredProducts.prototype.getSolrData = function (solrData, callback) {
+            console.log(solrData.toString());
+            fetch(solrURL, {
+                method: 'POST',
+                body: solrData
+            }).then(function (response) {
+                return response.json();
+            }).then(function (data) {
+                callback(data);
+            }).catch(function (error) {
+
+            });
+        };
+
+        featuredProducts.prototype.initSolrData = function () {
+            var t = this;
+            var rows = 4;
+            if (t.settings.maxItems && t.settings.maxItems != 0 && t.settings.maxItems <= 4) {
+                rows = t.settings.maxItems;
+            }
+            var collection = "pricing";
+            if (!t.settings.publish) {
+                collection = "products";
+            }
+            t.solrParams = {
+                brand: "(seagate or lacie)",
+                locale: t.settings.locale,
+                q: "*",
+                collection: collection,
+                wt: "json",
+                start: 0,
+                rows: rows,
+                fl: "ecomm_product_cf,url,pdpURL,imagePath,ecomm_gallery_alt,ecomm_productname,ecomm_low_price,ecomm_max_price,ecomm_currency,ecomm_discount,ecomm_final_price,ecomm_regular_price,capacity,capacityRawUom,capacityTransUom,ecomm_enabled,ecomm_low_price_sku,ecomm_currency_code"
+                    + ",promo_title,promo_color,promo_start_date,promo_end_date"
+            };
+            if (t.settings.orderBy != "default") {
+                var sort = "ecomm_productname";
+                if (t.settings.orderBy == "byDate") {
+                    sort = "releaseDate";
+                }
+                sort += " " + t.settings.sortOrder;
+                t.solrParams.sort = sort;
+            }
+            var fq = "ecomm_product_cf:";
+            if (t.settings.featuredProducts.length > 2) {
+                fq += "(";
+            }
+            for (var i=0; i<t.settings.featuredProducts.length; i=i+2) {
+                var featuredProduct = t.settings.featuredProducts[i];
+                if (i != 0) {
+                    fq += " OR ";
+                }
+                fq += '"' + featuredProduct + '"';
+            }
+            if (t.settings.featuredProducts.length > 2) {
+                fq += ")";
+            }
+            t.solrParams.fq = fq;
+            t.solrParams.fq += " AND showOnProductFinder:true";
+            t.solrData = this.toURLSearchParams(t.solrParams);
+        };
+
+        featuredProducts.prototype.toURLSearchParams = function (obj) {
+            var t = this;
+            var usps = new URLSearchParams();
+            for (const prop in obj) {
+                if (Object.hasOwn(obj, prop)) {
+                    var v = obj[prop];
+                    if (typeof(v) == "object" && Array.isArray(v)) {
+                        for (var i=0; i<v.length; i++) {
+                            usps.append(prop, v[i].replace(/\{lang\}/g, t.settings.lang));
+                        }
+                    } else {
+                        if (typeof(v) == "string") {
+                            v = v.replace(/\{lang\}/g, t.settings.lang);
+                        }
+                        usps.append(prop, v);
+                    }
+                }
+            }
+            return usps;
+        };
+
+        featuredProducts.prototype.getTemplate = function (node) {
+            var temp = node.cloneNode(true);
+            temp.classList.remove("hidden");
+            node.remove();
+            return temp;
+        };
+
+        featuredProducts.prototype.getCampaignName = function (productCF) {
+            var t = this;
+            var campaignName;
+            for (var i=0; i<t.settings.featuredProducts.length; i=i+2) {
+                var featuredProduct = t.settings.featuredProducts[i];
+                if (featuredProduct == productCF) {
+                    campaignName = "cdl_featured_products-" + (i/2+1) + "-" + (t.settings.featuredProducts[i+1] || "tbd") + "-" + t.settings.country;
+                }
+            }
+            return campaignName;
+        };
+
+        featuredProducts.prototype.buildCards = function (data) {
+            var t = this;
+            var docs = data.response.docs;
+            t.numFound = data.response.numFound;
+            var c = docs.length;
+            if (c > 4) {
+                c = 4;
+            }
+            for (var i=0; i<c; i++) {
+                var doc = docs[i];
+                var cardNode = t.cardTemp.cloneNode(true);
+                var pdpURL = doc.pdpURL;
+                if (doc.ecomm_low_price_sku && doc.ecomm_low_price_sku != "") {
+                    pdpURL += "?sku=" + doc.ecomm_low_price_sku;
+                }
+                
+                var dataItm = t.getCampaignName(doc.ecomm_product_cf);
+                cardNode.setAttribute("href", pdpURL);
+                cardNode.setAttribute("data-itm", dataItm);
+                cardNode.querySelector(".card-name").innerHTML = doc.ecomm_productname;
+                if (doc.imagePath) {
+                    cardNode.querySelector(".card-img img").setAttribute("src", host + doc.imagePath);
+                    if (doc.ecomm_gallery_alt && Array.isArray(doc.ecomm_gallery_alt) && doc.ecomm_gallery_alt.length > 0) {
+                        cardNode.querySelector(".card-img img").setAttribute("alt", doc.ecomm_gallery_alt[0]);
+                    } else {
+                        cardNode.querySelector(".card-img img").setAttribute("alt", "");
+                    }
+                } else {
+                    cardNode.querySelector(".card-img").remove();
+                }
+                if (doc.capacityTransUom) {
+                    cardNode.querySelector(".card-capacity .value").innerHTML = doc.capacityTransUom;
+                } else {
+                    cardNode.querySelector(".card-capacity").remove();
+                }
+                if (doc.ecomm_enabled && doc.ecomm_low_price && Array.isArray(doc.ecomm_low_price) && doc.ecomm_low_price.length > 0) {
+                    cardNode.querySelector(".card-price .value").innerHTML = t.getFormattedPrice(t.settings.lang, doc.ecomm_currency_code, doc.ecomm_low_price[0]); //doc.ecomm_currency + doc.ecomm_low_price[0];
+                    if (doc.ecomm_final_price && doc.ecomm_final_price.length <= 1) {
+                        cardNode.querySelector(".card-price .label").remove();
+                    }
+                } else {
+                    cardNode.querySelector(".card-price .label").remove();
+                }
+                if (doc.ecomm_enabled && doc.ecomm_discount && Array.isArray(doc.ecomm_discount) && doc.ecomm_discount.length > 0) {
+                    if (doc.ecomm_max_price && Array.isArray(doc.ecomm_max_price) && doc.ecomm_max_price.length > 0) {
+                        cardNode.querySelector(".card-discount .value").innerHTML = t.getFormattedPrice(t.settings.lang, doc.ecomm_currency_code, doc.ecomm_max_price[0]); //doc.ecomm_currency + doc.ecomm_max_price[0];
+                    }
+                    if (doc.ecomm_final_price && doc.ecomm_final_price.length <= 1) {
+                        cardNode.querySelector(".card-discount .label").remove();
+                    }
+                } else {
+                    cardNode.querySelector(".card-discount").remove();
+                }
+                // promo
+                var promoArray = [];
+                if (doc.promo_start_date && Array.isArray(doc.promo_start_date)) {
+                    for (var j=0; j<doc.promo_start_date.length; j++) {
+                        var promo = {
+                            startDate: doc.promo_start_date[j]
+                        };
+                        if (Array.isArray(doc.promo_end_date) && typeof(doc.promo_end_date[j]) != "undefined") {
+                            promo.endDate = doc.promo_end_date[j];
+                        }
+                        if (Array.isArray(doc.promo_title) && typeof(doc.promo_title[j]) != "undefined") {
+                            promo.title = doc.promo_title[j];
+                        }
+                        if (Array.isArray(doc.promo_color) && typeof(doc.promo_color[j]) != "undefined") {
+                            promo.color = doc.promo_color[j];
+                        }
+                        promoArray.push(promo);
+                    }
+                }
+                for (var promo of promoArray) {
+                    if (t.inPromoPeriod(promo.startDate, promo.endDate)) {
+                        if (promo.title) {
+                            var promoColorCss = "";
+                            if (promo.color) {
+                                promoColorCss = " tag--" + promo.color.toLowerCase();
+                            }
+                            cardNode.querySelector(".card-tagNames").innerHTML += '<div class="card-tagName' + promoColorCss + ' ">' + promo.title + '</div>';
+                        }
+                    }
+                }
+                if (t.promoCard) {
+                    t.promoCard.parentNode.insertBefore(cardNode, t.promoCard);
+                } else {
+                    t.cards.append(cardNode);
+                }
+            }
+        };
+
+        featuredProducts.prototype.getFormattedPrice = function (lang, currencyCode, price) {
+            var formatter = new Intl.NumberFormat(lang, {
+                style: 'currency',
+                currency: currencyCode,
+            });
+            var formattedPrice = formatter.format(price);
+            if ('fr' == lang && 'CAD' == currencyCode) {
+                formattedPrice = formattedPrice.replace('$CA','CA$');
+            }
+            return formattedPrice;
+        };
+
+        featuredProducts.prototype.inPromoPeriod = function (promoStartDate, promoEndDate) {
+            var t = this;
+            if (!t.settings.publish) {
+                return true;
+            }
+            if (promoStartDate && promoEndDate) {
+                var sd = Date.parse(promoStartDate);
+                var ed = Date.parse(promoEndDate);
+                var date = new Date();
+                var nd = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), date.getUTCHours(), date.getUTCMinutes(), date.getUTCSeconds());
+                if (sd <= nd && nd <= ed) {
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        return featuredProducts;
+    })();
+        
+    for (var i=0; i<cardLayoutFeaturedProductsNodeList.length; i++) {
+        var featuredProducts = new FeaturedProducts(cardLayoutFeaturedProductsNodeList[i], featuredProductsData[cardLayoutFeaturedProductsNodeList[i].id]);
+    }
+}
+</script>
+
+</body>
+</html>

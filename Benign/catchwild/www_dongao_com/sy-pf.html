@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>sy-pf.html</title>
+</head>
+<body>
+
+<script>
+$(function () {
+		var sypf = {
+			config: {
+				_URL: 'https://content.api.dongao.com',  // 接口域名
+                _CODE:'ad1090003,ad1090007'
+              // 
+			},
+            init:function(){
+                // 判断是否是预览
+                var _t = this,url = '/content/v4/content';
+                if( _t.urlParams.viewFlag == 'Y'  && ( _t.urlParams.viewAdvCode == 'ad1090003' ||  _t.urlParams.viewAdvCode == 'ad1090007' )){
+                    url = '/content/v2/preview';
+                }
+				// 调用皮肤
+				_t.ajaxFn(url,this.md5Data({
+					url: location.origin + location.pathname,
+					code: window.btoa(this.config._CODE)
+				}),function(data){
+					
+					if(data.obj.advList){
+						$.each(data.obj.advList,function(index,item){
+							var  _obj = item.materials && item.materials[0];
+							// 皮肤
+							if(item.advCode == 'ad1090003'){
+								_t.createPf(_obj);
+							}
+							// 弹窗广告
+							 if(item.advCode == 'ad1090007'){
+								_t.createIndexTips(_obj);
+							}
+						})
+
+					}
+				})
+            },
+			createIndexTips:function(_obj){
+				if(!_obj){ return  }
+				var item = $(`<div class="__index-show-tips-pop">
+				<style>
+				.__index-show-tips-pop{position:fixed;z-index:101;left: 0;top:0;width: 100%;height: 100%;display:none;}
+				.__index-show-tips-pop > .__index-show-tips-pop-mask{width:100%;height:100%;position:absolute;z-index:1;background:#000000;opacity:0.7;}
+				.__index-show-tips-pop > .__index-show-tips-pop-main{position:absolute;z-index:2;left:50%;top:50%;transform:translate(-50%,-50%);opacity: 0;}
+			   .__index-show-tips-pop > .__index-show-tips-pop-main .__index-show-tips-pop-close{position:absolute;top:20px;right:17px;z-index:3;width:49px;height:17px;border-radius:119px;background:rgba(10,1,1,0.5);font-size:10px;color:#fff;line-height:17px;text-align:center;}
+			   .__index-show-tips-pop > .__index-show-tips-pop-main img{display: block;width: 440px;}
+			   .__index-show-tips-pop > .__index-show-tips-pop-main.__show-index-tips-main{ animation: __index-show-tips-pop-zoomIn 1s ease forwards; }
+			   .__index-show-tips-pop > .__index-show-tips-pop-main.__hide-index-tips-main{ animation: __index-show-tips-pop-zoomOut 1s ease forwards;}
+			   @keyframes __index-show-tips-pop-zoomIn {
+				   from { opacity: 0;}
+				   50% { opacity: 0;transform: scale3d(.3,.3,.3);}
+				   to { opacity: 1;}
+			   }
+			   @keyframes __index-show-tips-pop-zoomOut {
+				   from { opacity: 1; }
+				   50% { opacity: 0; transform: scale3d(.3,.3,.3);}
+				   to { opacity: 0;}
+			   }
+				</style>
+				   <div class="__index-show-tips-pop-mask"></div>
+				   <div class="__index-show-tips-pop-main">
+					   <a href="${_obj.linkurl}" target="_blank">
+						   <img src="${_obj.imgUrl}" alt="">
+						   <span class="__index-show-tips-pop-close"><i>6</i>s 关闭</span>
+					   </a>
+				   </div>
+			   </div>`)
+			   var seIn;
+			   item.on({
+				click:function(){
+					item.find('.__index-show-tips-pop-main').addClass('__hide-index-tips-main');
+					item.css('left',0);
+					clearInterval(seIn);
+					item.remove();
+					// setTimeout(function(){
+					// },1000)
+					return false;
+				}
+			   },'.__index-show-tips-pop-close')
+			   $('body').prepend(item);
+
+			   item.find('img')[0].onload = function() {
+				item.find('.__index-show-tips-pop-main').addClass('__show-index-tips-main');
+				item.show();
+				seIn = setInterval(function () {
+					 var num = item.find('.__index-show-tips-pop-close > i').text() - 0 - 1;
+					 if(num <= 0 ){
+						 item.find('.__index-show-tips-pop-close').click();
+					 }else{
+						 item.find('.__index-show-tips-pop-close > i').text(num)
+					 }
+				 }, 1000);
+			   }
+			},
+			createPf:function(_obj){
+				if(!!_obj){
+					var _imgSrc = _obj.imgUrl;
+					var _href = _obj.linkurl;
+					var plana = $('<a></a>',{
+						class:'sy_top_ggt',
+						id:'sy_ad_pifu',
+						href:_href,
+						target:"_blank",
+						css:{
+							'width': '100%',
+							'min-width': '900px',
+							'margin': '0 auto',
+							'position': 'relative',
+							'height':  '130px',
+							'z-index': '2',
+							'overflow': 'hidden',
+							'display': 'block'
+						}
+
+					})
+					$('.da_gw_pf').find('.sy_top_ggt').remove().end().prepend(plana)
+					$('.da_gw_pf').css({
+						'background':'#fff url('+ _imgSrc +') no-repeat center top',
+						'background-size': '1920px auto'
+					})
+				}
+			},
+			/**
+			 * 获取页面URL 参数
+			 * return JSON 
+			 */
+			urlParams: function () {
+				var data = {}, url = location.search.slice(1);
+				if (url) {
+					url = url.split("&");
+					for (var n = 0; n < url.length; n++) {
+						var strArr = url[n].split("=");
+						data[strArr[0]] = decodeURIComponent(strArr[1])
+					}
+				}
+				return data;
+			}(),
+			/**
+			 * 报错返回接口
+			 */
+			errorFn: function (url, errCode, desc) {
+				var _t = this, errparams = {};
+				errparams.url = url;
+				errparams.errorCode = errCode;
+				errparams.description = desc;
+				// _t.ajaxFn(_t.config._URL + '/error/v1/saveErrorRecord', _t.md5Data(errparams),'','','error');
+			},
+			/**
+			 * ajax通用方法
+			 * @param {*} url 
+			 * @param {*} params 
+			 * @param {*} call 
+			 * @param {*} eCall 
+			 */
+			ajaxFn: function (url, params, call, eCall, error) {
+				var _t = this;
+				$.ajax({
+					url:_t.config._URL + url,
+					type: "POST",
+					data: params,
+					dataType: 'jsonp',
+					jsonp: 'callback',
+					complete: function (params, status) {
+						var ajaxStatus = status;
+						if (ajaxStatus == "timeout" && error != 'error') {// 接口请求完成后的状态status  "success","error", "timeout",
+							_t.errorFn(location.href, 'E1001', "请求超时");
+						}
+					},
+					success: function (data) {
+						var decObj = decodeURIComponent(escape(window.atob(data.obj)));
+						data.obj = JSON.parse(decObj);
+						typeof data == 'string' && (data = decodeURIComponent(data));
+						call && call(typeof data == 'object' ? data : JSON.parse(data));
+						if (data.obj.advList == "" && error != 'error' || data.obj == "" && error != 'error') {
+							_t.errorFn(location.href, 'E1004', "请求成功返回数据对象为空");
+						}
+					},
+					error: function (jqXHR, textStatus, errorThrown) {
+						eCall && eCall();
+						var edata = {};
+						edata.mark = jqXHR.status + '==' + textStatus + '==' + errorThrown;   //对应状态码的错误信息 + 服务器抛出返回的错误信息
+						if (jqXHR.status != 200 && error != 'error' || textStatus == "parsererror" && error != 'error') {
+							_t.errorFn(location.href, 'E1005', edata.mark);
+						}
+					} 
+				})
+			},
+			/**
+			 * 
+			 * @returns  当前时间戳
+			 */
+			getTime: function () {
+				return Math.round((+new Date()) / 1000);
+			},
+			/**
+			 * MD5 加密数据
+			 * @param {*} data 
+			 * @returns 
+			 */
+			md5Data: function (data) {
+				delete data.timeStamp;
+				delete data.sign;
+				var arr = [],
+					str = '';
+				for (var i in data) { //遍历key
+					arr.push(i);
+				}
+				$.each(arr.sort(),function(i,item){ //先排序，在遍历
+					str += data[arr[i]];
+				});
+				data.timeStamp = this.getTime(); //时间 s
+				str += data.timeStamp;
+				data.key = "Ei@bc_da";
+				str += data.key;
+				data.sign = $.md5(str); //sign
+				delete data.key;
+				return data;
+			}
+		}
+        sypf.init();
+}())
+
+</script>
+
+</body>
+</html>

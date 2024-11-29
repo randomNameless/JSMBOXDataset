@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>paylist.html</title>
+</head>
+<body>
+<script>$(function () {
+    
+
+    let static_url = $('#static_url').val()
+    let lang = $('#langval').val()
+    let langhref = lang == 'en' ? '' : lang
+    let langobj = PAY_LANG;
+    for (const k in langobj) {
+        $('.lang_'+k).html(langobj[k])
+    }
+    let users = localStorage.getItem('ACCESS_TOKEN_MD')
+    if(users != null && users != '' && users != undefined){
+        users = users.replace(/\%3D/g, "=").replace(/\%3d/g, "=").replace(/\%2F/g, "/").replace(/\%2f/g, "/").replace(/\%2b/g, '+')
+    }
+    if($('#get_package_url').length > 0){
+        let getpackurl = $('#get_package_url').val()
+        common.ajax_jsonp(getpackurl, {s: localStorage.getItem("ACCESS_TOKEN_MD")}, function (data) {
+            let arr = JSON.parse(data).ret_data
+            let html = ''
+            
+            for (let i = 0; i < arr.length; i++) {
+                let lihtml = ''
+                if(arr[i].type == 'week'){
+                    if(arr[i].can_pay){
+                        lihtml += `<div class="li li-week package-${arr[i].id} liType-${arr[i].pak_type}" data-id="${arr[i].id}" data-value="${arr[i].value}" data-price="${arr[i].price}" data-originprice="${arr[i].origin_price}">`
+                    }else{
+                        lihtml += `<div class="li li-week-no com-disabled package-${arr[i].id} liType-${arr[i].pak_type}" data-id="${arr[i].id}" data-value="${arr[i].value}" data-price="${arr[i].price}" data-originprice="${arr[i].origin_price}">`
+                    }
+                }else{
+                    if(arr[i].is_top == 1){
+                        lihtml += `<div class="li li1 package-${arr[i].id} liType-${arr[i].pak_type}" data-id="${arr[i].id}" data-value="${arr[i].value}" data-price="${arr[i].price}" data-originprice="${arr[i].origin_price}">`
+                    }else{
+                        lihtml += `<div class="li package-${arr[i].id} liType-${arr[i].pak_type}" data-id="${arr[i].id}" data-value="${arr[i].value}" data-price="${arr[i].price}" data-originprice="${arr[i].origin_price}">`
+                    }
+                }
+    
+                html += `${lihtml}
+                            ${arr[i].type == 'week' 
+                            ? `<div class="li-border"></div>
+                                <div class="top-jiaobiao2"><span>New User</span></div>` 
+                            : ``}
+                            ${arr[i].discount_desc == ''
+                            ? ``
+                            : `<div class="top-jiaobiao1" data-oasnief="${arr[i].is_top}"><span>${langobj.navjb}</span>&nbsp;${arr[i].discount_desc}</div>`}
+                            ${arr[i].is_top == 1
+                            ? `<div class="top-jiaobiao">Most Popular</div>
+                                <div class="li-border">
+                                    <div class="zan">
+                                        <img src="${static_url}/index/img/zan.svg" alt="zan">
+                                        <span>${langobj.paytoptxt}</span>
+                                    </div>
+                                </div>`
+                            : ``}
+                            <div class="li-cont">
+                                <div class="pay-name-box">
+                                    <div class="pay-name">${arr[i].name}</div>
+                                </div>
+                                <div class="pay-mony-box">
+                                    <div class="pay-mony">
+                                        ${arr[i].type == 'week'
+                                        ? `<p>USD &nbsp;<span>${arr[i].unit}</span>/WEEK</p>`
+                                        : `<p>USD &nbsp;<span>${arr[i].unit}</span>/MO</p>`}
+                                    </div>
+                                </div>
+                                <div class="pay-li-fot">
+                                    <div class="check">
+                                        <div class="quan"></div>
+                                    </div>
+                                    <div class="f-txt txt1"><span><span>${langobj.total}</span>:</span> ${arr[i].price} <b>${arr[i].origin_price}</b></div>
+                                </div>
+                            </div>
+                        </div>`
+            }
+            $('.payList').html(html)
+            $('.pay-list').find('.li').eq(1).click()
+        });
+    }
+    if($('#pay_ip_url').length > 0){
+        let payipurl = $('#pay_ip_url').val()
+        common.ajax_jsonp(payipurl, {s: localStorage.getItem("ACCESS_TOKEN_MD")}, function (data) {
+            let arr_nor = JSON.parse(data).ret_data.normal;
+            let arr_nor_six = JSON.parse(data).ret_data.normal_six;
+            let arr_nor_day = JSON.parse(data).ret_data.normal_dat;
+            let arr_nor_time = JSON.parse(data).ret_data.normal_time ?? [];
+            let arr_normal_big = JSON.parse(data).ret_data.normal_big;
+            let arr_normal_flow = JSON.parse(data).ret_data.normal_flow;
+            let html1 = ''
+            let html2 = ''
+            let html3 = ''
+            let html4 = ''
+            let html5 = ''
+            let html8 = ''
+            for (let i = 0; i < arr_normal_flow.length; i++) {
+                if(i==5){
+                    html8=arr_normal_flow[i].unit
+                }
+            }
+            $('.header_pic8').html(html8)
+            for (let i = 0; i < arr_nor.length; i++) {
+                let savehtml = ''
+                let ippayhtml = ''
+                let payname = arr_nor[i].gift > 0 ? `${arr_nor[i].gift > 0 ? `<div class="pay-name">${arr_nor[i].value}<span>+${arr_nor[i].gift}IPs</span></div>` :``}` : `<div class="pay-name">${arr_nor[i].name}</div>`
+
+                ippayhtml += arr_nor[i].stand_out == 1 ? `<div class="istop"></div>`:''
+                if(arr_nor[i].stand_out == 1){
+                    $('.header_pic1').html(0.05)
+                }
+                if(arr_nor[i].is_top == 1){
+                    if(arr_nor[i].desc != ''){
+                        savehtml = '<div class="pay-ipsave desc-txt"><div class="istopjb">'+arr_nor[i].desc+'</div></div>'
+                    }
+                    if(arr_nor[i].discount_desc != ''){
+
+                        savehtml = '<div class="pay-ipsave"><div class="istopjb">$720&nbsp;<span>OFF</span></div></div>'
+                    }
+                    if(arr_nor[i].gift !== 0){
+                        // savehtml = '<div class="pay-ipsave">'+arr_nor[i].discount_desc+'% &nbsp;<span>OFF</span></div>'
+                        // savehtml = `<div class="pay-ipsave">
+                        //                 <div class="p1">OLD USER</div>
+                        //                 <div class="p2">${arr_nor[i].discount_desc} <div class="off">% <br> OFF</div></div>
+                        //             </div>`
+                        payname = `<div class="pay-name">${arr_nor[i].value}<span style="color:#FF602D">+${arr_nor[i].gift}IPs</span></div>`
+                    }
+                }else{
+                    // if(arr_nor[i].gift > 0){
+                    //     savehtml = '<div class="pay-ipsave">+'+arr_nor[i].gift+' <div class="off">IPs</div></div>'
+                    // }
+                    if(arr_nor[i].desc != ''){
+                        savehtml = '<div class="pay-ipsave">'+arr_nor[i].desc+'</div>'
+                    }
+                    if(arr_nor[i].discount_desc != ''){
+                        savehtml = `<div class="pay-ipsave">${arr_nor[i].stand_out != 1 ? `${arr_nor[i].discount_desc}% OFF` : ''}</div>`
+                    }
+                }
+                html1 += `<div class="li package-${arr_nor[i].id} liType-${arr_nor[i].pak_type} ${arr_nor[i].is_top == 1 ? 'istop istop_cj' :''} ${arr_nor[i].stand_out == 1 ? 'stand_out' :''}" data-id="${arr_nor[i].id}" data-value="${arr_nor[i].value}" data-price="${(arr_nor[i].activity_price == null || arr_nor[i].activity_price == 0 ) ?  arr_nor[i].price : arr_nor[i].activity_price}" data-originprice="${arr_nor[i].origin_price}">
+                            ${ippayhtml}
+                            ${savehtml}
+                            <div class="li-cont">
+                                <div class="pay-name-box">
+                                    ${payname}
+                                </div>
+                                <div class="coupon_bottom_wrap">Coupons are available</div>
+                                <div class="pay-mony-box">
+                                    <div class="pay-mony">
+                                        ${arr_nor[i].stand_out == 1 ? `<p><span class="span1">$</span><span class="span2">0</span><span class="span3">${(arr_nor[i].unit*1)}</span><span class="span4">/IP</span></p>`: 
+                                        `<p><span>$${(arr_nor[i].unit*1)}</span>/IP</p>`}
+                                    </div>
+                                </div>
+                                ${arr_nor[i].origin_unit > 0 ? `<div class="pay-orginprc">$${(arr_nor[i].origin_unit*1)}/IP</div>`: ``}
+                                <div class="pay-li-fot">
+                                    <div class="check">
+                                        <div class="quan"></div>
+                                    </div>
+                                    <div class="f-txt txt1"><span><span>${langobj.total}</span>:</span> <span class="rtxt">$${(arr_nor[i].activity_price == null || arr_nor[i].activity_price == 0 )?  (arr_nor[i].price*1) : (arr_nor[i].activity_price*1)}</span> ${arr_nor[i].origin_price != 0 ? `<span class="dtxt">$${(arr_nor[i].origin_price*1)}</span>` : ``}</div>
+                                </div>
+                            </div>
+                        </div>
+                        <input id="${arr_nor[i].id}-money" type="hidden" value="${arr_nor[i].price}">
+                        <input id="${arr_nor[i].id}-show_money" type="hidden" value="${arr_nor[i].price}">
+                        <input id="${arr_nor[i].id}-activityprice" type="hidden" value="${arr_nor[i].activity_price}">
+                        <input id="${arr_nor[i].id}-name" type="hidden" value="${arr_nor[i].name}">
+                        <input id="${arr_nor[i].id}-unit_price" type="hidden" value="${arr_nor[i].unit}">
+                        <input id="${arr_nor[i].id}-coupon-id" type="hidden" value="0">
+                        <input id="${arr_nor[i].id}-coupon-type" type="hidden" value="1">
+                        <input id="${arr_nor[i].id}-original-money" type="hidden" value="${arr_nor[i].origin_unit}">
+                        <input id="${arr_nor[i].id}-payValue" type="hidden" value="${arr_nor[i].value}">
+                        <input id="${arr_nor[i].id}-PakType" type="hidden" value="${arr_nor[i].pak_type}">
+                        <input id="${arr_nor[i].id}-Type" type="hidden" value="">
+                        <input id="${arr_nor[i].id}-save" type="hidden" value="${arr_nor[i].discount_desc}">
+                        <input id="${arr_nor[i].id}-gift" type="hidden" value="${arr_nor[i].gift}">
+                        <input id="${arr_nor[i].id}-desc" type="hidden" value="${arr_nor[i].desc}">`
+            }
+            for (let i = 0; i < arr_nor_six.length; i++) {
+                let savehtml = ''
+                if(arr_nor_six[i].is_top == 1){
+                    if(arr_nor_six[i].desc != ''){
+                        savehtml = '<div class="pay-ipsave desc-txt"><div class="istopjb">'+arr_nor_six[i].desc+'</div></div>'
+                    }
+                    if(arr_nor_six[i].discount_desc != ''){
+                        // savehtml = `<div class="pay-ipsave">
+                        //                 <div class="p1">Discount</div>
+                        //                 <div class="p2">${arr_nor_six[i].discount_desc} <div class="off">% <br> OFF</div></div>
+                        //             </div>`
+                        savehtml = '<div class="pay-ipsave"><div class="istopjb">'+arr_nor_six[i].discount_desc+'% &nbsp;<span>OFF</span></div></div>'
+                    }
+                    if(arr_nor_six[i].gift !== 0){
+                        // savehtml = `<div class="pay-ipsave">
+                        //                 <div class="p1">Discount</div>
+                        //                 <div class="p2">${arr_nor_six[i].discount_desc} <div class="off">% <br> OFF</div></div>
+                        //             </div>`
+                        // savehtml = '<div class="pay-ipsave">'+arr_nor_six[i].discount_desc+'% &nbsp;<span>OFF</span></div>'
+                    }
+                    
+                }else{
+                    if(arr_nor_six[i].gift > 0){
+                        savehtml = '<div class="pay-ipsave">+'+arr_nor_six[i].gift+' <div class="off">IPs</div></div>'
+                    }
+                    if(arr_nor_six[i].desc != ''){
+                        savehtml = '<div class="pay-ipsave">'+arr_nor_six[i].desc+'</div>'
+                    }
+                    if(arr_nor_six[i].discount_desc != ''){
+                        savehtml = '<div class="pay-ipsave">'+arr_nor_six[i].discount_desc+'% &nbsp;<span>OFF</span></div>'
+                    }
+                }
+                html2 += `<div class="li package-${arr_nor_six[i].id} liType-${arr_nor_six[i].pak_type} ${arr_nor_six[i].is_top == 1 ? 'istop istop_cj' :''} ${arr_nor_six[i].stand_out == 1 ? 'stand_out' :''}" data-id="${arr_nor_six[i].id}" data-value="${arr_nor_six[i].value}" data-price="${(arr_nor_six[i].activity_price == null || arr_nor_six[i].activity_price == 0 ) ?  arr_nor_six[i].price : arr_nor_six[i].activity_price}" data-originprice="${arr_nor_six[i].origin_price}">
+                            ${savehtml}
+                            <div class="li-cont">
+                                <div class="pay-name-box">
+                                    <div class="pay-name">${arr_nor_six[i].name}</div>
+                                </div>
+                                <div class="pay-mony-box">
+                                    <div class="pay-mony">
+                                        <p><span>$${(arr_nor_six[i].unit*1)}</span>/IP</p>
+                                    </div>
+                                </div>
+                                ${arr_nor_six[i].origin_unit > 0 ? `<div class="pay-orginprc">$${(arr_nor_six[i].origin_unit*1)}/IP</div>`: ``}
+                                <div class="pay-li-fot">
+                                    <div class="check">
+                                        <div class="quan"></div>
+                                    </div>
+                                    <div class="f-txt txt1"><span><span>${langobj.total}</span>:</span> <span class="rtxt">$${(arr_nor_six[i].activity_price == null || arr_nor_six[i].activity_price == 0 ) ?  (arr_nor_six[i].price*1) : (arr_nor_six[i].activity_price*1)}</span> ${arr_nor_six[i].origin_price != 0 ? `<span class="dtxt">$${(arr_nor_six[i].origin_price*1)}</span>` : ``}</div>
+                                </div>
+                            </div>
+                        </div>
+                        <input id="${arr_nor_six[i].id}-money" type="hidden" value="${arr_nor_six[i].price}">
+                        <input id="${arr_nor_six[i].id}-show_money" type="hidden" value="${arr_nor_six[i].price}">
+                        <input id="${arr_nor_six[i].id}-activityprice" type="hidden" value="${arr_nor_six[i].activity_price}">
+                        <input id="${arr_nor_six[i].id}-name" type="hidden" value="${arr_nor_six[i].name}">
+                        <input id="${arr_nor_six[i].id}-unit_price" type="hidden" value="${arr_nor_six[i].unit}">
+                        <input id="${arr_nor_six[i].id}-coupon-id" type="hidden" value="0">
+                        <input id="${arr_nor_six[i].id}-coupon-type" type="hidden" value="1">
+                        <input id="${arr_nor_six[i].id}-original-money" type="hidden" value="${arr_nor_six[i].origin_unit}">
+                        <input id="${arr_nor_six[i].id}-payValue" type="hidden" value="${arr_nor_six[i].value}">
+                        <input id="${arr_nor_six[i].id}-PakType" type="hidden" value="${arr_nor_six[i].pak_type}">
+                        <input id="${arr_nor_six[i].id}-Type" type="hidden" value="">
+                        <input id="${arr_nor_six[i].id}-save" type="hidden" value="${arr_nor_six[i].discount_desc}">
+                        <input id="${arr_nor_six[i].id}-gift" type="hidden" value="${arr_nor_six[i].gift}">
+                        <input id="${arr_nor_six[i].id}-desc" type="hidden" value="${arr_nor_six[i].desc}">`
+            }
+            for (let i = 0; i < arr_nor_day.length; i++) {
+                let savehtml = ''
+                let ippayhtml = ''
+                ippayhtml += arr_nor[i].stand_out == 1 ? `<div class="istop"></div>`:''
+                if(arr_nor_day[i].desc != ''){
+                    savehtml = '<div class="pay-ipsave"><div class="istopjb">'+arr_nor_day[i].desc+'</div></div>'
+                }
+                if(arr_nor_day[i].discount_desc != ''){
+                    savehtml = '<div class="pay-ipsave"></div>'
+                }
+                html3 += `<div class="li package-${arr_nor_day[i].id} liType-${arr_nor_day[i].pak_type} ${arr_nor_day[i].is_top == 1 ? 'istop  istop_cj' :''} ${arr_nor_six[i].stand_out == 1 ? 'stand_out' :''}" data-id="${arr_nor_day[i].id}" data-value="${arr_nor_day[i].value}" data-price="${(arr_nor_day[i].activity_price == null || arr_nor_day[i].activity_price == 0 ) ?  arr_nor_day[i].price : arr_nor_day[i].activity_price}" data-originprice="${arr_nor_day[i].origin_price}">
+                            <div class="coupon_bottom_wrap">Coupons are available</div>
+                            ${ippayhtml}
+                            ${savehtml}
+                            <div class="li-cont">
+                                <div class="pay-name-box">
+                                    <div class="pay-name">${arr_nor_day[i].name}</div>
+                                </div>
+                                <div class="pay-mony-box">
+                                    <div class="pay-mony">
+                                        ${arr_nor_day[i].stand_out == 1 ? `<p><span class="span1">$</span><span class="span2">0</span><span class="span3">${(arr_nor_day[i].unit*1)}</span><span class="span4">/IP</span></p>`: 
+                                            `<p><span>$${(arr_nor_day[i].unit*1)}</span>/IP</p>`}
+                                    </div>
+                                </div>
+                                ${arr_nor_day[i].origin_unit > 0 ? `<div class="pay-orginprc">$${(arr_nor_day[i].origin_unit*1)}/IP</div>`: ``}
+                                <div class="pay-li-fot">
+                                    <div class="check">
+                                        <div class="quan"></div>
+                                    </div>
+                                    <div class="f-txt txt1"><span><span>${langobj.total}</span>:</span> <span class="rtxt">$${(arr_nor_day[i].activity_price == null || arr_nor_day[i].activity_price == 0 ) ?  (arr_nor_day[i].price*1) : (arr_nor_day[i].activity_price*1)}</span> ${arr_nor_day[i].origin_price != 0 ? `<span class="dtxt">$${(arr_nor_day[i].origin_price*1)}</span>` : ``}</div>
+                                </div>
+                            </div>
+                        </div>
+                        <input id="${arr_nor_day[i].id}-money" type="hidden" value="${arr_nor_day[i].price}">
+                        <input id="${arr_nor_day[i].id}-show_money" type="hidden" value="${arr_nor_day[i].price}">
+                        <input id="${arr_nor_day[i].id}-activityprice" type="hidden" value="${arr_nor_day[i].activity_price}">
+                        <input id="${arr_nor_day[i].id}-name" type="hidden" value="${arr_nor_day[i].name}">
+                        <input id="${arr_nor_day[i].id}-unit_price" type="hidden" value="${arr_nor_day[i].unit}">
+                        <input id="${arr_nor_day[i].id}-coupon-id" type="hidden" value="0">
+                        <input id="${arr_nor_day[i].id}-coupon-type" type="hidden" value="1">
+                        <input id="${arr_nor_day[i].id}-original-money" type="hidden" value="${arr_nor_day[i].origin_unit}">
+                        <input id="${arr_nor_day[i].id}-payValue" type="hidden" value="${arr_nor_day[i].value}">
+                        <input id="${arr_nor_day[i].id}-PakType" type="hidden" value="${arr_nor_day[i].pak_type}">
+                        <input id="${arr_nor_day[i].id}-Type" type="hidden" value="">
+                        <input id="${arr_nor_day[i].id}-save" type="hidden" value="${arr_nor_day[i].discount_desc}">
+                        <input id="${arr_nor_day[i].id}-gift" type="hidden" value="${arr_nor_day[i].gift}">
+                        <input id="${arr_nor_day[i].id}-desc" type="hidden" value="${arr_nor_day[i].desc}">`
+            }
+            for (let i = 0; i < arr_nor_time.length; i++) {
+                html4 += `<div class="li-unlimit-box">
+                            <div class="liunlimit-l">
+                                <h4>${langobj.paybest_h4}</h4>
+                                <h5>${langobj.paybest_h5}</h5>
+                                <div class="best-ul">
+                                    <div class="best-li">
+                                        <img src="${static_url}/index/img/pay/best_ip1.png" width="40" alt="best1">
+                                        <p class="lang_paybest_ip1">${langobj.paybest_ip1}</p>
+                                    </div>
+                                    <div class="best-li">
+                                        <img src="${static_url}/index/img/pay/best_ip2.png" width="40" alt="best1">
+                                        <p class="lang_paybest_ip2">${langobj.paybest_ip2}</p>
+                                    </div>
+                                    <div class="best-li">
+                                        <img src="${static_url}/index/img/pay/best_ip3.png" width="40" alt="best1">
+                                        <p class="lang_paybest_ip3">${langobj.paybest_ip3}</p>
+                                    </div>
+                                    <div class="best-li">
+                                        <img src="${static_url}/index/img/pay/best_ip4.png" width="40" alt="best1">
+                                        <p class="lang_paybest_ip4">${langobj.paybest_ip4}</p>
+                                    </div>
+                                    <div class="best-li">
+                                        <img src="${static_url}/index/img/pay/best_ip5.png" width="40" alt="best1">
+                                        <p class="lang_paybest_ip5">${langobj.paybest_ip5}</p>
+                                    </div>
+                                    <div class="best-li">
+                                        <img src="${static_url}/index/img/pay/best_ip6.png" width="40" alt="best1">
+                                        <p class="lang_paybest_ip6">${langobj.paybest_ip6}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="liunlimit-r">
+                                <div class="cont unlimitLi package-${arr_nor_time[i].id}" data-id="${arr_nor_time[i].id}" data-value="${arr_nor_time[i].value}" data-price="${arr_nor_time[i].price}" data-originprice="${arr_nor_time[i].origin_price}">
+                                    ${arr_nor_time[i].discount_desc == '' ? `` 
+                                    : `<div class="pay-ipsave">
+                                        <div class="txt">
+                                            ${arr_nor_time[i].discount_desc}% &nbsp;<span>OFF</span>
+                                        </div>
+                                    </div>`}
+                                    <div class="name">${arr_nor_time[i].name}</div>
+                                    <div class="pic">
+                                        <p>$${arr_nor_time[i].price}</p><b>/Week</b>
+                                        ${arr_nor_time[i].origin_price == 0 ? `` : `<div class="old">$${arr_nor_time[i].origin_price}</div>`}
+                                    </div>
+                                    <div class="unlimit-ul">
+                                        <div class="unli-li">
+                                            <img src="${static_url}/index/img/pay/icon_click1.svg" alt="best1">
+                                            <p>${langobj.unlimili1}</p>
+                                        </div>
+                                        <div class="unli-li">
+                                            <img src="${static_url}/index/img/pay/icon_click1.svg" alt="best1">
+                                            <p>${langobj.unlimili2}</p>
+                                        </div>
+                                        <div class="unli-li">
+                                            <img src="${static_url}/index/img/pay/icon_click1.svg" alt="best1">
+                                            <p>${langobj.unlimili3}</p>
+                                        </div>
+                                    </div>
+                                    <a href="${$('#ipchangerPayUrl').val() + '/'+langhref}?paynavVal=4" target="_blank" class="ipchanger-btn">Buy Now</a>
+                                    <div class="b-type">
+                                        <div class="type-box">
+                                            <img src="${static_url}/index/img/pay/paytype_visa.svg" alt="visa">
+                                            <img src="${static_url}/index/img/pay/paytype_mastercard.svg" alt="mastercard">
+                                            <img src="${static_url}/index/img/pay/paytype_unionpay.svg" alt="unionpay">
+                                            <img src="${static_url}/index/img/pay/paytype_alipay.svg" alt="alipay">
+                                            <img src="${static_url}/index/img/pay/paytype_TRX26.svg" style="width: 24px;" alt="visa">
+                                            <img src="${static_url}/index/img/pay/paytype_virtual1.png" style="width: 24px;" alt="visa">
+                                            <img src="${static_url}/index/img/pay/paytype_virtual10.png" style="width: 24px;" alt="visa">
+                                            <img src="${static_url}/index/img/pay/paytype_iospay.svg" alt="iospay">
+                                            <img src="${static_url}/index/img/pay/paytype_googlepay.svg" alt="googlepay">
+                                            <div class="type-more">...</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>`
+            }
+            for (let i = 0; i < arr_normal_big.length; i++) {
+                if(arr_normal_big[i].is_top == 1 ){
+                    $('.header_pic5').html((arr_normal_big[i].unit*1))
+                }
+                html5 += `<div class="li ${arr_normal_big[i].is_top == 1? 'istop':''} package-${arr_normal_big[i].id}" data-id="${arr_normal_big[i].id}" data-value="${arr_normal_big[i].value}" data-price="${(arr_normal_big[i].activity_price == null || arr_normal_big[i].activity_price == 0 ) ?  arr_normal_big[i].price : arr_normal_big[i].activity_price}" data-originprice="${arr_normal_big[i].origin_price}">
+                                ${arr_normal_big[i].discount_desc != ''? 
+                                    arr_normal_big[i].is_top == 1 ? `<div class="istop-discount"></div>`:`<div class="istop-discount"><b>${arr_normal_big[i].discount_desc}%</b><span>off</span></div>`
+                                
+                                :``}
+                                <div class="li-border"></div>
+                                <div class="li-cont">
+                                    <div class="name">${arr_normal_big[i].name}</div>
+                                    <div class="off-box">
+                                        ${arr_normal_big[i].is_top == 1 ? 
+                                            `${arr_normal_big[i].desc != '' ? `<div class="off">${arr_normal_big[i].desc}</div>`:``}`:
+                                            `${arr_normal_big[i].discount_desc != '' ? `<div class="off">${arr_normal_big[i].discount_desc}% OFF</div>`:``}`
+                                        }
+                                    </div>
+                                    <div class="pic">
+                                        ${arr_normal_big[i].is_top == 1 ? 
+                                            `<span class="span1">$</span><span class="span2">0</span><span class="span3">${arr_normal_big[i].unit*1}</span><span class="span4">/IP</span>`:
+                                            `${arr_normal_big[i].unit*1} <span>/IP</span>`}
+                                    </div>
+                                    <div class="total">
+                                        ${arr_normal_big[i].origin_unit > 0 ? `<span>$${arr_normal_big[i].origin_unit}/IP</span> `:``}
+                                    </div>
+                                    <div class="pay-li-fot">
+                                        <div class="check">
+                                            <div class="quan"></div>
+                                        </div>
+                                        <div class="f-txt txt1"><span><span>${langobj.total}</span>:</span> <span class="rtxt">$${(arr_normal_big[i].activity_price == null || arr_normal_big[i].activity_price == 0 )?  (arr_normal_big[i].price*1) : (arr_normal_big[i].activity_price*1)}</span> ${arr_normal_big[i].origin_price != 0 ? `<span class="dtxt">$${(arr_normal_big[i].origin_price*1)}</span>` : ``}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <input id="${arr_normal_big[i].id}-money" type="hidden" value="${arr_normal_big[i].price}">
+                            <input id="${arr_normal_big[i].id}-show_money" type="hidden" value="${arr_normal_big[i].price}">
+                            <input id="${arr_normal_big[i].id}-activityprice" type="hidden" value="${arr_normal_big[i].activity_price}">
+                            <input id="${arr_normal_big[i].id}-name" type="hidden" value="${arr_normal_big[i].name}">
+                            <input id="${arr_normal_big[i].id}-unit_price" type="hidden" value="${arr_normal_big[i].unit}">
+                            <input id="${arr_normal_big[i].id}-coupon-id" type="hidden" value="0">
+                            <input id="${arr_normal_big[i].id}-coupon-type" type="hidden" value="1">
+                            <input id="${arr_normal_big[i].id}-original-money" type="hidden" value="${arr_normal_big[i].origin_unit}">
+                            <input id="${arr_normal_big[i].id}-payValue" type="hidden" value="${arr_normal_big[i].value}">
+                            <input id="${arr_normal_big[i].id}-PakType" type="hidden" value="${arr_normal_big[i].pak_type}">
+                            <input id="${arr_normal_big[i].id}-Type" type="hidden" value="">
+                            <input id="${arr_normal_big[i].id}-save" type="hidden" value="${arr_normal_big[i].discount_desc}">
+                            <input id="${arr_normal_big[i].id}-gift" type="hidden" value="${arr_normal_big[i].gift}">
+                            <input id="${arr_normal_big[i].id}-desc" type="hidden" value="${arr_normal_big[i].desc}">`
+            }
+           
+            
+            // $('.header_pic1').html((arr_nor[arr_nor.length-1].unit*1 + '' ).length<=3 ? (arr_nor[arr_nor.length-1].unit*1).toFixed(2) : arr_nor[arr_nor.length-1].unit*1)
+            $('.header_pic2').html((arr_nor_six[arr_nor_six.length-1].unit*1 + '' ).length<=3 ? (arr_nor_six[arr_nor_six.length-1].unit*1).toFixed(2) : arr_nor_six[arr_nor_six.length-1].unit*1)
+            $('.header_pic3').html((arr_nor_day[arr_nor_day.length-1].unit*1 + '' ).length<=3 ? (arr_nor_day[arr_nor_day.length-1].unit*1).toFixed(2) : arr_nor_day[arr_nor_day.length-1].unit*1)
+           
+           
+            if($('#pay_nav_type').val() == 'paynav1'){
+                $('.pay_list_paynav1').find('.li.stand_out').click()
+            }
+
+        });
+    }
+    // $('.span3').each(function(i,n){
+       
+       
+    // });
+})</script>
+</body>
+</html>

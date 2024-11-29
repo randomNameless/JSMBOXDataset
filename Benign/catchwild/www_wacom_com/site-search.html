@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>site-search.html</title>
+</head>
+<body>
+
+<script>
+/* Search */
+//variable notes:
+//rp is Result Page, the current page of results
+//ps is page size, the number of results per page
+
+var search = {
+    pageSize: 20,
+    resultPage: 0,
+    init: function () {
+
+        const searchComponent = document.querySelector(".search-content-wrapper");
+        if (!searchComponent) {
+            return;
+        }
+        if (searchComponent.dataset["ps"]) {
+            search.pageSize = searchComponent.dataset["ps"];
+        }
+
+        search.filters();
+
+        let facets = "";
+        let searchTerm = "";
+        const searchInput = document.querySelector("#searchKeyword");
+        const searchSubmit = document.querySelector(".SearchSubmit");
+        const facetCheckboxes = document.querySelectorAll(".facetCheckbox");
+        const notCurrentPagerLinks = document.querySelectorAll(".pager:not(.current-page)");
+        const allPagerLinks = document.querySelectorAll(".pager");
+        const ajaxModalLinks = document.querySelectorAll(".search-result-modal-ajax");
+        const iframeModalLinks = document.querySelectorAll(".search-result-modal");
+        
+        //get all url params
+        const urlParameters = new URL(document.location.href).searchParams;
+
+        //set facets
+        if (urlParameters.has("facets")) {
+            facets = urlParameters.get("facets").split(",");
+
+            facets.forEach(function (value) {
+                let facetToUpdate = document.querySelector("#facet_" + value);
+                if (facetToUpdate) {
+                    facetToUpdate.setAttribute("checked", "checked");
+                }
+            });
+        }
+
+        //set searchterm
+        if (urlParameters.has("searchTerm")) {
+            searchTerm = urlParameters.get("searchTerm");
+        }
+
+        if (searchInput) {
+            searchInput.value = decodeURI(searchTerm);
+        }
+        
+
+        //set page
+        this.resultPage = parseInt(urlParameters.get("rp"));
+
+        //prepare pager links
+        if (allPagerLinks) {
+            [...allPagerLinks].forEach(node => {
+                if (node.dataset["pageNumber"] == search.resultPage) {
+                    node.classList.add("current-page");
+                }
+            });
+        }
+
+        //event handlers
+        if (searchSubmit) {
+            searchSubmit.addEventListener("click", search.execute); //click search submit button
+        }
+        
+        ajaxModalLinks.forEach(node => node.addEventListener('click', search.ajaxModal));//click an ajax modal result
+        iframeModalLinks.forEach(node => node.addEventListener('click', search.iframeModal));//click an iframe modal result
+
+        if (searchInput) {
+            searchInput.addEventListener("keyup", search.keywordSearch); //enter key on keyword text input
+        }
+        
+
+        facetCheckboxes.forEach(node => node.addEventListener('click', search.facetSearch)); //add or remove a facet
+        notCurrentPagerLinks.forEach(node => node.addEventListener('click', search.changePage)); //change page
+    },
+    ajaxModal: async function (event) {
+        document.querySelector(".enterprise-modal__iframe-content").classList.add("hide");
+        document.querySelector(".enterprise-modal__ajax-content").classList.remove("hide");
+        let modalSourceUrl = event.currentTarget.dataset["modalSrc"];
+        let contentElement = document.querySelector(".enterprise-modal__ajax-content");
+        try {
+            const response = await fetch(modalSourceUrl);
+            if (!response.ok) {
+                throw new Error(`Response status: ${response.status}`);
+            }
+            const content = await response.text();
+            contentElement.innerHTML = content;
+        } catch (error) {
+            console.error(error.message);
+        }
+    },
+    iframeModal: function (event) {
+        //TODO show a loading spinner
+        document.querySelector(".enterprise-modal__ajax-content").classList.add("hide");
+        document.querySelector(".enterprise-modal__iframe-content").classList.remove("hide");
+        let modalSourceUrl = event.currentTarget.dataset["modalSrc"];
+        let resultsIframe = document.querySelector("#searchResultModalFrame");
+        resultsIframe.setAttribute("src", modalSourceUrl);
+    },
+    keywordSearch: function (event) {
+        if (event.keyCode === 13) {
+            search.resultPage = 0; //reset
+            event.preventDefault();
+            search.execute();
+        }
+    },
+    facetSearch: function (event) {
+        search.resultPage = 0; //reset
+        search.execute();
+    },
+    changePage: function (event) {
+        search.resultPage = event.target.dataset['pageNumber'];
+        search.execute();
+    },
+
+    filters: function () {
+        const activeClassName = 'active';
+        const trigger = document.querySelector('.filters-triggers .btn');
+        const filters = document.querySelector('.filters-group');
+        const back = document.querySelector('.search-filters__back');
+        const order = document.querySelectorAll('.order-trigger');
+
+        if (!trigger || !filters) return null;
+
+        trigger.addEventListener('click', (e) => {
+            e.preventDefault();
+            filters.classList.add(activeClassName);
+        });
+
+        if (!back) return null;
+        back.addEventListener('click', () => {
+            filters.classList.remove(activeClassName);
+        });
+
+        if (order.length <= 0) return null;
+
+        if (order) {
+            [...order].forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    btn.classList.toggle(activeClassName);
+                });
+            });
+        }
+    },
+
+    execute: function () {
+        //read keyword to use in the query
+        let keyword = "";
+        if (document.querySelector("#searchKeyword")) {
+            keyword = document.querySelector("#searchKeyword").value;
+        }
+        
+        let facets = [];
+
+        //read facets to use in the query
+        const facetCheckboxes = document.querySelectorAll(".facetCheckbox");
+        if (facetCheckboxes) {
+            [...facetCheckboxes].forEach(node => {
+                if (node.checked) {
+                    facets.push(node.getAttribute("value"));
+                }
+            });
+        }
+        document.location.href = window.location.pathname + "?searchTerm=" + keyword + "&facets=" + facets.join(",") + "&rp=" + search.resultPage + "&ps=" + search.pageSize;
+    }
+};
+
+$(document).ready(function () {
+    search.init();
+});
+</script>
+
+</body>
+</html>

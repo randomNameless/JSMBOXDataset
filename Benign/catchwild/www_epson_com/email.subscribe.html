@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>email.subscribe.html</title>
+</head>
+<body>
+
+<script>
+let countrySelected = '';
+let emailEntered = '';
+
+$(function(){
+    registerValidation();
+    $('#stayconnected').css('display','block');
+    $('.opt-in-error').css('display','none');
+    $('.opt-in-thankyou').css('display','none');
+
+    $(".email-box, .validate_country, input[name='stayConnectedOptIn']").on('change input', function() {
+        if ($('#stayconnected').valid() && ($('.validate_country').val() !== countrySelected || $('.email-box').val() !== emailEntered)) {
+            $('.btn_sign-up-now').removeAttr('disabled');
+        } else {
+            $('.btn_sign-up-now').attr('disabled', 'disabled');
+        }
+    });
+
+
+    $('.btn_sign-up-now').on('click', function (e) {
+        e.preventDefault();
+        $('.btn_sign-up-now').attr('disabled', 'disabled');
+        validateOptInForm();
+    });
+});
+
+function validateOptInForm() {
+    var formIsValid = $('#stayconnected').valid();
+    if(formIsValid) {
+        var countrySelected = $('.country-section #country').val();
+        if (countrySelected?.toLowerCase() === 'other') {
+            $('.footer-stay-connected').html($('#country-other-message').html());
+            return false;
+        }
+        return subscribeToEmails();
+    }
+}
+
+function subscribeToEmails()
+{
+    var emailSignUpUrl =  "/email/signup";
+    var responseData = $('#stayconnected').serialize();
+    var url = window.location.href;
+    var responseData = responseData + "&url="+ url;
+
+    const form = document.getElementById('stayconnected');
+
+    $.post(emailSignUpUrl, responseData, function(data, errorLevel) {
+        console.log('inside success');
+        var htmlData = $('<div />').html(data);
+        var response = $('.js-response', htmlData).html();
+        var popUpRequired =$('.js-showEmail-popUp', htmlData).html();
+        if(popUpRequired == "true"){
+            $('#modal-validationPopup', '.emailValidation-popUp').click();
+            const formdata = new FormData(form);
+            countrySelected = formdata.get('country');
+            emailEntered = formdata.get('email');
+        }
+        else if(response == 200)
+        {
+            console.log('if success');
+            $('#stayconnected').css('display','none');
+            $('.opt-in-error').css('display','none');
+            $('.opt-in-thankyou').css('display','block');
+        }
+        else
+        {
+            $('#stayconnected').css('display','none');
+            $('.opt-in-error').css('display','block');
+            $('.opt-in-thankyou').css('display','none');
+            $('.btn_sign-up-now').removeAttr('disabled');
+            $('.btn_sign-up-now').removeClass('disabled');
+        }
+    }, 'text');
+
+    return false;
+}
+
+const registerValidation = function () {
+    $('#stayconnected').validate({
+        rules: {
+            email: {
+                email: true,
+                customemail: true
+            },
+            stayConnectedOptIn: {
+                isChecked: true
+            }
+        },
+        errorPlacement: function (error, element) {
+            if (element.attr('name') !== 'stayConnectedOptIn') {
+                const errId = 'error-' + element.attr('name');
+                const div = $('<div id=' + errId + ' role="alert" />')
+                div.css({'width': 'max-content'});
+                error.attr('aria-describedby', errId);
+                div.append(error);
+                div.insertAfter(element);
+            }
+        }
+    });
+
+    $.validator.addMethod('isChecked', function(value) {
+        return value === 'on';
+    });
+}
+
+</script>
+
+</body>
+</html>

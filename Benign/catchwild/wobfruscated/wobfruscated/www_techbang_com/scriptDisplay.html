@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>scriptDisplay.html</title>
+</head>
+<body>
+<script>import { reactive } from 'https://unpkg.com/petite-vue?module';
+import {$store} from '/scripts/store.js';
+import scriptHelpers from '/scripts/scriptHelpers.js';
+export const displayScript = reactive({
+  animateDivText(idElement) {
+    const div = document.getElementById(idElement);
+    if (!div) {
+      return;
+    }
+    let divWidth = window.getComputedStyle(div).width;
+    divWidth = parseFloat(divWidth.substring(0, divWidth.length - 2));
+    div.firstElementChild.style.width = "fit-content";
+    let textWidth = window.getComputedStyle(div.firstElementChild).width;
+    textWidth = parseFloat(textWidth.substring(0, textWidth.length - 2));
+    div.firstElementChild.style.width = "auto";
+    if (divWidth < textWidth) {
+      div.classList.add("animate");
+    }
+  },
+  cutDescriptionText(podcastId) {
+    const descriptionDiv = document.getElementById(
+      "miniplayer-description-podcast" + podcastId,
+    );
+    if (!descriptionDiv) {
+      return;
+    }
+    const style = window.getComputedStyle(descriptionDiv);
+    const overflow = style.getPropertyValue('overflow-y');
+    if("auto" == overflow){
+      return;
+    }
+    const descriptionText = descriptionDiv.firstElementChild;
+    const divMore = "podcast-info-podcast" + podcastId;
+    this.toggleDiv(divMore);
+    if (descriptionText.clientHeight > descriptionDiv.clientHeight) {
+      descriptionDiv.classList.add("after-description");
+    }
+    this.toggleDiv(divMore);
+  },
+  toggleDiv(divId, className) {
+    const divElement = document.getElementById(divId);
+    if (!divElement) {
+      return true;
+    }
+    return divElement.classList.toggle(className ?? "hid");
+  },
+  changePlayPauseButton(i, loadEnd) {
+    const animation = document.getElementById("animation-" + i);
+    if (!animation) {
+      return;
+    }
+    if (loadEnd) {
+      $store.info[i].animation = {
+        from: $store.loadPath,
+        to: "play" === loadEnd ? $store.playPath : $store.pausePath,
+      };
+    } else if (!$store.state[i].is_loaded) {
+      $store.info[i].animation = {
+        from: $store.pausePath,
+        to: $store.loadPath,
+      };
+    } else {
+      $store.info[i].animation = {
+        from: $store.state[i].is_playing ? $store.playPath : $store.pausePath,
+        to: $store.state[i].is_playing ? $store.pausePath : $store.playPath,
+      };
+    }
+    animation.beginElement();
+  },
+  changePlayPauseButtonWithPath(i, from, to) {
+    const animation = document.getElementById("animation-" + i);
+    if (!animation) {
+      return;
+    }
+    $store.info[i].animation = {
+      from:  from ,
+      to: to,
+    };
+    animation.beginElement();
+  },
+  initDisplay(){
+    const parentClass = document.getElementsByClassName("not-init");
+    if (parentClass && parentClass.length) {
+      parentClass[0].classList.remove("not-init");
+    }
+  },
+  initTitleAnimate(){
+    const idElement = playlist
+      ? "miniplayer-title-playlist" + playlist.playlistId
+      : "miniplayer-title-emission" + listPodcasts[0].emission.emissionId;
+    this.animateDivText(idElement);
+  },
+  initDisplayPodcast(i){
+    this.animateDivText("miniplayer-title-podcast" + listPodcasts[i].podcastId);
+    this.cutDescriptionText(listPodcasts[i].podcastId);
+    if(document.getElementsByClassName("depeche-miniplayer")){
+      $store.info[i].date = dayjs(listPodcasts[i].pubDate).format("D MMMM YYYY");
+    }else{
+      $store.info[i].date = locales["Published on"] +" " + dayjs(listPodcasts[i].pubDate).format("D MMMM YYYY, HH[h]mm");
+    }
+    
+    if (miniplayerRequestParams.article && listPodcasts[i].article) {
+      $store.info[i].article = listPodcasts[i].article;
+    }
+    $store.info[i].timeRemaining = scriptHelpers.relativeTimeFormat(
+      listPodcasts[i].duration,
+    );
+  },
+  clickButtonMore(element, customId) {
+    const isHid = this.toggleDiv("podcast-info-" + customId);
+    element.setAttribute(
+      "style",
+      isHid ? "transform:auto" : "transform:rotate(180deg)",
+    );
+  },
+  toggleVolet(element, customId) {
+    const isHid = this.toggleDiv("inside-volet-" + customId, "notHere");
+    element.setAttribute(
+      "style",
+      isHid ? "transform:auto;left: calc(100% - 20px);" : "transform:rotate(180deg); left: 0;",
+    );
+  },
+})</script>
+</body>
+</html>

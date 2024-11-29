@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>count.min.html</title>
+</head>
+<body>
+
+<script>
+// var count_data=[0,12809,14890],
+var getCountFn = function(countData) {
+    var time_line = new Date().getTime(),
+        random_num = randomNum(10000000, 100000000),
+        count_sum = '',
+        base64_Str = '',
+        result_Str = ''
+        //生成从minNum到maxNum的随机数
+    function randomNum(minNum, maxNum) {
+        switch (arguments.length) {
+            case 1:
+                return parseInt(Math.random() * minNum + 1, 10);
+                break;
+            case 2:
+                return parseInt(Math.random() * (maxNum - minNum + 1) + minNum, 10);
+                break;
+            default:
+                return 0;
+                break;
+        }
+    }
+    //字符串生成Base64的方法
+    function toBase64(str) {
+        // 对字符串进行编码
+        var encode = str;
+        // 对编码的字符串转化base64
+        var base64 = btoa(encode);
+        return base64;
+    }
+    if (countData.length > 0) {
+        countData.forEach(function(v, i) {
+            count_sum += v + '|'
+        })
+    }
+    console.log(count_sum + time_line + '|' + random_num)
+    base64_Str = toBase64(count_sum + time_line + '|' + random_num);
+    //字符串平均分成n份
+    function splitStr(str, n) {
+        if (n < 2) {
+            return str
+        } else {
+            var count = Math.floor(str.length / n);
+            var splitStrArry = [];
+            for (var i = 0; i < n; i++) {
+                splitStrArry.push(str.substr(i * count, count))
+            }
+            if (str.length % n != 0) {
+                splitStrArry.push(str.substr(n * count, str.length - n * count))
+            }
+            return splitStrArry
+
+        }
+    }
+    var _splitRes = splitStr(base64_Str, 5);
+    if (_splitRes.length > 0) {
+        _splitRes.forEach(function(v, i) {
+            switch (i) {
+                case 0:
+                    result_Str += _splitRes[1]
+                    break;
+                case 1:
+                    result_Str += _splitRes[0]
+                    break;
+                case 2:
+                    result_Str += _splitRes[3]
+                    break;
+                case 3:
+                    result_Str += _splitRes[2]
+                    break;
+                default:
+                    result_Str += v
+                    break;
+            }
+        })
+    }
+    console.log('接站点ID+栏⽬ID+⽂章ID:', count_sum)
+    console.log('当前时间戳:', time_line)
+    console.log('base64转码:', base64_Str)
+    console.log('8位随机数:', random_num)
+    console.log('最终加密字符串:', result_Str)
+
+    function ajax_method(url, data, method, success) {
+        var ajax = new XMLHttpRequest();
+        if (method == 'get') {
+            if (data) {
+                url += '?';
+                url += data;
+            } else {
+
+            }
+            ajax.open(method, url);
+            ajax.send();
+        } else {
+            ajax.open(method, url);
+            ajax.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+            if (data) {
+                ajax.send(data);
+            } else {
+                ajax.send();
+            }
+        }
+        ajax.onreadystatechange = function() {
+            if (ajax.readyState == 4 && ajax.status == 200) {
+                success(ajax.responseText);
+            }
+        }
+
+    }
+    ajax_method("/logs-api/access?data=" + result_Str, null, "post", function(res) {
+        if (res.code == 200) {
+            console.log("sssss");
+        }
+    });
+}
+</script>
+
+</body>
+</html>

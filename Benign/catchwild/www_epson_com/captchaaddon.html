@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>captchaaddon.html</title>
+</head>
+<body>
+
+<script>
+ACC.captcha = {
+    _autoload: [
+        ["initPageloadWidgets", $('.js-recaptcha-captchaaddon').length>0],
+        ["initGlobalCaptchaLoadWidgets", $('.js-recaptcha-captchaaddon-global').length>0]
+    ],
+    bindWidgetCallback: function(container_element, recaptchaLayout){
+        var captchaContainer = $(container_element);
+        var form = $(container_element).parents("form")[0];
+        var form_id = "#" + $(form).attr("id");
+        var recaptchaElement;
+        //$.getScript('//www.google.com/recaptcha/api.js?render=explicit&amp;hl=' + document.documentElement.lang, function (){});
+        $.ajax({
+            url: ACC.config.encodedContextPath + "/register/captcha/widget/" + recaptchaLayout,
+            type: 'GET',
+            cache: false,
+            success: function (html)
+            {
+                if ($(html) != [])
+                {
+                    $(container_element).empty();
+                    $(html).appendTo(container_element);
+                     recaptchaElement = $(form).find(".g-recaptcha")[0];
+                    if(recaptchaElement) {
+                        var sk = $(recaptchaElement).data("sitekey");
+                        var wid = grecaptcha.render(recaptchaElement, sk);
+                        localStorage.setItem(form_id+"_captchaId",wid);
+                    }
+                    if ($(form_id + ' [name=hiddenRecaptcha]').val() == "false") $(form_id + " #g-recaptcha_incorrect").show();
+                }
+            }
+        }); 
+    },
+    bindWidget: function(container_element){
+		ACC.captcha.bindWidgetCallback(container_element, 'recaptcha');
+    },
+    bindGlobalWidget: function(container_element){
+        ACC.captcha.bindWidgetCallback(container_element, 'recaptchaGlobal');
+    },
+    bindAll: function ()
+    {
+        $.each($('.js-recaptcha-captchaaddon'), function(idx,el){
+            ACC.captcha.bindWidget(el);
+        });
+    },
+    bindAllGlobalCaptcha: function ()
+    {
+        $.each($('.js-recaptcha-captchaaddon-global'), function(idx,el){
+            ACC.captcha.bindGlobalWidget(el);
+        });
+    },
+    initPageloadWidgets: function() {
+        $(window).on("load", function(){
+            ACC.captcha.bindAll();
+        });
+    },
+    initGlobalCaptchaLoadWidgets: function() {
+        $(window).on("load", function(){
+            ACC.captcha.bindAllGlobalCaptcha();
+        });
+    }
+};
+</script>
+
+</body>
+</html>

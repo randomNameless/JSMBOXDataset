@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>main_menu.html</title>
+</head>
+<body>
+
+<script>
+(function($, amplify, ResolutionManager, CropManager, wgsdk, PlatformManager) {
+'use strict';
+
+var STATE_UNKNOWN = 0,
+    STATE_HIDDEN = 1,
+    STATE_SHOWN = 2,
+    STATE_TOP = 3,
+    DIRECTION_UNKNOWN = 0,
+    DIRECTION_TOP = 1,
+    DIRECTION_BOTTOM = 2,
+    SUBMENU_STATE_HIDDEN = 0,
+    SUBMENU_STATE_SHOWN = 1;
+
+$(function() {
+    var currentState = STATE_UNKNOWN,
+        submenuState = SUBMENU_STATE_HIDDEN,
+        isMobileDevice = (PlatformManager.getCurrentPlatform() === PlatformManager.PLATFORM_MOBILE),
+        $navWrapperHolder = $('.js-nav-wrapper-holder'),
+        $menuWrapper = $('.js-mainmenu-wrapper'),
+        $commonMenuHolder = $('.js-commonmenu-holder'),
+        $downloadButton = $('.js-menu-side-button-download'),
+        $registerButton = $('.js-menu-side-button-register'),
+        $buttonWrapperDesktop = $('.js-menu-side-button-wrapper-desktop'),
+        $buttonWrapperMobile = $('.js-menu-side-button-wrapper-mobile'),
+        navWrapperHolderJustClosedClass = $navWrapperHolder.data('justClosedClass'),
+        mobileMenuOpenedClass = $menuWrapper.data('mobileMenuOpenedClass'),
+        scrollBottomClass = $menuWrapper.data('scrollBottomClass'),
+        scrollBottomInitialClass = $menuWrapper.data('scrollBottomInitialClass'),
+        scrollTopClass = $menuWrapper.data('scrollTopClass'),
+        scrollTopInitialClass = $menuWrapper.data('scrollTopInitialClass'),
+        oldScrollTop = $(window).scrollTop(),
+        oldState = STATE_UNKNOWN,
+        oldDirection = DIRECTION_UNKNOWN,
+        isAlwaysVisible = false,
+        isHandleScrollEnabled = true;
+    
+    function setButtonVisibility() {
+        var isMobileMenuVisible = (ResolutionManager.getCurrentState() <= ResolutionManager.RESOLUTION_TABLET_WIDE);
+        var $buttonWrapper = (isMobileMenuVisible || isMobileDevice) ? $buttonWrapperMobile : $buttonWrapperDesktop;
+
+        $buttonWrapperMobile.add($buttonWrapperDesktop).css('display', '');
+        $buttonWrapper.css('display', 'flex');
+    }
+
+    function gaCTA(eventAction) {
+        wgsdk.ga( {
+            eventCategory: 'WOTP | CTA',
+            eventAction: eventAction,
+            eventLabel: GAHelper.combineLabels([
+                GAHelper.LABEL_AUTH_STATUS,
+                GAHelper.LABEL_UVT_STATUS,
+                GAHelper.LABEL_OPERATION_SYSTEM,
+                GAHelper.LABEL_PAGE_URL,
+            ])
+        });
+    }
+
+    $downloadButton.on(wgsdk.interactionEvents(), function() {
+        gaCTA('cta download | main menu');
+    });
+
+    $registerButton.on(wgsdk.interactionEvents(), function() {
+        gaCTA('cta register | main menu');
+    });
+
+    $('.js-mobile-mainmenu-link').on('click.mainmenu', function(e) {
+        e.preventDefault();
+
+        $menuWrapper.addClass(mobileMenuOpenedClass);
+
+        CropManager.requestTabletWideCrop('mainmenu:mobile');
+        amplify.publish('mainmenu:mobile:opened');
+    });
+
+    $('.js-mobile-mainmenu-close-link, .js-mainmenu-wrapper').on('click', function(e) {
+        if (e.target === e.currentTarget) {
+            e.preventDefault();
+
+            $menuWrapper.removeClass(mobileMenuOpenedClass);
+            $navWrapperHolder.addClass(navWrapperHolderJustClosedClass);
+            setTimeout(function() {
+                $navWrapperHolder.removeClass(navWrapperHolderJustClosedClass);
+            }, 150);
+
+            CropManager.revoke('mainmenu:mobile');
+        }
+    });
+
+    function closeMainSubMenus($currentItem) {
+        $('.js-mainmenu-item').each(function() {
+            var $item = $(this);
+
+            if ($currentItem === undefined || ($currentItem !== undefined && !$item.is($currentItem))) {
+                $item.removeClass($item.data('openedClass'));
+            }
+        });
+    }
+
+    /* Submenus */
+    $('.js-mainmenu-link').on('click.mainmenu', function(e) {
+        e.stopPropagation();
+    });
+    $('.js-mainmenu-arrow').on('click.mainmenu', function(e) {
+        var $menuItem = $(this).parents('.js-mainmenu-item');
+
+        e.preventDefault();
+
+        closeMainSubMenus($menuItem);
+        $menuItem.toggleClass($menuItem.data('openedClass'));
+
+        if ($menuItem.hasClass($menuItem.data('openedClass'))) {
+            $('body').off('.mainsubmenuclick').on('click.mainmenu', function(e) {
+                if ($(e.target).parents('.js-mainmenu-wrapper').length === 0) {
+                    submenuState = SUBMENU_STATE_HIDDEN;
+                    closeMainSubMenus();
+                    $('body').off('.mainsubmenuclick');
+                }
+            });
+            submenuState = SUBMENU_STATE_SHOWN;
+        } else {
+            $('body').off('.mainsubmenuclick');
+            submenuState = SUBMENU_STATE_HIDDEN;
+        }
+    });
+
+    $('a, .js-mainmenu-arrow', $menuWrapper).on('click', function(e) {
+        var eventLabel;
+
+        if (e.target === e.currentTarget) { // arrows are part of links, so click on arrow will be click on link too
+            eventLabel = ((currentState === STATE_TOP || currentState === STATE_UNKNOWN) ? 'menu_top' : 'menu_sticky');
+            wgsdk.ga({eventCategory: 'Navigation', eventAction: 'click', eventLabel: eventLabel});
+        }
+    });
+
+    function isMenuForcedFixed() {
+        return (submenuState === SUBMENU_STATE_SHOWN || isAlwaysVisible);
+    }
+
+    $(window).on('scroll.mainmenu', function() {
+        var scrollTop = $(window).scrollTop(),
+            cmHeight = $commonMenuHolder.height(),
+            totalHeight = cmHeight + $menuWrapper.height(),
+            direction;
+
+        /* If admin toolbar is present - do nothing */
+        if (window.isDraftActualVersion !== undefined || !isHandleScrollEnabled) {
+            return;
+        }
+
+        if (scrollTop < oldScrollTop) {
+            direction = DIRECTION_TOP;
+        } else if (scrollTop > oldScrollTop || oldDirection === DIRECTION_UNKNOWN) {
+            direction = DIRECTION_BOTTOM;
+        }
+
+        if (currentState !== STATE_TOP && scrollTop < cmHeight) {
+
+            $menuWrapper
+                .removeClass(scrollBottomClass)
+                .removeClass(scrollBottomInitialClass)
+                .removeClass(scrollTopClass)
+                .removeClass(scrollTopInitialClass);
+
+            oldState = currentState;
+            currentState = STATE_TOP;
+
+        } else if (currentState !== STATE_HIDDEN
+                   && direction === DIRECTION_BOTTOM
+                   && scrollTop > totalHeight
+                   && !isMenuForcedFixed()) {
+
+            $menuWrapper
+                .addClass((oldState !== STATE_HIDDEN ? scrollBottomInitialClass : scrollBottomClass))
+                .removeClass(scrollTopInitialClass)
+                .removeClass(scrollTopClass);
+
+            oldState = currentState;
+            currentState = STATE_HIDDEN;
+            amplify.publish('mainmenu:hidefixed');
+
+        } else if (currentState !== STATE_SHOWN &&
+                   (
+                    (direction === DIRECTION_TOP && oldDirection === DIRECTION_TOP && scrollTop > totalHeight)
+                    ||
+                    (isMenuForcedFixed() && scrollTop >= cmHeight)
+                   )
+                  ) {
+
+            $menuWrapper
+                .addClass((isMenuForcedFixed() ? scrollTopInitialClass : scrollTopClass))
+                .removeClass(scrollBottomInitialClass)
+                .removeClass(scrollBottomClass);
+
+            oldState = currentState;
+            currentState = STATE_SHOWN;
+            amplify.publish('mainmenu:showfixed');
+        }
+
+        oldScrollTop = scrollTop;
+        oldDirection = direction;
+    })
+    .trigger('scroll.mainmenu');
+
+    amplify.subscribe('mainmenu:stopscrolldetect', function() {
+        isHandleScrollEnabled = false;
+    });
+
+    amplify.subscribe('mainmenu:resumescrolldetect', function() {
+        setTimeout(function() {
+            isHandleScrollEnabled = true;
+        }, 0);
+    });
+
+    amplify.subscribe('mainmenu:alwaysvisible:enable', function() {
+        isAlwaysVisible = true;
+        $(window).trigger('scroll.mainmenu');
+    });
+
+    amplify.subscribe('mainmenu:alwaysvisible:disable', function() {
+        isAlwaysVisible = false;
+        $(window).trigger('scroll.mainmenu');
+    });
+
+    amplify.subscribe('resolution:statechanged', function() {
+        setButtonVisibility();
+    });
+
+    setButtonVisibility();
+});
+
+})(jQuery, amplify, ResolutionManager, CropManager, wgsdk, PlatformManager);
+
+</script>
+
+</body>
+</html>

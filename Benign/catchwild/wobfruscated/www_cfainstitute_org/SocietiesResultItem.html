@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SocietiesResultItem.html</title>
+</head>
+<body>
+<script>import {
+  resultContext,
+} from "https://static.cloud.coveo.com/atomic/v2/index.esm.js";
+
+//Title
+export class SocietiesResultItem extends HTMLElement {
+  shadow;
+  result;
+  initialized = false;
+  loggedIn;
+
+  async connectedCallback() {
+    if (this.initialized) {
+      return;
+    }
+
+    this.initialized = true;
+    this.shadow = this.attachShadow({ mode: "open" });
+
+    try {
+      this.result = await resultContext(this);
+      this.loggedIn = window.drupalSettings.user_roles.includes('authenticated');
+      this.render();
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  render() {
+    const title_display = this.result.raw.titlebasic;
+    const link_url = this.result.raw.clickableuri;
+    const city = this.result.raw.field_locations_cities;
+    const country = this.result.raw.locations_country_names;
+    const itemContent = `
+      <style>
+        .CoveoResultLink {
+          color: var(--atomic-on-background);
+          text-decoration: none;
+        }
+
+        .CoveoResultLink:hover,
+        .CoveoResultLink:focus,
+        .CoveoResultLink:focus-visible,
+        .CoveoResultLink:active {
+          text-decoration: underline;
+        }
+
+        .CoveoResultLink[target=_blank]::after {
+          margin-left: var(--cfa--spacing--xs);
+          display: inline-block;
+          content: '\\e89e';
+          vertical-align: middle;
+          font-family: 'material';
+        }
+
+        .result__item {
+          position: relative;
+        }
+
+        .item__header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+
+        .item__content {
+          padding: var(--cfa--spacing--lg) 0;
+          display: flex;
+          flex-direction: column;
+          gap: var(--cfa--spacing--xs);
+        }
+
+        .content__title {
+          font-size: 1.25rem;
+          font-style: normal;
+          font-weight: 700;
+          line-height: 1.5;
+        }
+
+        .content__meta {
+          font-size: 1rem;
+          font-style: normal;
+          font-weight: 400;
+          line-height: 1.5;
+        }
+
+        .content__meta span {
+          padding: 0 .75rem;
+          border-right: .0625rem solid var(--ssa-color-palette-gray-900);
+        }
+
+        .margin--bottom {
+          margin-bottom: .25rem;
+        }
+
+        .item__content {
+          font-size: 1rem;
+          font-style: normal;
+          font-weight: 400;
+          line-height: 1.5;
+          width: 100%;
+          display: flex;
+          flex-direction: column;
+          gap: .25rem;
+        }
+
+        .item__header-label {
+          font-weight: 700;
+          line-height: 1.5;
+        }
+
+        .item__header-passport {
+          font-weight: 500;
+          line-height: 1;
+          display: flex;
+          align-items: center;
+          gap: 0.375rem;
+        }
+
+        .item__header-passport::before {
+          content: '\\e86c';
+          font-family: 'material';
+          font-size: 1.5rem;
+        }
+
+        .gpp-logo img {
+          width: 3.375rem;
+        }
+
+        .content__meta span:first-of-type {
+          padding-left: 0;
+        }
+
+        .content__meta span:last-of-type {
+          padding-right: 0;
+          border-right: none;
+        }
+      </style>
+      <div class="result">
+        <div class="result__item">
+          <div class="item__content">
+            <div class="item__header">
+              ${this.result.raw.field_is_passport_participant ? `
+                <span class="item__header-passport">
+                  Global Passport Program
+                </span>
+              ` : ''}
+            </div>
+            <atomic-result-section-title>
+              <div class="content__title">
+                <a class="CoveoResultLink" href="${link_url}" role="heading" aria-level="2">${title_display}</a>
+              </div>
+            </atomic-result-section-title>
+            ${city || country ? `
+              <div class="content__meta">
+                ${city ? `<span class="result-city">${city}</span>` : ''}
+                ${country ? `<span class="result-country">${country}</span>` : ''}
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+    this.shadow.innerHTML = itemContent;
+  }
+}</script>
+</body>
+</html>

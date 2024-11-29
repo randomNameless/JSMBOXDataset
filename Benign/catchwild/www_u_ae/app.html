@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>app.html</title>
+</head>
+<body>
+
+<script>
+(function () {
+  'use strict';
+
+  angular.module('traMap', [
+    'ui.router',
+  ]).config(config).run(run);
+  
+  config.$inject = [];
+  function config() {}
+  
+  run.$inject = ['$rootScope'];
+  function run($rootScope) {
+    $rootScope.t = window.traConfig.translations;
+    $rootScope.config = window.traConfig;
+  }
+})();
+
+(function () {
+  'use strict';
+  angular.module('traMap').config(config);
+  config.$inject = ['$stateProvider', '$urlRouterProvider'];
+  function config($stateProvider, $urlRouterProvider) {
+    $urlRouterProvider.otherwise('/');
+    return $stateProvider.state('home', {url: '/', template: '<home-view></home-view>'});
+  }
+
+})();
+
+(function () {
+  'use strict';
+  angular.module('traMap')
+    .service('ergastService', ergastService);
+
+  ergastService.$inject = ['$http'];
+
+  function ergastService($http) {
+
+    // return {
+    //   getChamp: getChamp,
+    //   getFirstPosition: getFirstPosition,
+    //   getYearRaces: getYearRaces
+    // }
+    //
+    // function getChamp() {
+    //   var url = 'http://ergast.com/api/f1/seasons.json';
+    //   return $http({ method: 'GET', url: url });
+    // }
+    //
+    // function getFirstPosition(year) {
+    //   var url = 'http://ergast.com/api/f1/'+year+'/driverStandings/1.json';
+    //   return $http({ method: 'GET', url: url });
+    // }
+    //
+    // function getYearRaces(year) {
+    //   var url = 'http://ergast.com/api/f1/'+year+'/results.json?limit=1000';
+    //   return $http({ method: 'GET', url: url, data: {limit: 1000} });
+    // }
+
+  }
+})();
+(function() {
+  'use strict';
+  angular.module('traMap')
+    .component('category', {
+      templateUrl: 'app/components/category/category.html',
+      controller: 'categoryController',
+      controllerAs: 'vm',
+      bindings: {
+        ngModel: '=',
+        activeSubCategory: '=',
+        activeCategory: '=',
+        onChange: '&'
+      }
+    });
+})();
+
+(function () {
+  "use strict";
+  angular.module('traMap').controller('categoryController', categoryController);
+  categoryController.$inject = [];
+  function categoryController() {
+    var vm = this;
+    vm.$onInit = function () {
+    }
+    vm.updateCat = function(cat, sub) {
+      vm.activeCategory = cat;
+      vm.updateSub(sub);
+    }
+    vm.updateSub = function(sub) {
+      vm.activeSubCategory = sub;
+      vm.onChange();
+    }
+
+  }
+})();
+
+
+(function() {
+  'use strict';
+  angular.module('traMap')
+    .component('location', {
+      templateUrl: 'app/components/location/location.html',
+      controller: 'locationController',
+      controllerAs: 'vm',
+      bindings: {
+        list: '=',
+        activeSubCategory: '=',
+        activeCategory: '=',
+        onSelect: '='
+      }
+    });
+})();
+
+(function () {
+  "use strict";
+  angular.module('traMap').controller('locationController', locationController);
+  locationController.$inject = [];
+  function locationController() {
+    var vm = this;
+    vm.$onInit = function () { }
+    vm.open = function (item) {
+      vm.onSelect(item)
+    }
+  }
+})();
+(function() {
+  'use strict';
+  angular.module('traMap')
+    .component('moreInfo', {
+      templateUrl: 'app/components/more-info/more-info.html',
+      controller: 'moreInfoController',
+      controllerAs: 'vm',
+      bindings: {
+        ngModel: '=',
+        onClose: '='
+      }
+    });
+})();
+
+(function () {
+  "use strict";
+  angular.module('traMap').controller('moreInfoController', moreInfoController);
+  moreInfoController.$inject = [];
+  function moreInfoController() {
+    var vm = this;
+    vm.$onInit = function () {
+    }
+  }
+})();
+(function() {
+  'use strict';
+  angular.module('traMap')
+    .component('mapWrapper', {
+      templateUrl: 'app/components/map-wrapper/map-wrapper.html',
+      controller: 'mapWrapperController',
+      controllerAs: 'vm',
+      bindings: {
+        ngModel: '=',
+        highlightId: '=',
+        onChange: '&'
+      }
+    });
+})();
+
+(function () {
+  "use strict";
+  angular.module('traMap').controller('mapWrapperController', mapWrapperController);
+  mapWrapperController.$inject = ['$scope', '$rootScope'];
+  function mapWrapperController($scope, $rootScope) {
+    
+    var vm = this;
+    var map = null;
+    vm.showLargeMap = true;
+    vm.mapList = [];
+    vm.activeCategory = null;
+    vm.activeSubCategory = null;
+    vm.locations = [];
+    vm.modalData = null;
+    vm.icon = {};
+    vm.showMobileList = false;
+    vm._isInit = false;
+    
+    vm.showMap = function() {
+      vm.showLargeMap = false;
+      vm.renderMap();
+      map.setOptions({draggable: true, zoomControl: true, scrollwheel: false, disableDoubleClickZoom: true});
+      fixMapHeighOnMobile();
+      if($(window).width() < 992) {
+        $('body').addClass('modal-open')
+      }
+    }
+    
+    function hideMap() {
+      vm.showLargeMap = true;
+      vm.renderMap();
+      map.setOptions({draggable: false, zoomControl: false, scrollwheel: false, disableDoubleClickZoom: true});
+      $('body').removeClass('modal-open');
+      $('#tramapmainwrapper').removeAttr('style');
+    }
+    
+    vm.hideMap = hideMap;
+    
+    vm.$onInit = function () {
+      angular.element(document.querySelectorAll('[data-js-show-tra-map]')).unbind('click');
+      angular.element(document.querySelectorAll('[data-js-show-tra-map]')).on('click', function(){
+        angular.element(document.querySelectorAll('[data-js-show-tra-map]')).css('display','none');
+        angular.element(document.querySelectorAll('[data-js-hide-tra-map]')).css('display','block');
+        vm.showMap();
+      });
+      angular.element(document.querySelectorAll('[data-js-hide-tra-map]')).unbind('click');
+      angular.element(document.querySelectorAll('[data-js-hide-tra-map]')).on('click', function(){
+        angular.element(document.querySelectorAll('[data-js-show-tra-map]')).css('display','block');
+        angular.element(document.querySelectorAll('[data-js-hide-tra-map]')).css('display','none');
+        hideMap()
+      });
+      vm.locations = $rootScope.config.locations;
+      vm.locations.map(function(a){a._id = Math.random()+''});
+      vm.category = getFromatedCategory(vm.locations);
+      vm.activeCategory = vm.category && vm.category[0].category || ''; //xxxxxxx
+      vm.activeSubCategory = vm.category[0].subCategory[0];
+      window.setTimeout(function(){vm.renderMap(vm.locations)},1);
+    }
+    
+    vm.update = function () {
+      window.setTimeout(function(){
+        vm.renderMap();
+        vm.close();
+      },1);
+    }
+    
+    vm.openPin = function (a) {
+      vm.mapList.map(function (c) {
+        c.map.marker.setIcon($rootScope.config.marker.normal)
+      });
+      window.setTimeout(function () {
+        a.map.marker.setIcon($rootScope.config.marker.selected)
+        vm.modalData = a;
+        $scope.$digest();
+      },10)
+    }
+    
+    vm.open = function (a) {
+      a.map.marker.map.setZoom(15);
+      a.map.marker.map.panTo(new google.maps.LatLng(a.marker.latitude,a.marker.longitude));
+      a.map.marker.setIcon($rootScope.config.marker.selected)
+      vm.modalData = a;
+    }
+  
+    vm.openFromSearch = function (a) {
+      var id = a._id, item = null;
+      vm.update();
+      window.setTimeout(function () {
+        vm.mapList.map(function(a) { if (a._id == id) item = a });
+        item.map.marker.setIcon($rootScope.config.marker.selected);
+        vm.open(item);
+      },10)
+    }
+    
+    vm.close = function () {
+      vm.modalData = null;
+      vm.getVisible().map(function (a) {
+        a.map.marker.setIcon($rootScope.config.marker.normal)
+      });
+      vm.renderMap();
+    }
+  
+    vm.getVisible = function () {
+      var arr = [];
+      vm.locations.map(function(a) {
+        if (a.category == vm.activeCategory && a.subCategory == vm.activeSubCategory) arr.push(a);
+      });
+      return arr;
+    };
+    
+    function getFromatedCategory(arr) {
+      var cats = {}, all = [], formatted = [];
+      all = arr.map(function(a) {
+        vm.icon[a.subCategory] = a.icon;
+        return {cat : a.category, sub : a.subCategory};
+      });
+      all.map(function(a){
+        (cats[a.cat] = cats[a.cat] || []).push(a.sub);
+      });
+      _.map(cats, function(val,key) {
+        formatted.push({
+          category: key,
+          subCategory: _.uniqBy(val, function (e) {return e})
+        });
+      });
+      return formatted;
+    }
+
+      var fireRefreshEventOnWindow = function () {
+          var evt = document.createEvent("HTMLEvents");
+          evt.initEvent('resize', true, false);
+          window.dispatchEvent(evt);
+      };
+    
+    vm.renderMap = function() {
+      window.setTimeout(function(){
+          fireRefreshEventOnWindow();
+      },1);
+      vm.mapList = vm.getVisible();
+      map = new google.maps.Map(document.getElementById('mapPlaceholder'), {
+        zoom: 10,
+        mapTypeId: google.maps.MapTypeId.ROADMAP,
+        mapTypeControl: false,
+        scaleControl: false,
+        streetViewControl: false,
+        rotateControl: false,
+        fullscreenControl: false,
+        draggable: true, zoomControl: false, scrollwheel: false, disableDoubleClickZoom: true
+      });
+      if (!vm._isInit) map.setOptions({draggable: false, zoomControl: false, scrollwheel: false, disableDoubleClickZoom: true});
+      var bounds = new google.maps.LatLngBounds();
+      for (var i = 0; i < vm.mapList.length; i++) {
+        var item = vm.mapList[i];
+        item.clicked = vm.openPin;
+        var marker = new google.maps.Marker({
+          visible: true,
+          position: new google.maps.LatLng( item.marker.latitude, item.marker.longitude ),
+          icon: $rootScope.config.marker.normal,
+          map: map
+        });
+        vm.mapList[i].map = {marker: marker};
+        bounds.extend(marker.position);
+        // google.maps.event.addListener(marker, 'click', (function(item, open) {
+        //   return function() { open(item) }
+        // })(item, vm.openPin ));
+        google.maps.event.addListener(marker, 'click', (function(item, cb) {
+          return function () { cb(item) }
+        })(item, vm.openPin));
+      }
+      window.setTimeout(function(){map.fitBounds(bounds);},2);
+      vm._isInit = true;
+    }
+    
+    function fixMapHeighOnMobile() {
+      if($(window).width() < 992 && !vm.showLargeMap ){
+        $('#tramapmainwrapper').css('height',$( window ).height()-92+'px');
+      } else {
+        $('#tramapmainwrapper').removeAttr('style');
+      }
+    }
+    $( window ).resize(function() { fixMapHeighOnMobile() });
+    fixMapHeighOnMobile();
+    
+  }
+})();
+(function() {
+  'use strict';
+  angular.module('traMap')
+    .component('search', {
+      templateUrl: 'app/components/search/search.html',
+      controller: 'searchController',
+      controllerAs: 'vm',
+      bindings: {
+        list: '=',
+        activeSubCategory: '=',
+        activeCategory: '=',
+        onSelect: '='
+      }
+    });
+})();
+
+(function () {
+  "use strict";
+  angular.module('traMap').controller('searchController', searchController);
+  searchController.$inject = [];
+  function searchController() {
+    var vm = this;
+    
+    vm.$onInit = function () { }
+    
+    vm.open = function (item) {
+      vm.onSelect(item)
+    }
+  
+    vm.select = function (a) {
+      vm.result = [];
+      vm.query = null;
+      vm.activeSubCategory = a.subCategory
+      vm.activeCategory = a.category;
+      vm.onSelect(a);
+    }
+  
+    vm.search = function (q) {
+      if(q.length > 2 ) {
+        var arr = [];
+        vm.list.map(function (a) {
+          var ok = false, list = a.keywords;
+          list.push(a.label);
+          list.map(function(l){ if(l.toLowerCase().indexOf(q.toLowerCase()) > -1) ok = true })
+          if (ok) arr.push(a);
+        });
+        vm.result = arr;
+      } else {
+        vm.result = [];
+      }
+    }
+  }
+})();
+(function() {
+  'use strict';
+  angular.module('traMap')
+    .component('subCategory', {
+      templateUrl: 'app/components/sub-category/sub-category.html',
+      controller: 'subCategoryController',
+      controllerAs: 'vm',
+      bindings: {
+        ngModel: '=',
+        activeSubCategory: '=',
+        activeCategory: '=',
+        icon: '=',
+        onChange: '&'
+      }
+    });
+})();
+
+(function () {
+  "use strict";
+  angular.module('traMap').controller('subCategoryController', subCategoryController);
+  subCategoryController.$inject = [];
+  function subCategoryController() {
+    var vm = this;
+    vm.$onInit = function () {
+    }
+    
+    vm.updateCat = function(cat, sub) {
+      vm.activeCategory = cat;
+      vm.updateSub(sub);
+    }
+    
+    vm.updateSub = function(sub) {
+      vm.activeSubCategory = sub;
+      vm.onChange();
+    }
+
+  }
+})();
+(function() {
+  'use strict';
+  angular.module('traMap')
+    .component('toggler', {
+      templateUrl: 'app/components/toggler/toggler.html',
+      controller: 'togglerController',
+      controllerAs: 'vm',
+      bindings: {
+        ngModel: '='
+      }
+    });
+})();
+
+(function () {
+  "use strict";
+  angular.module('traMap').controller('togglerController', togglerController);
+  togglerController.$inject = [];
+  function togglerController() {
+    var vm = this;
+    vm.showList = function(){ vm.ngModel = true; window.setTimeout(function () {vm.ngModel = true },1) }
+    vm.hideList = function(){ vm.ngModel = false; window.setTimeout(function () {vm.ngModel = false },1) }
+  }
+})();
+(function() {
+  'use strict';
+  angular.module('traMap')
+    .component('homeView', {
+      templateUrl: 'app/views/home/home.html',
+      controller: 'homeController',
+      controllerAs: 'vm',
+    });
+})();
+
+(function () {
+  "use strict";
+  angular.module('traMap').controller('homeController', homeController);
+  homeController.$inject = [];
+  function homeController() {
+    var vm = this;
+    this.$onInit = function () {
+      
+    };
+  }
+})();
+</script>
+
+</body>
+</html>

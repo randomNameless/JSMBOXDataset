@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>scriptVast.html</title>
+</head>
+<body>
+<script>import { reactive } from 'https://unpkg.com/petite-vue?module';
+import {playerScript} from '/scripts/scriptPlayer.js';
+import loadScript from '/scripts/scriptLoad.js';
+import { $store } from '/scripts/store.js';
+import { $storeVast } from '/scripts/storeVast.js';
+import {displayScript} from '/scripts/scriptDisplay.js';
+import {redirectSoundScript} from '/scripts/scriptRedirectSound.js';
+let adsLoader = Array.apply(null, {length: listPodcasts.length || 1}).map(()=>{return null;});
+let adsManager = Array.apply(null, {length: listPodcasts.length || 1}).map(()=>{return null;});
+let adDisplayContainer = Array.apply(null, {length: listPodcasts.length || 1}).map(()=>{return null;});
+let adsRequest = Array.apply(null, {length: listPodcasts.length || 1}).map(()=>{return null;});
+
+export const vastScript = reactive({
+  imaLoaded: false,
+
+  prepareIMA(i){
+    if(!this.imaLoaded){
+      this.imaLoaded = true;
+      this.loadIMA(i);
+    }else{
+      this.initializeIMA(i);
+    }
+  },
+  loadIMA(i){
+    loadScript.loadScript('//imasdk.googleapis.com/js/sdkloader/ima3.js', true, (isIMALoaded) => {
+      if(isIMALoaded) {
+        this.initializeIMA(i);
+      }
+    });
+  },
+  initializeIMA(i) {
+    console.log("Initialize IMA "+i);
+    this.initializeDisplayContainer(i);
+    redirectSoundScript.initRedirectAdvertisingSoundScript();
+  },
+  onRequestAd(i, vastUrl){
+    if(!adsLoader[i]){return;}
+    $storeVast.ad[i].isAdRequested = true;
+    console.log("Request ad "+vastUrl);
+    this.initializeAdsRequest(i,vastUrl);
+    adsLoader[i].requestAds(adsRequest[i]);
+  },
+  initializeDisplayContainer(i){
+    if(adDisplayContainer[i]){return};
+    if(null===$store.state[i].audio){return;}
+    adDisplayContainer[i] = new google.ima.AdDisplayContainer(document.getElementById('ad-container-'+i), $store.state[i].audio);
+    adDisplayContainer[i].initialize();
+    this.initializeAdsLoader(i);
+  },
+  initializeAdsLoader(i){
+    adsLoader[i] = new google.ima.AdsLoader(adDisplayContainer[i]);
+    adsManager[i] = null;
+    adsLoader[i].addEventListener(
+      google.ima.AdsManagerLoadedEvent.Type.ADS_MANAGER_LOADED,
+      (evt) => {this.onAdsManagerLoaded(i, evt)},
+      false
+    );
+    adsLoader[i].addEventListener(
+      google.ima.AdErrorEvent.Type.AD_ERROR,
+      (evt)=>{this.onAdError(i, evt)},
+      false
+    );
+  },
+  initializeAdsRequest(i, vastUrl){
+    adsRequest[i] = new google.ima.AdsRequest();
+    adsRequest[i].setAdWillAutoPlay(true);
+    adsRequest[i].adTagUrl = vastUrl;
+  },
+
+  initAdManagerEvents(i){
+    adsManager[i].addEventListener(google.ima.AdErrorEvent.Type.AD_ERROR,(evt)=>{this.onAdError(i, evt)});
+    adsManager[i].addEventListener(google.ima.AdEvent.Type.CONTENT_PAUSE_REQUESTED, ()=>{this.onContentPauseRequested(i)});
+    adsManager[i].addEventListener(google.ima.AdEvent.Type.CONTENT_RESUME_REQUESTED,()=>{this.onContentResumeRequested(i)});
+    let events = [
+      google.ima.AdEvent.Type.ALL_ADS_COMPLETED, google.ima.AdEvent.Type.AD_PROGRESS,
+      google.ima.AdEvent.Type.COMPLETE, google.ima.AdEvent.Type.LOADED, 
+      google.ima.AdEvent.Type.PAUSED, google.ima.AdEvent.Type.STARTED,
+    ];
+    for (let index in events) {
+      adsManager[i].addEventListener(events[index], (evt)=>{this.onAdEvent(i,evt)});
+    }
+    //adsManager.addEventListener(google.ima.AdEvent.Type.SKIPPED, this.onAdEvent);
+  },
+  startAdManager(i){
+    console.log("Start manager "+i);
+    this.initAdManagerEvents(i);
+    try {
+      adsManager[i].init(0, 0, google.ima.ViewMode.NORMAL);
+      adsManager[i].start();
+    } catch (adError) {
+      console.log(adError);
+      playerScript.handleStitchingPlay(i);
+      this.destroyAdManager(i);
+    }
+  },
+  onAdsManagerLoaded(i, adsManagerLoadedEvent) {
+    const adsRenderingSettings = new google.ima.AdsRenderingSettings();
+    adsRenderingSettings.restoreCustomPlaybackStateOnAdBreakComplete = true;
+    adsManager[i] = adsManagerLoadedEvent.getAdsManager($store.state[i].audio, adsRenderingSettings);
+    this.startAdManager(i);
+  },
+  onAdError(i, adErrorEvent) {
+    console.log(adErrorEvent.getError());
+    this.destroyAdManager(i);
+  },
+  destroyAdManager(i){
+    if(!adsManager[i]){return;}
+    console.log("Destroy manager "+i);
+    adsManager[i]?.destroy();
+    adsManager[i] = null;
+    $storeVast.restartVastData(i);
+    $storeVast.ad[i].isContentFinished=false;
+    $storeVast.ad[i].isAdRequested = false;
+  },
+  onAdEvent(i, adEvent) {
+    const ad = adEvent.getAd();
+    if(ad){
+      $storeVast.updateCurrentAd(i,ad);
+    }
+    switch (adEvent.type) {
+      case google.ima.AdEvent.Type.LOADED:
+        $storeVast.ad[i].statusPlayerWhenLoaded= !$store.state[i].paused;
+        if (!ad.isLinear()) {
+          playerScript.handleStitchingPlay(i);
+          $storeVast.ad[i].isAdRequested = false;
+        }
+        break;
+      case google.ima.AdEvent.Type.STARTED:
+        redirectSoundScript.resumeRedirectAd();
+        console.log("Launched status : "+$storeVast.ad[i].statusPlayerWhenLoaded);
+        if(true!==$storeVast.ad[i].statusPlayerWhenLoaded){
+          $storeVast.ad[i].isAdPaused = true;
+          adsManager[i].pause();
+        }
+        break;
+      case google.ima.AdEvent.Type.AD_PROGRESS:
+        $storeVast.ad[i].isAdRequested = false;
+        const adProgressData = adEvent.getAdData();
+        $storeVast.updateProgressionData(i,adProgressData.duration,adProgressData.currentTime);
+        break;
+      case google.ima.AdEvent.Type.ALL_ADS_COMPLETED:
+        redirectSoundScript.suspendRedirectAd();
+      break;
+    }
+  },
+  onContentPauseRequested(i) {
+    $storeVast.ad[i].isAdPlaying = true;
+    if(!$store.state[i].paused){
+      playerScript.handleStitchingPlay(i);
+    }
+  },
+  onContentResumeRequested(i) {
+    $storeVast.ad[i].isAdPlaying = false;
+    if (!$storeVast.ad[i].isContentFinished) {
+      playerScript.handleStitchingPlay(i);
+    }else{
+      playerScript.onEnded(i);
+    }
+  },
+  contentEndedAdsLoader(i){
+    if ($storeVast.ad[i].isAdPlaying) return;
+    $storeVast.ad[i].isContentFinished = true;
+    adsLoader[i].contentComplete();
+  },
+  onAdChangePlayingStatus(i){
+    if(!adsManager[i]){return;}
+    if(!$storeVast.ad[i].isAdPaused){
+      adsManager[i].pause();
+      $storeVast.ad[i].isAdPaused = true;
+      displayScript.changePlayPauseButtonWithPath(i, $store.playPath, $store.pausePath);
+    }else{
+      adsManager[i].resume();
+      $storeVast.ad[i].isAdPaused = false;
+      displayScript.changePlayPauseButtonWithPath(i, $store.pausePath, $store.playPath);
+    }
+  },
+});</script>
+</body>
+</html>

@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>acc.buyink.html</title>
+</head>
+<body>
+
+<script>
+ACC.buyink = {
+
+	_autoload : [ "bindCartAdd", "bindCartRemove"],
+
+	getRowScope : function(el) {
+		return $(el).closest(".module-table-row");
+	},
+
+	getTableScope : function(el) {
+		return $(el).closest(".module-table");
+	},
+
+	getGrandTotal : function(el) {
+		return parseInt(ACC.buyink.getTableScope(el)
+				.find(".grand-total .count").text(), 10);
+	},
+
+	getPageTotal :  function(el){
+		var totals = ACC.buyink.getTableScope(el).find(".grand-total .count");
+		var pageTotals = 0;
+		if(totals != undefined){
+			for(var i=0; i < totals.length; i++){
+				pageTotals = pageTotals + parseInt(totals[i].textContent);
+			}
+		}
+		return pageTotals;
+	},
+	
+	getQuantity : function(el) {
+		return parseInt(
+				ACC.buyink.getRowScope(el).find("input.quantity").val(), 10);
+	},
+
+	setGrandTotal : function(el, difference) {
+		var grandTotal = ACC.buyink.getGrandTotal(el);
+
+		ACC.buyink.getTableScope(el).find(".grand-total .count").text(
+				grandTotal + difference);
+	},
+
+	setPageTotal : function(el){
+		var pageTotal = ACC.buyink.getPageTotal(el);
+		var totals = ACC.buyink.getTableScope(el).find(".grand-total .pCount");
+		if(totals != undefined){
+		    //check if there are multiple totals span element, case when browser translates the site it creates an additional count span
+
+			for(var i=0; i < totals.length; i++){
+				var total = parseInt(pageTotal);
+				$(totals[i]).html(total);
+			}
+		}
+	},
+	
+	setQuantity : function(el, difference) {
+		var quantity = ACC.buyink.getQuantity(el);
+
+		ACC.buyink.getRowScope(el).find("input.quantity").val(
+				quantity + difference);
+	},
+
+	bindCartAdd : function() {
+		$(".js-toggle-qty-add")
+				.on(
+						"click",
+						function() {
+							var grandTotal = ACC.buyink.getGrandTotal(this), quantity = ACC.buyink
+									.getQuantity(this);
+
+							ACC.buyink.setQuantity(this, 1);
+							ACC.buyink.setGrandTotal(this, 1);
+							ACC.buyink.setPageTotal(this);
+						});
+	},
+
+	bindCartRemove : function() {
+		$(".js-toggle-qty-remove")
+				.on(
+						"click",
+						function() {
+							var grandTotal = ACC.buyink.getGrandTotal(this), quantity = ACC.buyink
+									.getQuantity(this);
+
+							if (quantity > 0 && grandTotal > 0) {
+								ACC.buyink.setQuantity(this, -1);
+								ACC.buyink.setGrandTotal(this, -1);
+								ACC.buyink.setPageTotal(this);
+							}
+						});
+	}
+
+};
+
+$(".inkBuyNow").on(
+		"click",
+		function() {
+			var txt = $(this).text();
+			var cartItems = "";
+			var tlCodes = [];
+			var tlAmounts = [];
+			var tlListPrice = [];
+			var tlNetPrice = [];
+			var tlCategory = [];
+			var tlSeries = [];
+			var par = $("input.quantity");
+			var lastvalue = 0;
+			for (var i = 0; i < par.length; i++) {
+				if (par[i].value > 0 && par[i].getAttribute("data-code")!=undefined) {
+					if (i > 0 && lastvalue > 0 ) {
+						cartItems = cartItems + ",";
+					}
+					cartItems = cartItems + par[i].getAttribute("data-code")
+							+ ":" + par[i].value;
+					tlCodes.push(par[i].getAttribute("data-code"));
+					tlAmounts.push(par[i].value);	
+					tlListPrice.push(par[i].getAttribute("data-product_list_price").replace(/\$/g, ''));
+					tlNetPrice.push(par[i].getAttribute("data-product_net_price").replace(/\$/g, ''));
+					tlCategory.push(par[i].getAttribute("data-product_category"));
+					tlSeries.push(par[i].getAttribute("data-product_series"));									
+					lastvalue = par[i].value; 
+					par[i].value = 0;
+				}
+			}
+			if(ACC.analytics){
+				try {
+					txt = ACC.analytics.filterLabelText(txt);
+					ACC.analytics.fireAccessoryAddToCart(txt,tlCodes,tlListPrice,tlNetPrice,tlCategory,tlSeries,tlAmounts);
+				} catch(e) {
+					console.log(e);
+				}
+			}
+			//clearing all quantities
+			clearQuantities($("input.quantity"));
+			// clearing total quantity
+			$('.count').text("0");
+			$('.pCount').text("0");
+
+				$.ajax({
+					url : "/buyAccessories",
+					type : "GET",
+					data : {
+						cartItems : JSON.stringify(cartItems)
+					},
+					cache : false,
+					contentType : "application/json",
+					dataType : "json",
+					success : function(data) {
+						console.log(data);
+						displayOverlayCart(data);
+					},
+					error: function(xhr, errorThrown){
+						console.log(errorThrown);
+			         }
+				});
+		});
+
+function fireTealiumInkAndMediaCartEvent(currentUrl) {
+	var page = "";
+	if (currentUrl.indexOf("/i/") > -1)	{
+		page = "ink";
+	}
+	else if (currentUrl.indexOf("/m/") > -1) {
+		page = "paper";
+	}
+
+	var link = "add to cart - " + page;
+	
+}
+
+function clearQuantities(quants){
+	if(quants!=undefined && quants.length>0){
+		for(var i=0; i<quants.length; i++){
+			quants[i].value = 0;
+		}
+	}
+}
+
+function displayOverlayCart(data){
+	// If quantity added is zero, reload current page showing error message
+	if(data.qtyStockError != undefined &&  data.qtyStockError == 'true')
+	{
+    	var url= document.location.href + ((document.location.href.indexOf('?') == -1) ? '?' : '&');
+    	url += "showStockError=true";
+    	// Reloads the current page to display error message on screen
+    	window.location.href = url;
+	}
+	else if(data.addToCartQtyError != undefined &&  data.addToCartQtyError == 'true')
+	{
+		$('#addToCartLayer').remove();
+    	if (typeof ACC.minicart.updateMiniCartDisplay == 'function')
+    	{
+    		ACC.minicart.updateMiniCartDisplay();
+    	}
+    	var titleHeader = $("div[id^=addToCartErrorTitle]").html();
+    	ACC.colorbox.open(titleHeader,{
+    		html: data.addToCartQtyErrorLayer,
+    		width:"320px",
+    		height:"180px",
+    	});
+	}
+	else if(data.isPopupHeaderMsg){
+		var titleHeader = $('#errorAddToCartTitle').html();
+		ACC.colorbox.open(titleHeader,{
+    		html: data.addToCartLayer,
+    		width:"320px",
+    		height:"180px",
+    	});
+	}
+    else
+	{
+    	$('#addToCartLayer').remove();
+    	if (typeof ACC.minicart.updateMiniCartDisplay == 'function')
+    	{
+    		ACC.minicart.updateMiniCartDisplay();
+    	}
+		var titleHeader = $("div[id^=addToCartTitle]").html();
+    	ACC.colorbox.open(titleHeader,{
+    		html: data.multipleAddToCartLayer,
+    		width:"320px",
+            onComplete : function () {
+	          $('#colorbox').colorbox.resize();
+	          setTimeout(function() {
+	            ACC.colorbox.resize()
+	          }, 400);
+	        }
+    	});
+		fireTealiumInkAndMediaCartEvent(document.location.href);
+	}
+}
+
+</script>
+
+</body>
+</html>

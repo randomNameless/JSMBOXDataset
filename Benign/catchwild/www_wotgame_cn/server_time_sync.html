@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>server_time_sync.html</title>
+</head>
+<body>
+
+<script>
+(function($, amplify, wgsdk) {
+    'use strict';
+
+    var ServerTimeSyncClass = function() {
+
+        if (ServerTimeSyncClass.prototype._singletonInstance) {
+            return ServerTimeSyncClass.prototype._singletonInstance;
+        }
+
+        ServerTimeSyncClass.prototype._singletonInstance = this;
+
+        var DELTA_LAST_UPDATED_KEY = 'servertimesync:delta',
+            SERVER_SYNC_EVENT_NAME = 'servertimesync:synced',
+            DELTA_UPDATE_CACHE_TIMEOUT = 1000 * 60 * 30, // 30 minutes
+            MIN_DELTA_TIMESTAMP = 5000; // min threshold - 5 seconds
+
+        var currentDelta = 0,
+            isTimestampSynced = false,
+            initialServerTS,
+            storedDelta;
+
+        function trackGA(delta) {
+            var DELTA_10_SEC = 10 * 1000,
+                DELTA_10_MIN = 10 * 60 * 1000;
+
+            if (delta >= DELTA_10_MIN) {
+                wgsdk.ga({eventCategory: 'General', eventAction: 'js', eventLabel: 'mp_wrong_localtime_10m'});
+            } else if (delta >= DELTA_10_SEC) {
+                wgsdk.ga({eventCategory: 'General', eventAction: 'js', eventLabel: 'mp_wrong_localtime_10s'});
+            }
+        }
+
+        storedDelta = (amplify.store.sessionStorage ? amplify.store.sessionStorage(DELTA_LAST_UPDATED_KEY) : undefined);
+
+        if (storedDelta !== undefined) {
+            isTimestampSynced = true;
+            currentDelta = storedDelta;
+            trackGA(storedDelta);
+
+            // just to make it looks more asynchronous
+            setTimeout(function() {
+                amplify.publish(SERVER_SYNC_EVENT_NAME, storedDelta);
+            }, 0);
+        } else {
+            if (window.SERVER_TIME_URL) {
+                initialServerTS = (new Date()).getTime();
+
+                $.ajax({
+                    url: window.SERVER_TIME_URL,
+                    type: 'GET',
+                    contentType: 'text/plain',
+                    dataType: 'text',
+                    success: function(data) {
+                        data = Number(data);
+
+                        if (_.isFinite(data) && data !== 0) {
+                            currentDelta = (data * 1000) - initialServerTS;
+                            if (Math.abs(currentDelta) <= MIN_DELTA_TIMESTAMP) {
+                                currentDelta = 0;
+                            }
+                            if (amplify.store.sessionStorage) {
+                                amplify.store.sessionStorage(DELTA_LAST_UPDATED_KEY, currentDelta, {expires: DELTA_UPDATE_CACHE_TIMEOUT});
+                            }
+                        }
+
+                        isTimestampSynced = true;
+                        amplify.publish(SERVER_SYNC_EVENT_NAME, currentDelta);
+                        trackGA(currentDelta);
+                    },
+                    error: function() {
+                        isTimestampSynced = true;
+                        amplify.publish(SERVER_SYNC_EVENT_NAME, currentDelta);
+                    }
+                });
+            } else {
+                console.error('SERVER_TIME_URL is undefined');
+                isTimestampSynced = true;
+                amplify.publish(SERVER_SYNC_EVENT_NAME, currentDelta);
+            }
+        }
+
+        this.getDelta = function() {
+            return currentDelta;
+        };
+
+        this.isTimestampSynced = function() {
+            return isTimestampSynced;
+        };
+    };
+
+    window.ServerTimeSync = ServerTimeSyncClass;
+})(jQuery, amplify, wgsdk);
+
+</script>
+
+</body>
+</html>

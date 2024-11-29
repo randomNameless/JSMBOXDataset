@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>index.html</title>
+</head>
+<body>
+
+<script>
+window.localStorageKey={lastReadList:'lastReadList',readHabit:'readHabit',novelVisit:'novelVisit',searchUrl:'searchUrl',}
+window.urlPath={verifyUsername:'/user/verifyUsername.json',toLogin:'/user/login.json',bookcase:'/user/bookcase.php',addBookcase:'/user/addbookcase.json',delBookcase:'/user/delbookcase.json',userinfo:'/user/userinfo.php',passwd:'/user/password.php',toPasswd:'/user/password.json',logout:'/user/logout.php',register:'/user/register.php',toRegister:'/user/register.json',category_page:'/{sortPinyin}/{sortId}_{page}.html',errorChapter:'/errorChapter.json',novelVisit:'/novelVisit.json',search:'/search.php',book:'/book/{bid}/',chapter:'/book/{bid}/{cid}.html',}
+getArgs();function getArgs(){var refresh=true;var searchUrl=localStorage.getItem(window.localStorageKey.searchUrl);if(searchUrl){try{searchUrl=JSON.parse(searchUrl);if((Date.now()-parseInt(searchUrl.time))<3600*1000){refresh=false;window.urlPath.search=searchUrl.url;}}catch(e){}}
+if(refresh){$.ajax({url:'/getArgs',type:"get",async:false,success:function(res){if(res.code==0){localStorage.setItem(window.localStorageKey.searchUrl,JSON.stringify({"time":Date.now(),"url":res.data.searchUrl}));window.urlPath.search=res.data.searchUrl;}else{localStorage.setItem(window.localStorageKey.searchUrl,JSON.stringify({"time":Date.now(),"url":"/search.php"}));window.urlPath.search="/search.php";}},error:function(err){console.log(err)
+localStorage.setItem(window.localStorageKey.searchUrl,JSON.stringify({"time":Date.now(),"url":"/search.php"}));window.urlPath.search="/search.php";}});}}
+function isMobile(){return /(iPhone|iPad|iPod|iOS|Android)/i.test(navigator.userAgent);}
+function login(){if(checkLogin()){var username=getCookie('username');document.writeln('Hi,'+username+'&nbsp;&nbsp;<a href="'+window.urlPath.bookcase+'" target="_top">我的书架</a> | <a href="'+window.urlPath.userinfo+'" target="_top">查看资料</a> | <a href="'+window.urlPath.passwd+'" target="_top">密码修改</a> | <a href="'+window.urlPath.logout+'" target="_self">退出登录</a>&nbsp;');}else{document.writeln('<div class="cc">');document.writeln('  <div class="txt">账号：</div>');document.writeln('  <div class="inp"><input type="text" name="username" id="username"></div>');document.writeln('</div>');document.writeln('<div class="cc">');document.writeln('  <div class="txt">密码：</div>');document.writeln('  <div class="inp"><input type="password" name="password" id="password"></div>');document.writeln('</div>');document.writeln('<div class="frii">');document.writeln('  <input type="submit" class="int" value=" " onclick="upLogin()">');document.writeln('</div>');document.writeln('<div class="ccc">');document.writeln('  <div class="txtt"></div>');document.writeln('  <div class="txtt"><a href="'+window.urlPath.register+'">用户注册</a></div>');document.writeln('</div>');}}
+function checkLogin(redirectUrl){redirectUrl=redirectUrl||false;var isLogin=getCookie('token');if(isLogin){if(redirectUrl!=false){location.href=redirectUrl;}
+return true;}
+if(redirectUrl!=false){alert('未登陆')}
+return false;}
+function getCookie(key){if(document.cookie.length>0){var params=document.cookie.split('; ');if(params.length>0){var _args=[],tmpArgs;for(var i in params){tmpArgs=params[i].split('=');_args[tmpArgs[0]]=tmpArgs[1];}
+if(key){for(var i in _args){if(key==i)return _args[i];}}else{return _args;}}}
+return key?'':[];}
+function panel(){getArgs();document.writeln("<form action=\""+window.urlPath.search+"\" name=\"form\" id=\"sform\" target=\"_blank\" method=\"get\">");document.writeln("<div class=\"search\">");document.writeln("<input name=\"keyword\" type=\"text\" class=\"input\" value=\"输入需要搜索的小说\" onblur=\"if (value ==\'\'){value=\'输入需要搜索的小说\'}\" onfocus=\"if (value ==\'输入需要搜索的小说\'){value =\'\'}\" id=\"wd\"/><span class=\"s_btn\"><input type=\"submit\" value=\" 搜 索 \" class=\"button\"></span>");document.writeln("</div>");document.writeln("</form>");}
+function upLogin(type){type=type||1;var usernameObj,passwordObj;if(type==1){usernameObj=$("#username");passwordObj=$("#password");}else{usernameObj=$("#frmLogin_username");passwordObj=$("#frmLogin_password");}
+if(usernameObj.val().trim()==""){alert("请输入用户名!");usernameObj.focus();return false;}
+if(passwordObj.val().trim()==""){alert("请输入用户密码!");passwordObj.focus();return false;}
+$.ajax({url:window.urlPath.toLogin,dataType:"json",type:"post",data:{username:usernameObj.val().trim(),password:passwordObj.val().trim()},success:function(data){if(type==1){location.reload();}else{location.href=window.urlPath.userinfo;}},error:function(err){var data=JSON.parse(err.responseText);alert(data.message);}})}
+function addBookMark(bid,cid,title){$.ajax({url:window.urlPath.addBookcase,dataType:"json",type:"post",data:{bid:bid,cid:cid,title:title,action:'addbookmark'},success:function(data){alert('加入书签成功');},error:function(err){var data=JSON.parse(err.responseText);if(data.code==401){alert('您还没有登录，请登录后加入书签！');}else{alert(data.message);}}});}
+function addBookCase(bid){$.ajax({url:window.urlPath.addBookcase,dataType:"json",type:"post",data:{bid:bid,action:'addbookinfo'},success:function(data){alert('加入书架成功！');},error:function(err){var data=JSON.parse(err.responseText);console.log(data.error);if(data.code==401){alert('您还没有登录，请登录后加入书架！')}else{alert(data.message);}}});}
+function delete_bookcase(id){$.ajax({url:window.urlPath.delBookcase,dataType:"json",type:"post",data:{caseid:id,},success:function(data){window.location.href=window.urlPath.bookcase;},error:function(err){var data=JSON.parse(err.responseText);alert(data.message);}});}
+function formatNovelPath(book){var novelPath=window.urlPath.book;novelPath=novelPath.replace(new RegExp('{sid}','g'),book.sid);novelPath=novelPath.replace(new RegExp('{bid}','g'),book.bid);novelPath=novelPath.replace(new RegExp('{py}','g'),book.py);return novelPath;}
+function formatChapterPath(chapter){var chapterPath=window.urlPath.chapter;chapterPath=chapterPath.replace(new RegExp('{sid}','g'),chapter.sid);chapterPath=chapterPath.replace(new RegExp('{bid}','g'),chapter.bid);chapterPath=chapterPath.replace(new RegExp('{py}','g'),chapter.py);chapterPath=chapterPath.replace(new RegExp('{cid}','g'),chapter.cid);return chapterPath;}
+function postErrorChapter(bid,cid){$.ajax({url:window.urlPath.errorChapter,dataType:"json",type:"post",data:{bid:bid,cid:cid},success:function(data){alert('已经提交，请耐心等待处理结果');},error:function(err){alert('发生错误');}});}
+function novelVisit(bid){NovelVisit.add(bid);}
+var NovelVisit={key:localStorageKey.novelVisit,add:function(bid){var date=new Date();var day=this.timeAdd0(date.getDay());var bookIds=localStorage.getItem(this.key);try{bookIds=JSON.parse(bookIds);if(!bookIds){bookIds={};}}catch(e){bookIds={};}
+var _new=true;for(var i in bookIds){if(i!=day){bookIds[i]=[];}}
+if(bookIds.hasOwnProperty(day)){if(bookIds[day].indexOf(bid)>=0){_new=false;}}else{bookIds[day]=[];}
+if(_new){bookIds[day].push(bid);}
+localStorage.setItem(this.key,JSON.stringify(bookIds));if(_new){setTimeout(function(){$.ajax({url:window.urlPath.novelVisit,dataType:"json",type:"post",data:{bid:bid},success:function(data){},error:function(err){}})},1000);}},timeAdd0:function(time){time=time.toString();return time.length==1?'0'+time.toString():time;}};
+</script>
+
+</body>
+</html>

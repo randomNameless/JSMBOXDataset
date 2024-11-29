@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iol-sw-greetings.html</title>
+</head>
+<body>
+
+<script>
+let swMessaging, swToken, lastContentId, firebaseConfig;
+
+let sw = '/firebase-messaging-sw.js?site=';
+let subscribeUrl = 'https://externalservices.iol.pt/notification-service/v1/subscribe?';
+let unsubscribeUrl = 'https://externalservices.iol.pt/notification-service/v1/unsubscribe?';
+let receptionUrl = 'https://externalservices.iol.pt/notification-producer/v1/reception?target=WEB&id=';
+
+let version = "&v1=2022012402";
+// let subscribeUrl = 'http://localhost:8004/notification-service/v1/subscribe?';
+// let unSubURL = 'http://localhost:8004/notification-service/v1/unsubscribe?id=';
+
+const initFirebase = async (site) => {
+	return new Promise(async (resolve, reject) => {
+		try {
+			if (!sw.includes(site)) {
+		    	sw += site;
+				sw += version;
+			}
+			if (site.toLowerCase() === 'cnn') {
+				firebaseConfig = {
+					apiKey: "AIzaSyD9e2KAhRVi1XvFzXSMKzL67zbrP03EX2o",
+					authDomain: "cnn-portugal-web-e-apps.firebaseapp.com",
+					projectId: "cnn-portugal-web-e-apps",
+					storageBucket: "cnn-portugal-web-e-apps.appspot.com",
+					messagingSenderId: "434957535894",
+					appId: "1:434957535894:web:49202a5cde02ac176a10b7",
+					measurementId: "G-DDNN4DERKM"
+				};
+			} else if (site.toLowerCase() === 'maisfutebol') {
+				firebaseConfig = {
+					apiKey: "AIzaSyBpXhMRLzZMUrI-4hWe4PhyDV0ypKJoOfI",
+					authDomain: "maisfutebol-web-e-app.firebaseapp.com",
+					databaseURL: "https://maisfutebol-web-e-app.firebaseio.com",
+					projectId: "maisfutebol-web-e-app",
+					storageBucket: "maisfutebol-web-e-app.appspot.com",
+					messagingSenderId: "677672555470",
+					appId: "1:677672555470:web:39cf2193ae864b03c0519f",
+					measurementId: "G-DP1STDS1WB"
+				};
+			} else if (site.toLowerCase() === 'tvi24') {
+				firebaseConfig = {
+					apiKey: "AIzaSyCNVT7-Ock0K7eSZvN9XkDVoxEoKjEXuOA",
+					authDomain: "tvi-24-web-e-apps.firebaseapp.com",
+					databaseURL: "https://tvi-24-web-e-apps.firebaseio.com",
+					projectId: "tvi-24-web-e-apps",
+					storageBucket: "tvi-24-web-e-apps.appspot.com",
+					messagingSenderId: "87360395482",
+					appId: "1:87360395482:web:87365a2e2521b5ffbf6de3",
+					measurementId: "G-88QW5YV6G1"
+				};
+			} else if (site.toLowerCase() === 'away') {
+				firebaseConfig = {
+					apiKey: "AIzaSyAWKhsm1I6BJtBapy5MKMsniYvLmq9NJNU",
+					authDomain: "away-6cc6e.firebaseapp.com",
+					projectId: "away-6cc6e",
+					storageBucket: "away-6cc6e.appspot.com",
+					messagingSenderId: "132903327115",
+					appId: "1:132903327115:web:4426e13ee0d018a7188b8e",
+					measurementId: "G-W2DQ8DG3W8"
+				};
+			} else if(site.toLowerCase() === 'bigbrother') {
+				firebaseConfig = 	{
+					apiKey: "AIzaSyASMxHVRtZK3fg5HkEjtHMhVCHKJa2JJL4",
+					authDomain: "big-brother-e74e7.firebaseapp.com",
+					databaseURL: "https://big-brother-e74e7.firebaseio.com",
+					projectId: "big-brother-e74e7",
+					storageBucket: "big-brother-e74e7.appspot.com",
+					messagingSenderId: "1080686009193",
+					appId: "1:1080686009193:web:510ad337cc2e0cda74fbf8",
+					measurementId: "G-YHE5K43RQR"
+				  };
+			} else if(site.toLowerCase() === 'tvireality') {
+				firebaseConfig = {
+					apiKey: "AIzaSyBHT3t_Q9Nyf9iu97vuFvG71M8u2oarx7I",
+					authDomain: "tvi-reality.firebaseapp.com",
+					projectId: "tvi-reality",
+					storageBucket: "tvi-reality.appspot.com",
+					messagingSenderId: "519173930754",
+					appId: "1:519173930754:web:f935ddbb60bcf7bb020c1b",
+					measurementId: "G-PZKQGENDC2"
+				  };
+			} else if(site.toLowerCase() === 'iol') {
+				firebaseConfig = 	{
+					apiKey: "AIzaSyAD4U1HfNwxdvnDf5Vdhmd6qNkCTT7CaHM",
+					authDomain: "portal-iol.firebaseapp.com",
+					projectId: "portal-iol",
+					storageBucket: "portal-iol.appspot.com",
+					messagingSenderId: "160865623587",
+					appId: "1:160865623587:web:e02771bbdd619ea482db96",
+					measurementId: "G-TBSQB515C1"
+				  };
+			} else if(site.toLowerCase() === 'tvi') {
+	    		firebaseConfig = {
+					apiKey: "AIzaSyBLhV87IuxQJHcBrOvy5Y7-fGoH58s-RpQ",
+					authDomain: "tvi-web-e-app.firebaseapp.com",
+					databaseURL: "https://tvi-web-e-app.firebaseio.com",
+					projectId: "tvi-web-e-app",
+					storageBucket: "tvi-web-e-app.appspot.com",
+					messagingSenderId: "1080082584195",
+					appId: "1:1080082584195:web:ef01d943bcbd640d6381b6"
+				};										  
+			} else if(site.toLowerCase() === 'versa') {
+				firebaseConfig = {
+					  apiKey: "AIzaSyDqvtSJ0lLu9f8QuxTLkR9CGJBeDXsS2IY",
+					  authDomain: "versa-2bb2d.firebaseapp.com",
+					  projectId: "versa-2bb2d",
+					  storageBucket: "versa-2bb2d.appspot.com",
+					  messagingSenderId: "186587587629",
+					  appId: "1:186587587629:web:f4b54d27c3b946d40e04a4",
+					  measurementId: "G-3PJZWWZ21D"
+					};
+			} else if(site.toLowerCase() === 'selfie') {
+			   firebaseConfig = {
+					apiKey: "AIzaSyDKzX-JSADlFaXj5GFvVJS6k8n6H5AEUVc",
+					authDomain: "selfie-525fe.firebaseapp.com",
+					projectId: "selfie-525fe",
+					storageBucket: "selfie-525fe.appspot.com",
+					messagingSenderId: "160520720540",
+					appId: "1:160520720540:web:d1809117a5d8ab745c1d59",
+					measurementId: "G-F6BWF16FQC"
+				};
+			} else {
+				firebaseConfig = {
+					apiKey: "AIzaSyAaXGxfdbLNT9D6_rz7blyWKhEzNHU2JQ8",
+					authDomain: "tviplayer-web-e-app.firebaseapp.com",
+					databaseURL: "https://tviplayer-web-e-app.firebaseio.com",
+					projectId: "tviplayer-web-e-app",
+					storageBucket: "tviplayer-web-e-app.appspot.com",
+					messagingSenderId: "566186928211",
+					appId: "1:566186928211:web:2b0595dfdd11550307fea6",
+					measurementId: "G-E71K5PWG1M"
+				};
+			}
+			console.log('Inicializar firebase para o projecto ' + firebaseConfig.projectId);
+			await firebase.initializeApp(firebaseConfig);
+			swMessaging = firebase.messaging();
+			await registerSw(swMessaging, site);
+			resolve(false);
+		} catch (error) {
+			console.log("Erro ao inicializar Firebase.");
+			resolve(true);
+		}
+	});
+}
+ 
+async function registerSw(messaging, site) {
+	if ('serviceWorker' in navigator && firebase.messaging.isSupported()) {
+
+		navigator.serviceWorker.register(sw, { cache: 'no-cache' }).then(function(registration) {
+			messaging.useServiceWorker(registration);
+			registration.update();
+			// Received message logic
+			messaging.onMessage(function(payload) {
+				console.log("messaging.onMessage, " + payload.data.title);
+				let notiOptions = {
+					body: payload.data.body,
+					tag: payload.data.notiId,
+					icon: payload.data.icon,
+					badge: payload.data.badge,
+					image: payload.data.img,
+					data: {
+						target: payload.data.target,
+						notiId: payload.data.notiId,
+					},
+					/*
+					 * actions: [ { action: 'explore', title: 'Ver o artigo', }, { action: 'close', title: 'Outra O', }, ]
+					 */
+				}
+				if (payload.data.notiId || true) {
+					lastContentId = payload.data.notiId;
+					// registerReception(payload.data.notiId);
+					registration.showNotification(payload.data.title, notiOptions);
+				}
+			});
+		}, function(err) {
+			// registration failed :(
+			console.log('ServiceWorker registration failed: ', err);
+		}).catch(function(err) {
+			console.log('Setup ServiceWorker Failed! Error: ' + err)
+		});
+	} else {
+		console.log("ServiceWorker/Firebase não é suportado")
+	}
+}
+
+function subscribeToHost(host) {
+	if (firebase.messaging.isSupported()) {
+		if (Notification.permission === "denied") {
+			console.log("Notificações bloqueadas pelo browser");
+			$('#deniedNoti').fadeIn(750);
+		} else {
+			swMessaging.requestPermission().then(async function() {
+				swToken = await swMessaging.getToken();
+				fetch(subscribeUrl + 'token=' + swToken + '&host=' + host, {
+					method: 'POST'
+				}).then(function(response) {
+					if (!response.ok) {
+						throw Error(response.statusText);
+					}
+					return response;
+				}).then(function(response) {
+					console.log('ServiceWorker subscribed');
+					// Cookies.set('swReg', 'true', { expires: 30 })
+					localStorage.swReg = new Date().getTime();
+				}).catch(function(error) {
+					console.log('Failed to subscribe SW');
+				});
+			}).catch(function(err) {
+				console.log('Something went wrong to subscribed SW, err: ' + err)
+			})
+		}
+	} else {
+		console.log("Firebase não é suportado")
+	}
+}
+
+function unsubscribeToHost(host) {
+	if (firebase.messaging.isSupported()) {
+		swMessaging.requestPermission().then(async function() {
+			swToken = await swMessaging.getToken();
+			fetch(unsubscribeUrl + 'token=' + swToken + '&host=' + host, {
+				method: 'POST'
+			}).then(function(response) {
+				if (!response.ok) {
+					throw Error(response.statusText);
+				}
+				return response;
+			}).then(function(response) {
+				console.log('ServiceWorker unsubscribed');
+			}).catch(function(error) {
+				console.log('Failed to unsubscribed SW');
+			});
+		}).catch(function(err) {
+			console.log('Something went wrong to unsubscribed SW, err: ' + err)
+		})
+	} else {
+		console.log("Firebase não é suportado")
+	}
+}
+
+async function registerReception(notificationId) {
+	// para evitar DDOS, invocar reception apos um intervalo entre 1 e 15 segundos
+	let time = Math.floor(Math.random() * (15000 - 1000 + 1) + 1000);
+	setTimeout(function() {
+		fetch(receptionUrl + notificationId).then(function(response) {
+			if (!response.ok) {
+				throw Error(response.statusText);
+			}
+		}).catch(function(error) {
+			// caso falhe retry a cada 10 segundos
+			setTimeout(function() {
+				registerReception(notificationId);
+			}, 10000);
+		});
+	}, time);
+}
+
+function prepareIOLSW(site, retry){	
+	return new Promise(async (resolve, reject) => {
+		if(!retry){
+			let scripts = [
+				'https://cdn.iol.pt/js/NotificacoesIOL/external/firebase-app.js',
+				'https://cdn.iol.pt/js/NotificacoesIOL/external/firebase-auth.js',
+				'https://cdn.iol.pt/js/NotificacoesIOL/external/firebase-messaging.js',
+			];
+			// 'https://cdn.iol.pt/js/NotificacoesIOL/external/js.cookie.min.js',
+
+			let urlCSS = 'https://cdn.iol.pt/js/NotificacoesIOL/notificacoesIOL.css?quechatoruben25';
+			let styles = "@import url(" + urlCSS + ");";
+			let newSS = document.createElement('link');
+			newSS.rel = 'stylesheet';
+			newSS.href = 'data:text/css,' + escape(styles);
+			document.getElementsByTagName("head")[0].appendChild(newSS);
+
+			for(let scpt of scripts){
+				let tag = document.createElement("script");
+				tag.src = scpt;
+				document.getElementsByTagName("head")[0].appendChild(tag);
+			}
+		}
+		
+		var siteName = site.toUpperCase() === 'TVI24' ? 'TVI Notícias' : site.toUpperCase();
+		let html = '<div class="bell">' +
+			'<div class="bell_content">' +
+				'<div class="bell_icon '+site+'">' +
+					'<img src="https://cdn.iol.pt/js/NotificacoesIOL/bell.svg" alt="Bell notification" />' +
+				'</div>' +
+				'<div class="bell_message">' +
+					'<div class="bell_title">Deseja receber notificações</div>' +
+					'<div class="bell_site">' + siteName + '</div>' +
+					'<div class="bell_bottom">' +
+						'<div id="allowSubsButton" class="bell_bt">Permitir</div>' +
+						'<div id="denySubsButton" class="bell_bt">Anular</div>' +
+						'<div class="bell_close">' +
+							'<svg version="1.1" xmlns="https://www.w3.org/2000/svg" width="768" height="768" viewBox="0 0 768 768">' +
+								'<path d="M607.5 205.5l-178.5 178.5 178.5 178.5-45 45-178.5-178.5-178.5 178.5-45-45 178.5-178.5-178.5-178.5 45-45 178.5 178.5 178.5-178.5z"></path>' +
+							'</svg>' +
+						'</div>' +
+					'</div>' +
+				'</div>' +
+			'</div>' +
+		'</div>' +
+		'<div id="popover" class="popover" style="display: none">' +
+			'<div class="popover_content">' +
+				'<div class="popover_icon '+ site +'">' +
+				'</div>' +
+				'<div class="popover_text">Quer ser o primeiro a receber as notificações '+ siteName +'?</div>' +
+			'</div>' +
+			'<div class="popover_bottom">' +
+				'<button class="popover_no '+site+'">Não</button>' +
+				'<button class="popover_yes '+site+'">Sim</button>' +
+			'</div>' +
+		'</div>' +
+		'<div id="deniedNoti" class="popover flexContainer" style="display: none">' +
+			'<div class="flexbox-item flexbox-item-1 popover_content">' +
+				'<div class="popover_icon '+site+'"></div>' +
+				'<div class="popover_text">Confirme que deu permissão ao browser para apresentar as notificações</div>' +
+			'</div>' +
+			'<div class="flexbox-item flexbox-item-2">' +
+				'<img src="https://cdn.iol.pt/img/deniedNotifications.gif"/>'+
+			'</div>' +
+			'<div class="flexbox-item flexbox-item-2 popover_bottom">' +
+				'<button class="deniedNotiButton '+site+'">OK</button>' +
+			'</div>' +
+		'</div>';
+		resolve(html);
+	});
+}
+
+function drawNotiUI(site){
+	if (/complete|interactive|loaded/.test(document.readyState)) {
+	    // In case the document has finished parsing, document's readyState will
+	    // be one of "complete", "interactive" or (non-standard) "loaded".
+		setTimeout(() => {
+			drawNotiUI2(site);
+		}, 2000)
+	} else {
+	    // The document is not ready yet, so wait for the DOMContentLoaded event
+	    document.addEventListener('DOMContentLoaded', ()=>{
+			setTimeout(() => {
+				drawNotiUI2(site);
+			}, 2000)
+	    }, false);
+	}
+}
+
+let notiErrorCount = 0;
+async function drawNotiUI2(site, retry){
+	if(!site){
+		site = 'iol'
+	}
+	let notiHTML = await prepareIOLSW(site, retry);
+	let error = await initFirebase(site);
+	if(!error && window.jQuery && navigator.cookieEnabled && firebase && firebase.messaging.isSupported()) {
+			let now = new Date().getTime();
+			$('body').append(notiHTML);
+			if (checkWarninnTimestamp()) {
+				$('#popover').fadeIn(750);
+			}
+
+			// BIND DOS EVENTOS
+			$('.bell').on('click', function() {
+				$(this).addClass('bell_resize');
+			});
+			$('.bell_bt').on('click', function(e) {
+				e.stopPropagation();
+				$('.bell').removeClass('bell_resize');
+			});
+			$('.bell_close').on('click', function(e) {
+				e.stopPropagation();
+				$('.bell').removeClass('bell_resize');
+			});
+			$('.popover_bottom button').on('click', function(e) {
+				e.stopPropagation();
+				$('#popover').addClass('popover_hide');
+			});
+
+			$('.popover_yes').on('click', function(e){
+				e.stopPropagation();
+				$('#deniedNoti').fadeOut(500);
+				subscribeToHost("'"+site+"'");
+				localStorage.swReg = now;
+			});
+
+			$('.popover_no').on('click', function(e){
+				e.stopPropagation();
+				localStorage.swReg = now;
+			});
+
+			$('#allowSubsButton').on('click', function(e){
+				e.stopPropagation();
+				subscribeToHost("'"+site+"'");
+				localStorage.swReg = now;
+			});
+
+			$('#denySubsButton').on('click', function(e){
+				e.stopPropagation();
+				unsubscribeToHost("'"+site+"'");
+				localStorage.swReg = now;
+			});
+
+			$('.deniedNotiButton').on('click', function(e){
+				e.stopPropagation();
+				$('#deniedNoti').fadeOut(750);
+			});
+	} else {
+		notiErrorCount++;
+		if((error || !window.jQuery || !firebase) && notiErrorCount <= 10){
+			console.log('Falhou window.jQuery || firebase, notiErrorCount',notiErrorCount);
+			setTimeout(() => {
+				drawNotiUI2(site, true);
+			}, 3500)
+		} else if(!firebase.messaging.isSupported()){
+			console.log('Falhou firebase.messaging.isSupported()')
+		} else {
+			console.log('Falhou outro')
+		}
+	}
+}
+
+function checkWarninnTimestamp() {
+	let timePassedMilis = new Date().getTime() - localStorage.swReg;
+	let timePassedDays = timePassedMilis / 1000 / 60 / 60 / 24;
+	return !localStorage.swReg || timePassedDays > 30;
+}
+
+
+</script>
+
+</body>
+</html>

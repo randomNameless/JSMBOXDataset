@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>auth.html</title>
+</head>
+<body>
+
+<script>
+var auth={registerValidationUrl:null,authValidationUrl:null,restoreUrl:null,changePasswordUrl:null,init:function(registerValidationUrl,authValidationUrl,restoreUrl,changePasswordUrl){this.registerValidationUrl=registerValidationUrl;this.authValidationUrl=authValidationUrl;this.restoreUrl=restoreUrl;this.changePasswordUrl=changePasswordUrl;},currentForm:null};var formsIds={authForm:'#loginForm',regForm:'#regForm',forgPassForm:'#passRecoveryForm'};$(document).ready(function(){$(formsIds.regForm).submit(function(e){e.preventDefault();hideFormErrors();var $form=$(this);if($form.hasClass('loading')){return;}
+$form.addClass('loading');hideFormErrors();var passwordInput=$(formsIds.regForm+" input[name=register_password]");var emailInput=$(formsIds.regForm+" input[name=register_email]");if(!$.trim(passwordInput.val())&&!$.trim(emailInput.val())){showFormErrors('Invalid email or pass, please check them again.');highlightErrorInput(emailInput);highlightErrorInput(passwordInput);$form.removeClass('loading');return false;}
+if(!$.trim(emailInput.val())){showFormErrors('Please enter your email.');highlightErrorInput(emailInput);$form.removeClass('loading');return false;}
+if(!$.trim(passwordInput.val())){showFormErrors('Please enter your password.');highlightErrorInput(passwordInput);$form.removeClass('loading');return false;}
+$.ajax({type:"post",dataType:"json",url:auth.registerValidationUrl,data:{'email':emailInput.val(),'cf-turnstile-response':$form.find('input[name=cf-turnstile-response]').val(),'isExists':true,}}).done(function(data){if(!data.is_email){showFormErrors('Invalid email, please check it again.');highlightErrorInput(emailInput);return false;}
+if(data.is_exists){showFormErrors('This email address is already taken. Please try another.');highlightErrorInput(emailInput);return false;}
+if(!data.is_captcha_valid){showFormErrors('Captcha is invalid.');return false;}
+$(formsIds.regForm).off().submit();}).always(function(){auth.currentForm=null;$form.removeClass('loading');});});$(formsIds.authForm).submit(function(e){e.preventDefault();hideFormErrors();var $form=$(this);if($form.hasClass('loading')){return;}
+$form.addClass('loading');var emailInput=$(formsIds.authForm+" input[name=login_mail]");var passwordInput=$(formsIds.authForm+" input[name=login_pass]");$.ajax({type:"post",dataType:"json",url:auth.authValidationUrl,data:{email:emailInput.val(),password:passwordInput.val(),'cf-turnstile-response':$form.find('input[name=cf-turnstile-response]').val(),}}).done(function(data){if(!data.authenticated){showFormErrors('Invalid email or pass, please check them again.');highlightErrorInput(emailInput);highlightErrorInput(passwordInput);return false;}
+if(!data.is_captcha_valid){showFormErrors('Captcha is invalid.');return false;}
+$(formsIds.authForm).off().submit();}).always(function(){auth.currentForm=null;$form.removeClass('loading');});});$(formsIds.forgPassForm).submit(function(e){e.preventDefault();hideFormErrors();var $form=$(this);if($form.hasClass('loading')){return;}
+$form.addClass('loading');var emailInput=$(formsIds.forgPassForm+" input[name=recovery_mail]");$.ajax({type:"post",dataType:"json",url:auth.restoreUrl,data:{email:emailInput.val(),restorePassword:true,'cf-turnstile-response':$form.find('input[name=cf-turnstile-response]').val(),}}).done(function(data){if(data.token_sent){$('.popup-window').find('#passrecovery-popup').show().siblings().hide();$('.popup-window').addClass('active').show();positionRegister();bodyCut();return;}
+if(!data.is_captcha_valid){showFormErrors('Captcha is invalid.');return false;}
+showFormErrors('There is no user registered with that email address.');highlightErrorInput(emailInput);}).always(function(){auth.currentForm=null;$form.removeClass('loading');});return false;});$('.content-box form input').focusin(function(){if($(this).hasClass('error')){$(this).removeClass('error');}});});function hideFormErrors(){$('.error-message').hide();$('.error').removeClass('error');}
+function showFormErrors(errorText){$('.content-box:visible .error-message').text(errorText);$('.content-box:visible .error-message').show();}
+function highlightErrorInput(input){input.addClass('error');var inputPlaceholder=input.attr('placeholder');input.parent().find(".placeholder[placeholder='"+inputPlaceholder+"']").addClass("error");}
+</script>
+
+</body>
+</html>

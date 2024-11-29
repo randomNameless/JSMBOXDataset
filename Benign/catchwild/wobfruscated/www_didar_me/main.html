@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>main.html</title>
+</head>
+<body>
+<script>$(document).ready(function () {
+    var swiperThree = new Swiper('.swiper', {
+        spaceBetween: 12,
+        slidesPerView: 1,
+        direction: 'horizontal',
+        loop: false,
+        breakpoints: {
+            992: {
+                spaceBetween: 24,
+                slidesPerView: 1,
+            }
+        },
+
+        navigation: {
+            nextEl: '.swiper-button-prev.three',
+            prevEl: '.swiper-button-next.three',
+        },
+    });
+
+
+    $(".courses-list-box").appendTo("#courses-list");
+
+
+    function scrollToElement(selector) {
+        $('html, body').animate({
+            scrollTop: $(selector).offset().top + 50
+        }, 2000);
+    };
+
+
+    $(window).scroll(function () {
+        var sticky = $("#header"),
+            scroll = $(window).scrollTop();
+        var menuHeight = $("#header").height();
+
+        if (scroll >= menuHeight) sticky.addClass("sticky");
+        else sticky.removeClass("sticky");
+    });
+
+    $(document).on('click', '.courses-list-box a', function () {
+        scrollToElement($(this).attr('href'));
+    });
+    $(".qanda").click(function () {
+        $(this).toggleClass("active");
+        $(this).siblings().removeClass('active');
+    });
+
+    $(".didar-article .book-box h3").click(function () {
+        $(".didar-article .book-box").toggleClass("closed");
+
+    });
+    $(".didar-article .register-box.mobile.closed img.close-icon").click(function () {
+        $(".didar-article .register-box.mobile").addClass("none");
+
+    });
+
+    $('.nav > ul > li a.mega-link').click(function () {
+        $(this).siblings().toggleClass('active');
+    });
+
+    $('.nav > ul > li a.mega-link').click(function () {
+        $('.nav > ul > li > a.mega-link img').toggleClass('rotate');
+    });
+
+    $(".ham-menu").click(function () {
+        $(".ham-menu").toggleClass("active");
+        $(".nav").toggleClass("active");
+    });
+    $(".register-box img,.register-box h3,.register-box div.arrow").click(function () {
+        $(".register-box").toggleClass("closed");
+    });
+
+    $(".acc-btn").click(function () {
+        // Close all other accordions
+        $(".acc-content").not($(this).next()).slideUp("normal");
+        $(".acc-btn").not($(this)).removeClass("active");
+        $(".accordion").not($(this).parent()).removeClass("active");
+
+        var show = !$(this).next().is(":visible");
+        $(this).toggleClass("active", show);
+        $(this).parent().toggleClass("active", show);
+
+        if (show) {
+            $(this).next().slideDown("normal");
+        } else {
+            $(this).next().slideUp("normal");
+        }
+    });
+
+    $(".clk").click(function () {
+        if ($(this).prev('.detailBlk').hasClass("active")) {
+            $(this)
+                .prev()
+                .removeClass("active");
+            $(this).text(" بیشتر...");
+        } else {
+
+            $(this)
+                .prev()
+                .addClass("active");
+            $(this).text("کمتر");
+
+        }
+    });
+    $('[tabName]').click(function () {
+        var tabName = $(this).attr('tabName');
+        $('.tabs li.selected').removeClass('selected');
+        $(this).addClass('selected');
+
+        $('[tabContent]').hide();
+        $('[tabContent]').each(function () {
+            if ($(this).attr('tabContent') == tabName) $(this).show();
+        })
+    });
+
+    // quiz
+    $(function () {
+        $('.btn-show').click(function () {
+            $(this).closest('.flipper').toggleClass("flipperRotate");
+        });
+    });
+    $(".main-slider").slick({
+        dots: false,
+        infinite: true,
+        slidesToShow: 1,
+        slidesToScroll: 1,
+        arrows: true,
+        speed: 1000,
+        rtl: true,
+    });
+    var slider = $('.main-slider');
+    var slideCounter = $('.slide-counter');
+    var totalSlides = slider.find('.slick-slide:not(.slick-cloned)').length;
+    var currentSlide = 0;
+
+    function updateSlideCounter() {
+        var currentSlideNumber = currentSlide + 1;
+        slideCounter.text(currentSlideNumber + ' / ' + totalSlides);
+    }
+
+    slider.on('afterChange', function (event, slick, currentSlideIndex) {
+        currentSlide = currentSlideIndex;
+        updateSlideCounter();
+        $('.flipper.flipperRotate').removeClass("flipperRotate");
+    });
+    updateSlideCounter();
+
+
+});
+
+function generateTOC() {
+    var tocContainer = jQuery('#toc');
+    var headings = jQuery('.didar-text-art h2');
+
+    var tocList = jQuery('<ul></ul>');
+
+    headings.each(function (index) {
+        var headingText = jQuery(this).text().trim();
+        var tocItem = jQuery('<li></li>');
+        var tocLink = jQuery('<a></a>');
+        tocLink.text(headingText);
+        tocLink.attr('href', '#' + encodeURIComponent(headingText));
+
+        tocLink.on('click', function (e) {
+            e.preventDefault();
+
+            var clickedHeadingIndex = index;
+
+            tocList.find('li').removeClass('active');
+
+            tocList.find('li').eq(clickedHeadingIndex).addClass('active');
+
+            var offset = headings.eq(clickedHeadingIndex).offset().top - 100;
+            jQuery('html, body').animate({
+                scrollTop: offset
+            }, 200);
+        });
+
+        tocItem.append(tocLink);
+        tocList.append(tocItem);
+    });
+
+    tocContainer.append(tocList);
+}
+
+jQuery(document).ready(function () {
+    generateTOC();
+});
+
+$(".toc-container h2").click(function () {
+    $('.toc-container').toggleClass("open");
+
+});
+
+
+$(document).ready(function () {
+     $.ajax({
+        url: 'https://app.didar.me/api/Authentication/session',
+        xhrFields: { withCredentials: true }
+    }).then(res => {
+        if (res.Response.IsLoggedIn) {
+            $(".login-click-in").show();
+            $(".login-click-out").hide();
+        } else {
+            $(".login-click-out").show();
+            $(".login-click-in").hide();
+        }
+        localStorage.setItem('losid', res.SessionId);
+    }).catch(err => {
+    });
+    function getParameterByName(name, url = window.location.href) {
+        name = name.replace(/[\[\]]/g, '\\$&');
+        var regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)'),
+            results = regex.exec(url);
+        if (!results) return null;
+        if (!results[2]) return '';
+        return decodeURIComponent(results[2].replace(/\+/g, ' '));
+    }
+
+    try {
+        var refCookie = JSON.parse(readCookie('ref-data'));
+    } catch (e) {
+        console.error('Save Cookie', e);
+    }
+
+    if (!refCookie) {
+
+        var rep = getParameterByName('rep');
+        var ref = getParameterByName('ref');
+        var r = getParameterByName('r');
+        refCookie = {};
+
+        if (rep) {
+            refCookie['Seller'] = rep;
+            writeCookie('ref-data', JSON.stringify(refCookie), 30);
+            return;
+        }
+
+        if (ref) {
+            refCookie['Referral'] = ref;
+            writeCookie('ref-data', JSON.stringify(refCookie), 30);
+            return;
+        }
+
+        if (r) {
+            refCookie['Affiliate'] = r;
+            writeCookie('ref-data', JSON.stringify(refCookie), 30);
+            return;
+        }
+
+    }
+
+});
+
+jQuery(document).ready(function () {
+    jQuery('.nav > ul > li.mega').hover(function () {
+        jQuery('.modal-overlay').addClass('active');
+    }, function () {
+        jQuery('.modal-overlay').removeClass('active');
+    });
+});
+
+function writeCookie(name, value, days, topLevelDomain) {
+    var expires = "";
+    if (days) {
+        var date = new Date();
+        date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+        expires = "; expires=" + date.toGMTString();
+    }
+    var domain = "";
+    if (topLevelDomain) {
+        var parts = window.location.host.split('.');
+        if (parts.length >= 2)
+            domain = '.' + parts[parts.length - 2] + '.' + parts[parts.length - 1];
+        else
+            domain = window.location.host;
+        domain = '; domain=' + domain;
+    }
+
+    document.cookie = name + "=" + encodeURIComponent(value) + expires + "; path=/" + domain;
+}
+
+function readCookie(name) {
+    var nameEQ = name + "=";
+    var ca = document.cookie.split(';');
+    for (var i = 0; i < ca.length; i++) {
+        var c = decodeURIComponent(ca[i]);
+        while (c.charAt(0) == ' ') c = c.substring(1, c.length);
+        if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
+    }
+    return null;
+}
+
+function getUrlRefParams() {
+    try {
+        var referralParams = JSON.parse(readCookie('ref-data') || '{}');
+        return (referralParams.Seller ? "&rep=" + encodeURIComponent(referralParams.Seller) : "") +
+            (referralParams.Referral ? "&ref=" + encodeURIComponent(referralParams.Referral) : "") +
+            (referralParams.Affiliate ? "&r=" + referralParams.Affiliate : "");
+
+    } catch (e) {
+    }
+    return '';
+}
+
+function packageSignUp(packageType) {
+    setTimeout(() => {
+        window.location.href = 'https://app.didar.me/account/signup?package_type=' + packageType + getUrlRefParams();
+    }, 2000);
+}
+
+function scrollto(div) {
+    $('html,body').animate(
+        {
+            scrollTop: $("#" + div).offset()?.top - 60
+        }, 'slow');
+}
+
+function signUpClick() {
+    setTimeout(() => {
+        window.location.href = 'https://app.didar.me/account/signup' + (getUrlRefParams() ? '?' + getUrlRefParams() : getUrlRefParams());
+    }, 2000);
+}
+
+function loginClickIn() {
+    setTimeout(() => {
+        window.location.href = 'https://app.didar.me/deal'
+    }, 2000);
+}
+
+function loginClickOut() {
+    setTimeout(() => {
+        window.location.href = 'https://app.didar.me/account/login' + (getUrlRefParams() ? '?' + getUrlRefParams() : getUrlRefParams());
+    }, 2000);
+}
+
+function loginaffiliation() {
+    setTimeout(() => {
+        window.location.href = 'https://app.didar.me/affiliate'
+    }, 2000);
+}
+
+function packageSignUp(packageType) {
+    setTimeout(() => {
+        window.location.href = 'https://app.didar.me/account/signup?package_type=' + packageType + getUrlRefParams();
+    }, 2000);
+}
+
+$(function () {
+    $(window).scroll(function () {
+        if ($('#main-items-sec').length == 0) {
+            return false;
+        }
+
+        var x = $(window).scrollTop();
+        var y = $('#main-items-sec').offset().top;
+
+        if (x > y) {
+            $(".go-top").addClass("go-top-come");
+        } else {
+            $(".go-top").removeClass("go-top-come");
+        }
+
+    });
+});
+$(function () {
+    $(window).scroll(function () {
+        if ($('.didar-text-art').length == 0) {
+            return false;
+        }
+
+        var x = $(window).scrollTop();
+        var y = $('.didar-text-art').offset().top;
+
+        if (x > y) {
+            $(".go-top").addClass("go-top-come");
+        } else {
+            $(".go-top").removeClass("go-top-come");
+        }
+
+    });
+});
+
+function calculate() {
+    var num1 = parseFloat(document.getElementById("firstNumber").value);
+    var num2 = parseFloat(document.getElementById("secondNumber").value);
+    var selectedOption = document.getElementById("myList").selectedIndex;
+    var num3 = parseFloat(document.getElementById("myList").options[selectedOption].value);
+
+    var result1 = ((num1 * num2 * num3 * 250000) / 100);
+    var result2 = (result1 * 2 * 1.5);
+    var result3 = ((result2 * 1.5) + (result1 * 1.5 * 1.5));
+
+    document.getElementById("myList").value = num3;
+    document.getElementById("result").innerHTML = result1.toLocaleString();
+    document.getElementById("result2").innerHTML = result2.toLocaleString();
+    document.getElementById("result3").innerHTML = result3.toLocaleString();
+
+}
+
+(function ($, undefined) {
+    "use strict";
+    $(function () {
+        var $form = $(".box-comput");
+        var $input = $form.find("input[type=text]");
+
+        $input.on("keyup", function (event) {
+            var selection = window.getSelection().toString();
+            if (selection !== '') {
+                return;
+            }
+            if ($.inArray(event.keyCode, [38, 40, 37, 39]) !== -1) {
+                return;
+            }
+            var $this = $(this);
+            var input = $this.val();
+            var input = input.replace(/[\D\s\._\-]+/g, "");
+            input = input ? parseInt(input, 10) : 0;
+            $this.val(function () {
+                return (input === 0) ? "" : input.toLocaleString("en-US");
+            });
+        });
+        $form.on("submit", function (event) {
+
+            var $this = $(this);
+            var arr = $this.serializeArray();
+            for (var i = 0; i < arr.length; i++) {
+                arr[i].value = arr[i].value.replace(/[($)\s\._\-]+/g, ''); // Sanitize the values.
+            }
+            ;
+            event.preventDefault();
+        });
+
+    });
+})(jQuery);
+
+function AdjustPriceDelimeter(amount) {
+    return amount.toString().replace(/\B(?=(?:\d{3})+(?!\d))/g, ",");
+}
+
+function computeLandingPage() {
+    var a = $('input[name="msy"]').val();
+    var find = ',';
+    var re = new RegExp(find, 'g');
+    var a = a.replace(re, '');
+    var b = $('input[name="my"]').val();
+    var find = ',';
+    var re = new RegExp(find, 'g');
+    var b = b.replace(re, '');
+    var y1 = isNaN(parseInt($('[name=cc]').val())) ? 0 : parseInt($('[name=cc]').val());
+    var y4 = isNaN(parseInt($('[name=ccyl]').val())) ? 0 : parseInt($('[name=ccyl]').val());
+    var c = (y1 * 410000)
+    var c1 = (a * 0.23)
+    var c2 = (b * 0.27)
+    var c3 = (y4 * 5000000)
+    var t = (c + c1 + c2 + c3)
+    cd = AdjustPriceDelimeter(t);
+    $('#compute').text(cd.toString());
+    $(".result-comput").css("display", "flex");
+    $(".box-comput").hide();
+}
+
+function computeLandingPageShow() {
+    $(".result-comput").css("display", "none");
+    $(".box-comput").show();
+}</script>
+</body>
+</html>

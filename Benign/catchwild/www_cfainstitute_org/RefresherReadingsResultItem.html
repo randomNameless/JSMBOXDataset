@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RefresherReadingsResultItem.html</title>
+</head>
+<body>
+
+<script>
+import {
+  resultContext,
+} from "https://static.cloud.coveo.com/atomic/v2/index.esm.js";
+
+//Title
+export class RefresherReadingsResultItem extends HTMLElement {
+  shadow;
+  result;
+  initialized = false;
+  loggedIn;
+
+  async connectedCallback() {
+    if (this.initialized) {
+      return;
+    }
+
+    this.initialized = true;
+    this.shadow = this.attachShadow({ mode: "open" });
+
+    try {
+      this.result = await resultContext(this);
+      this.loggedIn = window.drupalSettings.user_roles.includes('authenticated');
+      this.render();
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  render() {
+    const titleDisplay = this.result.title;
+    const linkUrl = this.result.raw.clickableuri;
+    const curriculumTopic = this.result.raw.field_topics_names;
+    const curriculumTopicYear = this.result.raw.field_curriculum_year;
+    const program = this.result.raw.field_learning_product_name;
+    const dateRaw = this.result.raw.field_official_date;
+    const date = dateRaw ? new Date(this.result.raw.field_official_date) : null;
+    const month = dateRaw ? new Intl.DateTimeFormat('en-US', { month: 'short' }).format(date) : null;
+    const examLevel = this.result.raw.field_exam_levels_names;
+    const plCredits = this.result.raw.field_pl_credits || '';
+    const serCredits = this.result.raw.field_ser_credits || '';
+    const isloginrequired = (this.result.isloginrequired || this.result.raw.isloginrequired) === '1';
+
+    const itemContent = `
+      <style>
+        .CoveoResultLink {
+          color: var(--atomic-on-background);
+          text-decoration: none;
+        }
+
+        .CoveoResultLink:hover,
+        .CoveoResultLink:focus,
+        .CoveoResultLink:focus-visible,
+        .CoveoResultLink:active {
+          text-decoration: underline;
+        }
+
+        .CoveoResultLink[target=_blank]::after {
+          margin-left: var(--cfa--spacing--xs);
+          display: inline-block;
+          content: '\\e89e';
+          vertical-align: middle;
+          font-family: 'material';
+        }
+
+        .result__item {
+          position: relative;
+        }
+
+        .item__content {
+          padding: var(--cfa--spacing--lg) 0;
+        }
+
+        .content__title {
+          font-size: 1.25rem;
+          font-style: normal;
+          font-weight: 700;
+          line-height: 1.5;
+          width: 100%;
+          display: flex;
+          flex-direction: column;
+          gap: .25rem;
+        }
+
+        .CoveoResultLink {
+          color: var(--atomic-on-background);
+          text-decoration: none;
+        }
+
+        .CoveoResultLink:hover,
+        .CoveoResultLink:focus,
+        .CoveoResultLink:focus-visible,
+        .CoveoResultLink:active {
+          text-decoration: underline;
+        }
+
+        .margin--bottom {
+          margin-bottom: .25rem;
+        }
+
+        .item__content {
+          font-size: 1rem;
+          font-style: normal;
+          font-weight: 400;
+          line-height: 1.5;
+        }
+
+        .item__header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: var(--cfa--spacing--sm);
+        }
+
+        .item__header-label {
+          font-size: 1rem;
+          font-weight: 500;
+          line-height: 1;
+          margin-bottom: var(--cfa--spacing--md);
+        }
+
+        .content__metadata {
+          display: flex;
+          align-items: center;
+
+        }
+
+        .content__metadata * {
+          padding: 0 .75rem;
+          border-right: .0625rem solid var(--ssa-color-palette-gray-900);
+        }
+
+        .content__metadata *:first-of-type {
+          padding-left: 0;
+        }
+
+        .content__metadata *:last-of-type {
+          border-right: none;
+          padding-right: 0;
+        }
+
+        .blue {
+          color: var(--ssa-color-palette-blue-500);
+        }
+
+        .pl__container {
+          padding-top: var(--cfa--spacing--xs);
+        }
+
+        .pl {
+          display: inline-block;
+          font-size: 1.125rem;
+          font-style: normal;
+          font-weight: 500;
+          line-height: 1;
+          text-transform: uppercase;
+          padding: var(--cfa--spacing--sm) var(--cfa--spacing--md);
+          border-radius: var(--cfa--spacing--md);
+          background-color: var(--ssa-color-palette-blue-100);
+        }
+
+        .spacer {
+          flex-grow: 1;
+        }
+
+        .coveo-result-auth-required {
+          display: flex;
+          align-items: center;
+          gap: var(--cfa--spacing--sm);
+          font-size: 1rem;
+          font-style: normal;
+          font-weight: 500;
+          line-height: 1;
+        }
+
+        .coveo-result-auth-required::before {
+          content: '\\e897';
+          font-size: 1.5rem;
+          font-family: 'material';
+        }
+      </style>
+      <div class="result">
+        <div class="result__item">
+          <div class="item__content">
+            <div class="content__title margin--bottom">
+              <a href="${linkUrl}" class='CoveoResultLink'>${titleDisplay}</a>
+              ${(isloginrequired && !this.loggedIn) ? `
+                <div class="coveo-result-auth-required item__content">
+                  Sign in required
+                </div>
+              ` : ''}
+            </div>
+            <div class="content__description">
+              ${this.result.raw.field_short_description || ''}
+            </div>
+            <div class="content__metadata">
+              ${date ? `<span>${date.getDate()} ${month} ${date.getFullYear()}</span>` : ''}
+              ${curriculumTopic ? `<span>${curriculumTopic}</span>` : ''}
+              ${examLevel ? `<span>${examLevel}</span>` : ''}
+            </div>
+            ${plCredits ? `
+              <div class="pl__container">
+                <span class="pl">
+                  ${plCredits} PL
+                  ${serCredits ? ` (${serCredits} SER)` : ''}
+                </span>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+    this.shadow.innerHTML = itemContent;
+  }
+}
+
+</script>
+
+</body>
+</html>

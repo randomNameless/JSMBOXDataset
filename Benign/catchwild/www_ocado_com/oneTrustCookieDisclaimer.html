@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>oneTrustCookieDisclaimer.html</title>
+</head>
+<body>
+
+<script>
+(function($,webshop){let categorization={};let buttonClicked=false;$.ajax({method:"GET",url:"https://cookies-data.onetrust.io/bannersdk/domaindata",headers:{'Content-Type':'application/json','lang':'en','domain':webshop.domainId,'location':'cdn-ukwest.onetrust.com',},contentType:'application/json',}).done(function(data){data.culture.DomainData.Groups.forEach(row=>{categorization[row.CustomGroupId]=row.FirstPartyCookies.map(cookie=>cookie.Name,[])})
+localStorage.setItem('categorization',JSON.stringify(categorization))});webshop.cookies=webshop.cookies||{};webshop.cookies.getCookieList=function(){let activeGroups=[];const categorization=JSON.parse(localStorage.getItem("categorization"));try{activeGroups=OnetrustActiveGroups.split(',').filter(el=>el!=null);}catch(err){console.log(err)}
+const cookiesList=[];activeGroups.forEach(group=>categorization[group]?categorization[group].forEach(cookie=>cookiesList.push(cookie)):null);return cookiesList;};webshop.cookies.registerConsentChangedCallback=function(callback){if(window.OneTrust){window.OneTrust.OnConsentChanged(callback);}};function OptanonWrapper(){if(buttonClicked){$.ajax({method:"POST",url:"api/v1/cookies/policy",data:JSON.stringify(webshop.cookies.getCookieList()),contentType:"application/json",}).done(function(data){$.ajax({url:"api/v1/cookies/removeCookies",data:"",method:"POST",contentType:"application/json",});});}}
+document.addEventListener('click',(e)=>{const id=e.target&&e.target.id;const className=e.target&&e.target.className;if(id&&(id==='onetrust-accept-btn-handler'||id==='accept-recommended-btn-handler')||(className&&(className.includes('save-preference-btn-handler')||className.includes('ot-pc-refuse-all-handler')))){buttonClicked=true;OptanonWrapper();const searchButton=document.querySelector('.navSearchBtn');if(searchButton){searchButton.focus();}}});})(jQuery,webshop);
+</script>
+
+</body>
+</html>

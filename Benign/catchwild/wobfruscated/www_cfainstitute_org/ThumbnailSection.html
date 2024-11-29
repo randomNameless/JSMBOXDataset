@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>ThumbnailSection.html</title>
+</head>
+<body>
+<script>import {
+  resultContext,
+} from "https://static.cloud.coveo.com/atomic/v2/index.esm.js";
+import {
+  getAbsoluteURLForRPC,
+  getUrlFromLinkFieldValue,
+} from '../utility-functions.js';
+
+//Thumbnail
+export class ThumbnailSection extends HTMLElement {
+  shadow;
+  result;
+  initialized = false;
+
+  async connectedCallback() {
+    if (this.initialized) {
+      return;
+    }
+
+    this.initialized = true;
+    this.shadow = this.attachShadow({ mode: "open" });
+
+    try {
+      this.result = await resultContext(this);
+      this.render();
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  render() {
+    const searchThumbnail = this.result.raw.searchthumbnail;
+
+    let searchThumbnailSourceSet = this.result.raw.searchthumbnailsrcset;
+    if (!searchThumbnailSourceSet)
+    { searchThumbnailSourceSet = this.result.raw.contentmetadatacoverimagesrcset }
+    if (!searchThumbnailSourceSet)
+    { searchThumbnailSourceSet = this.result.raw.genericcontentheroimagesrcset; }
+
+    const field_search_thumbnail_url = this.result.raw.field_search_thumbnail_url;
+    const webImageUrl = this.result.raw.webimageurl;
+    let clickUri;
+    const title = this.result.title;
+    const isTopResult = this.result.isTopResult;
+
+    if (this.result.raw.clickableuri !== undefined) {
+      clickUri = this.result.raw.clickableuri || ""
+    } else
+    {
+      clickUri = this.result.clickUri || "";
+    }
+
+    if (isTopResult) {
+      this.shadow.innerHTML = "";
+      return;
+    }
+
+    let thumbnailHtml = "";
+    if (field_search_thumbnail_url)
+    {
+      thumbnailHtml = `
+        <div class="coveo-result-cell">
+          <a href="${clickUri}">
+            <img class="coveo-result-image" src="${field_search_thumbnail_url}" alt="${title}" />
+          </a>
+        </div>
+      `;
+    }
+    else if (searchThumbnailSourceSet) {
+      searchThumbnailSourceSet = getAbsoluteURLForRPC(searchThumbnailSourceSet);
+      thumbnailHtml = `
+        <div class="coveo-result-cell">
+          <div class="result-link">
+            <a href="${clickUri}">
+              <img class="coveo-result-image" src="${searchThumbnailSourceSet}" alt="${title}" />
+            </a>
+          </div>
+        </div>
+      `;
+    }
+    else if (searchThumbnail) {
+      let searchTumbnaiUrl = getUrlFromLinkFieldValue(searchThumbnail);
+      thumbnailHtml = `
+        <div class="coveo-result-cell">
+          <div class="result-link">
+            <a href="${clickUri}">
+              <img class="coveo-result-image" src="${searchTumbnaiUrl}" alt="${title}" />
+            </a>
+          </div>
+        </div>
+      `;
+    } else if (webImageUrl) {
+      thumbnailHtml = `
+        <div class="coveo-result-cell">
+          <a href="${clickUri}">
+            <img class="coveo-result-image" src="${webImageUrl}" alt="${title}" />
+          </a>
+        </div>
+      `;
+    }
+
+    this.shadow.innerHTML = `
+      <style>
+        .coveo-result-cell {
+          width: 6.25rem;
+          height: 6.25rem;
+          margin-right: var(--cfa--spacing--md);
+          overflow: hidden;
+        }
+        .coveo-result-image {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+      </style>
+      ${thumbnailHtml}
+    `;
+  }
+}</script>
+</body>
+</html>

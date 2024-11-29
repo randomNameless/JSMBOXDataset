@@ -1,0 +1,3849 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>frontpage.min.html</title>
+</head>
+<body>
+
+<script>
+/****************************************************************************
+ This code is copyright (C) Raudas Hugbunadur ehf (Red Ace Software LLC)
+ 
+ This code is NOT open source, and it is NOT permitted to use it on other
+ sites, modify it, or otherwise use it for any other purpose than playing
+ on one of our sites, (https://cardgames.io, https://iochess.com)
+ 
+ I've had to deal with multiple people stealing my work and I'm sick of it.
+ Don't be a thief, write your own game!
+*****************************************************************************/(function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
+"use strict";
+
+var util = require('../shared/util');
+
+var shared = require('../shared/game');
+
+function say(id, msg, timeout) {
+  timeout = timeout || 1;
+  setTimeout(function () {
+    $('#' + id + '-player-bubble p span').text(msg);
+    $('#' + id + '-player-bubble').fadeIn();
+  }, timeout);
+}
+
+$(function () {
+  say('top', window.t('playerGreeting::top', "Hi there. I'm [[name]]", {
+    name: players.top.name
+  }), 2000);
+  setTimeout(function () {
+    $('.bubble').fadeOut();
+  }, 10000);
+  $('#more-games-link a').on('click', function () {
+    util.mobileMenu.open();
+  });
+
+  if (APP_MODE) {
+    //Fade out Bill when scrolling
+    $('#play-links').on('scroll', function () {
+      return $('#top-player').css('opacity', (100 - $('#play-links').get(0).scrollTop * 2) / 100);
+    });
+    $('#play-links a').on('touchstart', function (e) {
+      if (!util.isMobileLookActive()) {
+        //Not on phones, since there a touchstart might be the start of scrolling. But on tablets start game immediately.
+        $(e.target).click();
+      }
+    });
+  }
+});
+
+},{"../shared/game":3,"../shared/util":8}],2:[function(require,module,exports){
+"use strict";
+
+var _require = require('./helper-functions'),
+    captainsLog = _require.captainsLog;
+
+var http = {
+  post: function post(url, data, success, error, headers) {
+    //In appmode we're running on localhost:xxxx on the phone, and need to put a full url here.
+    if (typeof APP_MODE !== 'undefined' && APP_MODE) {
+      url = 'https://cardgames.io' + url;
+    }
+
+    if (!success) {
+      success = function success() {
+        captainsLog.debug("Successfully posted to this url: " + url + " with this data : " + JSON.stringify(data));
+      };
+    }
+
+    if (!error) {
+      error = function error(data) {
+        console.log('ERROR for urL ' + url);
+        captainsLog.error('ERROR: ' + JSON.stringify(data));
+      };
+    }
+
+    $.ajax({
+      type: "POST",
+      url: url,
+      headers: headers || {},
+      data: JSON.stringify(data),
+      contentType: 'application/json; charset=utf-8',
+      dataType: 'json',
+      success: success,
+      error: error
+    });
+  },
+  get: function get(url, success, error) {
+    //In appmode we're running on localhost:xxxx on the phone, and need to put a full url here.
+    if (typeof APP_MODE !== 'undefined' && APP_MODE) {
+      url = 'https://cardgames.io' + url;
+    }
+
+    if (!success) {
+      throw new TypeError('Success handler missing');
+    }
+
+    if (!error) {
+      error = function error(data) {
+        captainsLog.error(JSON.stringify(data));
+      };
+    }
+
+    return $.ajax({
+      type: 'GET',
+      url: url,
+      success: success,
+      error: error,
+      timeout: 5000
+    });
+  }
+};
+var API = {
+  /**
+   * Get the stats of avatars, latest or post new avatars
+   */
+  avatars: {
+    getStats: function getStats(success, error) {
+      return http.get('/api/avatars/', success, error);
+    },
+    getLatest: function getLatest(success, error) {
+      return http.get('/api/avatars/latest', success, error);
+    },
+    saveFace: function saveFace(code, success, error) {
+      var data = {
+        code: code,
+        userAgent: navigator.userAgent
+      };
+      http.post('/api/avatars/', data, success, error);
+    }
+  },
+  adfree: {
+    getCode: function getCode(code, success, error) {
+      return http.get('/api/adfree/' + code, success, error);
+    },
+    activateCode: function activateCode(code, success, error) {
+      return http.post('/api/adfree/' + code + '/activate', {
+        code: code
+      }, success, error);
+    }
+  },
+  gdpr: {
+    accept: function accept(allowPersonalizedAds, allowGoogleAnalytics, userAgent, success, error) {
+      return http.post('/api/gdpr/accept', {
+        allowPersonalizedAds: allowPersonalizedAds,
+        allowGoogleAnalytics: allowGoogleAnalytics,
+        userAgent: userAgent
+      }, success, error);
+    }
+  },
+
+  /**
+   * Get the country
+   */
+  country: {
+    get: function get(success, error) {
+      return http.get('/lambda/country/', success, error);
+    }
+  },
+
+  /**
+   * Get latest errors, specific errors or post a new error
+   */
+  errors: {
+    getLatest: function getLatest(success, error) {
+      return http.get('/api/errors/latest', success, error);
+    },
+    getByName: function getByName(name, success, error) {
+      return http.get('/api/errors/' + name, success, error);
+    },
+    log: function log(name, slug, errorMessage, successCallback, errorCallback, maxMailCount) {
+      if (maxMailCount === void 0) {
+        maxMailCount = 0;
+      }
+
+      if (!slug) {
+        captainsLog.debug("Slug cannot be empty");
+        return;
+      }
+
+      var data = {
+        name: name,
+        slug: slug,
+        errorMessage: errorMessage,
+        url: location.href,
+        userAgent: navigator.userAgent,
+        maxMailCount: maxMailCount
+      };
+      http.post('/api/errors', data, successCallback, errorCallback);
+    }
+  },
+  badDomain: function badDomain() {
+    //We're on a bad domain, need jsonp...
+    $.ajax({
+      url: "https://cardgames.io/api/errors/baddomain/?domain=" + location.hostname + "&href=" + encodeURIComponent(location.href),
+      dataType: 'jsonp',
+      jsonpCallback: 'nothing'
+    });
+  },
+
+  /**
+   * Post a new event
+   */
+  events: {
+    post: function post(data, success, error) {
+      http.post('/api/events/', data, success, error);
+    }
+  },
+  //Stats for solitaire games
+  numberedGames: {
+    win: function win(gameNumber, slug, variantName, success, error) {
+      variantName = variantName.replace(/ /g, '-');
+      return http.post("/api/" + slug + "/" + variantName + "/numberedgames/" + gameNumber + "/win", success, error);
+    },
+    postSaveResult: function postSaveResult(data, gameNumber, slug, variantName, success, error) {
+      variantName = variantName.replace(/ /g, '-');
+      return http.post("/api/" + slug + "/" + variantName + "/numberedgames/" + gameNumber + "/saveresult", data, success, error);
+    },
+    start: function start(gameNumber, slug, variantName, success, error) {
+      variantName = variantName.replace(/ /g, '-');
+      return http.post("/api/" + slug + "/" + variantName + "/numberedgames/" + gameNumber + "/start", success, error);
+    },
+    getGame: function getGame(gameNumber, slug, variantName, success, error) {
+      variantName = variantName.replace(/ /g, '-');
+      return http.get("/api/" + slug + "/" + variantName + "/numberedgames/" + gameNumber + "/?domain=" + encodeURIComponent(location.href), success, error);
+    },
+    getStats: function getStats(slug, variantName, success, error) {
+      variantName = variantName.replace(/ /g, '-');
+      return http.get("/api/" + slug + "/" + variantName + "//numberedgames/stats", success, error);
+    }
+  },
+  tshirt: {
+    post: function post(data, success, error) {
+      http.post('/api/tshirt/', data, success, error);
+    }
+  },
+
+  /**
+   * Log visitors
+   */
+  visitors: {
+    post: function post(data, success, error) {
+      return http.post('/api/visitors', data, success, error);
+    }
+  },
+  badWords: {
+    get: function get(success, error) {
+      return http.get('/api/badwords', success, error);
+    }
+  }
+};
+module.exports = API;
+
+},{"./helper-functions":5}],3:[function(require,module,exports){
+"use strict";
+
+var util = require('./util');
+
+var _require = require('./helper-functions'),
+    captainsLog = _require.captainsLog,
+    _setTimeout = _require._setTimeout,
+    _setInterval = _require._setInterval,
+    ArrayUtils = _require.ArrayUtils;
+
+var settings = util.settings;
+
+var GameControl = require('./gamecontrol');
+
+var TempStorage = require('./temp-storage');
+
+var _require2 = require('./page'),
+    themes = _require2.themes;
+
+var HTML_CARD_SUITS = {
+  h: '&hearts;',
+  s: '&spades;',
+  d: '&diams;',
+  c: '&clubs;'
+};
+
+(function () {
+  //Taken from https://github.com/gnarf/jquery-requestAnimationFrame/blob/master/src/jquery.requestanimationframe.js
+  //Not worth a special http request...
+  var animating;
+
+  if (!window.requestAnimationFrame) {
+    return;
+  }
+
+  if (util.qs.gid) {
+    //Don't want it here because if a document is hidden we need the game to continue anyway,
+    //so it doesn't completely block the other players!
+    captainsLog.debug('Multiplayer game, not using requestAnimationFrame');
+    return;
+  }
+
+  function step() {
+    if (animating) {
+      window.requestAnimationFrame(step);
+      $.fx.tick();
+    }
+  }
+
+  $.fx.timer = function (timer) {
+    if (timer() && jQuery.timers.push(timer) && !animating) {
+      animating = true;
+      step();
+    }
+  };
+
+  $.fx.stop = function () {
+    animating = false;
+  };
+})(); //Detect Samsung Androids because they won't render card suits normally, use outlines and custom font to fix it.
+
+
+var isAndroid = navigator.userAgent.match(/Android (4|5|6|7|8|9)/) && navigator.userAgent.match(/ SM-|samsung/g);
+
+if (util.qs.android) {
+  isAndroid = true;
+}
+
+if (isAndroid) {
+  //Use outline characters
+  HTML_CARD_SUITS = {
+    h: '&#x2661;',
+    s: '&#x2664;',
+    d: '&#x2662;',
+    c: '&#x2667;'
+  };
+} //Object to control the global speed of the game...
+
+
+var SPEED = function () {
+  var speed = 1;
+
+  function ms(milliseconds) {
+    return milliseconds / speed;
+  }
+
+  function patchJQ(funcName, durationArgIndex) {
+    var oldFunc = $.fn[funcName];
+
+    $.fn[funcName] = function () {
+      var args = Array.prototype.slice.call(arguments);
+      var duration = args[durationArgIndex];
+
+      if (typeof duration == 'number') {
+        args[durationArgIndex] = ms(duration);
+      } else if (duration && duration.duration) {
+        duration.duration = ms(duration.duration);
+      }
+
+      return oldFunc.apply(this, args);
+    };
+  }
+
+  var timingFunctionsPatched = false;
+
+  function patchTimingFunctions() {
+    patchJQ('animate', 1);
+    patchJQ('fadeOut', 0);
+    patchJQ('fadeIn', 0);
+    _setTimeout.speed = speed;
+    _setInterval.speed = speed;
+  }
+
+  return {
+    get: function get() {
+      return speed;
+    },
+    set: function set(value) {
+      var namedValues = {
+        verySlow: 0.5,
+        slow: 0.8,
+        normal: 1,
+        fast: 1.5,
+        veryFast: 2.2
+      };
+
+      if (typeof value === 'string') {
+        value = namedValues[value];
+      }
+
+      speed = value;
+      $.fx.speeds._default = ms(400);
+      $.fx.speeds.fast = ms(200);
+      $.fx.speeds.slow = ms(600);
+
+      if (speed != 1 && !timingFunctionsPatched) {
+        patchTimingFunctions();
+      }
+    },
+    toString: function toString() {
+      return "SPEED: " + speed;
+    },
+    ms: ms
+  };
+}(); //See if we want to set the speed to something else...
+
+
+if (settings.speed && settings.speed !== 'normal') {
+  SPEED.set(settings.speed);
+}
+
+function message(text) {
+  $('#messageBox p').html('<span>' + text + '</span>');
+}
+
+if (util.cake('scroll')) {
+  window.scroll(0, parseInt(util.cake('scroll')));
+  util.deleteCake('scroll');
+}
+
+if (document.referrer && document.referrer.length) {
+  if (!document.referrer.match(/^https:\/\/cardgames\.io\//) && !document.referrer.match(/127\.0\.0\.1/) && !document.referrer.match(/appassets/)) {
+    util.trackEvent('Referral', document.referrer);
+  }
+}
+
+function makePlayersSad(winnerIds) {
+  var ids = ['top-player', 'bottom-player', 'left-player', 'right-player'];
+
+  for (var i = 0; i < ids.length; i++) {
+    if (winnerIds.indexOf(ids[i]) == -1) {
+      makePlayerSad(ids[i]);
+    } else {
+      makePlayerHappy(ids[i]);
+    }
+  }
+}
+
+function makeAllPlayersHappy() {
+  $('.avatar div').removeClass('sad');
+}
+
+function makePlayerSad(id) {
+  $('#' + id + ' div').addClass('sad');
+}
+
+function makePlayerHappy(id) {
+  $('#' + id + ' div').removeClass('sad');
+}
+
+var addCheat = function () {
+  var cheatCode = '';
+  var cheats = {};
+  var lastTime = 0;
+  $(document).on('keypress', function (e) {
+    var now = new Date().getTime();
+
+    if (now - lastTime > 2000) {
+      cheatCode = '';
+    }
+
+    lastTime = now;
+    var newChar = String.fromCharCode(e.which);
+    cheatCode += newChar;
+
+    for (var code in cheats) {
+      if (code == cheatCode) {
+        cheats[code]();
+        cheatCode = '';
+        return;
+      }
+
+      if (code.substr(0, cheatCode.length) == cheatCode) {
+        return;
+      }
+    }
+
+    for (var _code in cheats) {
+      if (_code.substr(0, 1) == newChar) {
+        cheatCode = newChar;
+        return;
+      }
+    }
+
+    cheatCode = '';
+  });
+  return function (code, func) {
+    cheats[code] = func;
+  };
+}();
+
+if (window.players && window.players.top && window.players.top.code === '2') {
+  $('body').addClass('default-top-player');
+}
+
+addCheat('matrix', function () {
+  $('body').toggleClass('matrix');
+  var $txt = $('#matrix textarea');
+
+  if ($('body').hasClass('matrix')) {
+    showLogs();
+    $txt.scrollTop($txt[0].scrollHeight);
+    setTimeout(function () {
+      $('#matrix input').val('').focus();
+    }, 200);
+  }
+});
+$('#matrix-log-filter').on('input', function (e) {
+  var term = $('#matrix-log-filter').val().trim().toLowerCase();
+  var $txt = $('#matrix textarea');
+
+  if (term.match(/^(:q|quit|exit|matrix)$/)) {
+    $('body').removeClass('matrix');
+  } else if (term === 'help') {
+    $txt.val("What do you need help with?");
+  } else if (term === 'who are you') {
+    $txt.val('My name is Skynet.');
+  } else if (term === 'skynet') {
+    $txt.val('Welcome to Cyberdyne systems.');
+  } else if (term === 'shutdown') {
+    $txt.val('Shutting site down in 5 seconds...');
+  } else if (term === 'cheat') {
+    $txt.val('Nice try!');
+  } else {
+    showLogs(term.trim());
+  }
+});
+
+function showLogs(filter) {
+  if (filter === void 0) {
+    filter = '';
+  }
+
+  var terms = filter.split(',');
+  var lines = captainsLog.messages.filter(function (l) {
+    return terms.some(function (t) {
+      return l.toLowerCase().indexOf(t.trim().toLowerCase()) !== -1;
+    });
+  });
+
+  if (lines.length === 0) {
+    $('#matrix textarea').val('Sorry, no log lines found for term: ' + filter);
+  } else {
+    $('#matrix textarea').val(lines.join('\n'));
+  }
+} //Setup autoplay...
+
+
+if (util.qs.autoplay) {
+  if (typeof util.qs.autoplay == 'number') {
+    SPEED.set(util.qs.autoplay);
+  } else {
+    SPEED.set(3);
+  }
+}
+
+$(function () {
+  //Preload sad faces to avoid flicker when they first appear...
+  for (var _i = 0, _arr = ['bottom', 'top', 'left', 'right']; _i < _arr.length; _i++) {
+    var id = _arr[_i];
+    util.preloadBackgroundImageClass("face-small sad face-" + id + "-player");
+  } //Shortcut to press enter to start next round
+
+
+  $(document).on('keypress', function (e) {
+    var ENTER_KEY = 13;
+
+    if (e.which === ENTER_KEY && $('#start-new-game').is(':visible')) {
+      $('#start-new-game').click();
+    }
+  }); //Couple of app-mode specific things...
+
+  if (APP_MODE) {
+    if (util.siteSettings.showAdSettingsLink) {
+      $('#ad-settings').css('display', 'block');
+      $('#ad-free').css('display', 'none');
+    }
+
+    if (window.Android) {//Android.updateAdFreePrice();
+    } else {//window.webkit.messageHandlers.updateAdFreePrice.postMessage('ello');
+    }
+
+    var bgColour = $("body").css("background-color").replaceAll("rgb(", "").replaceAll(")", "").replaceAll(" ", "");
+
+    if (window.Android) {
+      var _bgColour$split = bgColour.split(","),
+          r = _bgColour$split[0],
+          g = _bgColour$split[1],
+          b = _bgColour$split[2];
+
+      var col = "#FF" + parseInt(r).toString(16).padStart(2, "0") + parseInt(g).toString(16).padStart(2, "0") + parseInt(b).toString(16).padStart(2, "0");
+      console.log("Color ", r, g, b);
+      console.log("Hex", col);
+      Android.setBannerAdBackground(col);
+    } else {
+      window.webkit.messageHandlers.setViewBackground.postMessage(bgColour);
+    } //Callbacks for the ios/android app
+
+
+    window.app = {
+      showAdSettingsLink: function showAdSettingsLink() {
+        util.siteSettings.set('showAdSettingsLink', true);
+        $('#ad-settings').css('display', 'block');
+      },
+      hideAdSettingsLink: function hideAdSettingsLink() {
+        util.siteSettings.set('showAdSettingsLink', false);
+        $('#ad-settings').hide();
+      },
+      updateAdfreePrice: function updateAdfreePrice(PRICE) {
+        //$("#ad-free").show();
+        $("#amount").text(PRICE);
+        $("#amount_button_label").text(PRICE);
+        $("#ad-free-button").prop("disabled", false);
+      },
+      showAdFreeLink: function showAdFreeLink(show) {
+        if (show) {
+          //$('#ad-free').show();
+          $("#ad-free-button").prop("disabled", false);
+        } else {
+          $("#adfree-promo").hide();
+          $("#adfree-bought").show();
+          $("#ad-free-button").hide();
+          $("#restore-adfree-button").hide();
+          $('#ad-free').hide();
+          $("#ad-free-button").prop("disabled", true);
+        }
+      }
+    };
+    $('.game-links a').on('click', function (ev) {
+      var href = ev.target.href;
+      ev.preventDefault();
+      util.ads.trigger(function () {
+        //Do this after the ad, because if we do it while the ad is running we'll start the timer on solitaires....
+        location.href = href;
+      });
+    });
+    window.addEventListener('message', function (ev) {
+      if (ev.data === 'new-face') {
+        loadPlayerFaces();
+        $('#temphidenames').remove();
+        $('body').removeClass('subview-open avatars-subview-open');
+        var oldName = $('#title h1').data('real-title');
+
+        if (oldName) {
+          $('#title h1').text(oldName);
+        }
+      }
+    });
+    window.addEventListener('orientationchange', function (ev) {
+      //Not allowed to change orientation with any subviews open!
+      $('body').removeClass('subview-open avatars-subview-open  statistics-subview-open');
+      var oldName = $('#title h1').data('real-title');
+
+      if (oldName) {
+        $('#title h1').text(oldName);
+      }
+    });
+    $('a[href$="/statistics/"]').on('click', function (ev) {
+      ev.preventDefault();
+      var current = $('#statistics-subview').attr('src');
+
+      if (!current) {
+        //Only load on first use
+        $('#statistics-subview').attr('src', ev.target.href);
+      }
+
+      $('body').addClass('subview-open').addClass('statistics-subview-open');
+      util.mobileMenu.close();
+    });
+    $('a[href$="/avatars/"]').on('click', function (ev) {
+      ev.preventDefault();
+      var $title = $('#title h1');
+      var name = $title.text();
+      $title.data('real-title', name);
+      $title.text(window.t('game::changePlayer', 'CHANGE PLAYER'));
+      var current = $('#avatars-subview').attr('src');
+
+      if (!current) {
+        $('#avatars-subview').attr('src', '/avatars/');
+      }
+
+      $('body').addClass('subview-open').addClass('avatars-subview-open');
+      util.mobileMenu.close();
+    });
+    $('.appmode-remove').remove(); //Remove stuff that's not used at all, so we don't have to see it when debugging app mode stuff.
+    //Dev: Force links that aren't gonna be cached.
+
+    $('.game-links a').each(function () {
+      $(this).attr('href', $(this).attr('href') + '?' + new Date().getTime());
+    });
+    $('a[href="#ad-settings"]').on('click', function (e) {
+      e.preventDefault();
+      util.mobileMenu.close();
+
+      if (window.Android) {
+        Android.adSettings();
+      } else {
+        window.webkit.messageHandlers.adSettings.postMessage('Hi there');
+      }
+    });
+    $('#ad-free').on('click touchstart', function (e) {
+      e.preventDefault();
+      util.mobileMenu.close();
+      $("#buy-premium").show();
+    });
+    $("#close-ad-free").on('click touchstart', function (e) {
+      e.preventDefault();
+      $("#buy-premium").hide();
+    });
+    $("#ad-free-button").on('click touchstart', function (e) {
+      e.preventDefault();
+
+      if ($(this).is(':disabled') == true) {
+        return false;
+      }
+
+      if (window.Android) {
+        Android.buyAdFree();
+      } else {
+        window.webkit.messageHandlers.buyAdFree.postMessage('Evil ads :(');
+      }
+    });
+    $("#restore-adfree-button").on('click touchstart', function (e) {
+      e.preventDefault();
+
+      if (window.Android) {
+        Android.restoreAdFree();
+      } else {
+        window.webkit.messageHandlers.restoreAdFree.postMessage('Restore me please!');
+      }
+    });
+  } //We use touch-action:manipulation; to make sure double tap doesn't zoom in mobile safari,
+  //but it won't work unless the element we want to eliminate double taps from is clickable,
+  //so we add an empty click handler here. See https://bugs.webkit.org/show_bug.cgi?id=149854#c25
+  //for more info, and https://stackoverflow.com/a/54753520
+
+
+  $('#play-page').on('click', function () {});
+
+  function getSettings(settingName) {
+    if (typeof settings === 'undefined') {
+      return {};
+    }
+
+    var settingsObj = typeof settings[settingName] !== 'undefined' ? settings : util.siteSettings;
+
+    if (typeof settingsObj[settingName] === 'undefined') {
+      captainsLog.error('Bad option name: ' + settingName);
+      return {};
+    }
+
+    return settingsObj;
+  }
+  /* Radio button settings */
+
+
+  $('.option-row input[type="radio"]').each(function () {
+    var name = $(this).attr('name');
+    var settings = getSettings(name);
+
+    if (settings[name] == $(this).val()) {
+      $(this).prop('checked', true);
+    }
+  });
+  /* Needed for very old iPads where this doesn't work consistently otherwise */
+
+  $('.option-row input+span').on('touchstart', function (ev) {
+    $(this).siblings('input').trigger('click');
+    ev.preventDefault();
+  });
+  $('.option-row input[type="radio"]').on('change', function (ev) {
+    var name = $(this).attr('name');
+    var settings = getSettings(name);
+    var value = $(this).val();
+
+    if (typeof settings[name] === 'number') {
+      settings.set(name, parseInt(value));
+    } else {
+      settings.set(name, value);
+    }
+  });
+  /* Checkbox settings */
+
+  $('.option-row input[type="checkbox"]').each(function () {
+    var name = $(this).attr('name');
+    var settings = getSettings(name);
+    $(this).prop('checked', settings[name]);
+  });
+  $('.option-row input[type="checkbox"]').on('change', function (e) {
+    var name = $(this).attr('name');
+    var settings = getSettings(name);
+    settings.set(name, $(this).is(':checked'));
+  });
+  util.siteSettings.addListener('useDarkTheme', function (ev) {
+    if (ev.value) {
+      $('html').addClass('dark-theme');
+    } else {
+      $('html').removeClass('dark-theme');
+    }
+  });
+  util.siteSettings.addListener('hideMultiplayerButton', function (ev) {
+    if (util.siteSettings.hideMultiplayerButton) {
+      $('#multiplayer-button').hide();
+
+      if (!APP_MODE) {
+        alert("You've chosen to hide the Multiplayer button. It will still show up when you load the page, but will be hidden as soon as the game starts.");
+      }
+    }
+  });
+  util.siteSettings.addListener('holidayThemes', function (ev) {
+    if (ev.value) {
+      themes.turnOn();
+      util.deleteCake('themeoff');
+    } else {
+      themes.turnOff();
+    }
+  });
+  util.siteSettings.addListener('alwaysUseInterstitialAds', function (ev) {
+    $('.don-draper').css('visibility', ev.value ? 'hidden' : 'visible');
+  });
+  util.siteSettings.addListener('spreadCards', function (ev) {
+    //Just try, and catch the exception, we don't care on other game that don't have cards...
+    try {
+      webRenderer._adjustHand(human);
+    } catch (ex) {//nevermind
+    }
+  });
+
+  if (typeof settings !== 'undefined') {
+    settings.addListener('speed', function (ev) {
+      var displayValues = {
+        slow: window.t('game::speed::slow', 'Slow'),
+        verySlow: window.t('game::speed::verySlow', 'Very slow'),
+        normal: window.t('game::speed::normal', 'Normal'),
+        fast: window.t('game::speed::fast', 'Fast'),
+        veryFast: window.t('game::speed::veryFast', 'Very fast')
+      };
+      $('#speed-value').text(displayValues[settings.speed]);
+      SPEED.set(settings.speed);
+    });
+  }
+
+  $('#facebook-promo a').click(function () {
+    util.trackEvent('FacebookLinkClick');
+  });
+
+  _setTimeout(function () {
+    util.preloadImage(STATIC_ASSET_DOMAIN + '/shared/images/svg/trophy.svg');
+  }, 9000);
+
+  $('.avatar').click(function () {
+    util.trackEvent('ClickPlayer', $(this).attr('id'));
+  });
+  $('#game-options-page button').click(function () {
+    $('body').removeClass('options-open');
+  });
+  $('a[href="#options"]').click(function (ev) {
+    ev.preventDefault();
+    util.removeConfetti();
+
+    if (util.mobileMenu.isOpen()) {
+      util.mobileMenu.close();
+    }
+
+    $('body').addClass('options-open');
+    $('body').removeClass('multiplayer-open');
+    $.getJSON('/version.json', function (data) {
+      $('#options-version').text(window.t('game::version', 'v[[version]]', {
+        version: data.version
+      }));
+    });
+  });
+  var values = {
+    slow: window.t('game::speed::slow', 'Slow'),
+    verySlow: window.t('game::speed::verySlow', 'Very slow'),
+    normal: window.t('game::speed::normal', 'Normal'),
+    fast: window.t('game::speed::fast', 'Fast'),
+    veryFast: window.t('game::speed::veryFast', 'Very fast')
+  };
+
+  if (typeof settings !== 'undefined') {
+    $('#speed-value').text(values[settings.speed]);
+  }
+
+  $('a[href="#newgame"]').click(function (ev) {
+    ev.preventDefault();
+    ev.stopPropagation();
+    util.removeConfetti();
+
+    function startNewGame() {
+      if (util.qs.gid) {
+        //Multiplayer game is active (or finished) and we are abandoning it. Always full refresh!
+        document.location.href = document.location.pathname;
+      } else if (util.isMobileLookActive()) {
+        /*
+        if (GameControl.canRestart()) {
+            GameControl.restart();
+            util.mobileMenu.close();
+        } else {
+            util.reloadPage();
+        }*/
+        //Too many bugs when resetting everything in the middle of an animation, just force a full reload every time!
+        util.reloadPage();
+      } else {
+        util.reloadPage();
+      }
+    }
+
+    var inProgressMessage = window.t('game::warning::inProgress', 'You have a game in progress. Are you sure you want to start a new game and abandon the current game?');
+    var started, finished;
+    started = GameControl.isGameStarted();
+    finished = GameControl.isGameFinished();
+    var storage = new TempStorage(window.slug);
+
+    if (!started) {
+      if (util.cake('results') || storage.get('scores')) {
+        if (confirm(inProgressMessage)) {
+          util.cake('results', '');
+          storage.remove('scores');
+          util.trackEvent('NewGame', 'NotStarted');
+          util.ads.trigger(startNewGame);
+        }
+      } else {
+        util.trackEvent('NewGame', 'NotStarted');
+        util.ads.trigger(startNewGame);
+      }
+    } else if (finished) {
+      if (util.cake('results') || storage.get('scores')) {
+        if (confirm(inProgressMessage)) {
+          util.cake('results', '');
+          storage.remove('scores');
+          util.trackEvent('NewGame', 'Finished');
+          util.ads.trigger(startNewGame);
+        }
+      } else {
+        util.trackEvent('NewGame', 'Finished');
+        util.ads.trigger(startNewGame);
+      }
+    } else {
+      if (confirm(inProgressMessage)) {
+        util.trackEvent('NewGame', 'Abandoned');
+
+        if (util.cake('results')) {
+          util.cake('results', '');
+        }
+
+        storage.remove('scores');
+        util.ads.trigger(startNewGame);
+      }
+    }
+
+    return false;
+  });
+
+  var validCode = function validCode(c) {
+    return c && c.toUpperCase().match(/-THX1138$/);
+  };
+
+  if (validCode(util.cake('betacode'))) {
+    $('#board').removeClass('beta');
+  }
+
+  $('#beta-screen button').on('click', function (e) {
+    e.preventDefault();
+    var value = $('#beta-screen input').val();
+
+    if (validCode(value)) {
+      $('#board').removeClass('beta');
+      util.cake('betacode', value, 20);
+    } else {
+      alert('That is not a valid code');
+    }
+  });
+  $('a[href="#rules"],a[href="#about"]').on('click', function (ev) {
+    if (ev.target.href.match(/#rules/)) {
+      $('body').removeClass('about-open');
+      $('body').addClass('rules-open');
+    } else {
+      $('body').removeClass('rules-open');
+      $('body').addClass('about-open');
+    }
+
+    if (APP_MODE) {
+      ev.preventDefault();
+    }
+
+    util.mobileMenu.close();
+  });
+  $('a[href="#pause"]').click(function (ev) {
+    togglePause();
+    util.mobileMenu.close();
+    ev.preventDefault();
+  });
+  $('#resume-button').click(function (ev) {
+    togglePause();
+    util.mobileMenu.close();
+    ev.preventDefault();
+  });
+  $('.theme-off').on('click', function (e) {
+    e.preventDefault();
+    util.cake('themeoff', '1', 10, '/');
+    $('html').removeClass(themes.current);
+    util.hideFireworks();
+  });
+  $('.fireworks-off').on('click', function (e) {
+    e.preventDefault();
+
+    if (window.fireworkEffect) {
+      util.cake('no-fireworks', 1, 2);
+      $(".fireworks-off").text(window.t('game::startFireworksAgain', 'Press here to start them again'));
+      util.hideFireworks();
+    } else {
+      util.deleteCake('no-fireworks');
+      $(".fireworks-off").text(window.t('game::stopFireworks', 'Press here to stop them'));
+      util.showFireworks();
+    }
+  });
+  $('.theme-on').on('click', function (e) {
+    e.preventDefault();
+    util.deleteCake('themeoff');
+
+    if ($('#theme-css').length === 0) {
+      $('<link>', {
+        href: "/themes/" + siteVersion + "/" + themes.current + ".min.css",
+        id: 'theme-css',
+        rel: 'stylesheet'
+      }).appendTo('head');
+    }
+
+    $('html').addClass(themes.current);
+  });
+  $(window).on('pagehide', function (ev) {
+    if (window.paused) {
+      return; //Already paused, will have to press Resume afterwards and don't want to double count the pause
+    }
+
+    window.pageHiddenAt = new Date().getTime();
+  });
+  $(window).on('pageshow', function () {
+    if (window.paused) {
+      return; //Already paused, will have to press Resume afterwards and don't want to double count the pause
+    }
+
+    if (window.pageHiddenAt) {
+      var elapsed = new Date().getTime() - window.pageHiddenAt;
+
+      if (typeof pauseTime === 'undefined') {
+        //Many games don't explicitly support pauses, but make sure we manage their pause times for stats anyway.
+        window.pauseTime = 0;
+      }
+
+      window.pauseTime += elapsed;
+    }
+  }); //Detect text-stroke support
+
+  var d = document.createElement('div');
+
+  if (typeof d.style.webkitTextStroke === 'undefined') {
+    $('html').addClass('no-text-stroke');
+  }
+
+  function togglePause() {
+    var finished;
+
+    if (window.paused) {
+      window.paused = false;
+      window.pauseTime += new Date().getTime() - window.pausedAt;
+      $('a[href="#pause"]').text(window.t('game::pauseGame', 'Pause Game'));
+      $("#play-page").removeClass("paused");
+      $("#pause-notification").hide();
+    } else {
+      finished = GameControl.isGameFinished();
+
+      if (!finished) {
+        window.pauseTime = window.pauseTime || 0;
+        window.pausedAt = new Date().getTime();
+        window.paused = true;
+        $('a[href="#pause"]').text(window.t('game::resumeGame', 'Resume Game'));
+        $("#play-page").addClass("paused");
+        $("#pause-notification").show();
+      }
+    }
+  }
+
+  window.startTime = new Date().getTime(); //In this company we celebrate Star Wars Day! 
+
+  if (new Date().toString().match(/ May 4 /)) {
+    $('#the-force').text(window.t('game::mayThe4th', 'May the 4th be with you'));
+  }
+
+  if (themes.current === "newyears" && $("html.newyears").length > 0 && !document.cookie.match(/themeoff/)) {
+    if (util.cake('no-fireworks')) {
+      $(".fireworks-off").text(window.t('game::startFireworks', 'Press here to start them again'));
+    } else {
+      util.showFireworks();
+    }
+
+    if (APP_MODE || window.innerWidth < 731) {
+      $("body").on("click touchstart", util.hideFireworks);
+    }
+  }
+});
+/*
+    Old browser div function. Call oldBrowserAlert(true) to make the Div appear over the game board. 
+    Call oldBrowserAlert(false) to make it vanish again.
+
+    There is also a (hide) button on the div the user can press to make it go away, just so the few people not using a modern browser won't be too angry they can't play their game.
+*/
+
+function oldBrowserAlert(show) {
+  if (show) {
+    var prefix = '../';
+
+    if (document.location.pathname === '/') {
+      prefix = '';
+    }
+
+    $("#firefox-Logo").attr("src", prefix + "shared/images/Icon_Mozilla.png");
+    $("#Chrome-Logo").attr("src", prefix + "shared/images/Icon_Chrome.png");
+    $('#oldbrowser').show();
+    return true;
+  } else {
+    $('#oldbrowser').hide();
+    return false;
+  }
+}
+
+if (!util.browser.supportsSvg) {
+  //Could test for other stuff, but if you don't support svg you won't support any of the newer stuff anyway...
+  oldBrowserAlert(true);
+}
+
+function loadPlayerFace(code, playerID, name) {
+  var faceUrl = util.getFaceUrl(code, false);
+  var faceUrlSad = util.getFaceUrl(code, true);
+  var newHairClass = util.getHairClass(code);
+  util.createFaceStyleElement(playerID.substr(1), faceUrl, faceUrlSad);
+  var faceEl = $(playerID + ' .face-small');
+  var currentHair = faceEl.get(0).className.match(/hair-\w+/);
+
+  if (currentHair) {
+    currentHair = currentHair[0];
+
+    if (!faceEl.data('original-hair')) {
+      faceEl.data('original-hair', currentHair);
+    }
+
+    faceEl.removeClass(currentHair);
+  }
+
+  faceEl.addClass(newHairClass);
+  faceEl.data('current-hair', newHairClass);
+  $(playerID + ' small').text(name); //Keep the avatar and name centered
+
+  $(playerID + ' .face-small').css('margin', 'auto');
+  $(playerID).css('margin-left', "-" + $(playerID).width() / 2 + 'px');
+}
+
+if (typeof exports !== 'undefined') {
+  module.exports = {
+    loadPlayerFace: loadPlayerFace,
+    addCheat: addCheat,
+    makePlayersSad: makePlayersSad,
+    makePlayerSad: makePlayerSad,
+    makePlayerHappy: makePlayerHappy,
+    makeAllPlayersHappy: makeAllPlayersHappy,
+    SPEED: SPEED,
+    HTML_CARD_SUITS: HTML_CARD_SUITS
+  };
+}
+
+},{"./gamecontrol":4,"./helper-functions":5,"./page":6,"./temp-storage":7,"./util":8}],4:[function(require,module,exports){
+"use strict";
+
+// Global game control, which allows unrelated pieces of code to know the status of a game,
+//and restart it in a generic way.
+var status = 'notstarted';
+var _restart = null;
+module.exports = {
+  isGameNotStarted: function isGameNotStarted() {
+    return status === 'notstarted';
+  },
+  isGameStarted: function isGameStarted() {
+    return status === 'started';
+  },
+  isGameFinished: function isGameFinished() {
+    return status === 'finished';
+  },
+  isStuck: function isStuck() {
+    return status === 'stuck';
+  },
+  startGame: function startGame() {
+    status = 'started';
+  },
+  finishGame: function finishGame() {
+    status = 'finished';
+  },
+  stuck: function stuck() {
+    status = 'stuck';
+  },
+  resetGameStatus: function resetGameStatus() {
+    status = 'notstarted';
+  },
+  addRestartHandler: function addRestartHandler(func) {
+    _restart = func;
+  },
+  canRestart: function canRestart() {
+    return _restart !== null;
+  },
+  restart: function restart() {
+    if (_restart === null) {
+      throw new Error('No restart handler has been registered. Check "canRestart()" before calling this function');
+    }
+
+    _restart();
+  }
+};
+
+},{}],5:[function(require,module,exports){
+"use strict";
+
+var randGen = {
+  x: -1,
+  m: Math.pow(2, 32),
+  a: 1664525,
+  b: 1013904223,
+  init: function init(seed) {
+    if (seed === void 0) {
+      seed = -1;
+    }
+
+    if (seed == -1) {
+      this.x = Math.floor(Math.random() * this.m);
+    } else {
+      this.x = seed;
+    }
+  },
+  next: function next() {
+    if (this.x == -1) {
+      this.init();
+    }
+
+    this.x = (this.a * this.x + this.b) % this.m;
+    return this.x / (this.m - 1);
+  }
+};
+var ArrayUtils = {
+  shuffle: function shuffle(arr, seed) {
+    if (seed === void 0) {
+      seed = -1;
+    }
+
+    //Fisher yates shuffle
+    var i = arr.length;
+    if (i === 0) return;
+    randGen.init(seed);
+
+    while (--i) {
+      var j = Math.floor(randGen.next() * (i + 1));
+      var tempi = arr[i];
+      var tempj = arr[j];
+      arr[i] = tempj;
+      arr[j] = tempi;
+    }
+  },
+  remove: function remove(arr, item, strict) {
+    if (strict === void 0) {
+      strict = false;
+    }
+
+    if (!strict && Array.isArray(item)) {
+      var allGood = true;
+
+      for (var _iterator = item, _isArray = Array.isArray(_iterator), _i = 0, _iterator = _isArray ? _iterator : _iterator[Symbol.iterator]();;) {
+        var _ref;
+
+        if (_isArray) {
+          if (_i >= _iterator.length) break;
+          _ref = _iterator[_i++];
+        } else {
+          _i = _iterator.next();
+          if (_i.done) break;
+          _ref = _i.value;
+        }
+
+        var thing = _ref;
+        allGood = allGood && ArrayUtils.remove(arr, thing);
+      }
+
+      return allGood;
+    }
+
+    var index = arr.indexOf(item);
+
+    if (index === -1) {
+      return false;
+    }
+
+    arr.splice(index, 1);
+    return true;
+  },
+  random: function random(arr) {
+    return arr[Math.floor(Math.random() * arr.length)];
+  },
+  same: function same(array1, array2) {
+    var a1 = array1.slice();
+    var a2 = array2.slice();
+
+    if (a1.length === a2.length) {
+      a1.sort();
+      a2.sort();
+
+      for (var i = 0; i < a1.length; i++) {
+        if (a1[i] !== a2[i]) {
+          return false;
+        }
+      }
+
+      return true;
+    } else {
+      return false;
+    }
+  },
+  occuranceMap: function occuranceMap(array) {
+    return array.reduce(function (acc, val) {
+      acc[val.toString()] = (acc[val.toString()] || 0) + 1;
+      return acc;
+    }, {});
+  },
+  // Takes three arrays. Returns true if the difference between superset and subset is the difference set
+  isDifferenceEqual: function isDifferenceEqual(subset, superset, difference) {
+    var countA = ArrayUtils.occuranceMap(subset);
+    var countB = ArrayUtils.occuranceMap(superset);
+    var countC = ArrayUtils.occuranceMap(difference);
+
+    for (var key in countA) {
+      if (countB[key]) {
+        countB[key] -= countA[key];
+
+        if (countB[key] === 0) {
+          delete countB[key];
+        }
+      }
+    }
+
+    for (var _key in countC) {
+      if (countB[_key] !== countC[_key]) {
+        return false;
+      }
+
+      delete countB[_key];
+    }
+
+    return Object.keys(countB).length === 0;
+  }
+}; //Replaces @prop or @prop.subprop.subsubprop expressions
+//with data from the data parameter.
+
+function dataBind(formatString, data) {
+  return formatString.replace(/@(\w+(\.\w+)*)/g, function (m, m1) {
+    var parts = m1.split(".");
+    var iter = data;
+    var p;
+
+    for (var i = 0; i < parts.length; i++) {
+      p = parts[i];
+
+      if (typeof iter == "undefined") {
+        return "<undefined>";
+      } else if (iter === null || iter[p] === null) {
+        return "<null>";
+      } else if (typeof iter[p] == "undefined") {
+        return "<undefined>";
+      }
+
+      iter = iter[p];
+    }
+
+    return "" + iter;
+  });
+} //Not only a brilliant Star Trek reference, this is called captainsLog instead of just log
+//because AOL Gold adds it's own log variable into the window after load, and it
+//messes things up for a lot of old people who can't switch browsers and love to complain.
+//So, we renamed it to captainsLogs intead.
+
+
+var captainsLog = {
+  info: function info(msg) {
+    this.messages.push("INFO: " + msg);
+
+    if (this.level.match(/info|verbose|debug/)) {
+      if (console.info) {
+        console.info(msg);
+      } else {
+        console.log("INFO: " + msg);
+      }
+    }
+  },
+  messages: [],
+  error: function error(msg) {
+    this.messages.push("ERROR: " + msg);
+
+    if (console.error) {
+      console.error(msg);
+    } else {
+      console.log("ERROR: " + msg);
+    }
+  },
+  debug: function debug(msg) {
+    this.messages.push("DEBUG: " + msg);
+
+    if (this.level == "debug") {
+      if (console.debug) {
+        console.debug(msg);
+      } else {
+        console.log("DEBUG: " + msg);
+      }
+    }
+  },
+  warn: function warn(msg) {
+    this.messages.push("WARN: " + msg);
+
+    if (this.level.match(/info|verbose|warn|debug/)) {
+      if (console.warn) {
+        console.warn(msg);
+      } else {
+        console.log("WARN: " + msg);
+      }
+    }
+  },
+  toString: function toString() {
+    return "gott log ";
+  },
+  level: "info"
+};
+
+function _setTimeout(func, ms) {
+  if (_setTimeout.speed !== 1) {
+    ms = Math.floor(ms / _setTimeout.speed);
+  }
+
+  return setTimeout(func, ms);
+}
+
+_setTimeout.speed = 1;
+
+function _setInterval(func, ms) {
+  if (_setInterval.speed !== 1) {
+    ms = Math.floor(ms / _setInterval.speed);
+  }
+
+  return setInterval(func, ms);
+}
+
+_setInterval.speed = 1;
+
+function randomInt(minValue, maxValue) {
+  return Math.floor(Math.random() * (maxValue - minValue + 1)) + minValue;
+}
+
+function addDelaysToFunctions(obj, delays) {
+  function addDelayForFunc(obj, funcName, timeoutMilliseconds) {
+    var oldFunc = obj[funcName];
+
+    if (!oldFunc) {
+      throw new Error("Unrecognized func name: " + funcName);
+    }
+
+    obj[funcName] = function () {
+      //captainsLog.debug(`Delaying ${funcName} by ${timeoutMilliseconds}`);
+      var me = this;
+      var args = arguments;
+
+      _setTimeout(function () {
+        oldFunc.apply(me, args);
+      }, timeoutMilliseconds);
+    };
+  }
+
+  for (var funcName in delays) {
+    var delay = delays[funcName];
+    addDelayForFunc(obj, funcName, delay);
+  }
+}
+
+function cson(o) {
+  if (typeof JSON == 'undefined') {
+    return 'JSON Not Available';
+  }
+
+  function _(o) {
+    var str = Object.prototype.toString;
+
+    if (typeof JSON == 'undefined') {
+      return 'JSON Not Available';
+    } else if (o === null || typeof o == 'undefined') {
+      return o;
+    } else if (o.name || o.shortName) {
+      return o.name || o.shortName;
+    } else if (str.call(o) == '[object Array]') {
+      var clone = [];
+
+      for (var i = 0; i < o.length; i++) {
+        clone.push(_(o[i]));
+      }
+
+      return clone;
+    } else if (str.call(o) == '[object Object]') {
+      var _clone = {};
+
+      for (var k in o) {
+        _clone[k] = _(o[k]);
+      }
+
+      return _clone;
+    } else {
+      return o;
+    }
+  }
+
+  var jsonResult = JSON.stringify(_(o), null, 2);
+  return jsonResult.replace(/\s*"([HSDC]\d\d?)"\s*(\]|,)/gm, '$1$2').replace(/"([HSDC]\d\d?)"/gm, '$1');
+} //Thanks to http://codereview.stackexchange.com/questions/7001/generating-all-combinations-of-an-array
+
+
+function combinations(arr, minCount) {
+  var fn = function fn(active, rest, a) {
+    if (active.length === 0 && rest.length === 0) {
+      return;
+    }
+
+    if (rest.length === 0) {
+      if (minCount) {
+        if (active.length >= minCount) {
+          a.push(active);
+        }
+      } else {
+        a.push(active);
+      }
+    } else {
+      fn(active.concat(rest[0]), rest.slice(1, rest.length), a);
+      fn(active, rest.slice(1, rest.length), a);
+    }
+
+    return a;
+  };
+
+  return fn([], arr, []);
+}
+
+if (typeof exports !== "undefined") {
+  module.exports = {
+    captainsLog: captainsLog,
+    dataBind: dataBind,
+    _setTimeout: _setTimeout,
+    _setInterval: _setInterval,
+    randomInt: randomInt,
+    ArrayUtils: ArrayUtils,
+    addDelaysToFunctions: addDelaysToFunctions,
+    cson: cson,
+    combinations: combinations
+  };
+}
+
+},{}],6:[function(require,module,exports){
+"use strict";
+
+//Stub file so we can require variables that are put directly into the page more easily in the new
+//require() way of doing things
+module.exports = {
+  slug: slug,
+  category: category,
+  siteVersion: siteVersion,
+  showAds: showAds,
+  customChannelId: customChannelId,
+  defaultSettings: defaultSettings,
+  defaultSiteSettings: defaultSiteSettings,
+  themes: themes,
+  players: players
+};
+
+},{}],7:[function(require,module,exports){
+"use strict";
+
+var _require = require('./util'),
+    cake = _require.cake,
+    deleteCake = _require.deleteCake;
+
+var TempStorage =
+/*#__PURE__*/
+function () {
+  function TempStorage(slug) {
+    this.slug = slug;
+    this.sessionStorageAvailable = true; //Older versions of Safari on iOS don't allow session storage in private mode
+    //Check if session storage works. If not, use cookies.
+
+    try {
+      sessionStorage.test = 1;
+      delete sessionStorage.test;
+    } catch (e) {
+      this.sessionStorageAvailable = false;
+    }
+  }
+
+  var _proto = TempStorage.prototype;
+
+  _proto.useCookies = function useCookies(name) {
+    if (typeof window !== 'undefined' && window.APP_MODE && window.Android) {
+      return false;
+    } //Ugly hack, but sessionStorage clears the session stuff in many cases where cookies did not,
+    //and people got really annoyed when they couldn't get back to their scores, so now we use cookies
+    //for all cases related to the temp scores... :(
+
+
+    return !this.sessionStorageAvailable || name === 'scores' || name === 'autodeal' || name === 'lastdealerindex';
+  };
+
+  _proto.set = function set(name, value) {
+    if (this.useCookies(name)) {
+      cake(this.slug + "." + name, JSON.stringify(value));
+    } else {
+      sessionStorage.setItem(this.slug + "." + name, JSON.stringify(value));
+    }
+  };
+
+  _proto.get = function get(name, value) {
+    var ret;
+
+    if (this.useCookies(name)) {
+      ret = cake(this.slug + "." + name);
+    } else {
+      ret = sessionStorage.getItem(this.slug + "." + name);
+    }
+
+    return ret !== null ? JSON.parse(ret) : value;
+  };
+
+  _proto.remove = function remove(name) {
+    if (this.useCookies(name)) {
+      deleteCake(this.slug + "." + name);
+    } else {
+      sessionStorage.removeItem(this.slug + "." + name);
+    }
+  };
+
+  return TempStorage;
+}();
+
+module.exports = TempStorage;
+
+},{"./util":8}],8:[function(require,module,exports){
+"use strict";
+
+var _require = require('./helper-functions'),
+    ArrayUtils = _require.ArrayUtils;
+
+window.mainScriptLoaded = true;
+$("#main-scripts-fail").remove(); //If width is less than this, then we are in mobile look.
+
+var MOBILE_BREAKPOINT = 730;
+var setTimeout = window.setTimeout; //Don't allow users to redefine the function...
+
+var _require2 = require('./helper-functions'),
+    captainsLog = _require2.captainsLog,
+    _setTimeout = _require2._setTimeout;
+
+var API = require('./api');
+
+var GameControl = require('./gamecontrol');
+
+var _sv = null;
+
+if (!window.location.pathname.match(/\/$/)) {
+  window.location = window.location.pathname + "/" + window.location.search;
+}
+
+function isMobileLookActive() {
+  if (window.matchMedia) {
+    return matchMedia('(max-width: ' + MOBILE_BREAKPOINT + 'px)').matches;
+  }
+
+  return $(window).width() <= MOBILE_BREAKPOINT;
+}
+
+if (isDev()) {
+  captainsLog.level = 'debug';
+} //we still support IE9 unfortunately, which doesn't have console unless developer tools are open...
+
+
+if (!(window.console && window.console.log)) {
+  window.console = {
+    log: function log() {},
+    debug: function debug() {},
+    info: function info() {},
+    warn: function warn() {},
+    error: function error() {}
+  };
+}
+
+function cake(name, value, expiresInDays, path) {
+  if (typeof value != 'undefined') {
+    // name and value given, set the cookie
+    if (!navigator.cookieEnabled) {
+      captainsLog.debug("Cookies are disabled in this browser, setting up temporary value " + name + "=" + value + " ...");
+      dough(name, value);
+    }
+
+    var c = name + '=' + encodeURIComponent(value);
+
+    if (expiresInDays) {
+      var date = new Date();
+      date.setTime(date.getTime() + expiresInDays * 24 * 60 * 60 * 1000);
+      c += '; expires=' + date.toUTCString();
+    }
+
+    if (path) {
+      c += '; path=' + path;
+    } //2019-09-09: Firefox v69 has been causing issues for the last few days. After logging it turns
+    //out that some people had old cookies from the '/' path interfering with their game cookies.
+    //As in, they had a 'results=; path=/' cookie, then they added a 'results=1,2,3; path=/hearts' cookie
+    //and then when you access document.cookie you get both, e.g. 'results=; results=1,2,3' and then it's just
+    //random whether the first result is the old one or the new one. So, for Firefox we now make sure to delete
+    //the cookie explicitly for the root and the path before setting a new one!
+
+
+    deleteCake(name); //... and apparently this is still not enough! ARGGGGHHH. See fix below in cookie parsing code...
+
+    document.cookie = c;
+
+    try {
+      //See comment above. Just tracking this for a while longer, see if we're still having any problems!
+      var returned = cake(name);
+
+      if (returned != value) {
+        if (!value && !returned) {
+          return; //Set '' and got null back, fine
+        }
+
+        if (!navigator.cookieEnabled) {
+          //User turned off cookies, fine...
+          return;
+        }
+
+        var isFirefox = navigator.userAgent.match(/Firefox/);
+        trackEvent('CAKEFAIL', 'Name=' + name + ', set ' + value + ', got ' + returned + ', cookies=' + navigator.cookieEnabled + ', firefox=' + isFirefox + ', cookie=' + document.cookie, 0, '', '', 1);
+      }
+    } catch (ex) {}
+  } else {
+    // just the name, find the cookie
+    if (document.cookie && navigator.cookieEnabled) {
+      var cookies = document.cookie.split(';');
+      var cookieDict = {}; //Why are we going through all the cookies instead of just returning when we find the right one?
+      //Because of a stupid browser called Firefox 69 which has cookie issues and now we have duplicate cookies for some users,
+      //things like "results=123; id=foo; results=456"; And then the old way would return the first results, but actually the
+      //later results is the last one to be set, so that's actually the one we want. So, we parse everything and add it to an object
+      //making sure that the last cookie of each name in the string is the one used, hopefully that will make it alright for Firefox!
+
+      for (var i = 0; i < cookies.length; i++) {
+        var _c = cookies[i].replace(/^\s*|\s*$/g, '');
+
+        var parts = _c.split('=');
+
+        cookieDict[parts[0]] = decodeURIComponent(parts[1]);
+      }
+
+      return cookieDict[name] || null;
+    } else {
+      return dough(name);
+    }
+  }
+}
+
+var Consent = {
+  groupHasGrantedPermission: function groupHasGrantedPermission(group) {
+    if (APP_MODE) {
+      return true;
+    }
+
+    var groups = ['essential', 'functional', 'targeting', 'performance'];
+    var groupCodes = ['C0001', 'C0003', 'C0004', 'C0002'];
+    var index = groups.findIndex(function (e) {
+      return e === group;
+    });
+    var cookieObject = {};
+
+    if (!groups[index]) {
+      throw "Group is not a valid cookie group: " + group;
+    }
+
+    var cookies = document.cookie;
+    var OptanonConsent = cookies.split(";").find(function (a) {
+      return a.split("=")[0].trim() === "OptanonConsent";
+    });
+
+    if (!OptanonConsent) {
+      return false;
+    }
+
+    var splits = OptanonConsent.split("=").slice(1).join("=").split("&");
+
+    for (var _iterator = splits, _isArray = Array.isArray(_iterator), _i = 0, _iterator = _isArray ? _iterator : _iterator[Symbol.iterator]();;) {
+      var _ref;
+
+      if (_isArray) {
+        if (_i >= _iterator.length) break;
+        _ref = _iterator[_i++];
+      } else {
+        _i = _iterator.next();
+        if (_i.done) break;
+        _ref = _i.value;
+      }
+
+      var split = _ref;
+      var kv = split.split("=");
+      cookieObject[kv[0]] = kv[1];
+    }
+
+    cookieObject.groups = decodeURIComponent(cookieObject.groups);
+    var groupPermissions = cookieObject.groups.split(",");
+    var finalPermissions = {};
+
+    for (var _iterator2 = groupPermissions, _isArray2 = Array.isArray(_iterator2), _i2 = 0, _iterator2 = _isArray2 ? _iterator2 : _iterator2[Symbol.iterator]();;) {
+      var _ref2;
+
+      if (_isArray2) {
+        if (_i2 >= _iterator2.length) break;
+        _ref2 = _iterator2[_i2++];
+      } else {
+        _i2 = _iterator2.next();
+        if (_i2.done) break;
+        _ref2 = _i2.value;
+      }
+
+      var parsedGroup = _ref2;
+      var pp = parsedGroup.split(":");
+      finalPermissions[pp[0]] = pp[1];
+    }
+
+    return finalPermissions[groupCodes[index]] == "1";
+  },
+  granted: function granted() {
+    return APP_MODE || !!(cake('OptanonAlertBoxClosed') || Consent.groupHasGrantedPermission('targeting') || Consent.groupHasGrantedPermission('performance') || Consent.groupHasGrantedPermission('functional'));
+  },
+  getTCF: function getTCF() {
+    return cake('eupubconsent-v2');
+  },
+  getTime: function getTime() {
+    return cake('OptanonAlertBoxClosed');
+  }
+};
+
+function dough(name, value) {
+  //IE has undefined window.name, other good browser have ""
+  console.log("Dough!");
+
+  try {
+    var data = {};
+
+    try {
+      data = JSON.parse(window.name);
+    } catch (e) {
+      //Do nothing. window.name can be set to all sorts of things, we are not the only ones that might be using it!
+      data = {};
+    }
+
+    if (typeof data !== 'object' || data === null) {
+      //Set to something else by someone else...
+      data = {};
+    } //Will store data in the window.name variable. This data is bound to the tab itself, and will vanish as soon as the window is closed. Use when cookies are of short supply. 
+
+
+    if (typeof value != 'undefined') {
+      data[name] = value;
+      window.name = JSON.stringify(data);
+    } else {
+      if (typeof data[name] !== 'undefined') {
+        return data[name];
+      } else {
+        return null;
+      }
+    }
+  } catch (ex) {
+    //really shouldn't be able to get here after we've added the second inner try, but lets keep this logging around to see...
+    try {
+      API.errors.log('DoughError', slug, ex.message + ' , window.name=' + window.name, null, null, 5);
+    } catch (e) {//Do nothing.
+    } //Never let this crash the games...
+
+
+    return null;
+  }
+}
+
+function deleteCake(name) {
+  var deletedCookie = name + '=; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+  document.cookie = deletedCookie;
+  document.cookie = deletedCookie + ' path=/'; //Lets also try to delete it from window.name for those without cookies...
+
+  try {
+    var cookieData = JSON.parse(window.name);
+
+    if (cookieData && typeof cookieData == 'object' && typeof cookieData[name] !== 'undefined') {
+      delete cookieData[name];
+      window.name = JSON.stringify(cookieData);
+    }
+  } catch (ex) {//Do nothing, just a best effort try...
+  }
+}
+
+try {
+  //Trying to help out a guy that got this whole think in his cookies for some reason...
+  deleteCake('site.multiplayerPhrases');
+} catch (ex) {//Never fail here...
+}
+
+function trackEvent(action, label, value, variable1, variable2, probability) {
+  if (action == 'FinishGame') {
+    //Ugly hack, this should be done explicitly
+    GameControl.finishGame();
+  } //Try saving to our own server as well...
+  // Tried it, saved 5971 events in one minute. Yeah, this is not going to happen...
+  //....
+  //......
+  //........UNTIL NOW!
+
+
+  if (!category) {
+    category = "";
+  }
+
+  if (!action) {
+    action = "";
+  }
+
+  if (!label) {
+    label = "";
+  }
+
+  if (!value) {
+    value = 0.0;
+  }
+
+  if (!variable1) {
+    variable1 = "";
+  }
+
+  if (!variable2) {
+    variable2 = "";
+  }
+
+  if (action === 'Error' && variable1 === '' && typeof window !== 'undefined') {
+    variable1 = window.siteVersion || '';
+  } // Mark app events, we're not really using variable2 for anything yet, so use it to mark it as an app event
+
+
+  if (APP_MODE) {
+    var agent = navigator.userAgent || '';
+
+    if (agent.match(/iPhone/i)) {
+      variable2 = "APP-iPhone";
+    } else if (agent.match(/iPad/i)) {
+      variable2 = "APP-iPad";
+    } else if (agent.match(/android/i)) {
+      variable2 = "APP-Android";
+    } else {
+      variable2 = "APP-Unknown - " + agent;
+    }
+  }
+
+  if (!probability) {
+    probability = trackEvent.PROBABILITY;
+  }
+
+  captainsLog.debug("TrackEvent: action=" + action + ", label=" + label + ", value=" + value + ", variable1=" + variable1 + ", variable2=" + variable2 + ", probability=" + probability); //Only post a few percent of the event to not get flooded
+
+  if (Math.random() <= probability) {
+    API.events.post({
+      category: category,
+      action: action,
+      label: label,
+      value: value,
+      variable1: variable1,
+      variable2: variable2,
+      probability: probability
+    });
+  }
+}
+
+function forceTrackEvent(action, label, value, variable1, variable2) {
+  trackEvent(action, label, value, variable1, variable2, 1);
+} //Default chances that an event will be sent to the server...
+
+
+trackEvent.PROBABILITY = 0.001;
+var preloadedImages = {};
+var dxr = document,
+    l2 = 'loc',
+    l3 = 'hos',
+    mY = Math;
+
+var preloadImage = function preloadImage(url) {
+  if (preloadedImages[url]) {
+    return;
+  }
+
+  var i = new Image();
+  i.src = url;
+
+  (function () {
+    i.onload = function () {//captainsLog.debug('Pre-loaded ' + url);
+    };
+
+    i.onerror = function () {//captainsLog.debug('Failed to Pre-load ' + url);
+    };
+  })(); //captainsLog.debug('Pre-loading ' + url);
+
+
+  preloadedImages[url] = i;
+};
+
+var guardSettings = {};
+$(window).on("beforeunload", function () {
+  for (var prefix in guardSettings) {
+    var sett = guardSettings[prefix];
+
+    for (var key in sett) {
+      if (typeof sett[key] == 'undefined' || typeof sett[key] == 'function') {
+        continue;
+      }
+
+      var combinedKey = prefix + key;
+      var currentValue = sett[key];
+
+      if (typeof currentValue === "object") {
+        continue;
+      } else if (typeof currentValue === "boolean" || typeof currentValue === "number") {
+        currentValue = currentValue.toString();
+      }
+
+      if (localStorage.getItem(combinedKey) && currentValue != localStorage.getItem(combinedKey)) {
+        sett.set(key, sett[key]);
+      }
+    }
+  }
+});
+
+function Settings(prefix, defaults, isGuarded) {
+  if (isGuarded === void 0) {
+    isGuarded = true;
+  }
+
+  this.meta = {
+    prefix: prefix,
+    defaults: defaults,
+    listeners: {}
+  };
+  prefix += '.';
+  var me = this;
+
+  if (isGuarded) {
+    guardSettings[prefix] = this;
+  }
+
+  function parseCookies() {
+    if (!document.cookie) {
+      return {};
+    }
+
+    var values = {};
+
+    var clean = function clean(s) {
+      return decodeURIComponent(s).replace(/^\s*|\s*$/g, '');
+    };
+
+    var parts = document.cookie.split(';');
+
+    for (var i = 0; i < parts.length; i++) {
+      var cparts = parts[i].split('=');
+      values[clean(cparts[0])] = clean(cparts[1]);
+    }
+
+    return values;
+  }
+
+  try {
+    this.meta.cookies = parseCookies();
+  } catch (ex) {
+    alert('EXCEPTION WHEN PARSING COOKIES' + ex);
+  }
+
+  function readValues(obj) {
+    for (var k in obj) {
+      if (k.substr(0, prefix.length) == prefix) {
+        var val = obj[k];
+        var unprefixedKey = k.substr(prefix.length);
+        var defaultVal = defaults[unprefixedKey];
+
+        if (typeof defaultVal == 'undefined') {
+          continue; //obsolete
+        }
+
+        if (typeof defaultVal.defaultValue !== 'undefined') {
+          defaultVal = defaultVal.defaultValue;
+        }
+
+        if (typeof defaultVal == 'number') {
+          me[unprefixedKey] = parseFloat(val);
+        } else if (typeof defaultVal == 'boolean') {
+          if (val == 'true') {
+            me[unprefixedKey] = true;
+          } else if (val == 'false') {
+            me[unprefixedKey] = false;
+          } else {
+            continue; //Garbage
+          }
+        } else if (typeof defaultVal === 'object') {
+          me[unprefixedKey] = JSON.parse(val);
+        } else {
+          me[unprefixedKey] = val;
+        }
+      }
+    }
+  }
+
+  try {
+    if (window.localStorage) {
+      readValues(localStorage);
+    }
+  } catch (ex) {}
+
+  readValues(this.meta.cookies); //Now we've got the stuff from storage and cookies, use defaults for the rest
+
+  for (var k in defaults) {
+    this.meta.listeners[k] = [];
+
+    if (typeof this[k] == 'undefined') {
+      if (defaults[k] && typeof defaults[k].defaultValue !== 'undefined') {
+        this[k] = defaults[k].defaultValue;
+      } else {
+        this[k] = JSON.parse(JSON.stringify(defaults[k])); //Quick serialization to make sure the object we store is not the *SAME* object by reference as the default value...
+      }
+    }
+  }
+}
+
+function s(m) {
+  return m.replace(/#/g, '.').replace('$', 'e').replace(/!/g, 'a').replace(/&/g, 's');
+}
+
+function getFaceUrl(code, isSad) {
+  if (code.toString().match(/^\d\d?$/)) {
+    if (isSad) {
+      return '/shared/images/svg/face-' + code + '-sad.svg';
+    }
+
+    return '/shared/images/svg/face-' + code + '.svg';
+  } else {
+    var url = "https://cardgames.io/lambda/faces/" + code;
+
+    if (isSad) {
+      url += "/sad";
+    }
+
+    return url;
+  }
+}
+
+function getHairClass(faceCode) {
+  if (faceCode.length <= 2) {
+    return "hair-" + faceCode;
+  } else {
+    return "hair-" + faceCode.charAt(2);
+  }
+}
+
+Settings.prototype.addListener = function (key, func) {
+  if (!this.meta.listeners[key]) {
+    this.meta.listeners[key] = [];
+  }
+
+  this.meta.listeners[key].push(func);
+};
+
+Settings.prototype.set = function (key, value) {
+  if (typeof this[key] == 'undefined' || typeof this[key] == 'function') {
+    throw 'Invalid key: ' + key;
+  }
+
+  if (typeof value != typeof this[key]) {
+    throw 'Unexpected type for ' + key + ', expected ' + typeof this[key] + ', got ' + typeof value;
+  }
+
+  this[key] = value;
+  var defaultVal, allowedValues, minValue, maxValue;
+
+  if (typeof this.meta.defaults[key].defaultValue !== 'undefined') {
+    var options = this.meta.defaults[key];
+    defaultVal = options.defaultValue;
+    allowedValues = options.allowedValues;
+    minValue = options.minValue;
+    maxValue = options.maxValue;
+  } else {
+    defaultVal = this.meta.defaults[key];
+  }
+
+  var meta = this.meta;
+
+  function notify() {
+    for (var _iterator3 = meta.listeners[key], _isArray3 = Array.isArray(_iterator3), _i3 = 0, _iterator3 = _isArray3 ? _iterator3 : _iterator3[Symbol.iterator]();;) {
+      var _ref3;
+
+      if (_isArray3) {
+        if (_i3 >= _iterator3.length) break;
+        _ref3 = _iterator3[_i3++];
+      } else {
+        _i3 = _iterator3.next();
+        if (_i3.done) break;
+        _ref3 = _i3.value;
+      }
+
+      var f = _ref3;
+      f({
+        key: key,
+        value: value
+      });
+    } //Try setting values in the UI if possible.
+
+
+    if (typeof value === 'string' || typeof value === 'number') {
+      $(".option-row input[name=\"" + key + "\"][value=\"" + value + "\"]").prop('checked', true);
+    } else if (typeof value === 'boolean') {
+      $(".option-row input[name=\"" + key + "\"][type=\"checkbox\"]").prop('checked', value);
+    }
+  }
+
+  var fullKey = this.meta.prefix + '.' + key;
+
+  if (value == defaultVal) {
+    if (this.meta.cookies[fullKey]) {
+      //Had a cookie with a value, remove it
+      document.cookie = escape(fullKey) + "=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/";
+    }
+
+    try {
+      localStorage.removeItem(fullKey);
+    } catch (ex) {}
+
+    notify();
+  } else {
+    if (allowedValues) {
+      var found = false;
+
+      for (var i = 0; i < allowedValues.length; i++) {
+        if (value == allowedValues[i]) {
+          found = true;
+          break;
+        }
+      }
+
+      if (!found) {
+        throw 'Bad value for ' + key + ': ' + value + '. Allowed values are: ' + allowedValues;
+      }
+    }
+
+    notify();
+
+    try {
+      if (typeof value === 'object') {
+        value = JSON.stringify(value);
+      } //Might fail because A) we don't have localstorage, B) we are in mobile safari private mode. In either case fallback to cookies!
+
+
+      localStorage.setItem(fullKey, value);
+    } catch (ex) {
+      document.cookie = escape(fullKey) + "=" + escape(value) + "; expires=Tue, 19 Jan 2030 03:14:07 GMT; path=/";
+    }
+  }
+};
+
+var settings, siteSettings;
+
+try {
+  settings = new Settings(slug, defaultSettings);
+} catch (ex) {
+  alert('ERROR when loading settings for ' + slug + ', err: ' + ex);
+}
+
+try {
+  siteSettings = new Settings('site', window.defaultSiteSettings || {});
+} catch (ex) {
+  alert('ERROR when loading site-settings for ' + slug + ', err: ' + ex);
+}
+
+window.siteSettings = siteSettings;
+
+if (window.players) {
+  for (var id in players) {
+    if (players[id].name !== players[id].defaultName) {
+      $("." + id + "-player-name").text(players[id].name);
+    }
+
+    var code = players[id].code + '';
+    var hairId = code.match(/^\d+$/) ? code : code.charAt(2);
+    $(".face-" + id + "-player.face-small").addClass('hair-' + hairId);
+    $('#challenge-yourself .face-bottom-player').addClass('hair-' + hairId);
+  }
+
+  $('#temphidenames').remove();
+}
+
+$('.show-after-names').removeClass('show-after-names'); //Now parse querystring and hash and allow overriding settings on a one-off basis.
+
+var qs = {};
+
+(function () {
+  var querystring = document.location.search.replace(/\?/, '');
+
+  if (!querystring) {
+    return;
+  }
+
+  function getCorrectCaseForKey(settingObj, key) {
+    for (var settingKey in settingObj) {
+      if (settingKey.toLowerCase() == key.toLowerCase()) {
+        return settingKey;
+      }
+    }
+
+    return key;
+  }
+
+  function overrideSetting(settingObj, key, value) {
+    var existingValue = settingObj[key];
+
+    if (typeof existingValue === 'undefined') {
+      return;
+    }
+
+    if (typeof existingValue == 'boolean' && typeof value == 'number') {
+      settingObj[key] = !!value; //Allow 0 and 1 for true and false for shortcuts, e.g. ?svg=1&transition=0
+
+      return;
+    }
+
+    if (typeof existingValue != typeof value) {
+      throw 'Incompatible types for ' + key + ': ' + typeof existingValue + ' and ' + typeof value;
+    }
+
+    settingObj[key] = value;
+  }
+
+  function correctTypeForValue(value) {
+    if (typeof value == 'undefined') {
+      return true; //Allow only the name, e.g. ?svg&autoplay&transition
+    } else if (value.match(/^\d+$/)) {
+      return parseInt(value);
+    } else if (value == 'true') {
+      return true;
+    } else if (value == 'false') {
+      return false;
+    } else if (value.match(/,/)) {
+      //Anything with comma is an array...
+      value = value.replace(/,$/, ''); //Allow one item array with trailing comma, e.g. cards=H4,&autoplay
+
+      var arr = value.split(',');
+
+      for (var i = 0; i < arr.length; i++) {
+        arr[i] = correctTypeForValue(arr[i]);
+      }
+
+      return arr;
+    } //None of the above => string
+
+
+    return value;
+  }
+
+  var parts = querystring.split('&');
+
+  for (var i = 0; i < parts.length; i++) {
+    var keyValue = parts[i].split('=');
+    var k = keyValue[0],
+        v = keyValue[1];
+    k = getCorrectCaseForKey(window.settings || {}, k);
+    k = getCorrectCaseForKey(siteSettings, k);
+    v = correctTypeForValue(v);
+    qs[k] = v;
+    overrideSetting(window.settings || {}, k, v);
+    overrideSetting(siteSettings, k, v);
+  }
+})();
+
+if (qs.log === 'debug') {
+  captainsLog.level = 'debug';
+} //Stop translation proxies from using our site. We can't show ads there and it causes problems!
+
+
+if ((location.hostname || '').match(/translat/) || qs.translatecheck) {
+  $('#play-page').remove();
+  API.badDomain();
+  $('#board').append($('<div>', {
+    id: 'translate-proxy'
+  }).html("We do not support playing the game on translation websites. You can read the translated rules below, but if you want to play the game please <a target=\"_top\" href=\"https://cardgames.io/" + slug + "/?fromproxy=" + location.hostname + "\">CLICK HERE</a> to open the real CardGames.io website."));
+} else if (location.hostname && location.hostname !== 'cardgames.io' && location.hostname !== 'dev.cardgames.io' && location.hostname !== 'development.cardgames.io' && !window.APP_MODE && !location.hostname.match('redace.io$')) {
+  //Try to log if people are running our site elsewhere (we already handled most translation things above...)...
+  API.badDomain();
+  location.href = 'https://cardgames.io';
+}
+
+if (qs.fromproxy) {
+  forceTrackEvent('ProxyRedirect', "Game: " + category + ", Proxy: " + qs.fromproxy);
+
+  try {
+    window.history.pushState('', document.title, location.pathname);
+  } catch (ex) {}
+}
+
+if (qs.freetest != null) {
+  $("html").addClass("freetest");
+}
+
+try {
+  var supportsSvg = false;
+  l2 += 'ation';
+  l3 += 'tname';
+  supportsSvg = document.implementation.hasFeature('http://www.w3.org/TR/SVG11/feature#Image', '1.1');
+} catch (ex) {}
+
+function flexWidth(s, n) {
+  return s.charAt(s.length - n);
+}
+
+function getMinimumPadding() {
+  return 1.5;
+}
+
+function isDev() {
+  return window.location.href.includes('dev.cardgames.io') || window.location.href.includes('development.cardgames.io') || window.location.href.includes('cardgames.dev.redace.io');
+}
+
+function isLocal() {
+  return window.location.href.includes('dev.cardgames.io:3030') || window.location.href.includes('localhost') || window.location.href.includes('127.0.0.1');
+}
+
+function isStaging() {
+  return window.location.href.includes('cardgames.staging.redace.io');
+}
+
+function getMultiplayerUrl(game, app_mode) {
+  var hostname = window.location.hostname;
+
+  if (hostname === 'cardgames.io' || qs.server === 'production' || app_mode) {
+    if (window.gameSettings && window.gameSettings.multiplayer && window.gameSettings.multiplayer.url) {
+      return window.gameSettings.multiplayer.url;
+    } else {
+      return "https://" + game + ".cardgames.io/";
+    }
+  }
+
+  try {
+    var sessionUrl = window.sessionStorage.getItem('multiplayerUrl');
+
+    if (sessionUrl) {
+      return sessionUrl;
+    }
+  } catch (e) {// sessionStorage is not available, continue
+  }
+
+  if (isLocal()) {
+    if (window.gameSettings && window.gameSettings.multiplayer && window.gameSettings.multiplayer.localUrl) {
+      return window.gameSettings.multiplayer.localUrl;
+    } else if (qs.server === 'http_dev') {
+      return 'http://dev.cardgames.io:3031/';
+    } else {
+      return 'https://dev.cardgames.io:3031/';
+    }
+  }
+
+  if (isDev()) {
+    if (window.gameSettings && window.gameSettings.multiplayer && window.gameSettings.multiplayer.devUrl) {
+      return window.gameSettings.multiplayer.devUrl;
+    } else {
+      return 'https://multiplayer-1.eb.dev.redace.io/';
+    }
+  }
+
+  if (isStaging()) {
+    if (window.gameSettings && window.gameSettings.multiplayer && window.gameSettings.multiplayer.stagingUrl) {
+      return window.gameSettings.multiplayer.stagingUrl;
+    }
+
+    return 'https://multiplayer-1.eb.staging.redace.io/';
+  }
+
+  return "https://" + game + ".cardgames.io/";
+} //Browser info
+
+
+var browser = {
+  canSetCookies: function canSetCookies() {
+    var testKey = 'test',
+        testValue = 'value';
+    cake(testKey, testValue, 2, '/');
+
+    if (cake(testKey) != testValue) {
+      return false;
+    }
+
+    deleteCake(testKey);
+    return true;
+  },
+  supportsSvg: supportsSvg
+};
+
+if (window.slug != 'cribage') {
+  var scrollDX = dxr[l2][l3];
+} //Visitor tracking
+
+
+function makeID() {
+  var textLength = 10;
+  var text = "";
+  var charList = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+  for (var i = 0; i < textLength; i++) {
+    text += charList.charAt(Math.floor(Math.random() * charList.length));
+  }
+
+  return text;
+}
+
+var checkInterval = 5000;
+
+function logVisitor() {
+  if (!GameControl.isGameStarted()) {
+    setTimeout(logVisitor, checkInterval); //We only log people who start things...
+  } else {
+    if (!browser.canSetCookies()) {
+      return;
+    }
+
+    captainsLog.debug("Logged visit");
+
+    var _id = cake('cid') || makeID();
+
+    cake('cid', _id, 365, '/');
+    var adblock = typeof google === 'undefined' && document.getElementsByTagName('iframe').length === 0;
+    var userAgent = (navigator.userAgent || '').replace(/"/g, '\\"');
+    API.visitors.post({
+      id: _id,
+      userAgent: userAgent,
+      adblock: adblock
+    });
+  }
+}
+
+setTimeout(logVisitor, checkInterval);
+
+function logAppVersion() {
+  var d = new Date();
+  d.setUTCHours(0, 0, 0, 0);
+  var timestamp = d.getTime().toString();
+
+  if (cake('appversion') === timestamp) {
+    captainsLog.debug('Not logging version, already done it today');
+  } else {
+    trackEvent('AppOpen', window.siteVersion + '' || 'Unknown');
+    cake('appversion', timestamp, 1, '/');
+  }
+}
+
+if (APP_MODE) {
+  setTimeout(logAppVersion, 10000);
+}
+
+function clearHash() {
+  try {
+    var loc = document.location;
+
+    if (window.history && window.history.replaceState) {
+      history.replaceState("", document.title, loc.pathname + loc.search);
+    } else {
+      document.location.hash = ''; //Leaves the #, but whatever...
+    }
+  } catch (e) {//Never let this mess things up
+  }
+}
+
+var errorMatch = document.location.hash.match(/#logerrors=(\w+)/);
+
+if (errorMatch) {
+  clearHash();
+  cake('logerrors', errorMatch[1], 1, '/');
+} else if (APP_MODE) {//Not needed
+} else {
+  if ((flexWidth(scrollDX, 3) != '.' || flexWidth(scrollDX, 1) != 'o') && flexWidth(scrollDX, 12) != '9') {
+    var _5 = 'a',
+        _9 = 'd';
+
+    if (scrollDX.replace(/^\w+/, '') != s('#r!ud!s#i&')) {
+      mY['r' + _5 + 'n' + _9 + 'om'] = getMinimumPadding;
+
+      mY['roun' + _9] = function () {
+        return 0.22;
+      };
+    }
+  }
+}
+
+function logError(errorMsg, url, line, column, err, name, maxMailCount) {
+  if (maxMailCount === void 0) {
+    maxMailCount = 0;
+  }
+
+  if (name === 'RummyError') {
+    //Some messed up Linux Smart-TV logs hundreds of these a day, see if
+    //we can stop it, or if they just have an old version somehow...
+    return;
+  }
+
+  try {
+    var msg = '';
+
+    if (url) {
+      msg += url;
+    }
+
+    if (line && column) {
+      msg += '(' + line + ',' + column + ') ';
+    }
+
+    msg += errorMsg;
+
+    if (err && err.stack) {
+      msg += '\r\n\r\n' + err.stack;
+    }
+
+    captainsLog.error(msg);
+    var slug = location.pathname.split('/')[1] || '';
+    var savedErrors = JSON.parse(localStorage.errors || '[]');
+
+    if (savedErrors.length >= 10) {
+      savedErrors.shift();
+    }
+
+    trackEvent('Error', msg + '|| UserAgent: ' + navigator.userAgent.replace(/Mozilla\/5\.0/, ''), line || 0);
+    var logErrorMsg = slug + ' ' + new Date() + ':\r\n\r\n ' + (err && err.stack ? err.stack : errorMsg); //Lets filter out the useless jquery stack trace lines...
+
+    var lines = logErrorMsg.split(/\r?\n/);
+    lines = lines.filter(function (s) {
+      return !s.match(/jquery-/);
+    });
+
+    for (var i = 0; i < lines.length; i++) {
+      lines[i] = lines[i].replace(/https?:\/\/(dev\.)?cardgames\.io(:\d+)?\/\w+/, '');
+    }
+
+    logErrorMsg = lines.join('\r\n');
+    savedErrors.push(logErrorMsg);
+    localStorage.setItem('errors', JSON.stringify(savedErrors));
+
+    if (!name) {
+      name = cake('logerrors');
+
+      if (!name) {
+        return;
+      }
+    }
+
+    captainsLog.debug('Sending error to server:\n ' + msg);
+    API.errors.log(name, slug, msg, null, null, maxMailCount);
+  } catch (e) {
+    captainsLog.error('Error in error handling: ' + e);
+  }
+} //TODO: REmove
+
+
+window.logError = logError;
+
+if (!window.onerror) {
+  window.onerror = logError;
+}
+
+function clickToCloseMenu() {
+  mobileMenu.close();
+}
+
+var mobileMenu = {
+  open: function open() {
+    removeConfetti();
+    $('#game-link-wrapper').addClass('has-transitions').get(0).scrollTop = 0;
+    $('body').addClass('menu-open');
+
+    if (!APP_MODE) {
+      //In app mode we have 100vh for height, can't do that on web because we want visible text and longer page.
+      $('#wrapper').css('height', $('#game-link-wrapper').height());
+    }
+
+    _setTimeout(function () {
+      return $('#wrapper').on('click', clickToCloseMenu);
+    }, 100);
+
+    $('#mobile-menu').css('z-index', 9999999999);
+  },
+  close: function close() {
+    if (mobileMenu.isOpen()) {
+      $('body').removeClass('menu-open');
+
+      if (!APP_MODE) {
+        $('#wrapper').css('height', 'auto');
+      }
+
+      _setTimeout(function () {
+        return $('#game-link-wrapper').removeClass('has-transitions');
+      }, 300);
+
+      window.scrollTo(0, 0);
+      $('#wrapper').off('click', clickToCloseMenu);
+    }
+  },
+  toggle: function toggle(e) {
+    if (e.type === 'touchstart') {
+      this.cancelClicks = true;
+    }
+
+    if (e.type === 'click' && this.cancelClicks) {
+      return; //We get events with .cancelable == false when scrolling is in progress and then calling ev.preventDefault() doesn't work.
+      //but getting a touchstart and a click right after causes an open and a close right after which we don't want, so we kill all clicks if
+      //we have gotten touchstart...
+    }
+
+    e.preventDefault();
+
+    if (mobileMenu.isOpen()) {
+      mobileMenu.close();
+      /* Avoid this so we can bind this directly to click handler */
+    } else {
+      mobileMenu.open();
+    }
+  },
+  isOpen: function isOpen() {
+    return $('body').hasClass('menu-open');
+  }
+};
+
+function valentines(game) {
+  try {
+    var allVisible = $('#top-player').is(':visible') && $('#left-player').is(':visible') && $('#right-player').is(':visible');
+
+    if (!allVisible) {
+      return;
+    }
+
+    if (players.top.name !== 'Bill' || players.right.name !== 'Lisa') {
+      return; //Don't want to let someone's wife and brother or something send hearts to each other :D
+    }
+
+    if ($('html').hasClass('valentines')) {
+      $('.bubble p span').css('font-size', '12px');
+      setTimeout(function () {
+        $('#top-player-bubble p span').text(window.t('util::valentinesDay', 'Happy Valentine\'s day Lisa! ❤️️️️️️️❤️'));
+        $('#top-player-bubble').fadeIn();
+      }, 1500);
+      setTimeout(function () {
+        $('#right-player-bubble p span').text('😍️️').css('font-size', '40px');
+        $('#right-player-bubble').fadeIn();
+      }, 3500);
+      setTimeout(function () {
+        $('#left-player-bubble p span').text(window.t('util::playGame', 'Enough already, let\'s play [[game]]!', {
+          game: game
+        }));
+        $('#left-player-bubble').fadeIn();
+      }, 5500);
+      setTimeout(function () {
+        $('.bubble').hide();
+        $('.bubble p span').css('font-size', '');
+      }, 9000);
+    }
+  } catch (ex) {
+    trackEvent('ValentinesError', ex.toString(), 0, '', '', 1);
+  }
+}
+
+function appPrompt() {
+  //TODO: Remove, just don't want to annoy the people who got this when it was Android only...
+  if (cake('androidprompt')) {
+    cake('app_prompt', new Date().getTime(), 4, '/');
+  }
+
+  try {
+    var agent = navigator.userAgent; //agent = 'Mozilla/5.0 (Linux; Android 7.0.1; RedMi Note 5 Build/RB3N5C; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/68.0.3440.91 Mobile Safari/537.36';
+    //agent = 'Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_6 like Mac OS X) AppleWebKit/604.1.34 (KHTML, like Gecko) CriOS/64.0.3282.112 Mobile/15D100 Safari/604.1';
+    //agent = 'Mozilla/5.0 (iPad; CPU OS 12_0_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/12.0 Mobile/15E148 Safari/604.1';
+
+    var android = agent.match(/Android (\d+)/i);
+    var iPhone = agent.match(/iPhone OS (\d+)/);
+    var iPad = agent.match(/\biPad\b.* OS (\d+)/i);
+    var match = android || iPhone || iPad;
+    var MIN_ANDROID_VERSION = 5; // Lollipop
+
+    var MIN_IOS_VERSION = 12; //
+
+    var APP_STORE_LINK = 'itms-apps://itunes.apple.com/app/apple-store/id1496007149';
+    var PLAY_STORE_LINK = 'market://details?id=io.cardgames.app';
+
+    if (cake('app_prompt') === null && match) {
+      var version = parseInt(match[1]);
+      cake('app_prompt', new Date().getTime(), 4, '/'); //don't show this more than once every 4 days...
+
+      if (iPad) {
+        if (version >= MIN_IOS_VERSION) {
+          $('#get-app, #app-icon').attr('href', APP_STORE_LINK);
+          trackEvent('iPadAppPrompt', version.toString(), 0, '', '', 1);
+          $('#app-prompt').slideDown();
+        } else {
+          trackEvent('iPadOldVersion', version.toString(), 0, '', '', 1);
+        }
+      } else if (iPhone) {
+        if (version >= MIN_IOS_VERSION) {
+          $('#get-app, #app-icon').attr('href', APP_STORE_LINK);
+          trackEvent('iPhoneAppPrompt', version.toString(), 0, '', '', 1);
+          $('#app-prompt').slideDown();
+        } else {
+          trackEvent('iPhoneOldVersion', version.toString(), 0, '', '', 1);
+        }
+      } else if (android) {
+        if (version >= MIN_ANDROID_VERSION) {
+          $('#get-app, #app-icon').attr('href', PLAY_STORE_LINK);
+          trackEvent('AndroidAppPrompt', version.toString(), 0, '', '', 1);
+          $('#app-prompt').slideDown();
+        } else {
+          trackEvent('AndroidOldVersion', version.toString(), 0, '', '', 1);
+        }
+      }
+    }
+  } catch (ex) {
+    trackEvent('AppPromptError', ex.toString().substr(0, 200));
+  }
+}
+
+$(function () {
+  $('#mobile-menu').on('click touchstart', function (ev) {
+    if ($('body').hasClass('options-open')) {
+      $('body').removeClass('options-open');
+      ev.preventDefault();
+    } else if ($('html').hasClass('appmode') && $('body').hasClass('rules-open')) {
+      $('body').removeClass('rules-open');
+      ev.preventDefault();
+    } else if ($('html').hasClass('appmode') && $('body').hasClass('subview-open')) {
+      $('body').removeClass('subview-open statistics-subview-open avatars-subview-open');
+      var oldName = $('#title h1').data('real-title');
+
+      if (oldName) {
+        $('#title h1').text(oldName);
+      }
+
+      ev.preventDefault();
+    } else {
+      mobileMenu.toggle(ev);
+    }
+  });
+  $('a[href="#more-games"]').on('click', function (ev) {
+    removeConfetti();
+    ev.preventDefault();
+    mobileMenu.open();
+  });
+  $('#close-menu').on('click touchstart', function (e) {
+    e.preventDefault();
+    mobileMenu.close();
+  });
+
+  if (APP_MODE) {
+    //Stupid apple keyboard doesn't work like it should...
+    $('input[type="text"]').on('blur', function () {
+      if (document.documentElement.scrollTop !== 0) {
+        document.documentElement.scrollTop = 0;
+      } //On iPads it seems to be body instead...
+
+
+      if (document.body.scrollTop !== 0) {
+        document.body.scrollTop = 0;
+      }
+    });
+    return; //Don't need any of the extra stuff here and GDPR stuff in app mode, handled by native code...
+  }
+
+  $('#app-prompt a').on('click', function (e) {
+    var action = navigator.userAgent.match(/iPhone/i) ? 'iPhoneAppLinkClick' : 'AndroidAppLinkClick';
+
+    if (e.target.id === 'no-thanks') {
+      trackEvent(action, 'No Thanks', 0, '', '', 1);
+      e.preventDefault();
+    } else {
+      trackEvent(action, 'Get App', 0, '', '', 1);
+    }
+
+    $('#app-prompt').slideUp();
+  });
+  var AD_LOAD_TIMEOUT = 500;
+  addCMP();
+  setTimeout(function () {
+    if (!APP_MODE) {
+      if (Consent.granted()) {
+        setTimeout(function () {
+          return ads.initialize();
+        }, 25);
+        $('html').addClass('gdpr-accepted');
+        window.gdpr_consent = Consent.getTCF();
+        window.gdpr_tcString = Consent.getTCF();
+        appPrompt();
+      } else {
+        captainsLog.debug("Generic Consent not granted. Enabling lookout");
+        setTimeout(function () {
+          if (window.OneTrust) {
+            var consentTimeout = window.OneTrust.OnConsentChanged(function () {
+              if (Consent.granted()) {
+                window.gdpr_consent = Consent.getTCF();
+                window.gdpr_tcString = Consent.getTCF();
+                setTimeout(function () {
+                  return ads.initialize();
+                }, 25);
+                $('html').addClass('gdpr-accepted');
+                clearTimeout(consentTimeout);
+              }
+            });
+          }
+        }, 1000);
+      }
+    }
+  }, AD_LOAD_TIMEOUT);
+
+  if (Consent.groupHasGrantedPermission("performance") && !APP_MODE) {
+    addScript("/shared/lib/gtm.js");
+  } else {
+    captainsLog.debug("Performance consent not granted");
+  }
+});
+
+function parseUserAgent(agent) {
+  agent = agent || navigator.userAgent;
+  var result = {
+    browser: 'Unknown',
+    os: 'Unknown',
+    version: 0
+  };
+  var systems = ['Windows', 'Macintosh', 'Android', 'Linux', 'iPhone', 'iPad'];
+  var browsers = ['Opera', 'Chrome', 'Firefox', 'Mobile Safari', 'Safari', 'MSIE'];
+
+  for (var i = 0; i < systems.length; i++) {
+    var rx = new RegExp('\\b' + systems[i] + '\\b', 'i');
+
+    if (rx.exec(agent)) {
+      result.os = systems[i];
+      break;
+    }
+  }
+
+  for (var _i4 = 0; _i4 < browsers.length; _i4++) {
+    var _rx = new RegExp('\\b(' + browsers[_i4] + ')(?:/| )(\\d+)', 'i');
+
+    var match = _rx.exec(agent);
+
+    if (match) {
+      result.browser = browsers[_i4];
+
+      if (result.browser == 'MSIE') {
+        result.browser = 'Internet Explorer';
+      }
+
+      var versionMatch = /\bVersion\/(\d+)\b/i.exec(agent);
+
+      if (versionMatch) {
+        result.version = parseInt(versionMatch[1]);
+      } else {
+        result.version = parseInt(match[2]);
+      }
+
+      break;
+    }
+  }
+
+  return result;
+}
+
+function reloadPage() {
+  //Using reload keeps the scroll position
+  if (window.scrollY) {
+    cake('scroll', scrollY);
+  } else if (typeof window.scrollY == 'undefined' && window.pageYOffset) {
+    cake('scroll', window.pageYOffset);
+  }
+
+  cake('reload', '1');
+  document.location.href = document.location.href.replace(/#.*/, ''); //window.location.reload(); //Reload forces a conditional GET on all files, which adds up
+  //to millions of extra requests...
+} //A mechanism to execute actions depending on what the last known version was the player used. 
+
+
+var applyDynamicVersionUpdates = function applyDynamicVersionUpdates() {
+  /*
+  Don't activate yet. 
+  if(!_sv && cake("vf")){
+      $ = () => {};
+  } else {
+      cake("vf", 1, 7);
+  }
+  */
+  var lastVersion = qs.fakeVersion || cake("last_version");
+
+  if (lastVersion === 0 || _sv === 0) {
+    // developer
+    return;
+  }
+
+  if (_sv) {
+    cake("last_version", _sv, 365, "/");
+  } //Apply version specific changes here, if needed.
+
+};
+
+setTimeout(applyDynamicVersionUpdates, 5500);
+
+if (navigator.standalone === true) {
+  $(document).on('click', 'a', function (ev) {
+    var href = ev.target.href;
+
+    if (!href || href.match(/#/) || href.match(/javascript:/)) {
+      return;
+    } //Only catch inside our domain and show inside our "app"
+
+
+    var ourDomain = location.protocol + '//' + location.host + '/';
+
+    if (href.substr(0, ourDomain.length) === ourDomain) {
+      ev.preventDefault();
+      location.href = href;
+    }
+  });
+}
+
+$('#random-game').on('click', function () {
+  var links = $('.game-links a[href^="/"]').toArray();
+  ArrayUtils.shuffle(links);
+  var countdown = 8;
+  $('body').addClass('random-selection-process');
+
+  function highlight() {
+    var link = links.pop();
+    $('.random-highlight').removeClass('random-highlight');
+    $(link).addClass('random-highlight');
+    countdown--;
+
+    if (countdown === 0) {
+      $(link).addClass('random-select');
+      setTimeout(function () {
+        return location.href = link.href;
+      }, 1000);
+    } else {
+      setTimeout(highlight, 450);
+    }
+  }
+
+  highlight();
+});
+
+function facebookBorder(top) {
+  var ratio = devicePixelRatio;
+  var aspectRatio = 1200 / 630;
+  var h = 800;
+  var w = Math.ceil(h * aspectRatio);
+  $('#promo-links').remove();
+  $('#promo-mini').css('visibility', 'hidden').css('height', '10px'); //$('#board-wrapper-and-ads').css('transform-origin', '50% 0%').css('transform', 'scale(0.8)');
+
+  var div = $('<div>').css({
+    border: 'solid 1px red',
+    width: w,
+    height: h,
+    position: 'absolute',
+    top: top || 0,
+    left: Math.ceil(($(window).width() - w) / 2) - 1 //2 is fudge factor
+
+  }).appendTo('body');
+  $('.underboard-message').css('visibility', 'hidden');
+  $('.don-draper').remove();
+  $('#board-and-header').css('float', 'none').css('margin', 'auto');
+}
+
+window.facebookBorder = facebookBorder;
+
+function saveCustomLinks() {
+  var names = [];
+  $('#customizable-links a').each(function () {
+    names.push($(this).text());
+  });
+  siteSettings.set('gameLinks', names.toString());
+}
+
+function getLink(name) {
+  var links = $('#customizable-links a');
+
+  for (var i = 0; i < links.length; i++) {
+    if ($(links[i]).text() === name) {
+      return links[i];
+    }
+  }
+
+  return null;
+}
+
+function toggleGameLink(ev) {
+  var input = $(this).find('input');
+
+  if ($(this).hasClass('non-removable')) {
+    ev.preventDefault();
+    ev.stopPropagation();
+    return;
+  }
+
+  if (ev.target.tagName === 'A') {
+    ev.preventDefault();
+    input.prop('checked', !input.prop('checked'));
+  }
+
+  var name = input.attr('value');
+  var showLink = input.prop('checked');
+
+  if (showLink) {
+    var newLink = $('<a/>', {
+      href: '/' + name.toLowerCase().replace(/\s*/g, '') + '/'
+    }).html(name);
+    $('#customizable-links').prepend(newLink);
+
+    if ($('#promo-mini').height() > 30) {
+      newLink.remove();
+      input.prop('checked', false);
+      alert('There is not enough space for this link. Please remove some other games first by unchecking them.');
+    }
+  } else {
+    var el = getLink(name);
+    $(el).remove();
+  }
+
+  saveCustomLinks();
+}
+
+function openCustomizationMenu(ev) {
+  ev.preventDefault();
+
+  if (mobileMenu.isCustomizing) {
+    if (confirm('Do you want to reset all the game links to their original state?')) {
+      siteSettings.set('gameLinks', '');
+      reloadPage();
+    }
+  } else {
+    mobileMenu.isCustomizing = true;
+    $('#close-menu').on('click', closeCustomizationMenu);
+    $('#customize-menu').text(window.t('util::resetLinks', 'Reset links...'));
+    $('#game-link-wrapper').addClass('customize-open');
+    var currentValues = {};
+    $('#promo-mini a').each(function () {
+      currentValues[$(this).text()] = this;
+    });
+    $('.game-links a').each(function () {
+      var before = $(this).text();
+      var newInput = $('<input/>', {
+        type: 'checkbox',
+        value: before
+      });
+
+      if (before in currentValues) {
+        newInput.attr('checked', 'checked');
+      }
+
+      if ($(this).hasClass('non-removable')) {
+        newInput.attr('disabled', 'disabled');
+      }
+
+      $(this).html(newInput.wrap('<div/>').parent().html() + ' ' + before).css('text-align', 'left');
+      $(this).on('click', toggleGameLink);
+    });
+  }
+}
+
+function closeCustomizationMenu() {
+  mobileMenu.isCustomizing = false;
+  $('#game-link-wrapper').removeClass('customize-open');
+  $('#promo-links input[type="checkbox"]').remove();
+  $('.game-links a').each(function () {
+    var text = $(this).text();
+    $(this).text(text.replace(/^\s*|\s*$/g, ''));
+    $(this).css('text-align', '');
+    $(this).off('click', toggleGameLink);
+  });
+  $('#customize-menu').text(window.t('util::customize', 'Customize...'));
+  $('#close-menu').off('click', closeCustomizationMenu);
+}
+
+function showHideHome() {
+  var hide = cake('hideHome') === '1';
+
+  if (hide) {
+    $("#hide-home").text("Show 'Home' link");
+    $("#home-link").hide();
+  } else {
+    $("#hide-home").text("Hide 'Home' link");
+    $("#home-link").show();
+  }
+}
+
+function toggleHideHome(e) {
+  e.preventDefault();
+  var hide = cake('hideHome') === '1';
+  cake('hideHome', hide ? '0' : '1', 365);
+  showHideHome();
+}
+
+showHideHome();
+$('a[href="#customize-menu"]').on('click', openCustomizationMenu);
+$('a[href="#hide-home"]').on('click', toggleHideHome);
+
+if (!$('.default-game-link').is(':visible')) {
+  $('.default-game-link').remove();
+}
+/**************** AD HANDLING ****************/
+
+
+function fakeAds() {
+  try {
+    if (!isMobileLookActive()) {
+      var test = document.createElement('div');
+      test.innerHTML = '&nbsp;';
+      test.className = 'adsbox';
+      document.body.appendChild(test);
+      setTimeout(function () {
+        if (test.offsetHeight === 0) {
+          $('body').addClass('adblock');
+          /*
+          var iframe = document.createElement('iframe');
+          iframe.src = '/merchandise/?block';
+          iframe.setAttribute('class', 'draper-frame');
+          iframe.frameBorder = 0;
+          iframe.scrolling = 'no';
+          $('#draper-right').append(iframe);      //Only one ad
+          */
+          //Not worth the hassle, maybe try later!
+        } else {
+          var isDev = location.port === '3030' || location.port === '3000';
+
+          if (isDev && !qs.ads) {
+            //If dev, add dev ads to simulate real ones...
+            $('.don-draper ins').each(function () {
+              var iframe = document.createElement('iframe');
+              iframe.src = '/merchandise/';
+              iframe.setAttribute('class', 'dev-ad');
+              iframe.frameBorder = 0;
+              iframe.scrolling = 'no';
+              $(this).append(iframe);
+            });
+          }
+        }
+
+        test.parentNode.removeChild(test);
+      }, 100);
+    }
+  } catch (ex) {
+    console.log(ex); //Do nothing...
+  }
+}
+
+function addScript(url, callback) {
+  var s = document.createElement('script');
+  s.async = true;
+  s.src = url;
+  s.onload = callback;
+  var other = document.getElementsByTagName('script')[0];
+  other.parentNode.insertBefore(s, other);
+  return s;
+}
+
+function addCMP() {
+  var url = "https://cdn.cookielaw.org/scripttemplates/otSDKStub.js";
+  var lang = "en";
+  var type = "text/javascript";
+  var charset = "UTF-8";
+  var domain_script = "";
+
+  if (isDev()) {
+    domain_script = "b58b35f2-8c82-4313-8a85-0dd3fec931f3-test";
+  } else {
+    domain_script = "b58b35f2-8c82-4313-8a85-0dd3fec931f3";
+  }
+
+  var s = document.createElement('script');
+  s.src = url;
+  s.lang = lang;
+  s.type = type;
+  s.setAttribute('data-domain-script', domain_script);
+  var other = document.getElementsByTagName('script')[0];
+  other.parentNode.insertBefore(s, other);
+}
+
+var MINUTE = 60 * 1000;
+var ads = {
+  type: showAds,
+  //Type of ads we're showing, gotten from each page's .json file
+  adsAreReady: false,
+  initialize: function initialize() {
+    var _this = this;
+
+    if (APP_MODE) {
+      return; //App mode handles all ad logic in Swift or Java...
+    }
+
+    var adfree = cake('adfreecode');
+
+    if (adfree) {
+      if (Math.random() < 0.1) {
+        //random validation check.
+        API.adfree.getCode(adfree, function (data) {
+          if (!data) {
+            deleteCake('adfreecode');
+            ads.initialize();
+            return;
+          }
+
+          var today = new Date();
+          var expires = new Date(data.expires);
+
+          if (today.getTime() > expires.getTime() || data.status != 'Activated') {
+            return;
+          }
+        }, function () {});
+      }
+
+      return;
+    }
+
+    var allowPersonalized = Consent.groupHasGrantedPermission("targeting");
+
+    function isSet(value) {
+      return value == '1' || value === true || value == 'yes';
+    }
+
+    var isDoNotTrackPrefSet = isSet(navigator.doNotTrack) || isSet(window.doNotTrack) || isSet(navigator.msDoNotTrack);
+    captainsLog.debug('ADS: Do not track is set: ' + isDoNotTrackPrefSet);
+    this.requestPersonalized = allowPersonalized && !isDoNotTrackPrefSet;
+    captainsLog.debug('ADS: request personalization: ' + this.requestPersonalized);
+
+    if (typeof adsbygoogle !== 'undefined') {
+      adsbygoogle.requestNonPersonalizedAds = this.requestPersonalized ? 0 : 1;
+      captainsLog.debug('ADS: Set .requestNonPersonalizedAds to ' + adsbygoogle.requestNonPersonalizedAds);
+    }
+
+    var adSenseUrl = '//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js';
+    var freestarUrl = 'https://a.pub.network/cardgames-io/pubfig.min.js';
+    var isDev = location.hostname === 'dev.cardgames.io' || location.hostname === "development.cardgames.io" || location.hostname.match("redace.io");
+
+    if (this.type === 'none') {
+      //No ads, nothing to do here...
+      return;
+    } //Everything that's mobile gets AFG
+
+
+    if (this.type !== 'freestar' && (isMobileLookActive() || siteSettings.alwaysUseInterstitialAds)) {
+      if (this.lastAdShown === 0) {
+        //First time we say we've been on the site for 2 minutes, so we won't see the first ad until after at least 2 minutes...
+        this.lastAdShown = new Date().getTime() - 2 * MINUTE;
+      } //Remove desktop slots
+
+
+      $('ins.adslot_1, ins.adslot_2, div.adslot_2').remove();
+      window.adsbygoogle = [];
+      var scriptNode = document.createElement('script');
+      scriptNode.async = true;
+      scriptNode.src = adSenseUrl;
+      scriptNode.setAttribute('data-ad-client', 'ca-pub-9002823967926225');
+      scriptNode.setAttribute('data-ad-channel', window.customChannelId); //Useless, we manage this ourselves now.
+      //scriptNode.setAttribute('data-ad-frequency-hint', '240s'); //No more than once every 4 minutes
+
+      if (isDev && !qs.realads) {
+        scriptNode.setAttribute('data-adbreak-test', 'on');
+      }
+
+      scriptNode.onload = function () {
+        captainsLog.debug('ADS: loaded script');
+        adConfig({
+          preloadAdBreaks: 'on',
+          sound: 'off',
+          onReady: function onReady() {
+            return _this.adReady();
+          }
+        });
+      };
+
+      var other = document.getElementsByTagName('script')[0];
+      other.parentNode.insertBefore(scriptNode, other);
+      $('#draper-left, #draper-right').css('visibility', 'hidden');
+    } else if (this.type === 'adsense' || this.type === 'freestar') {
+      if (this.type === 'adsense') {
+        //Ads
+        if (isDev && !qs.ads) {
+          fakeAds();
+          return; //No ads, until we learn how to get test ads on Desktop
+        } //Google Adsense            
+
+
+        if ($(window).width() < 1354) {
+          $('ins.adslot_1').remove();
+          adsbygoogle.pop();
+        }
+
+        addScript(adSenseUrl);
+        freestar.config.disabledProducts = {
+          sideWall: true,
+          googleInterstitial: true,
+          interstitial: true
+        };
+        addScript(freestarUrl);
+      } else {
+        var useInterstitial = isMobileLookActive() || siteSettings.alwaysUseInterstitialAds;
+
+        if ($(window).width() > 975 || useInterstitial) {
+          //Too large, do not display leaderboard ad. 
+          $('.leaderboard-ad').remove();
+          freestar.config.enabled_slots = freestar.config.enabled_slots.filter(function (adslot) {
+            return adslot.slotId !== 'cardgames_leaderboard_btf';
+          });
+        }
+
+        if (isDev && !qs.ads) {
+          fakeAds();
+          return; //No ads, until we learn how to get test ads on Desktop
+        }
+
+        if (useInterstitial) {
+          $('.don-draper label').remove();
+        }
+
+        freestar.config.disabledProducts = {
+          sideWall: useInterstitial,
+          googleInterstitial: !useInterstitial,
+          interstitial: !useInterstitial
+        };
+        addScript(freestarUrl);
+      }
+    }
+  },
+  trigger: function trigger(callback) {
+    var _this2 = this;
+
+    //In the app, let Swift handle the heavy lifting...
+    if (APP_MODE) {
+      if (window.adCallback) {
+        console.log("APP: Game tried triggering ads twice");
+        trackEvent('AdButtonPressedTwice', '', 0, '', '', 1);
+        return;
+      } else {
+        //Just a little safety check, this shouldn't happen, but if it does we don't wan't to ruin things...
+        if (this.lastTrigger && new Date().getTime() - this.lastTrigger < 500) {
+          trackEvent('DoubleAdTrigger', '', 0, '', '', 1);
+          return;
+        }
+
+        this.lastTrigger = new Date().getTime();
+
+        window.adCallback = function () {
+          //To allow swift to callback to this, rest of handling, including timing is handled in Swift...
+          console.log('APP: Got callback from native app');
+          delete window.adCallback;
+          callback();
+        };
+
+        if (typeof Android !== 'undefined') {
+          console.log('APP: Sending ad message to Android...');
+          window.Android.triggerAds();
+        } else {
+          try {
+            console.log('APP: Sending ad message to Swift...');
+            window.webkit.messageHandlers.triggerAds.postMessage('TIME FOR SOME ADS');
+          } catch (ex) {
+            if (location.search.match(/appmode/)) {
+              console.log("ARE IN SIMULATED APP MODE ON BROWSER, CALLING window.adCallback()");
+              window.adCallback();
+            } else {
+              throw ex;
+            }
+          }
+        }
+      }
+
+      return;
+    }
+
+    if (this.type === 'freestar') {
+      //We don't know how freestar wants this implemented yet.
+      callback();
+      return;
+    } //Everything below here is purely for web...
+
+
+    if (this.type === 'none') {
+      captainsLog.debug('ADS: No ad triggered. Type=' + this.type);
+      callback();
+      return;
+    }
+
+    if (!this.adsAreReady) {
+      captainsLog.debug('ADS: Ads API has not finished loading yet');
+      callback();
+      return;
+    }
+
+    var currentTime = new Date().getTime();
+    var elapsed = currentTime - this.lastAdShown;
+    var MIN_TIME_BETWEEN_ADS = 4 * MINUTE;
+
+    if (elapsed < MIN_TIME_BETWEEN_ADS && qs.ads !== 'immediate') {
+      captainsLog.debug("ADS: Only " + elapsed / 1000 + " seconds since last ad was shown, not showing ad yet!");
+      callback();
+      return;
+    }
+
+    captainsLog.debug('ADS: Calling adBreak');
+
+    if (this._callback === callback) {
+      forceTrackEvent('AdBreakSameCallback');
+    }
+
+    this._callback = callback;
+
+    if (this.testId) {
+      forceTrackEvent('AdBreakDoubleTrigger');
+      clearTimeout(this.testId);
+    }
+
+    this.testId = setTimeout(function () {
+      var iframes = Array.prototype.slice.call(document.getElementsByTagName('iframe'));
+      var someIframeIsVisible = iframes.some(function (i) {
+        return $(i).is(':visible');
+      });
+
+      if (!someIframeIsVisible) {
+        forceTrackEvent('AdBreakNoVisibleIframe', 'Current time ' + new Date().toString() + '\n' + _this2.bf + '\n' + _this2.af + '\n' + _this2.abf);
+      }
+    }, 5 * 1000);
+    adBreak({
+      type: 'next',
+      name: 'mobile-ads',
+      beforeAd: function beforeAd() {
+        return _this2.beforeAd();
+      },
+      afterAd: function afterAd() {
+        return _this2.afterAd();
+      },
+      adBreakDone: function adBreakDone(placement) {
+        return _this2.adBreakDone(placement);
+      }
+    });
+  },
+
+  get lastAdShown() {
+    return parseInt(cake('lastadshown')) || 0;
+  },
+
+  set lastAdShown(value) {
+    cake('lastadshown', value, null, '/');
+  },
+
+  adReady: function adReady() {
+    captainsLog.debug('ADS: AdReady');
+    this.adsAreReady = true;
+  },
+  beforeAd: function beforeAd() {
+    captainsLog.debug('ADS: beforeAd called');
+    this.bf = 'Before ' + new Date().toString();
+  },
+  afterAd: function afterAd() {
+    captainsLog.debug('ADS: afterAd called');
+    this.af = 'After ' + new Date().toString();
+  },
+  adBreakDone: function adBreakDone(placement) {
+    this.abf = 'AdBreakDone: ' + new Date().toString();
+    captainsLog.debug('ADS: AdBreakDone: ' + JSON.stringify(placement, null, 2));
+    clearTimeout(this.testId);
+    delete this.testId;
+    var time = new Date().getTime();
+    var lastTime = this.lastAdShown;
+
+    if (placement.breakStatus === 'viewed') {
+      this.lastAdShown = time;
+
+      if (lastTime > 0) {
+        var interval = Math.round((time - lastTime) / 1000);
+        forceTrackEvent('AdIntervalManual', '', interval.toString());
+      }
+    }
+
+    var cb = this._callback;
+    delete this._callback;
+    forceTrackEvent('AdBreakDone', placement.breakStatus);
+
+    if (cb) {
+      cb();
+    }
+  }
+}; //Firework effects...
+
+function showFireworks() {
+  if (!siteSettings.confetti) {
+    return;
+  }
+
+  if (window.fireworksLoaded) {
+    window.fireworkEffect = new Fireworks["default"](confettiDiv.get(0), {
+      delay: {
+        min: 100,
+        max: 1000
+      }
+    });
+    window.fireworkEffect.start();
+    $('body').addClass('confetti');
+  } else {
+    addScript('/shared/effects/' + siteVersion + '/fireworks.min.js', function () {
+      window.confettiDiv = $('<div>', {
+        'class': 'firework-container'
+      }).appendTo('body');
+      window.fireworkEffect = new Fireworks["default"](confettiDiv.get(0), {
+        delay: {
+          min: 100,
+          max: 1000
+        }
+      });
+      window.fireworksLoaded = true;
+      window.fireworkEffect.start();
+      $('body').addClass('confetti');
+    });
+  }
+} //Firework effects...
+
+
+function hideFireworks() {
+  if (window.fireworkEffect) {
+    window.fireworkEffect.stop();
+    window.fireworkEffect = undefined;
+  }
+} //Confetti effects...
+
+
+function showConfetti() {
+  if (!siteSettings.confetti) {
+    return;
+  } //Show confetti if it's a perfect game...
+
+
+  addScript('/shared/effects/' + siteVersion + '/confetti.min.js', function () {
+    var confettiDiv = $('<div>', {
+      'class': 'confetti-container'
+    }).appendTo('html');
+    var isMobile = isMobileLookActive() || navigator.userAgent.match(/iPhone/); //iPhone 8+ in landscape not "mobile look";
+
+    window.confettiEffect = new Confetti(confettiDiv.get(0), isMobile ? 250 : 800);
+    confettiEffect.start();
+    $('body').addClass('confetti');
+    $('.confetti-container').on('click', removeConfetti);
+  });
+}
+
+function removeConfetti() {
+  if (window.confettiEffect) {
+    confettiEffect.stop();
+    $('.confetti-container').remove();
+    $('body').removeClass('confetti');
+    delete window.confettiEffect;
+  }
+}
+
+function preloadBackgroundImage(url) {
+  var div = $('<div/>');
+  div.css('background-image', "url(" + url + ")").css('width', '1px').appendTo('body');
+  setTimeout(function () {
+    return div.remove();
+  }, 50);
+}
+
+function preloadBackgroundImageClass(classString) {
+  var div = $('<div/>');
+  div.addClass(classString).appendTo('body');
+  div.css('width', '1px');
+  setTimeout(function () {
+    return div.remove();
+  }, 50);
+}
+
+fetch("/version.json").then(function (rsp) {
+  if (parseInt(rsp.status) >= 200 && parseInt(rsp.status) < 400) {
+    rsp.json().then(function (data) {
+      _sv = data.version;
+    });
+  }
+});
+
+if ($) {
+  var lastTap = 0;
+  var lastTarget = null;
+
+  $.dbltap = function (element, func) {
+    $(element).bind('touchstart', function (e) {
+      e.preventDefault();
+      var tap = new Date().getTime();
+
+      if (e.target === lastTarget && tap - lastTap < 500) {
+        lastTap = 0;
+        lastTarget = null;
+        func(e);
+        return;
+      }
+
+      lastTap = tap;
+      lastTarget = e.target;
+    });
+  };
+}
+
+function isEmojiValid(emoji) {
+  //Lets just allow it and see what happens. We had an instance of IE11 which supports emojis, but didn't
+  //show them.
+  return true;
+  /*
+  if (!document.createElement('canvas').getContext) {
+       return;
+  }
+   let context = document.createElement('canvas').getContext('2d');
+  if (typeof context.fillText != 'function'){
+      return;
+  }
+    let fontsize = 10;
+  context.textBaseline = "top";
+  context.font = `${fontsize}px 'Segoe UI Emoji'`; //This specific font is needed to get color emoji on older windows (IE11) installations
+  context.fillText(emoji, 0, 0);
+    //Scan in a diagonal line through the emoji image (top left to bottom right), checking each point for an alpha value and a color other than black
+  //--Invalid emoji still print as either a black square or a black square with a question mark, which is why we ignore black point
+  //--We go through diagonally because picking individual points to check is unreliable and scanning line for line is too slow on older browsers
+  for (let i = 0; i < fontsize * 2; i++) {
+      let data = context.getImageData(i, i, 1, 1).data;
+      if (!data) {
+          continue;
+      }
+      if (data[0] === 0 && data[1] === 0 && data[2] === 0) {
+          continue;
+      }
+      let alphaData = data[3];
+      if (alphaData !== 0) {
+          return true;
+      }
+  }
+   return false;
+  /* jshint ignore:end */
+}
+
+function rememberLocale() {
+  var locale = localStorage.getItem('locale');
+
+  if (locale === undefined || locale === "undefined") {
+    return;
+  }
+
+  var currentLocale = $('html').attr('lang');
+
+  if (locale && currentLocale && currentLocale !== locale) {
+    localeRedirect(locale, currentLocale);
+  }
+}
+
+function localeRedirect(locale, currentLocale) {
+  if (locale) {
+    var url = new URL(window.location.href);
+    var pathname = url.pathname;
+    var splitPathname = pathname.split('/');
+    splitPathname.shift();
+
+    if (splitPathname[0].length == 2) {
+      if (splitPathname[0] === currentLocale && locale !== 'en') {
+        splitPathname[0] = locale;
+      } else if (locale === 'en') {
+        splitPathname.shift();
+      }
+    } else if (currentLocale === 'en') {
+      splitPathname.unshift(locale);
+    }
+
+    splitPathname.unshift('');
+    url.pathname = splitPathname.join('/');
+
+    if (window.location.href !== url.toString()) {
+      window.location.href = url.toString();
+    }
+  }
+}
+
+rememberLocale();
+$('a.lang-selector').on('click', function () {
+  var locale = $(this).data('lang');
+  localStorage.setItem('locale', locale);
+});
+$('select.lang-selector').on('change', function () {
+  var locale = $(this).find('option:selected').data('lang');
+  localStorage.setItem('locale', locale);
+});
+module.exports = {
+  qs: qs,
+  Consent: Consent,
+  cake: cake,
+  preloadBackgroundImage: preloadBackgroundImage,
+  preloadBackgroundImageClass: preloadBackgroundImageClass,
+  isEmojiValid: isEmojiValid,
+  isLocal: isLocal,
+  ads: ads,
+  parseUserAgent: parseUserAgent,
+  valentines: valentines,
+  getFaceUrl: getFaceUrl,
+  getHairClass: getHairClass,
+  siteSettings: siteSettings,
+  settings: settings,
+  browser: browser,
+  preloadImage: preloadImage,
+  trackEvent: trackEvent,
+  forceTrackEvent: forceTrackEvent,
+  reloadPage: reloadPage,
+  deleteCake: deleteCake,
+  showConfetti: showConfetti,
+  removeConfetti: removeConfetti,
+  logError: logError,
+  mobileMenu: mobileMenu,
+  isMobileLookActive: isMobileLookActive,
+  isDev: isDev,
+  showFireworks: showFireworks,
+  hideFireworks: hideFireworks,
+  getMultiplayerUrl: getMultiplayerUrl
+};
+
+},{"./api":2,"./gamecontrol":4,"./helper-functions":5}]},{},[1]);
+
+</script>
+
+</body>
+</html>

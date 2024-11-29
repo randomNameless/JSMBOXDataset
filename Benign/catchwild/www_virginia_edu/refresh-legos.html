@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>refresh-legos.html</title>
+</head>
+<body>
+
+<script>
+
+(function ($) {
+
+  $(document).ready(function () {
+    $(".dp-composite-field-item-refresh-copy-video a.video-trigger").attr("href", "https://youtu.be/");
+    $(".dp-composite-field-item-refresh-copy-video a.video-trigger").attr("video-id", "");
+
+
+    $(".dp-composite-field-item-refresh-copy-video .embedded-video").unwrap().unwrap().unwrap();
+    $(".dp-composite-field-item-refresh-copy-video iframe").unwrap().unwrap();
+
+    var iOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+    // create a player array to contain the players on a page
+    var player = [];
+    var pausetimer = [];
+
+    // create variable to store the running count of videos that are on and
+    // can be on the page
+    var running_count = 0;
+
+    // embed code for the youtube iframe api
+    var tag = document.createElement('script');
+    tag.src = "https://www.youtube.com/iframe_api";
+    var firstScriptTag = document.getElementsByTagName('script')[0];
+    //firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+    setTimeout(function () {
+      // when the iframe api is ready get the videos on the page and embed them,
+      // attach click events for poster and event when video is over
+      //window.onYouTubeIframeAPIReady = function () {
+      getVideos2();
+      //};
+    }, 500);
+
+    function getVideos2() {
+      // for each link with a attribute "video-id"
+      if ($('.copy-video-section:not(.video-processed) a[video-id]')) {
+        $('.copy-video-section:not(.video-processed) a[video-id]').each(function (i, el) {
+
+          running_count = running_count + 1;
+          $(el).parents('.copy-video-section').addClass('video-processed');
+          var divId = 'player-' + running_count;
+          var $parent = $(el).parents('.copy-video-section');
+
+          var $vidIframe = $parent.parents('.dp-composite-field-item-refresh-copy-video').find('iframe');
+          var $vidID = $vidIframe.attr('src').replace('//www.youtube.com/embed/', "");
+          $vidID = $vidID.split("?")[0];
+          var $vidTrigger = $parent.parents('.dp-composite-field-item-refresh-copy-video').find('a.video-trigger');
+          $vidTrigger.attr("href", "https://youtu.be/" + $vidID);
+          $vidTrigger.attr("video-id", $vidID);
+
+          $parent.find('iframe').remove();
+
+          $('<div id="' + divId + '"></div>').appendTo($parent.find('.video-container'));
+
+          $(el).parents('.copy-video-section').addClass(divId);
+          var myInterval = "";
+          var videoProg = 0;
+
+          var p10 = true;
+          var p25 = true;
+          var p50 = true;
+          var p75 = true;
+          var p10v2 = true;
+          var p25v2 = true;
+          var p50v2 = true;
+          var p75v2 = true;
+
+          var percentageViewed = 0;
+
+          var isVisible = 0;
+
+          // creates a new YT player foreach video in the loop
+          player[running_count] = new YT.Player(divId, {
+            videoId: $(el).attr('video-id'),
+            events: {
+              'onReady': playerReady,
+              'onStateChange': function (event) {
+                // when the video is over trigger playerEnded() to return poster
+                if (event.data == YT.PlayerState.ENDED) {
+                  dataLayer.push({
+                    "event": "video_complete",
+                    "video_current_time": player[running_count].getCurrentTime(),
+                    "video_duration": player[running_count].getDuration(),
+                    "video_percent": "100",
+                    "video_provider": "YouTube",
+                    "video_title": player[running_count].getVideoData().title,
+                    "video_url": player[running_count].getVideoUrl(),
+                    "visible": isVisible
+                  });
+                  fadeInPoster();
+                }
+                if (event.data == YT.PlayerState.PAUSED) {
+                  clearInterval(myInterval);
+                  startPauseTimer();
+                  fadeInPoster();
+                }
+                if (event.data == YT.PlayerState.PLAYING) {
+                  window.clearTimeout(pausetimer[running_count]);
+                  fadeOutPoster();
+
+                  myInterval = setInterval(function () {
+                    getVideoProgress(player[running_count].getCurrentTime(), player[running_count].getDuration(), player[running_count].getVideoData().title, player[running_count].getVideoUrl());
+                  }, 1000);
+                  dataLayer.push({
+                    "event": "video_start",
+                    "video_current_time": player[running_count].getCurrentTime(),
+                    "video_duration": player[running_count].getDuration(),
+                    "video_percent": getVideoPercentage(player[running_count].getCurrentTime(), player[running_count].getDuration()),
+                    "video_provider": "YouTube",
+                    "video_title": player[running_count].getVideoData().title,
+                    "video_url": player[running_count].getVideoUrl(),
+                    "visible": 1
+                  });
+                }
+              }
+            }
+          });
+
+          function stopProgress() {
+            clearInterval(myInterval);
+          }
+
+          //var iframe = $('#' + divId).attr('src', 'https://www.youtube.com/embed/'+$vidID+ '?rel=0&showinfo=0&controls=1&cc_load_policy=1');
+          var iframe = $('#' + divId).attr('src', $('#' + divId).attr('src') + '&rel=0&showinfo=0&controls=1&cc_load_policy=1');
+          iframe = $('#' + divId).attr('tabindex', '-1'); //removes suggested videos and titles
+
+          function getVideoProgress(ct, tt, title, url) {
+            var percentageViewed = 0;
+            var percentageValue = ct / tt;
+
+            if ($('.video-frame .video.video-container').isInViewport()) {
+              isVisible = 1;
+            } else {
+              isVisible = 0;
+            }
+
+            if (percentageValue >= 0.75 && p75) {
+              percentageViewed = 75;
+              videoProg = 75;
+              p75 = false;
+
+              dataLayer.push({
+                "event": "video_progress",
+                "video_current_time": ct,
+                "video_duration": tt,
+                "video_percent": videoProg,
+                "video_provider": "YouTube",
+                "video_title": title,
+                "video_url": url,
+                "visible": isVisible
+              });
+            } else if (percentageValue >= 0.50 && p50) {
+              percentageViewed = 50;
+              videoProg = 50;
+              p50 = false;
+
+              dataLayer.push({
+                "event": "video_progress",
+                "video_current_time": ct,
+                "video_duration": tt,
+                "video_percent": videoProg,
+                "video_provider": "YouTube",
+                "video_title": title,
+                "video_url": url,
+                "visible": isVisible
+              });
+            } else if (percentageValue >= 0.25 && p25) {
+              percentageViewed = 25;
+              videoProg = 25;
+              p25 = false;
+
+              dataLayer.push({
+                "event": "video_progress",
+                "video_current_time": ct,
+                "video_duration": tt,
+                "video_percent": videoProg,
+                "video_provider": "YouTube",
+                "video_title": title,
+                "video_url": url,
+                "visible": isVisible
+              });
+            } else if (percentageValue >= 0.1 && p10) {
+              percentageViewed = 10;
+              videoProg = 10;
+              p10 = false;
+
+              dataLayer.push({
+                "event": "video_progress",
+                "video_current_time": ct,
+                "video_duration": tt,
+                "video_percent": videoProg,
+                "video_provider": "YouTube",
+                "video_title": title,
+                "video_url": url,
+                "visible": isVisible
+              });
+            }
+            //return percentageViewed;
+
+          }
+
+          function getVideoPercentage(ct, tt) {
+            var percentageValue = ct / tt;
+
+            if (percentageValue >= 0.75 && p75v2) {
+              percentageViewed = 75;
+              p75v2 = false;
+            } else if (percentageValue >= 0.50 && p50v2) {
+              percentageViewed = 50;
+              p50v2 = false;
+            } else if (percentageValue >= 0.25 && p25v2) {
+              percentageViewed = 25;
+              p25v2 = false;
+            } else if (percentageValue >= 0.1 && p10v2) {
+              percentageViewed = 10;
+              p10v2 = false;
+            }
+            return percentageViewed;
+
+          }
+
+
+          function startPauseTimer() {
+            pausetimer[running_count] = fadeInPoster(); //window.setTimeout(fadeInPoster, 2000);
+          }
+
+          // fade back all the poster elements
+          function fadeInPoster() {
+            //$('div.' + divId + ' a[video-id]').fadeIn(0500);
+            $('div.' + divId + ' a[video-id]').show();
+            $('#' + divId).attr('tabindex', '-1');
+            //$('#' + divId).parent().parent().find('a.video-trigger').focus();
+          };
+
+          // fade out the poster elements
+          function fadeOutPoster() {
+            $('div.' + divId + ' a[video-id]').fadeOut(0500);
+            //$('div.' + divId + ' a[video-id]').hide();
+            $('#' + divId).attr('tabindex', '0');
+            //$('#' + divId).focus();
+          }
+
+          // when player is ready attach click event to posted play button
+          function playerReady(videoObject) {
+            $(el).on('click', function (e) {
+              e.preventDefault();
+              //pauses all videos so that the only one playing is the target video
+              var i;
+              for (i = 1; i < player.length; ++i) {
+                player[i].pauseVideo();
+              }
+
+              // "...embedded media cannot be played automatically in Safari on iOS - the user always initiates playback."
+              // https://developer.apple.com/library/safari/documentation/AudioVideo/Conceptual/Using_HTML5_Audio_Video/AudioandVideoTagBasics/AudioandVideoTagBasics.html
+              //if (!iOS) {
+              // play the target video
+              videoObject.target.playVideo();
+              //}
+
+            });
+          };
+        });
+      }
+    }
+
+
+    $.fn.isInViewport = function () {
+      var elementTop = $(this).offset().top;
+      var elementBottom = elementTop + $(this).outerHeight();
+
+      var viewportTop = $(window).scrollTop();
+      var viewportBottom = viewportTop + $(window).height();
+
+      return elementBottom > viewportTop && elementTop < viewportBottom;
+    };
+
+
+    /* $( ".dp-composite-field-item-refresh-copy-video .video-trigger" ).each(function(i, el) {
+
+       console.log( "ready for each!" );
+       $(this).on("click", function(e){
+
+         //e.preventDefault();
+         // For the boolean value
+         //var boolKey = $(this).data('selected');
+         // For the mammal value
+         //var mammalKey = $(this).attr('id');
+         //console.log("video start click!!!");
+       });
+     });
+
+   });*/
+
+
+    let flag1 = false;
+    let flag2 = false;
+    let flag3 = false;
+    let flag4 = false;
+    $(window).on('scroll', function () {
+      var s = $(window).scrollTop(),
+        d = $(document).height(),
+        c = $(window).height();
+
+      var scrollPercent = (s / (d - c)) * 100;
+
+      if (scrollPercent > 89 && !flag1) {
+
+        window.dataLayer.push({
+          "event": "scroll",
+          "page_location": window.location.href,
+          "page_referrer": window.location.origin,
+          "scroll": "90",
+        });
+
+        flag1 = true;
+      }
+
+      if (scrollPercent > 74 && !flag2) {
+
+        window.dataLayer.push({
+          "event": "scroll",
+          "page_location": window.location.href,
+          "page_referrer": window.location.origin,
+          "scroll": "75",
+        });
+
+        flag2 = true;
+      }
+
+      if (scrollPercent > 49 && !flag3) {
+
+        window.dataLayer.push({
+          "event": "scroll",
+          "page_location": window.location.href,
+          "page_referrer": window.location.origin,
+          "scroll": "50",
+        });
+
+        flag3 = true;
+      }
+
+      if (scrollPercent > 24 && !flag4) {
+
+        window.dataLayer.push({
+          "event": "scroll",
+          "page_location": window.location.href,
+          "page_referrer": window.location.origin,
+          "scroll": "25",
+        });
+
+        flag4 = true;
+      }
+
+    });
+
+  });
+
+
+})(jQuery);
+
+
+</script>
+
+</body>
+</html>

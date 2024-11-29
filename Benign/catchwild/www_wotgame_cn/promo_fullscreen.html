@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>promo_fullscreen.html</title>
+</head>
+<body>
+
+<script>
+(function ($) {
+    'use strict';
+
+    $(function() {
+        const INITIAL_SCROLL_THRESHOLD = 100,
+              TOP_SCROLL_TIMEOUT_MS = 1200;
+
+        const $promo = $('.js-promo-fullscreen'),
+              $toggle = $('.js-promo-fullscreen-toggle', $promo),
+              $pause = $('.js-promo-fullscreen-pause', $promo),
+              $video = $('.js-video', $promo),
+              videoElem = $video.get(0),
+              $menuButton = $('.js-menu-side-button'),
+              $loginLink = $('.js-link-to-registration', $promo),
+              $contentWrapper = $('.js-mainpage-content-wrapper-inner'),
+              $footer = $('.js-footer');
+
+        if (!$promo.length) {
+            return;
+        }
+
+        if (window.is_auth_user()) {
+            $loginLink
+                .attr('data-next-url', location.href)
+                .trigger('authenticationoid:initialize-login-link');
+        }
+
+        const pageClass = $promo.data('pageClass'),
+              pageCollapsedClass = $promo.data('pageCollapsedClass'),
+              hiddenClass = $promo.data('hiddenClass'),
+              collapsedClass = $promo.data('collapsedClass'),
+              menuButtonHiddenClass = $menuButton.data('hiddenClass'),
+              pauseButtonHiddenClass = $pause.data('hiddenClass'),
+              pauseButtonPausedClass = $pause.data('pausedClass');
+
+        let isPromoExpanded = !$promo.hasClass(collapsedClass),
+            lastScrollY = window.scrollY,
+            lastTimeScrolledToTop = Date.now();
+
+        function toggleState(newValue) {
+            if (newValue === isPromoExpanded) {
+                return;
+            }
+            if (newValue === undefined) {
+                newValue = !isPromoExpanded;
+            }
+            isPromoExpanded = newValue;
+
+            if (isPromoExpanded) {
+                $contentWrapper.removeClass(pageCollapsedClass);
+                $footer.removeClass(pageCollapsedClass);
+                $promo.removeClass(collapsedClass);
+                $menuButton.addClass(menuButtonHiddenClass);
+                playVideo();
+            } else {
+                $contentWrapper.addClass(pageCollapsedClass);
+                $footer.addClass(pageCollapsedClass);
+                $promo.addClass(collapsedClass);
+                $menuButton.removeClass(menuButtonHiddenClass);
+                pauseVideo();
+            }
+        }
+
+        function pauseVideo() {
+            if (!videoElem) {
+                return;
+            }
+
+            videoElem.pause();
+            $pause.addClass(pauseButtonPausedClass);
+        }
+
+        function playVideo() {
+            if (!videoElem) {
+                return;
+            }
+
+            videoElem.play();
+            $pause.removeClass(pauseButtonPausedClass);
+        }
+
+        function toggleVideo() {
+            if (!videoElem || !videoElem.currentTime) {
+                return;
+            }
+
+            if (videoElem.paused) {
+                playVideo();
+                return;
+            }
+            pauseVideo();
+        }
+
+        function handleWheel(e) {
+            const scrollY = window.scrollY;
+
+            if (scrollY > 0) {
+                return;
+            }
+
+            if (lastScrollY > 0) {
+                lastTimeScrolledToTop = Date.now();
+                lastScrollY = scrollY;
+                return;
+            }
+
+            if (e.deltaY < 0 && !isPromoExpanded && (Date.now() - lastTimeScrolledToTop > TOP_SCROLL_TIMEOUT_MS)) {
+                toggleState(true);
+            } else if (e.deltaY > 0 && isPromoExpanded) {
+                toggleState(false);
+                e.preventDefault();
+            }
+        }
+
+        function handleScroll() {
+            const scrollY = window.scrollY,
+                  toggleNextState = scrollY <= 0;
+
+            if (scrollY <= 0 && lastScrollY > 0) {
+                lastTimeScrolledToTop = Date.now();
+                lastScrollY = scrollY;
+                return;
+            }
+
+            if (lastScrollY !== 0 && toggleNextState) {
+                return;
+            }
+
+            if (toggleNextState && (Date.now() - lastTimeScrolledToTop <= TOP_SCROLL_TIMEOUT_MS)) {
+                return;
+            }
+
+            toggleState(toggleNextState);
+
+            lastScrollY = scrollY;
+        }
+
+        $video.on('play', function() {
+            $pause.removeClass(pauseButtonHiddenClass);
+        });
+
+        $toggle.on('click', function() {
+            toggleState();
+        });
+
+        $pause.on('click', function() {
+            toggleVideo();
+        });
+
+        $contentWrapper.addClass(pageClass);
+        $footer.addClass(pageClass);
+        if (!isPromoExpanded) {
+            $contentWrapper.addClass(pageCollapsedClass);
+            $footer.addClass(pageCollapsedClass);
+        }
+        if (isPromoExpanded && window.scrollY >= INITIAL_SCROLL_THRESHOLD) {
+            toggleState(false);
+        }
+
+        setTimeout(function() {
+            $promo.removeClass(hiddenClass);
+
+            (Modernizr.passiveeventlisteners)
+                ? window.addEventListener('wheel', handleWheel,  { passive: false })
+                : window.addEventListener('wheel', handleWheel);
+
+            (Modernizr.passiveeventlisteners)
+                ? window.addEventListener('scroll', handleScroll,  { passive: true })
+                : window.addEventListener('scroll', handleScroll);
+        });
+    });
+})(jQuery);
+</script>
+
+</body>
+</html>

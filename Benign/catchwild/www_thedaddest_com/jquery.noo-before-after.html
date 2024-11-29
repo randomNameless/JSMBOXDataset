@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>jquery.noo-before-after.html</title>
+</head>
+<body>
+
+<script>
+(function ( $ ) {
+    $.fn.nooImageComparison = function(options) {
+        var options = $.extend({
+            control_offset: 50,
+            direction: 'horizontal',
+            before_label: '',
+            after_label: '',
+            comparison_type: 'mouse_move',
+        }, options);
+
+        return this.each(function() {
+            var sliderOffset = options.control_offset / 100;
+            var container = $(this);
+            var sliderOrientation = options.direction;
+            var beforeImg = container.find(".noo-before-img");
+            var afterImg = container.find(".noo-after-img");
+            var overlayImg = container.find(".noo-overlay-img");
+            var slider = container.find(".noo-slider");
+
+            if(container.find('.noo-labels').length < 1) {
+                container.append("<div class='noo-labels'></div>");
+                var labels = container.find(".noo-labels");
+                if (options.before_label != '') {
+                    labels.append("<div class='noo-before-label'>"+options.before_label+"</div>");
+                }
+                if (options.after_label != '') {
+                    labels.append("<div class='noo-after-label'>" + options.after_label + "</div>");
+                }
+            }
+
+            var calcOffset = function(dimensionPct) {
+                var w = beforeImg.width();
+                var h = beforeImg.outerHeight();
+                return {
+                    w: w+"px",
+                    h: h+"px",
+                    cw: (dimensionPct*w)+"px",
+                    ch: (dimensionPct*h)+"px"
+                };
+            };
+
+            var adjustContainer = function(offset) {
+                if (sliderOrientation === 'vertical') {
+                    beforeImg.css("clip", "rect(0,"+offset.w+","+offset.ch+",0)");
+                    afterImg.css("clip", "rect("+offset.ch+","+offset.w+","+offset.h+",0)");
+                }
+                else {
+                    beforeImg.css("clip", "rect(0,"+offset.cw+","+offset.h+",0)");
+                    afterImg.css("clip", "rect(0,"+offset.w+","+offset.h+","+offset.cw+")");
+                }
+                container.css("height", offset.h);
+            };
+
+            var adjustSlider = function(pct) {
+                var offset = calcOffset(pct);
+                slider.css((sliderOrientation==="vertical") ? "top" : "left", (sliderOrientation==="vertical") ? offset.ch : offset.cw);
+                adjustContainer(offset);
+            };
+
+            // Return the number specified or the min/max number if it outside the range given.
+            var minMaxNumber = function(num, min, max) {
+                return Math.max(min, Math.min(max, num));
+            };
+
+            // Calculate the slider percentage based on the position.
+            var getSliderPercentage = function(positionX, positionY) {
+                var sliderPercentage = (sliderOrientation === 'vertical') ?
+                    (positionY-offsetY)/imgHeight :
+                    (positionX-offsetX)/imgWidth;
+
+                return minMaxNumber(sliderPercentage, 0, 1);
+            };
+
+            $(window).on("resize.nooImageComparison", function(e) {
+                adjustSlider(sliderOffset);
+            });
+
+            $(window).on("load.nooImageComparison", function(e) {
+                adjustSlider(sliderOffset);
+            });
+
+            var offsetX = 0;
+            var offsetY = 0;
+            var imgWidth = 0;
+            var imgHeight = 0;
+
+            var onMoveStart = function(e) {
+                if (((e.distX > e.distY && e.distX < -e.distY) || (e.distX < e.distY && e.distX > -e.distY)) && sliderOrientation !== 'vertical') {
+                    e.preventDefault();
+                }
+                else if (((e.distX < e.distY && e.distX < -e.distY) || (e.distX > e.distY && e.distX > -e.distY)) && sliderOrientation === 'vertical') {
+                    e.preventDefault();
+                }
+                container.addClass("active");
+                offsetX = container.offset().left;
+                offsetY = container.offset().top;
+                imgWidth = beforeImg.width();
+                imgHeight = beforeImg.height();
+                container.find('.noo-overlay-img').css('z-index', '-1');
+            };
+            var onMove = function(e) {
+                if (container.hasClass("active")) {
+                    sliderOffset = getSliderPercentage(e.pageX, e.pageY);
+                    adjustSlider(sliderOffset);
+                }
+            };
+            var onMoveEnd = function() {
+                container.removeClass("active");
+                container.find('.noo-overlay-img').removeAttr('style');
+            };
+
+            var moveTarget = options.comparison_type == 'drag' ? slider : container;
+            moveTarget.on("movestart",onMoveStart);
+            moveTarget.on("move",onMove);
+            moveTarget.on("moveend",onMoveEnd);
+
+            if (options.comparison_type == 'mouse_move') {
+                container.on("mouseenter", onMoveStart);
+                container.on("mousemove", onMove);
+                container.on("mouseleave", onMoveEnd);
+            }
+
+            slider.on("touchmove", function(e) {
+                e.preventDefault();
+            });
+
+            container.find("img").on("mousedown", function(event) {
+                event.preventDefault();
+            });
+
+            if (options.comparison_type == 'click') {
+                container.on('click mousedown', function(e) {
+                    offsetX = container.offset().left;
+                    offsetY = container.offset().top;
+                    imgWidth = beforeImg.width();
+                    imgHeight = beforeImg.height();
+
+                    sliderOffset = getSliderPercentage(e.pageX, e.pageY);
+                    adjustSlider(sliderOffset);
+                    container.find('.noo-overlay-img').css('z-index', '-1');
+                }).on('mouseup', function() {
+                    container.find('.noo-overlay-img').removeAttr('style');
+                });
+            }
+
+            $(window).trigger("resize.nooImageComparison");
+
+        });
+    }
+}(jQuery));
+
+
+</script>
+
+</body>
+</html>

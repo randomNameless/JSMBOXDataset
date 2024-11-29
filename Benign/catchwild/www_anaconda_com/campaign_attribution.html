@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>campaign_attribution.html</title>
+</head>
+<body>
+
+<script>
+//List of social sites
+var socialsites = {"t.co":"twitter","linkedin.com":"linkedin","facebook.com":"facebook",'x.com' : "twitter"};
+//List of Search Engines
+var search_engines = {"google":"google", "bing":"bing", "yahoo":"yahoo"};
+var referrer = document.referrer;
+var currenturl = document.location.href;
+var referralhost = '';
+var currenthost = '';
+var foundinsearchengine = false;
+var foundinsocialsites = false;
+//Get host name from referrer
+currenthost = get_hostname(currenturl);
+
+if(referrer){
+	//Get host name from referrer
+	referralhost = get_hostname(referrer);
+}
+
+var cookie_utm_source = getCookieSourceTracking("utm_source");
+var cookie_utm_medium = getCookieSourceTracking("utm_medium");
+var cookie_utm_campaign = getCookieSourceTracking("utm_campaign");
+var cookie_utm_content = getCookieSourceTracking("utm_content");
+var cookie_utm_term = getCookieSourceTracking("utm_term");
+//If there is not stored session cookie
+if(!cookie_utm_source && !cookie_utm_medium && !cookie_utm_campaign && !cookie_utm_content  && !cookie_utm_term) {
+	//Get URL Parameters
+	var utm_source  = gup(currenturl, 'utm_source').trim();
+	var utm_medium  = gup(currenturl, 'utm_medium').trim();
+	var utm_campaign  = gup(currenturl, 'utm_campaign').trim();
+	var utm_content   = gup(currenturl, 'utm_content').trim();
+	var utm_term  = gup(currenturl, 'utm_term').trim();
+
+	//URL UTM parameters exists
+	if(utm_source || utm_medium || utm_campaign || utm_content || utm_term) {
+		setCookieSourceTracking('utm_source', utm_source ? utm_source : "NULL");
+		setCookieSourceTracking('utm_medium', utm_medium ? utm_medium : "NULL");
+		setCookieSourceTracking('utm_campaign', utm_campaign ? utm_campaign : "NULL");
+		setCookieSourceTracking('utm_content', utm_content ? utm_content : "NULL");
+		setCookieSourceTracking('utm_term', utm_term ? utm_term : "NULL");
+	}else if(referrer) {
+		for (var search_key in search_engines) {
+			 if (referralhost.toLowerCase().indexOf(search_key.toLowerCase()) >= 0){
+				 utm_source = search_engines[search_key];
+				 utm_medium   = "organic_search";
+				 utm_campaign = "NULL";
+				 utm_content = "NULL";
+				 utm_term = "NULL";
+				 foundinsearchengine = true;
+			 }
+		}
+		//Not found in Search Engine
+		if(!foundinsearchengine){
+			for (var search_key in socialsites) {
+				 if (referralhost.toLowerCase().indexOf(search_key.toLowerCase()) >= 0){
+					 utm_source = socialsites[search_key];
+					 utm_medium   = "organic_social";
+					 utm_campaign = "NULL";
+					 utm_content = "NULL";
+					 utm_term = "NULL"
+					 foundinsocialsites = true;
+				 }
+			}
+		}
+		//Have referrer but not found in social and search engines
+		if(!foundinsearchengine && !foundinsocialsites) {
+				utm_source = referrer;
+				utm_medium   = "referral";
+				utm_campaign = "NULL";
+				utm_content = "NULL";
+				utm_term = "NULL"
+		}
+	}else{
+		//Direct Visit
+		utm_source = "direct";
+		utm_medium   = "anaconda";
+		utm_campaign = "NULL";
+		utm_content = "NULL";
+		utm_term = "NULL"
+	}
+	setCookieSourceTracking('utm_source', utm_source ? utm_source : "NULL");
+	setCookieSourceTracking('utm_medium', utm_medium ? utm_medium : "NULL");
+	setCookieSourceTracking('utm_campaign', utm_campaign ? utm_campaign : "NULL");
+	setCookieSourceTracking('utm_content', utm_content ? utm_content : "NULL");
+	setCookieSourceTracking('utm_term', utm_term ? utm_term : "NULL");
+}
+
+/* Set Cookie Parameter in the Marketo Form */
+if(MktoForms2){
+	MktoForms2.whenReady(function (form) {
+
+		var cookie_utm_source_value = getCookieSourceTracking("utm_source");
+		var cookie_utm_medium_value = getCookieSourceTracking("utm_medium");
+		var cookie_utm_campaign_value = getCookieSourceTracking("utm_campaign");
+		var cookie_utm_content_value = getCookieSourceTracking("utm_content");
+		var cookie_utm_term_value = getCookieSourceTracking("utm_term");
+
+		// form.addHiddenFields({ 'utm_source' : cookie_utm_source_value, "utm_medium" : cookie_utm_medium_value ,"utm_campaign" : cookie_utm_campaign_value, "utm_content" : cookie_utm_content_value, "utm_term" : cookie_utm_term_value });
+    	 form.setValues({ 'uTMSource' : cookie_utm_source_value, "uTMMedium" : cookie_utm_medium_value ,"uTMCampaign" : cookie_utm_campaign_value, "utm_content" : cookie_utm_content_value, "utmterm" : cookie_utm_term_value });
+
+	});
+}
+//Get url hostname
+function get_hostname(url) {
+    var m = url.match(/^(http|https):\/\/[^/]+/);
+    return m ? m[0] : null;
+}
+//Get url parameters
+function gup(sPageURL, name){
+	var vars = [], hash;
+    var hashes = sPageURL.slice(sPageURL.indexOf('?') + 1).split('&');
+    for(var i = 0; i < hashes.length; i++){
+		hash = hashes[i].split('=');
+		if(hash[0].toLowerCase() == name){
+			 return hash[1].toLowerCase();
+		}
+    }
+    return "";
+}
+
+//set cookies
+function setCookieSourceTracking(cookie_name, cookie_value){
+	var c_value = escape(cookie_value);
+	document.cookie = cookie_name + "=" + c_value+"; path=/;";
+}
+//get cookie value
+function getCookieSourceTracking(c_name){
+var i,x,y,ARRcookies=document.cookie.split(";");
+for (i=0;i<ARRcookies.length;i++){
+  x=ARRcookies[i].substr(0,ARRcookies[i].indexOf("="));
+  y=ARRcookies[i].substr(ARRcookies[i].indexOf("=")+1);
+  x=x.replace(/^\s+|\s+$/g,"");
+  if (x==c_name){
+    return unescape(y);
+    }
+  }
+}
+</script>
+
+</body>
+</html>

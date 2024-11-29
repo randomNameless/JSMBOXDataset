@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>scriptSubtitles.html</title>
+</head>
+<body>
+<script>import { reactive } from 'https://unpkg.com/petite-vue?module';
+import scriptHelpers from '/scripts/scriptHelpers.js';
+import {chapterScript} from '/scripts/scriptChapter.js';
+import {$store} from '/scripts/store.js';
+export const subtitlesScript = reactive({
+  checkIfSubtitles(){
+    $store.isSubtitle = miniplayerRequestParams.transcript && document.getElementById("miniplayer-subtitles");
+  },
+  removeCurrentSubtitlesOtherPodcasts(i){
+    for (let index = 0, len = $store.info.length; index < len; index++) {
+      if (i !== index) {
+        setTimeout(() => {
+          $store.info[index].subtitles.actualText = "";
+        }, 300);
+      }
+    }
+  },
+  removeCurrentSubtitles(i){
+    if (
+      $store.isSubtitle &&
+      $store.info[i].subtitles.logic?.value?.length
+    ) {
+      $store.info[i].subtitles.actualText = "";
+    } 
+  },
+  handleTranscriptDisplay(i, time) {
+    if (
+      !$store.isSubtitle ||
+      !$store.info[i].subtitles.logic?.value?.length
+    ) {
+      return;
+    }
+    const delay = $store.info[i].delayWithStitching;
+    const actualSubtitle =
+      $store.info[i].subtitles.logic.value[
+        $store.info[i].subtitles.logic.actual
+      ];
+    const startTime = (actualSubtitle?.startTime ?? 0) + delay;
+    if (startTime <= time) {
+      $store.info[i].subtitles.actualText = actualSubtitle?.text ?? "";
+    }
+    const endTime = (actualSubtitle?.endTime ?? Infinity) + delay;
+    if (endTime < time) {
+
+      $store.info[i].subtitles.logic.actual += 1;
+      $store.info[i].subtitles.actualText =
+        $store.info[i].subtitles.logic.value[
+          $store.info[i].subtitles.logic.actual
+        ]?.text ?? "";
+    }
+  },
+  async getSubtitles(i) {
+    if (!$store.isSubtitle || $store.info[i].subtitles.logic) {
+      return;
+    }
+    const url = speechToTextUrl + "/transcription/" + listPodcasts[i].podcastId;
+    let result = await scriptHelpers.makeRequest(url, "GET", true);
+    if (undefined === result) {
+      result = "";
+    }
+    $store.info[i].subtitles.logic = {
+      actual: 0,
+      value: this.parseSrt(result),
+    };
+    this.changeSubtitlesOnSeek(i);
+  },
+  srtTimeToSeconds(time) {
+    let a = time.split(":");
+    return +a[0] * 60 * 60 + +a[1] * 60 + +parseFloat(a[2]);
+  },
+  parseSrt(subtitles) {
+    let pattern =
+      /(\d+)\n([\d:,]+)\s+-{2}\>\s+([\d:,]+)\n([\s\S]*?(?=\n{2}|$))/gm;
+    let result = [];
+    if (typeof subtitles != "string" || null == subtitles) {
+      return;
+    }
+    subtitles = subtitles.replace(/\r\n|\r|\n|\t/g, "\n");
+    let matches = null;
+    while ((matches = pattern.exec(subtitles)) != null) {
+      result.push({
+        startTime: this.srtTimeToSeconds(matches[2]),
+        endTime: this.srtTimeToSeconds(matches[3]),
+        text: matches[4],
+      });
+    }
+    return result;
+  },
+  async handleStitchBehavior(i){
+    if (((!$store.isSubtitle || $store.useVast|| !$store.info[i].subtitles.logic?.value?.length )
+          && (!$store.info[i].chapters.length))
+    ||$store.source(i).duration <= listPodcasts[i].duration / 1000 + 5) 
+    {
+      return;
+    }
+    let stitchMode = await this.getStitchMode(i);
+    if (stitchMode === "pre"){
+      $store.info[i].delayWithStitching = $store.source(i).duration - listPodcasts[i].duration / 1000;
+      chapterScript.updateChaptersDelay(i);
+    } else if (stitchMode !== "post"){
+      $store.isSubtitle = false;
+      $store.info[i].chapters = [];
+    }
+  },
+  async getStitchMode(i){
+    const infosPodcast = await scriptHelpers.makeRequest(
+      Api_url + '/ad/test/podcast/'+ listPodcasts[i].podcastId,
+      'GET',
+      false,
+    );
+    const doubletsLength = infosPodcast.config.doublets.length;
+    if ( 0 === doubletsLength ) {
+      return 'post';
+    }
+    if ( 1 === doubletsLength ) {
+      return  infosPodcast.config.doublets[0].timing.insertion;
+    }
+    return "multi";
+  },
+  changeSubtitlesOnSeek(i){
+    if (
+      $store.isSubtitle &&
+      $store.info[i].subtitles.logic?.value?.length
+    ) {
+      let newActual = 0;
+      const delay = $store.info[i].delayWithStitching;
+      while (
+        $store.source(i).currentTime >
+        ($store.info[i].subtitles.logic.value[newActual]?.endTime ??
+          Infinity) +
+          delay
+      ) {
+        newActual += 1;
+      }
+      $store.info[i].subtitles.logic.actual = newActual;
+    }
+  }
+})</script>
+</body>
+</html>

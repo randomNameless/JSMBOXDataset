@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RouteHandling.html</title>
+</head>
+<body>
+
+<script>
+//function HandlePortalURL(_LoadSubPageParams = null, calledFromHashChange = false) {
+function HandlePortalURL(_LoadSubPageParams, calledFromHashChange) {
+	// Handel Styles when Portal Loaded
+    //$('html').attr("style", "display: none;");
+    //$('#LoadingSpinner').attr("style", "display: none !important");
+    //$('#ALLPageContent').attr("style", "display: none !important");
+	$('html').attr("style", "display: none");
+    $('#LoadingSpinner').attr("style", "display: none !important");
+    $('#ALLPageContent').attr("style", "opacity: 0 !important");
+    _LoadSubPageParams = (_LoadSubPageParams === undefined) ? null : _LoadSubPageParams;
+    calledFromHashChange = (calledFromHashChange === undefined) ? false : calledFromHashChange;
+
+    //support property or method 'startsWith'
+    if (!String.prototype.startsWith) {
+        String.prototype.startsWith = function (searchString, position) {
+            position = position || 0;
+            return this.indexOf(searchString, position) === position;
+        };
+    }
+
+    if (calledFromHashChange != true)
+        PortalMainModule.firstTimeLoad = true;
+
+    var RoutePrefixes = config.Settings.RoutePrefixes;
+    PortalMainModule.WindowLocationHref = window.location.href;
+    
+    var RouteStr = '';
+    for (var i = 0; i < RoutePrefixes.length; i++) {
+        if (PortalMainModule.WindowLocationHref.indexOf(RoutePrefixes[i]) != -1) {
+            RouteStr = PortalMainModule.WindowLocationHref.substring(PortalMainModule.WindowLocationHref.indexOf(RoutePrefixes[i]) + RoutePrefixes[i].length);
+            break;
+        }
+    }
+
+    RouteStr = modifyUrlBasedOnLang(RouteStr);
+    
+    var CurrentURL = PortalMainModule.WindowLocationHref;
+
+
+    var NewLang = '';
+    var originalSubpage = "";
+    var SubPage = '';
+    var Params = '';
+    var WillLoadSubPage = true;
+    var WillGetInParams = true;
+    if (RouteStr != null) {
+
+        if (RouteStr.indexOf("?") != -1) {
+            RouteStr = RouteStr.substring(0, RouteStr.indexOf("?"));
+        }
+
+		RouteArr = RouteStr.split('/');
+		var PrevLang = config.AppLangID;
+		config.AppLangID = RouteArr[0];
+		NewLang = RouteArr[0];
+		localStorage.setItem("appLanguage", NewLang);
+
+		if (PrevLang != NewLang) {
+			var LangCssFilesPaths = config.Styles[NewLang];
+			$('[configuredstylecss]').remove();
+			$('head').append(LangCssFilesPaths);
+			config.AppLangID = NewLang;
+		}
+		else if ($('[configuredstylecss]').length <= 0) {
+			var LangCssFilesPaths = config.Styles[NewLang];
+			$('head').append(LangCssFilesPaths);
+			config.AppLangID = NewLang;
+		}
+
+        SubPage = RouteArr[1] ? RouteArr[1] : config.LandingSubPageID;
+        SubPage = GetRealSubPageID(SubPage);
+        //SubPage Here 
+
+
+        originalSubpage = SubPage;
+        if (!RouteArr[1]) {
+            var windowLocation = PortalMainModule.WindowLocationHref;//window.location.href;
+            if (windowLocation.lastIndexOf("/") == windowLocation.length - 1) {
+                windowLocation = windowLocation.substring(0, windowLocation.length - 1);
+            }
+			if (config.LandingSubPageID != null && config.SubPages[config.LandingSubPageID] != null) {
+				//history.replaceState({ navi: false }, "", (windowLocation + "/" + config.LandingSubPageID));
+            } else {
+                console.log('%c NO LandingPage is configured! ', 'color: #FF0000');
+            }
+            //history.replaceState({}, "", (windowLocation + "/" + config.LandingSubPageID));
+            //history.replaceState({}, "", (window.location.href + '/' + config.LandingSubPageID).replace('//', '/'));
+        } else {
+            var RedirectToLandingSubPage = config.Settings.RedirectToLandingSubPageInCaseOfIncorrectURL;
+            if (RedirectToLandingSubPage != null && RedirectToLandingSubPage.toLowerCase() == "true") {
+                var windowLocation = PortalMainModule.WindowLocationHref;
+                if (config.SubPages[RouteArr[1]] == null) { // No subPage matched
+                    windowLocation = windowLocation.substring(0, windowLocation.indexOf(RoutePrefixes[i]) + RoutePrefixes[i].length);
+                    if (config.LandingSubPageID != null) {
+						windowLocation += RouteArr[0] + "/" + config.LandingSubPageID;
+						history.replaceState({ navi: false }, "", windowLocation);
+						PortalMainModule.WindowLocationHref = windowLocation;
+                    }
+                }
+            } else {
+                console.log('%c Invalid SubPage! ', 'color: #FF0000');
+            }
+        }
+        PortalMainModule.StartURL = PortalMainModule.WindowLocationHref;//window.location.href;
+		PortalMainModule.StartURLWithoutSubPageID = PortalMainModule.WindowLocationHref.replace(RouteStr, '') + NewLang + '/';
+        Params = RouteArr[2] ? RouteArr[2] : '';
+    }
+
+    var InFlowSubPageId = "";
+    var CurrLoc = PortalMainModule.WindowLocationHref;//window.location.href;
+    if (CurrLoc.indexOf(Prefixes.inFlowPrefix) != -1) {
+        //var InFlowSubPageIDQuery = CurrLoc.substring(CurrLoc.indexOf(Prefixes.inFlowPrefix) + Prefixes.inFlowPrefix.length);
+        var InFlowSubPageIDQuery = CurrLoc.substring(CurrLoc.indexOf(Prefixes.inFlowPrefix) + Prefixes.inFlowPrefix.length);
+        for (var k = 0; k < InFlowSubPageIDQuery.length; k++) {
+            if (InFlowSubPageIDQuery.charAt(k) == "&") {
+                break;
+            }
+            InFlowSubPageId += InFlowSubPageIDQuery.charAt(k);
+        }
+        SubPage = InFlowSubPageId;
+    } else {
+
+        SubPage = CurrLoc.substring(CurrLoc.lastIndexOf('/') + 1);
+        if (SubPage.indexOf("?") != -1) {
+            SubPage = SubPage.substring(0, SubPage.indexOf("?"));
+        }
+    }
+
+    SubPage = GetRealSubPageID(SubPage);
+    if (_LoadSubPageParams == null) {
+        var _LoadSubPageParams = {
+            SubPageID: SubPage,
+            LoadSubPageType: LoadSubPageTypes.DirectlyShow,
+            SubPageInParams: {},
+            SubPageOutParams: {}
+        }
+    } else {
+        _LoadSubPageParams.SubPageID = SubPage;
+    }
+
+
+    var UrlWithoutInFlowPrefixPart1 = CurrentURL;
+    var UrlWithoutInFlowPrefixPart2 = "";
+    if (CurrentURL.indexOf(Prefixes.inFlowPrefix) != -1) {
+        WillGetInParams = false;
+        UrlWithoutInFlowPrefixPart1 = CurrentURL.substring(0, CurrentURL.indexOf(Prefixes.inFlowPrefix));
+        //UrlWithoutInFlowPrefixPart1 = CurrentURL.substring(0, CurrentURL.lastIndexOf('/') + 1); 
+
+        for (var i = 0; i < RoutePrefixes.length; i++) {
+            if (CurrentURL.indexOf(RoutePrefixes[i]) != -1) {
+                UrlWithoutInFlowPrefixPart2 = CurrentURL.substring(CurrentURL.indexOf(RoutePrefixes[i]));
+                break;
+            }
+        }
+
+    }
+
+
+
+    var UrlWithoutInFlowPrefix = "";
+
+    if (config.SubPages[SubPage] != null && config.SubPages[SubPage].EnableLinkingToSubPage == true) {
+        //replace history
+        UrlWithoutInFlowPrefix = UrlWithoutInFlowPrefixPart1 + UrlWithoutInFlowPrefixPart2;
+		//history.replaceState({ navi: false}, "", UrlWithoutInFlowPrefix);
+        _LoadSubPageParams.SubPageID = SubPage;
+	}
+	else {
+        if (CurrentURL.indexOf(Prefixes.inFlowPrefix) > -1) {
+            var InFlowURL = CurrentURL.substring(CurrentURL.indexOf(Prefixes.inFlowPrefix) + Prefixes.inFlowPrefix.length);
+            var InFlowSubPage = "";
+            for (var m = 0; m < InFlowURL.length; m++) {
+                if (InFlowURL.charAt(m) == "&") {
+                    break;
+                }
+                InFlowSubPage += InFlowURL.charAt(m);
+            }
+
+
+
+        } else {
+            InFlowSubPage = SubPage;
+        }
+
+
+        if (config.SubPages[InFlowSubPage] != null) {
+            var RedirectToSubPageID = config.SubPages[InFlowSubPage].RedirectToSubPageID;
+            if (RedirectToSubPageID != null && RedirectToSubPageID != "") {
+
+            } else {
+                RedirectToSubPageID = originalSubpage;
+
+            }
+            if (config.SubPages[RedirectToSubPageID] != null) {
+                if (config.SubPages[RedirectToSubPageID].EnableLinkingToSubPage == true) {
+                    //replace history
+                    if (PortalMainModule.firstTimeLoad)
+                        _LoadSubPageParams.SubPageID = RedirectToSubPageID;
+                    for (var i = 0; i < RoutePrefixes.length; i++) {
+                        if (CurrentURL.indexOf(RoutePrefixes[i]) != -1) {
+							UrlWithoutInFlowPrefixPart2 = RoutePrefixes[i] + NewLang + "/" + _LoadSubPageParams.SubPageID;
+                            UrlWithoutInFlowPrefixPart1 = CurrentURL.substring(0, CurrentURL.indexOf(RoutePrefixes[i])); //////new
+                            break;
+                        }
+                    }
+                    UrlWithoutInFlowPrefix = UrlWithoutInFlowPrefixPart1 + UrlWithoutInFlowPrefixPart2;
+					//history.replaceState({ navi: false}, "", UrlWithoutInFlowPrefix);
+                } else {
+                    WillLoadSubPage = false;
+                }
+            } else {
+                //Not Valid URL
+                WillLoadSubPage = false;
+            }
+        } else {
+            WillLoadSubPage = false;
+        }
+	}
+
+    if (WillLoadSubPage) {
+        if (WillGetInParams) {
+            //get updated url => CurrentURL = window.location.href
+            CurrentURL = PortalMainModule.WindowLocationHref;//window.location.href;
+            if (config.SubPages[_LoadSubPageParams.SubPageID].IncludeParamsInURL == true) {
+                if (CurrentURL.indexOf(Prefixes.inParamsPrefix) != -1) {
+                    var InParamsURL = CurrentURL.substring(CurrentURL.indexOf(Prefixes.inParamsPrefix) + Prefixes.inParamsPrefix.length);
+                    var InParamsQuery = "";
+                    for (var i = 0; i < InParamsURL.length; i++) {
+                        if (InParamsURL.charAt(i) == "&") {
+                            break;
+                        }
+                        InParamsQuery += InParamsURL.charAt(i);
+                    }
+                    var InParamsObj = {};
+                    try {
+                        InParamsObj = JSON.parse(decodeURIComponent(InParamsQuery));
+                        _LoadSubPageParams.SubPageURLInParams = InParamsObj;
+                    } catch (e) { }
+                }
+            }
+            else {
+                try {
+                    var subPageid = _LoadSubPageParams.SubPageID;
+                    _LoadSubPageParams.SubPageURLInParams = LoadedSubPages[subPageid].SubPageInParams;
+                } catch (e) { }
+            }
+        }
+		//gtag('config', 'G-2KEJ5XKNSV');
+        //PortalMainModule.SubPagesHistoryStack.push(_LoadSubPageParams.SubPageID);
+        if (!calledFromHashChange) {
+            LoadSubPage(_LoadSubPageParams);
+        } else {
+            return _LoadSubPageParams;
+        }
+
+	}
+	else {
+        if (calledFromHashChange) {
+            return null;
+        }
+    }
+	
+}
+
+function modifyUrlBasedOnLang(RouteStr) {
+    var originalRouteStr = RouteStr;
+    var originalUrl = PortalMainModule.WindowLocationHref;//window.location.href;
+    
+    if (RouteStr == "") {
+        RouteStr = DetectLanguageOrUseDefault("empty", RouteStr);
+        PortalMainModule.WindowLocationHref = originalUrl + RouteStr + "/";
+    }
+    else {
+        var detectLanguagePrefix = "DL";
+        if (RouteStr) {
+            if (RouteStr.substring(0, 2).toUpperCase() == detectLanguagePrefix) {
+                RouteStr = DetectLanguageOrUseDefault("DL", RouteStr);
+                PortalMainModule.WindowLocationHref = originalUrl.substring(0, originalUrl.indexOf(originalRouteStr)) + RouteStr + originalUrl.substring(originalUrl.indexOf(originalRouteStr) + originalRouteStr.length);
+            }
+            else {
+                //New 20/09/2018
+                var languageIncludedInUrl = false;
+                if (config.AppLanguages && config.AppLanguages.length > 0) {
+                    for (var i = 0; i < config.AppLanguages.length; i++) {
+                        if (RouteStr.substring(0, 2).toUpperCase() == config.AppLanguages[i].AppLangID.toUpperCase()) {
+                            languageIncludedInUrl = true;
+                            break;
+                        }
+                    }
+                    if (!languageIncludedInUrl) {
+                        if (RouteStr.indexOf("/") == -1) {
+                            if (localStorage.getItem("appLanguage")) 
+                                RouteStr = localStorage.getItem("appLanguage") + "/";
+                            else
+                                RouteStr = config.Settings.DefaultLanguage + "/";
+                        } else {
+                            if (localStorage.getItem("appLanguage")) 
+                                RouteStr = localStorage.getItem("appLanguage") + RouteStr.substring(RouteStr.indexOf("/"));
+                            else
+                                RouteStr = config.Settings.DefaultLanguage + RouteStr.substring(RouteStr.indexOf("/"));
+                        }
+                        PortalMainModule.WindowLocationHref = originalUrl.substring(0, originalUrl.indexOf(originalRouteStr)) + RouteStr + originalUrl.substring(originalUrl.indexOf(originalRouteStr) + originalRouteStr.length);
+                    }
+                }
+            }
+        }
+        
+
+        //var languageIncludedInUrl = false;
+        //if (config.AppLanguages && config.AppLanguages.length > 0) {
+        //    for (var i = 0; i < config.AppLanguages.length; i++) {
+        //        if (RouteStr && RouteStr.toLowerCase().indexOf(config.AppLanguages[i].AppLangID.toLowerCase() + "/") != -1) {
+        //            languageIncludedInUrl = true;
+        //        }
+        //    }
+        //}
+
+        //if (!languageIncludedInUrl) {
+        //    if (RouteStr && RouteStr.indexOf("/") == 0) {
+        //        RouteStr = config.Settings.DefaultLanguage + RouteStr;
+        //    } else {
+        //        RouteStr = config.Settings.DefaultLanguage + "/" + RouteStr;
+        //    }
+        //    PortalMainModule.WindowLocationHref = originalUrl.substring(0, originalUrl.indexOf(originalRouteStr)) + RouteStr + originalUrl.substring(originalUrl.indexOf(originalRouteStr) + originalRouteStr.length);
+        //} 
+    }
+    
+    return RouteStr;
+}
+
+function DetectLanguageOrUseDefault(type, RouteStr) {
+    var detectLanguagePrefix = "DL";
+    if (config.Settings.SaveLastLanguage.toLowerCase() == "true") {
+        if (localStorage.getItem("appLanguage")) {
+            if (type == "empty") 
+                RouteStr = localStorage.getItem("appLanguage");
+            else if (type == "DL")
+                RouteStr = localStorage.getItem("appLanguage") + RouteStr.substring(detectLanguagePrefix.length);
+        } else {
+            if (type == "empty")
+                RouteStr = config.Settings.DefaultLanguage;
+            else if (type == "DL")
+                RouteStr = config.Settings.DefaultLanguage + RouteStr.substring(detectLanguagePrefix.length);
+        }
+    } else {
+        if (type == "empty")
+            RouteStr = config.Settings.DefaultLanguage;
+        else if (type == "DL")
+            RouteStr = config.Settings.DefaultLanguage + RouteStr.substring(detectLanguagePrefix.length);
+    }
+    return RouteStr;
+}
+
+var BackForwardBtn = true;
+var LoadSubPageSource = "navigation";
+
+window.onhashchange = function (event) {
+	var historyState = history.state;
+	if (historyState != null )
+		LoadSubPageSource = "BackForwardBtns";
+	else if (historyState == null) 
+		LoadSubPageSource = "navigation";
+	
+	var RoutePrefixes = config.Settings.RoutePrefixes;
+	var CurrentURL = window.location.href;
+	var RouteStr = '';
+	for (var i = 0; i < RoutePrefixes.length; i++) {
+		if (CurrentURL.indexOf(RoutePrefixes[i]) != -1) {
+			RouteStr = CurrentURL.substring(CurrentURL.indexOf(RoutePrefixes[i]) + RoutePrefixes[i].length);
+			break;
+		}
+	}
+
+	var SubPageID = Params = Lang = '';
+	if (RouteStr != null) {
+		//RouteStr = modifyUrlBasedOnLang(RouteStr);
+		if (RouteStr.indexOf("?") != -1) {
+			RouteStr = RouteStr.substring(0, RouteStr.indexOf("?"));
+		}
+		RouteArr = RouteStr.split('/');
+		Lang = RouteArr[0];
+        SubPageID = RouteArr[1];
+        SubPageID = GetRealSubPageID(SubPageID);
+		if (Lang != config.AppLangID) {
+			var PrevLang = config.AppLangID;
+			var LangCssFilesPaths = config.Styles[Lang];
+            $('[configuredstylecss][' + PrevLang + ']').remove();
+			$('head').append(LangCssFilesPaths);
+			config.AppLangID = Lang;
+		}
+	}
+
+    var _LoadSubPageParams = {
+        SubPageID: SubPageID,
+		LoadSubPageSource: LoadSubPageSource,
+        LoadSubPageType: LoadSubPageTypes.DirectlyShow,
+        SubPageInParams: {},
+        SubPageOutParams: {},
+        SubPageURLInParams: {},
+        KeepCurrentHistoryState: true
+    }
+    _LoadSubPageParams = HandlePortalURL(_LoadSubPageParams, true);
+	HistoryState(event.oldURL, event.newURL, LoadSubPageSource);
+    if (_LoadSubPageParams == null) {
+        location.reload();
+        return;
+    }
+    
+    LoadSubPage(_LoadSubPageParams);
+}
+
+
+function HandleHistoryState(_LoadSubPageParams) {
+    var InParamsStr = "";
+    var InParamsQuery = "";
+    var NumberOfObjects = 0;
+    var UrlNumberOfObjects = 0;
+    var RoutePrefixes = config.Settings.RoutePrefixes;
+    var CurrURL = PortalMainModule.WindowLocationHref;//window.location.href;   check again - check again
+    var NewURLPart1 = "";
+    var NewURLPart2 = "";
+
+    if (CurrURL.indexOf(Prefixes.inParamsPrefix) != -1) {
+        //In case there are params in url
+        for (var i = 0; i < RoutePrefixes.length; i++) {
+            if (CurrURL.indexOf(RoutePrefixes[i]) != -1) {
+                //NewURLPart1 = CurrURL.substring(0, CurrURL.indexOf(Prefixes.inParamsPrefix));
+                //NewURLPart2 = RoutePrefixes[i] + config.AppLangID + "/" + _LoadSubPageParams.SubPageID;
+                NewURLPart1 = CurrURL.substring(0, CurrURL.indexOf(RoutePrefixes[i]) + RoutePrefixes[i].length);//RP
+                NewURLPart2 = config.AppLangID + "/" + _LoadSubPageParams.SubPageID;
+                break;
+            }
+        }
+    }
+    else {
+        //In case there are no params in url
+        for (var i = 0; i < RoutePrefixes.length; i++) {
+            if (CurrURL.indexOf(RoutePrefixes[i]) != -1) {
+                //NewURLPart1 = CurrURL.substring(0, CurrURL.indexOf(RoutePrefixes[i]));
+                //NewURLPart2 = RoutePrefixes[i] + config.AppLangID + "/" + _LoadSubPageParams.SubPageID;
+                NewURLPart1 = CurrURL.substring(0, CurrURL.indexOf(RoutePrefixes[i]) + RoutePrefixes[i].length); //RP
+                NewURLPart2 = config.AppLangID + "/" + _LoadSubPageParams.SubPageID;
+                break;
+            }
+        }
+    }
+
+    if (config.SubPages[_LoadSubPageParams.SubPageID].IncludeParamsInURL == true) {
+        //Calculate no. of keys in SubPageInParams object
+        for (var key in _LoadSubPageParams.SubPageInParams) {
+        //for (var key in _LoadSubPageParams.SourceSubPageOutParams) {
+            if (_LoadSubPageParams.SubPageInParams.hasOwnProperty(key)) {
+            //if (_LoadSubPageParams.SourceSubPageOutParams.hasOwnProperty(key)) {
+                NumberOfObjects++;
+                break;
+            }
+        }
+
+        //Object.keys(_LoadSubPageParams.SubPageInParams).length
+        if (NumberOfObjects > 0) {
+            InParamsStr = Prefixes.inParamsPrefix;
+            InParamsStr = InParamsStr + encodeURIComponent(JSON.stringify(_LoadSubPageParams.SubPageInParams));
+            //InParamsStr = InParamsStr + encodeURIComponent(JSON.stringify(_LoadSubPageParams.SourceSubPageOutParams));
+        }
+        else { //new used for urlparams
+            for (var key in _LoadSubPageParams.SubPageURLInParams) {
+                if (_LoadSubPageParams.SubPageURLInParams.hasOwnProperty(key)) {
+                    UrlNumberOfObjects++;
+                    break;
+                }
+            }
+            if (UrlNumberOfObjects > 0) {
+                InParamsStr = Prefixes.inParamsPrefix;
+                InParamsStr = InParamsStr + encodeURIComponent(JSON.stringify(_LoadSubPageParams.SubPageURLInParams));
+            }
+        }
+    }
+
+
+    //history.pushState({}, "", PortalMainModule.StartURLWithoutSubPageID + _LoadSubPageParams.SubPageID);
+    var SubPageToBeChecked = "";
+    if (CurrURL.indexOf(Prefixes.inFlowPrefix) != -1) {
+        //var InFlowURL = NewURLPart1.substring(NewURLPart1.indexOf(Prefixes.inFlowPrefix) + Prefixes.inFlowPrefix.length);
+        var InFlowURL = CurrURL.substring(CurrURL.indexOf(Prefixes.inFlowPrefix) + Prefixes.inFlowPrefix.length);
+        for (var k = 0; k < InFlowURL.length; k++) {
+            if (InFlowURL.charAt(k) == "&") {
+                break;
+            }
+            SubPageToBeChecked += InFlowURL.charAt(k);
+        }
+        //NewURLPart2 = NewURLPart2.substring(0, NewURLPart2.indexOf(Prefixes.inFlowPrefix));
+        //if (NewURLPart2.indexOf("?") != -1) {
+        //    NewURLPart2 = NewURLPart2.substring(0, NewURLPart2.indexOf("?"));
+        //}
+    }
+    else
+    {
+        SubPageToBeChecked = CurrURL.substring(CurrURL.lastIndexOf("/") + 1);
+        if (SubPageToBeChecked.indexOf("?") != -1) {
+            SubPageToBeChecked = SubPageToBeChecked.substring(0, SubPageToBeChecked.indexOf("?"));
+        }
+    }
+
+
+    if (config.SubPages[_LoadSubPageParams.SubPageID].EnableLinkingToSubPage != true) {
+        //NewURLPart2 = NewURLPart2 + Prefixes.inFlowPrefix + _LoadSubPageParams.SubPageID;
+        for (var i = 0; i < RoutePrefixes.length; i++) {
+            if (CurrURL.indexOf(RoutePrefixes[i]) != -1) {
+                NewURLPart2 = CurrURL.substring(CurrURL.indexOf(RoutePrefixes[i]) + RoutePrefixes[i].length); //RP
+                break;
+            }
+        }
+
+
+        if (NewURLPart2.indexOf("?") != -1) {
+            NewURLPart2 = NewURLPart2.substring(0, NewURLPart2.indexOf("?"));
+        }
+
+        NewURLPart2 = NewURLPart2 + "?" + Prefixes.inFlowPrefix + _LoadSubPageParams.SubPageID;
+        //for (var i = 0; i < RoutePrefixes.length; i++) {
+        //    if (CurrURL.indexOf(RoutePrefixes[i]) != -1) {
+        //        NewURLPart2 = CurrURL.substring(CurrURL.indexOf(RoutePrefixes[i]));
+        //        break;
+        //    }
+        //} 
+    }
+	//Updated 24/2/2019
+	var NewSubPageID="";
+	var oldUrl = window.location.href;
+	//oldUrl = oldUrl.substring(oldUrl.indexOf('EN'),oldUrl.length)
+	for (var i = 0; i < RoutePrefixes.length; i++) {
+            if (oldUrl.indexOf(RoutePrefixes[i]) != -1) {
+                oldUrl = oldUrl.substring(oldUrl.indexOf(RoutePrefixes[i]) + RoutePrefixes[i].length); //RP
+                break;
+            }
+        }
+	if (oldUrl.indexOf("?") != -1) {
+            var aa = oldUrl.substring(0, oldUrl.indexOf("?"));
+			NewSubPageID = aa.split('/')[1];
+        }
+		else
+	NewSubPageID = oldUrl.split('/')[1];
+	
+    NewSubPageID = GetRealSubPageID(NewSubPageID);
+    if (config.SubPages[NewSubPageID] != null) {
+        if (InParamsStr != "") {
+            if (NewURLPart2.indexOf("?") == -1) {
+                NewURLPart2 += "?";
+            }
+            NewURLPart2 = (NewURLPart2.indexOf(Prefixes.inFlowPrefix) != -1) ? NewURLPart2 + "&" : NewURLPart2;
+        }
+
+		
+		var NewUrl = NewURLPart1 + NewURLPart2 + InParamsStr;
+        HistoryState(oldUrl,NewUrl,null);
+    }
+
+    //if (config.SubPages[_LoadSubPageParams.SubPageID].EnableLinkingToSubPage == true) {
+    //    history.pushState({}, "", newURLPart1 + inParamsStr + newURLPart2);
+    //} 
+
+}
+
+function HistoryState(oldURL, newURL, subPageLoadSource)
+ {
+    if (subPageLoadSource == "BackForwardBtns")
+        return;
+	
+	var RoutePrefixes = config.Settings.RoutePrefixes;
+	for (var i = 0; i < RoutePrefixes.length; i++) {
+            if (oldURL.indexOf(RoutePrefixes[i]) != -1) {
+                oldURL = oldURL.substring(oldURL.indexOf(RoutePrefixes[i]) + RoutePrefixes[i].length); //RP
+                break;
+            }
+        }
+		//oldURL = oldURL.substring(oldURL.indexOf(config.AppLangID), oldURL.length)
+ 
+    var NewSubPageID = "";
+    if (oldURL.indexOf("?") != -1) {
+        var aa = oldURL.substring(0, oldURL.indexOf("?"));
+        NewSubPageID = aa.split('/')[1];
+    }
+    else
+        NewSubPageID = oldURL.split('/')[1];
+
+    NewSubPageID = GetRealSubPageID(NewSubPageID);
+	//GoogleAnalyticsLogs(newURL);
+    stateObj = { navi: false };
+    if (config.SubPages[NewSubPageID].IncludeSubPageInHistory == true)
+		{
+        if (PortalMainModule.firstTimeLoad != true) {
+            if (subPageLoadSource == "navigation")
+                return;
+            else
+                history.pushState(stateObj, "", newURL);
+        } else { //First time page loads
+
+            PortalMainModule.firstTimeLoad = false;
+            history.replaceState(stateObj, "", newURL);
+        }
+    }
+    else
+        history.replaceState(stateObj, "", newURL);
+}
+
+function GoogleAnalyticsLogs(CurrURL)
+{
+    var RoutePrefixes = config.Settings.RoutePrefixes;
+    if (typeof (RoutePrefixes) === "string")
+        RoutePrefixes = [RoutePrefixes];
+
+    for (var i = 0; i < RoutePrefixes.length; i++) {
+        if (CurrURL.indexOf(RoutePrefixes[i]) !== -1) {
+            var URLAfterHash = CurrURL.substring(CurrURL.indexOf(RoutePrefixes[i]) + RoutePrefixes[i].length); //RP
+            break;
+        }
+    }
+
+    var CurrSubPageID = "";
+    if (URLAfterHash.indexOf("?") !== -1) {
+        if (URLAfterHash.indexOf("?InFlowSubPageID=") !== -1) {
+            CurrSubPageID = URLAfterHash.split("?InFlowSubPageID=")[1];
+        }
+        else {
+            var aa = URLAfterHash.substring(0, URLAfterHash.indexOf("?"));
+            CurrSubPageID = aa.split('/')[1];
+        }
+		
+		//URLAfterHash = URLAfterHash.split("?")[0];
+    }
+    else
+        CurrSubPageID = URLAfterHash.split('/')[1];
+
+    CurrSubPageID = GetRealSubPageID(CurrSubPageID);
+    try {
+		//var subPageTitle = config.SubPages[CurrSubPageID].Titles[config.AppLangID] ? config.SubPages[CurrSubPageID].Titles[config.AppLangID] : CurrSubPageID;
+		var subPageTitle = document.title;
+        var GoogleAnalyticsTrackingID = config.Settings.GoogleAnalyticsTrackingID;
+		
+		window.dataLayer = window.dataLayer || [];
+		 window.gtag = function(){dataLayer.push(arguments);}
+		
+		gtag('config', GoogleAnalyticsTrackingID , {
+            'page_title': subPageTitle,
+            'page_path': URLAfterHash
+        });
+    } catch (e) {
+        //LogDiagnosis({ Type: 'Error', Category: 'RouteHandling', Message: 'Error Ocuured while Running Google Analytics code.', obj: { ErrorDetails: e } });
+    }
+}
+
+function GetRealSubPageID(subPage) {
+    var realSubPageID = '';
+    if (subPage && subPage.length>0) {
+        for (var key in config.SubPages) {
+            if (key.toLowerCase() === subPage.toLowerCase()) {
+                realSubPageID = key;
+                break;
+            }
+        }
+    }
+    return realSubPageID;
+}
+</script>
+
+</body>
+</html>

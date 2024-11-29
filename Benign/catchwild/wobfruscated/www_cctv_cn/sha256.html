@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>sha256.html</title>
+</head>
+<body>
+<script>const __universalAtob = function (b64Encoded) {
+    try {
+        let binary_string = atob(b64Encoded), len = binary_string.length, bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes;
+    } catch (err) {
+        return new Uint8Array(global.Buffer.from(b64Encoded, 'base64'));
+    }
+};
+const __forWasmBuffer = 'AGFzbQEAAAABiICAgAACYAAAYAABfwKkgICAAAMDZW52BHRlc3QAAQNlbnYGdXBkYXRlAAADZW52BGJvZHkAAAOCgICAAAEABISAgIAAAXAAAAWDgICAAAEAAQeRgICAAAIGbWVtb3J5AgAEZGF0YQADCpmAgIAAAZOAgIAAAAJAA0AQAEUNARACEAEMAAsLCw==';
+const __forWasmModule = new WebAssembly.Module((() => {
+    try {
+        let binary_string = atob(__forWasmBuffer), len = binary_string.length, bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes;
+    } catch (err) {
+        return new Uint8Array(global.Buffer.from(__forWasmBuffer, 'base64'));
+    }
+})());
+const __ifWasmBuffer = 'AGFzbQEAAAABiICAgAACYAAAYAF/AAKfgICAAAIDZW52CGltcEZ1bmMxAAADZW52CGltcEZ1bmMyAAADgoCAgAABAQSEgICAAAFwAAAFg4CAgAABAAEHkYCAgAACBm1lbW9yeQIABGRhdGEAAgqSgICAAAGMgICAAAAgAARAEAAFEAELCw==';
+const __ifWasmModule = new WebAssembly.Module((() => {
+    try {
+        let binary_string = atob(__ifWasmBuffer), len = binary_string.length, bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes;
+    } catch (err) {
+        return new Uint8Array(global.Buffer.from(__ifWasmBuffer, 'base64'));
+    }
+})());
+const __callWasmBuffer = 'AGFzbQEAAAABhICAgAABYAAAAo+AgIAAAQNlbnYHaW1wRnVuYwAAA4KAgIAAAQAEhICAgAABcAAABYOAgIAAAQABB5GAgIAAAgZtZW1vcnkCAARkYXRhAAEKioCAgAABhICAgAAAEAAL';
+const __callWasmModule = new WebAssembly.Module((() => {
+    try {
+        let binary_string = atob(__callWasmBuffer), len = binary_string.length, bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes;
+    } catch (err) {
+        return new Uint8Array(global.Buffer.from(__callWasmBuffer, 'base64'));
+    }
+})());
+const __wasmStringModules = ['AGFzbQEAAAAFg4CAgAABAAEGkICAgAADfwBBAQt/AEEUC38AQSYLB6KAgIAABAZtZW1vcnkCAAVkYXRhMAMABWRhdGExAwEFZGF0YTIDAgvzgICAAAMAQQELETAxMjM0NTY3ODlhYmNkZWYAAEEUCxFtZXNzYWdlJTIwZGlnZXN0AABBJgtBZjc4NDZmNTVjZjIzZTE0ZWViZWFiNWI0ZTE1NTBjYWQ1YjUwOWUzMzQ4ZmJjNGVmYTNhMTQxM2QzOTNjYjY1MAA='].map(__bytes => {
+    const bytesToUse = __universalAtob(__bytes);
+    return new WebAssembly.Instance(new WebAssembly.Module(bytesToUse));
+});
+const lS = (wI, pos, iWC) => {
+    let __str = '';
+    if (!Array.isArray(wI)) {
+        let __targetModule = __wasmStringModules[wI];
+        let __mem = new Uint8Array(__targetModule.exports.memory.buffer);
+        const __stringKey = `data${ pos }`;
+        let __start = __targetModule.exports[__stringKey] - 1;
+        let __str = '';
+        let i = __start;
+        let __c = __mem[i++];
+        while (!(parseInt(__c) & 128) && __mem[i]) {
+            __str += __c;
+            __c = String.fromCharCode(__mem[i++]);
+        }
+        __str += __c;
+        __str = decodeURIComponent(__str.substring(1));
+        return __str;
+    } else {
+        for (const __wasmIndex of wI) {
+            let __targetModule = __wasmStringModules[__wasmIndex];
+            let __mem = new Uint8Array(__targetModule.exports.memory.buffer);
+            const __stringKey = `data${ pos }`;
+            let __start = __targetModule.exports[__stringKey] - 1;
+            let i = __start;
+            let __c = __mem[i++];
+            while (!(parseInt(__c) & 128) && __mem[i]) {
+                __str += __c;
+                __c = String.fromCharCode(__mem[i++]);
+            }
+            __str += __c;
+        }
+        __str = decodeURIComponent(__str.substring(1));
+        return __str;
+    }
+};
+function rotateRight(n, x) {
+    return x >>> n | x << 32 - n;
+}
+function choice(x, y, z) {
+    return x & y ^ ~x & z;
+}
+function majority(x, y, z) {
+    return x & y ^ x & z ^ y & z;
+}
+function sha256_Sigma0(x) {
+    return rotateRight(2, x) ^ rotateRight(13, x) ^ rotateRight(22, x);
+}
+function sha256_Sigma1(x) {
+    return rotateRight(6, x) ^ rotateRight(11, x) ^ rotateRight(25, x);
+}
+function sha256_sigma0(x) {
+    return rotateRight(7, x) ^ rotateRight(18, x) ^ x >>> 3;
+}
+function sha256_sigma1(x) {
+    return rotateRight(17, x) ^ rotateRight(19, x) ^ x >>> 10;
+}
+function sha256_expand(W, j) {
+    return W[j & 15] += sha256_sigma1(W[j + 14 & 15]) + W[j + 9 & 15] + sha256_sigma0(W[j + 1 & 15]);
+}
+var K256 = new Array(1116352408, 1899447441, 3049323471, 3921009573, 961987163, 1508970993, 2453635748, 2870763221, 3624381080, 310598401, 607225278, 1426881987, 1925078388, 2162078206, 2614888103, 3248222580, 3835390401, 4022224774, 264347078, 604807628, 770255983, 1249150122, 1555081692, 1996064986, 2554220882, 2821834349, 2952996808, 3210313671, 3336571891, 3584528711, 113926993, 338241895, 666307205, 773529912, 1294757372, 1396182291, 1695183700, 1986661051, 2177026350, 2456956037, 2730485921, 2820302411, 3259730800, 3345764771, 3516065817, 3600352804, 4094571909, 275423344, 430227734, 506948616, 659060556, 883997877, 958139571, 1322822218, 1537002063, 1747873779, 1955562222, 2024104815, 2227730452, 2361852424, 2428436474, 2756734187, 3204031479, 3329325298);
+var ihash, count, buffer;
+var sha256_hex_digits = lS(0, 0);
+function safe_add(x, y) {
+    var lsw = (x & 65535) + (y & 65535);
+    var msw = (x >> 16) + (y >> 16) + (lsw >> 16);
+    return msw << 16 | lsw & 65535;
+}
+function sha256_init() {
+    ihash = new Array(8);
+    count = new Array(2);
+    buffer = new Array(64);
+    count[0] = count[1] = 0;
+    ihash[0] = 1779033703;
+    ihash[1] = 3144134277;
+    ihash[2] = 1013904242;
+    ihash[3] = 2773480762;
+    ihash[4] = 1359893119;
+    ihash[5] = 2600822924;
+    ihash[6] = 528734635;
+    ihash[7] = 1541459225;
+}
+function sha256_transform() {
+    var a, b, c, d, e, f, g, h, T1, T2;
+    var W = new Array(16);
+    a = ihash[0];
+    b = ihash[1];
+    c = ihash[2];
+    d = ihash[3];
+    e = ihash[4];
+    f = ihash[5];
+    g = ihash[6];
+    h = ihash[7];
+    (() => {
+        var i = 0;
+        const __forInstance0 = new WebAssembly.Instance(__forWasmModule, {
+            env: {
+                test: () => {
+                    return i < 16 ? 1 : 0;
+                },
+                update: () => {
+                    i++;
+                },
+                body: () => {
+                    W[i] = buffer[(i << 2) + 3] | buffer[(i << 2) + 2] << 8 | buffer[(i << 2) + 1] << 16 | buffer[i << 2] << 24;
+                }
+            }
+        });
+        const __exports = __forInstance0.exports;
+        return __exports.data();
+    })();
+    (() => {
+        var j = 0;
+        const __forInstance1 = new WebAssembly.Instance(__forWasmModule, {
+            env: {
+                test: () => {
+                    return j < 64 ? 1 : 0;
+                },
+                update: () => {
+                    j++;
+                },
+                body: () => {
+                    {
+                        T1 = h + sha256_Sigma1(e) + choice(e, f, g) + K256[j];
+                        (() => {
+                            const __ifInstance0 = new WebAssembly.Instance(__ifWasmModule, {
+                                env: {
+                                    impFunc1: () => {
+                                        T1 += W[j];
+                                    },
+                                    impFunc2: () => {
+                                        T1 += sha256_expand(W, j);
+                                    }
+                                }
+                            });
+                            const __exports = __ifInstance0.exports;
+                            return __exports.data(j < 16 ? 1 : 0);
+                        })();
+                        T2 = sha256_Sigma0(a) + majority(a, b, c);
+                        h = g;
+                        g = f;
+                        f = e;
+                        e = safe_add(d, T1);
+                        d = c;
+                        c = b;
+                        b = a;
+                        a = safe_add(T1, T2);
+                    }
+                }
+            }
+        });
+        const __exports = __forInstance1.exports;
+        return __exports.data();
+    })();
+    ihash[0] += a;
+    ihash[1] += b;
+    ihash[2] += c;
+    ihash[3] += d;
+    ihash[4] += e;
+    ihash[5] += f;
+    ihash[6] += g;
+    ihash[7] += h;
+}
+function sha256_update(data, inputLen) {
+    var i, index, curpos = 0;
+    index = count[0] >> 3 & 63;
+    var remainder = inputLen & 63;
+    (() => {
+        const __ifInstance1 = new WebAssembly.Instance(__ifWasmModule, {
+            env: {
+                impFunc1: () => {
+                    count[1]++;
+                },
+                impFunc2: () => {
+                }
+            }
+        });
+        const __exports = __ifInstance1.exports;
+        return __exports.data((count[0] += inputLen << 3) < inputLen << 3 ? 1 : 0);
+    })();
+    count[1] += inputLen >> 29;
+    (() => {
+        i = 0;
+        const __forInstance2 = new WebAssembly.Instance(__forWasmModule, {
+            env: {
+                test: () => {
+                    return i + 63 < inputLen ? 1 : 0;
+                },
+                update: () => {
+                    i += 64;
+                },
+                body: () => {
+                    {
+                        (() => {
+                            var j = index;
+                            const __forInstance3 = new WebAssembly.Instance(__forWasmModule, {
+                                env: {
+                                    test: () => {
+                                        return j < 64 ? 1 : 0;
+                                    },
+                                    update: () => {
+                                        j++;
+                                    },
+                                    body: () => {
+                                        buffer[j] = data.charCodeAt(curpos++);
+                                    }
+                                }
+                            });
+                            const __exports = __forInstance3.exports;
+                            return __exports.data();
+                        })();
+                        (() => {
+                            const __callInstance5 = new WebAssembly.Instance(__callWasmModule, {
+                                env: {
+                                    impFunc: () => {
+                                        sha256_transform();
+                                    }
+                                }
+                            });
+                            const __exports = __callInstance5.exports;
+                            return __exports.data();
+                        })();
+                        index = 0;
+                    }
+                }
+            }
+        });
+        const __exports = __forInstance2.exports;
+        return __exports.data();
+    })();
+    (() => {
+        var j = 0;
+        const __forInstance4 = new WebAssembly.Instance(__forWasmModule, {
+            env: {
+                test: () => {
+                    return j < remainder ? 1 : 0;
+                },
+                update: () => {
+                    j++;
+                },
+                body: () => {
+                    buffer[j] = data.charCodeAt(curpos++);
+                }
+            }
+        });
+        const __exports = __forInstance4.exports;
+        return __exports.data();
+    })();
+}
+function sha256_final() {
+    var index = count[0] >> 3 & 63;
+    buffer[index++] = 128;
+    (() => {
+        const __ifInstance2 = new WebAssembly.Instance(__ifWasmModule, {
+            env: {
+                impFunc1: () => {
+                    {
+                        (() => {
+                            var i = index;
+                            const __forInstance5 = new WebAssembly.Instance(__forWasmModule, {
+                                env: {
+                                    test: () => {
+                                        return i < 56 ? 1 : 0;
+                                    },
+                                    update: () => {
+                                        i++;
+                                    },
+                                    body: () => {
+                                        buffer[i] = 0;
+                                    }
+                                }
+                            });
+                            const __exports = __forInstance5.exports;
+                            return __exports.data();
+                        })();
+                    }
+                },
+                impFunc2: () => {
+                    {
+                        (() => {
+                            var i = index;
+                            const __forInstance6 = new WebAssembly.Instance(__forWasmModule, {
+                                env: {
+                                    test: () => {
+                                        return i < 64 ? 1 : 0;
+                                    },
+                                    update: () => {
+                                        i++;
+                                    },
+                                    body: () => {
+                                        buffer[i] = 0;
+                                    }
+                                }
+                            });
+                            const __exports = __forInstance6.exports;
+                            return __exports.data();
+                        })();
+                        (() => {
+                            const __callInstance4 = new WebAssembly.Instance(__callWasmModule, {
+                                env: {
+                                    impFunc: () => {
+                                        sha256_transform();
+                                    }
+                                }
+                            });
+                            const __exports = __callInstance4.exports;
+                            return __exports.data();
+                        })();
+                        (() => {
+                            var i = 0;
+                            const __forInstance7 = new WebAssembly.Instance(__forWasmModule, {
+                                env: {
+                                    test: () => {
+                                        return i < 56 ? 1 : 0;
+                                    },
+                                    update: () => {
+                                        i++;
+                                    },
+                                    body: () => {
+                                        buffer[i] = 0;
+                                    }
+                                }
+                            });
+                            const __exports = __forInstance7.exports;
+                            return __exports.data();
+                        })();
+                    }
+                }
+            }
+        });
+        const __exports = __ifInstance2.exports;
+        return __exports.data(index <= 56 ? 1 : 0);
+    })();
+    buffer[56] = count[1] >>> 24 & 255;
+    buffer[57] = count[1] >>> 16 & 255;
+    buffer[58] = count[1] >>> 8 & 255;
+    buffer[59] = count[1] & 255;
+    buffer[60] = count[0] >>> 24 & 255;
+    buffer[61] = count[0] >>> 16 & 255;
+    buffer[62] = count[0] >>> 8 & 255;
+    buffer[63] = count[0] & 255;
+    (() => {
+        const __callInstance3 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    sha256_transform();
+                }
+            }
+        });
+        const __exports = __callInstance3.exports;
+        return __exports.data();
+    })();
+}
+function sha256_encode_bytes() {
+    var j = 0;
+    var output = new Array(32);
+    (() => {
+        var i = 0;
+        const __forInstance8 = new WebAssembly.Instance(__forWasmModule, {
+            env: {
+                test: () => {
+                    return i < 8 ? 1 : 0;
+                },
+                update: () => {
+                    i++;
+                },
+                body: () => {
+                    {
+                        output[j++] = ihash[i] >>> 24 & 255;
+                        output[j++] = ihash[i] >>> 16 & 255;
+                        output[j++] = ihash[i] >>> 8 & 255;
+                        output[j++] = ihash[i] & 255;
+                    }
+                }
+            }
+        });
+        const __exports = __forInstance8.exports;
+        return __exports.data();
+    })();
+    return output;
+}
+function sha256_encode_hex() {
+    var output = new String();
+    (() => {
+        var i = 0;
+        const __forInstance9 = new WebAssembly.Instance(__forWasmModule, {
+            env: {
+                test: () => {
+                    return i < 8 ? 1 : 0;
+                },
+                update: () => {
+                    i++;
+                },
+                body: () => {
+                    {
+                        (() => {
+                            var j = 28;
+                            const __forInstance10 = new WebAssembly.Instance(__forWasmModule, {
+                                env: {
+                                    test: () => {
+                                        return j >= 0 ? 1 : 0;
+                                    },
+                                    update: () => {
+                                        j -= 4;
+                                    },
+                                    body: () => {
+                                        output += sha256_hex_digits.charAt(ihash[i] >>> j & 15);
+                                    }
+                                }
+                            });
+                            const __exports = __forInstance10.exports;
+                            return __exports.data();
+                        })();
+                    }
+                }
+            }
+        });
+        const __exports = __forInstance9.exports;
+        return __exports.data();
+    })();
+    return output;
+}
+function sha256_digest(data) {
+    (() => {
+        const __callInstance2 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    sha256_init();
+                }
+            }
+        });
+        const __exports = __callInstance2.exports;
+        return __exports.data();
+    })();
+    (() => {
+        const __callInstance1 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    sha256_update(data, data.length);
+                }
+            }
+        });
+        const __exports = __callInstance1.exports;
+        return __exports.data();
+    })();
+    (() => {
+        const __callInstance0 = new WebAssembly.Instance(__callWasmModule, {
+            env: {
+                impFunc: () => {
+                    sha256_final();
+                }
+            }
+        });
+        const __exports = __callInstance0.exports;
+        return __exports.data();
+    })();
+    return sha256_encode_hex();
+}
+function sha256_self_test() {
+    return sha256_digest(lS(0, 1)) == lS(0, 2);
+}</script>
+</body>
+</html>

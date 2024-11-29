@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>scriptStitching.html</title>
+</head>
+<body>
+
+<script>
+import { reactive } from 'https://unpkg.com/petite-vue?module';
+import {vastScript} from '/scripts/scriptVast.js';
+import { $storeVast } from '/scripts/storeVast.js';
+import { $store } from '/scripts/store.js';
+import scriptHelpers from '/scripts/scriptHelpers.js';
+export const stitchingScript = reactive({
+  radioInterval: undefined,
+
+  async onStitchingInit(i){
+    /* this.destroyAdManager();
+    if(null==this.playerCurrentChange){return;} */
+    vastScript.prepareIMA(i);
+    await this.fetchPodcastAdConfig(i);
+  }, 
+  async fetchPodcastAdConfig(i){
+    if($storeVast.ad[i].adPositionsPodcasts || radio || !listPodcasts[i]?.podcastI){
+      return;
+    }
+    let adserverConfig = await scriptHelpers.makeRequest(
+      Api_url + '/ad/test/podcast/'+ listPodcasts[i].podcastId,
+      'GET',
+      false,
+    );
+    if(!adserverConfig || "SOUNDCAST_VAST"!==adserverConfig.config?.server){
+      $storeVast.ad[i].adPositionsPodcasts = [];
+      return;
+    }
+    const podcastDurationSeconds = Math.round((listPodcasts[i].duration??0) / 1000);
+    const allAdPositions =this.generateAllAdPositions(adserverConfig.config.doublets, podcastDurationSeconds);
+    const selectedAdPositions = this.selectCorrectAdPositions(allAdPositions, podcastDurationSeconds, adserverConfig.config.minIntervalDuration, adserverConfig.config.minTailDuration, i);
+    $storeVast.ad[i].adPositionsPodcasts = selectedAdPositions;
+  }, 
+  generateAllAdPositions(doublets, podcastDuration){
+    let adPositions= [];
+    if(doublets.some((element)=>{return "TAG_NO_AD"===element.tag})){
+      return [];
+    }
+    for (let doublet of doublets) {
+      if(!doublet.tag){continue;}
+      let seconds = 0;
+      if("post"===doublet.timing.insertion){
+        seconds = podcastDuration;
+      }else if("mid"===doublet.timing.insertion){
+        const mesure = doublet.timing.mesure ?? 0;
+        switch (doublet.timing.unit){
+          case "MILLISECOND": seconds = mesure * 1000; break;
+          case "MINUTE": seconds = Math.round(mesure / 60); break;
+          case "PERCENT": seconds = Math.round((mesure * podcastDuration) / 100); break;
+          default: seconds = mesure; break;
+        }
+      }
+      adPositions.push({
+        impressId: doublet.tag,
+        policy: doublet.timing.insertion,
+        seconds: seconds,
+        vastUrl: ""
+      });
+    }
+    return adPositions.sort((a, b) => {
+      if (a.seconds > b.seconds) {
+        return 1;
+      }
+      return b.seconds > a.seconds ? -1 : 0;
+    });
+  },
+  selectCorrectAdPositions(allAdPositions, podcastDuration, minIntervalDuration, minTailDuration, i){
+    let adPositions = [];
+    let previousPosition = -1;
+    for(let adPosition of allAdPositions){
+      switch (adPosition.policy) {
+        case "pre":
+          adPositions.push(this.defineVastUrl(adPosition, i));
+          previousPosition = 0;
+          break;
+        case "mid":
+          let position = adPosition.seconds;
+          if (position > podcastDuration - minTailDuration) {
+            //Too close to end
+            continue;
+          }
+          if (previousPosition >= 0 && position < previousPosition + minIntervalDuration) {
+            //Too close to previous ad
+            continue;
+          }
+          adPositions.push(this.defineVastUrl(adPosition, i));
+          previousPosition = position;
+          break;
+        case "post":
+          if (previousPosition >= 0 && previousPosition > podcastDuration - minIntervalDuration) {
+            //Too close to previous ad
+            continue;
+          }
+          adPositions.push(this.defineVastUrl(adPosition, i));
+          break;
+        default:break;
+      }
+    }
+    return adPositions;
+  },
+  defineVastUrl(adPosition, i){
+    adPosition.vastUrl = this.getVastUrl(adPosition.impressId, i, 1);
+    return adPosition;
+  },
+  getVastUrl(tag, i, adCount){
+    let baseUrl = "https://api.soundcast.io/v1/vast/"+tag;
+    let keywords = [];
+    if(undefined!==i && listPodcasts[i] && listPodcasts[i]?.tags?.length && "true"===orgaAttributes["AD_CONFIG_PODCAST_TAG"]){
+      keywords = listPodcasts[i].tags.map((e) => {
+        return "tag:" + e;
+      });
+    }
+    let cipId = ""===miniplayerRequestParams.listenerId ? undefined: "cip:"+miniplayerRequestParams.listenerId;
+    if(cipId){
+      keywords.push(cipId);
+    }
+    const parameters = scriptHelpers.getUriSearchParams({
+      adCount: adCount ?? 1,
+      pageUrl:document.referrer,
+      keywords: keywords,
+    });
+    return baseUrl + '?' + parameters.toString();
+  },
+  defineRadioInterval(advertising){
+    if(!advertising?.startDate){
+      return;
+    }
+    this.clearRadioInterval();
+    const timeRemaining = dayjs(advertising.startDate).diff(dayjs(), "millisecond");
+    console.log("TimeRemaining "+timeRemaining);
+    if(timeRemaining < 0){
+      return;
+    }
+    this.radioInterval = setTimeout(() => {
+      //If pause when ad needs to be played then skipped (TO THINK)
+      if(!$store.state[$store.getCurrentPlayed()].is_playing|| $store.state[$store.getCurrentPlayed()].paused){return;}
+      vastScript.onRequestAd(0, this.getVastUrl(advertising.tag ?? "5e385e1b51c86", undefined, advertising.adCount ?? 1));
+    }, timeRemaining);
+  },
+  clearRadioInterval() {
+    clearInterval(this.radioInterval);
+    this.radioInterval = undefined;
+  },
+  onTimeUpdate(i){
+    if(!$storeVast.ad[i].isAdRequested && this.checkAdNeedToBeLaunch(i)){
+      console.log("onRequestAd HERE");
+      vastScript.onRequestAd(i, $storeVast.ad[i].adPositionsPodcasts[$storeVast.ad[i].adPositionIndex].vastUrl);
+      $storeVast.ad[i].adPositionIndex += 1; 
+    }
+  },
+  checkAdNeedToBeLaunch(i){
+    if(!$storeVast.ad[i].adPositionsPodcasts?.[$storeVast.ad[i].adPositionIndex]){return false;}
+    return $storeVast.ad[i].adPositionsPodcasts[$storeVast.ad[i].adPositionIndex]?.seconds <= $store.info[0].timeElapsedSeconds;
+  },
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BrowserUtils.html</title>
+</head>
+<body>
+
+<script>
+/**
+ *  @autor gdiazs
+ *  @version 1.0 
+ *  Esta clase permite validar el navegador y la versi�n, tambi�n permite mostrar mensajes
+ */
+
+ if (+(/MSIE\s(\d+)/.exec(navigator.userAgent)||0)[1] < 9) {
+ 	alert("La versi�n de su navegador no se encuentra soportada");
+ 	window.location.reload();
+ }
+
+ var BrowserUtils = (function(win) {
+
+
+ 	function extractBrowserName() {
+
+ 		 var name = win.navigator.userAgent;
+ 		 if (name.match(/OPR\/(.*)$/))
+ 		 	return "opera";
+ 		 if (name.match(/Firefox\/(.*)$/))
+ 		 	return "firefox";
+ 		 if (name.match(/Chrome\/(.*)$/))
+ 		 	return "chrome";
+ 		 if(!!window.MSInputMethodContext && !!document.documentMode){
+ 		 	return "ie";
+ 		 }
+
+ 	}
+
+
+	 function isValidIEBrowser (message) {
+		 if (+(/MSIE\s(\d+)/.exec(navigator.userAgent)||0)[1] < 11) {
+		    alert(message);
+		    return false;
+		 }
+		 return true;
+	 }
+
+ 	function extractBrowserVersion(){
+ 		var userAgent = win.navigator.userAgent;
+ 		var browserName = extractBrowserName();
+ 		var browserVersion = "";
+
+ 		if(browserName === "opera"){
+ 			var start = userAgent.indexOf("OPR");
+ 			browserVersion = userAgent.substring(start+4, start+6);
+ 		}
+ 		if(browserName === "firefox"){
+ 			var start = userAgent.indexOf("Firefox");
+ 			browserVersion = userAgent.substring(start+8, start+10);
+ 		}
+ 		if(browserName === "chrome"){
+ 			var start = userAgent.indexOf("Chrome");
+ 			browserVersion = userAgent.substring(start+7, start+9);
+ 		}
+ 		if (+(/MSIE\s(\d+)/.exec(navigator.userAgent)||0)[1] < 11) {
+
+ 			browserName = "ie";
+ 			browserVersion = +(/MSIE\s(\d+)/.exec(navigator.userAgent)||0)[1];
+ 		}else{
+ 			if (browserName === "ie"){
+ 				browserVersion = 11;
+ 			}
+ 		}
+
+ 		return {
+ 			name: browserName,
+ 			version: browserVersion
+ 		};
+ 	}
+
+
+ 	return {
+
+ 		getBrowserVersion: function () {
+ 			return extractBrowserVersion();
+ 		},
+
+ 		showHeaderMessage: function(msg) {
+ 			
+ 			jQuery("#idIncompatibleBrowser").remove();
+
+ 			var message = bacSignBrowserMessage ;
+ 			 
+ 			jQuery("body").append(message);
+
+ 			jQuery("#idIncompatibleBrowser").addClass("browserWarning");
+
+ 			jQuery("#idIncompatibleBrowser").animate({
+ 				"height": "50px",
+ 				"padding-top": "5px"
+ 			},{
+ 				duration: 300,
+ 			});
+
+ 			jQuery("#idIncompatibleBrowserClose").click(function (event) {
+ 				event.preventDefault();
+ 				jQuery("#idIncompatibleBrowser").remove();
+ 			});
+
+
+		},
+
+		showLoader: function (callback, isRetry) {
+
+			
+				var div = bacSignModal;
+				
+				
+				jQuery('#bacfirma-loader').remove();
+				jQuery('body').append(div);
+				jQuery("#bacfirma-retry-btn").hide();
+				
+
+				jQuery("#bacfirma-modal-close").click(function (e) {
+					e.preventDefault();
+					jQuery("#bacfirma-modal").remove();
+
+				});
+				
+				
+				if (isRetry){
+					
+					jQuery("#step1").hide();
+					jQuery("#step2").fadeIn();
+					jQuery("#closeModalImg").hide();
+					
+					callback(function(){
+						// On user not reponse
+						jQuery("#step2").fadeOut(function(){
+							jQuery("#error").fadeIn();
+							jQuery("#bacfirma-retry-btn").show();
+							jQuery("#closeModalImg").show();
+						});
+						
+					});
+					//Stop the process
+		
+				}else{
+					jQuery("#bacfirma-continue").click(function(event){
+						event.preventDefault();
+						jQuery("#closeModalImg").hide();
+						jQuery("#step1").fadeOut(function(){
+							jQuery("#step2").fadeIn();
+						});
+						
+						callback(function(){
+							// On user not reponse
+							jQuery("#step2").fadeOut(function(){
+								jQuery("#closeModalImg").show();
+								jQuery("#error").fadeIn();
+								jQuery("#bacfirma-retry-btn").show();
+							});
+						});
+						
+					});
+				}
+				
+				
+
+				//Animaci�n para mostar el modal
+				jQuery("#bacfirma-modal").animate({"opacity": "1"}, 200, function () {});
+
+		},
+
+		closeLoader: function () {
+			//Animaci�n para quitar el modal
+			jQuery("#bacfirma-modal").animate({"opacity": "0"}, 200, function () {
+				jQuery("#bacfirma-modal").remove();
+			});
+		}
+ 		
+		,
+
+		showMessageInModal: function (message) {
+			// On user not reponse
+			jQuery("#step2").fadeOut(function(){
+				jQuery("#closeModalImg").show();
+				jQuery("#error").fadeIn();
+				jQuery("#error p:last").text(message);
+				jQuery("#bacfirma-retry-btn").show();
+			});
+		}
+ 	}
+
+ });
+
+</script>
+
+</body>
+</html>

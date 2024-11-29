@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>newsletter-signup.html</title>
+</head>
+<body>
+
+<script>
+var blnNLSLoaded = false;
+//add binding to onscroll event
+window.addEventListener("scroll", loadNLSForm, { passive: true, once: true });
+
+function loadNLSForm() {
+	if (!blnNLSLoaded) {
+		if (typeof jQuery != 'undefined') {
+			blnNLSLoaded = true;
+			$.ajax({
+				type: "GET",
+				url: Next.Settings.Channel.SecureSiteUrl + '/Ajax/NewsletterSignup',
+				data: {},
+				dataType: "html",
+				async: true,
+				timeout: 30000,
+				success: function (result) {
+					if (result) {
+						$('#newsletter-signup-ajax-container').html(result);
+					}
+				},
+				error: function (xhr, status, error) {
+					$('#newsletter-signup-ajax-container').empty();
+					if (dataLayer) {
+						dataLayer.push({
+							event: 'newsletterSignup',
+							newsletterSignup: {
+								status: 'failed',
+								error: 'GET request to URL: ' + Next.Settings.Channel.SecureSiteUrl + '/Ajax/NewsletterSignup failed, [Status]: ' + status + ', [Error]: ' + error
+							}
+						});
+					}
+				}
+			});
+		}
+	}
+	else {
+		window.removeEventListener("scroll", loadNLSForm);
+	}
+}
+
+function hideExistingErrors() {
+	$('.error').hide();
+}
+
+function getValidationMessage(settingItem) {
+	//default values, in case of empty jscontent.xml file
+	var errorMessage = (settingItem == "errornoemailinput") ? "Please enter an email address." : "This value should be a valid email.";
+	//check both the group and item inside it exist to prevent errors
+	var settingGroup = (Next.Settings.Channel.IsMobileSite) ? nxt.jstranslations.mobile.newslettersignup : nxt.jstranslations.newslettersignup;
+	if (typeof (settingGroup) != 'undefined') {
+		if (typeof (settingGroup[settingItem]) != 'undefined') {
+			errorMessage = settingGroup[settingItem];
+		}
+	}
+	return errorMessage;
+}
+
+function setErrorMessage(elementName) {
+	$('#' + elementName).removeClass('input-error');
+	var errorMessage = "";
+	if ($('#' + elementName).val().length == 0) {
+		var errorNoEmailinput = getValidationMessage("errornoemailinput");
+		$('#emailAddressError').html(errorNoEmailinput);
+		errorMessage = 'Email address is mandatory and was not provided.';
+	}
+	else {
+		var errorEmailInvalid = getValidationMessage("erroremailinvalid");
+		$('#emailAddressError').html(errorEmailInvalid);
+		errorMessage = 'Email address is not recognised as valid.';
+	}
+	if ($('#emailAddressError').is(":visible")) {
+		$('#' + elementName).addClass('input-error');
+
+		if (dataLayer) {
+			dataLayer.push({
+				event: 'newsletterSignup',
+				newsletterSignup: {
+					status: 'Error',
+					error: 'Client validation failed: ' + errorMessage
+				}
+			});
+		}
+	}
+}
+
+function submitNewsletterForm() {
+	$('.error').hide();
+	$('#server-error').hide();
+	$('#btnNewsletterSignup').addClass('ppm-loading');
+	var requestVerificationToken = $('#newsletter-signupform input[name=__RequestVerificationToken]').val();
+	var emailAddress = $('#txtNLSEmailAddress').val();
+	var textMinHeight = $('#nls-textcontainer').outerHeight(true);
+
+	$.ajax({
+		type: "POST",
+		url: Next.Settings.Channel.SecureSiteUrl + '/Ajax/NewsletterSignup',
+		data: { emailAddress: emailAddress, __RequestVerificationToken: requestVerificationToken },
+		dataType: "json",
+		async: true,
+		timeout: 30000,
+		success: function (result) {
+			if (result) {
+				$('#btnNewsletterSignup').removeClass('ppm-loading');
+				$('#btnNewsletterSignup').addClass('newsletterSignupComplete');
+				$("#nls-form :input, #nls-form label, #nls-form :button").attr("disabled", "disabled");
+				$('#nls-textcontainer').css('min-height', textMinHeight);
+
+				setTimeout(function () {
+					$('.nls-text').fadeOut(400);
+					setTimeout(function () {
+						$('#nls-thankyou').fadeIn(400);
+					}, 500);
+				}, 750);
+
+				if (dataLayer) {
+					dataLayer.push({
+						event: 'newsletterSignup',
+						newsletterSignup: {
+							status: 'Success',
+							error: 'None'
+						}
+					});
+				}
+			}
+			else {
+				$('#btnNewsletterSignup').removeClass('ppm-loading');
+				$('#server-error').show();
+			}
+		},
+		error: function (xhr, status, error) {
+			$('#btnNewsletterSignup').removeClass('ppm-loading');
+			$('#server-error').show();
+
+			if (dataLayer) {
+				dataLayer.push({
+					event: 'newsletterSignup',
+					newsletterSignup: {
+						status: 'failed',
+						error: 'POST request to URL: ' + Next.Settings.Channel.SecureSiteUrl + '/Ajax/NewsletterSignup failed, [Status]: ' + status + ', [Error]: ' + error
+					}
+				});
+			}
+		}
+	});
+
+	return false;
+}
+</script>
+
+</body>
+</html>

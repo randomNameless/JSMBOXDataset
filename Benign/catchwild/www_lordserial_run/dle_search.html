@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>dle_search.html</title>
+</head>
+<body>
+
+<script>
+/**
+ * DLE Search
+ *
+ * @copyright 2018 PunPun (https://punpun.name)
+ * @version   3.4.0
+ * @link      https://punpun.name
+ */
+
+var new_search_delay   = false;
+var new_search_value   = '';
+
+$(function() {
+	$('body').on('click', '#searchsuggestions a', function(e) {
+		e.preventDefault();
+		let url = '';
+		if ($(this).find('a').context === undefined) {
+			url = $(this)[0].href;
+		} else {
+			url = $(this).find('a').context.href;
+		}
+		$.post(dle_root + 'engine/mod_punpun/dle_search/ajax/dle_search.php', {news: url}, function(data) {});
+        window.location.href = url;
+	});
+});
+
+function dleSearch() {
+	$('#ajax_search').attr('autocomplete', 'off');
+	
+    $('#ajax_search').blur(function() {
+		$('#searchsuggestions').fadeOut();
+	});
+
+	$('#ajax_search').keyup(function() {
+		var inputString = $(this).val();
+
+		if (inputString.length == 0) {
+			$('#searchsuggestions').fadeOut();
+        } else {
+			if (new_search_value != inputString && inputString.length > 1) {
+				clearInterval(new_search_delay);
+				new_search_delay = setInterval(function() {
+                    dleSearchInterval(inputString);
+                }, 200);
+			}
+		}
+	});
+};
+
+var thisUrl = window.location.pathname;
+
+function dleSearchInterval (inputString) {
+	clearInterval(new_search_delay);
+	
+	$('#searchsuggestions').remove();
+	$("body").append("<div id='searchsuggestions' style='display:none'></div>");
+
+	$.post(dle_root + 'engine/mod_punpun/dle_search/ajax/dle_search.php', {query: inputString, thisUrl: thisUrl}, function(data) {
+		if (data != 'return') {
+			$('#searchsuggestions').html(data).fadeIn().css({'position' : 'absolute', top:0, left:0}).position({
+				my: 'left top',
+				at: 'left bottom',
+				of: '#ajax_search',
+				collision: 'fit flip'
+			});
+		}
+	});
+
+	new_search_value = inputString;
+};
+
+dleSearch();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>cms-site-base.html</title>
+</head>
+<body>
+
+<script>
+$(function () {
+  var pathArr = location.pathname.replace(/\/$/, '').split('/');
+  var getNodePath = function () {
+    var nodePath = '';
+    if (pathArr[pathArr.length - 1].indexOf('.shtml') === -1) {
+      nodePath = pathArr[pathArr.length - 1] || '';
+    } else {
+      nodePath = pathArr[pathArr.length - 2] || '';
+    }
+    return '/' + nodePath;
+  };
+  var isPreview = /^\/admin\/(\w)+\/preview\//.test(location.pathname);
+  var getTplInEl = function (el) {
+    return $(el)
+      .html()
+      .trim()
+      .replace(/^(<!--)/, '')
+      .replace(/(-->)$/, '');
+  };
+
+  // 节点稿列表
+  (function () {
+    var arr = $('div[type="CMS_TAG_NODE_POST_LIST"]');
+    for (var i = 0, len = arr.length; i < len; i++) {
+      (function (i) {
+        var el = arr[i];
+
+        var postData = {
+          tpl: window.btoa(encodeURIComponent(getTplInEl(el))),
+        };
+
+        var api;
+        if (!isPreview) {
+          api = '/api/tpl/getHtmlByTpl';
+        } else {
+          api = '/api/admin/proxy/preview/getHtmlByTpl';
+          postData.preview_key = pathArr[pathArr.length - 1];
+        }
+
+        $.post(api, postData, function (res) {
+          var data = res.data;
+          $(el).html(data.html).show();
+        });
+      })(i);
+    }
+  })();
+
+  // 相关稿件列表
+  (function () {
+    var arr = $('div[type="CMS_TAG_NODE_POST_REL_LIST"]');
+    for (var i = 0, len = arr.length; i < len; i++) {
+      (function (i) {
+        var el = arr[i];
+        var postData = {
+          tpl: window.btoa(encodeURIComponent(getTplInEl(el))),
+        };
+        var api;
+        if (!isPreview) {
+          api = '/api/tpl/getHtmlByTpl';
+          postData.node_post_key = pathArr[pathArr.length - 1].replace('.shtml', '');
+        } else {
+          api = '/api/admin/proxy/preview/getHtmlByTpl';
+          postData.preview_key = pathArr[pathArr.length - 1];
+        }
+        $.post(api, postData, function (res) {
+          var data = res.data;
+          $(el).html(data.html).show();
+        });
+      })(i);
+    }
+  })();
+
+  // 节点路径信息
+  (function () {
+    var arr = $('div[type="CMS_TAG_NODE_PATH_INFO"]');
+    for (var i = 0, len = arr.length; i < len; i++) {
+      (function (i) {
+        var el = arr[i];
+        var postData = {
+          tpl: window.btoa(encodeURIComponent(getTplInEl(el))),
+        };
+        var api;
+        if (!isPreview) {
+          api = '/api/tpl/getHtmlByTpl';
+          postData.node_path = getNodePath();
+        } else {
+          api = '/api/admin/proxy/preview/getHtmlByTpl';
+          postData.preview_key = pathArr[pathArr.length - 1];
+        }
+        $.post(api, postData, function (res) {
+          var data = res.data;
+          $(el).html(data.html).show();
+        });
+      })(i);
+    }
+  })();
+});
+
+</script>
+
+</body>
+</html>

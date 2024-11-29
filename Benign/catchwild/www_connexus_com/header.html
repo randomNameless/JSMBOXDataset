@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>header.html</title>
+</head>
+<body>
+
+<script>
+/*jslint browser: true, devel: true, white: true*/
+/*global $*/
+
+/*
+ * A Treatise on the Header
+ * By Chris Uehlinger
+ * Current as of February 2015
+ *
+ * There's a lot going on in this script, and there are many unintuitive choices
+ * we had to make in order to get the header working correctly. If you're working
+ * on the header for the first time, here's a rundown of all the features you need
+ * to support, and a few of the edge cases we ran into while building this thing.
+ *
+ * Most of the code in this file falls into a couple of categories:
+ *  - Setting the active state (indicating which page the user is on now)
+ *  - Expanding or collapsing the dropdowns (this is huge and complicated, we'll get to it in a bit)
+ *  - Getting the "sticky header" effect to work on mobile devices
+ *  - Expanding and collapsing the "mobile side menu"
+ *
+ * Active state is pretty simple, as long as you remember that it indicates the page
+ * the user is on now, and has nothing to do with the :active pseudoclass that gets set
+ * when you click on a link.
+ *
+ * The dropdowns are really complicated. If you want to extend them so that you can
+ * have "multiple levels" of dropdowns, you'll probably need to rewrite it from the
+ * ground up. Here are the concerns you'll need to bear in mind:
+ *  - Within a menu (.menuWithDropdown), users can move left or right using either Tab
+ *    or the left and right arrow keys
+ *  - When the user stops on a .itemWithDropdown, they can press the down key to expand it
+ *  - Expanded dropdowns collapse when the user tabs off of them, or if another
+ *    dropdown is opened, or if a user clicks somewhere else in the <body>
+ *  - Expanded dropdowns need to use the aria-activedescendent attribute to keep track
+ *    of which menu item is selected. This needs to be kept up to date using javascript.
+ *  - Toggling the dropdowns is throttled on a per-dropdown basis. There's more
+ *    about this in the relevant part of the code.
+ *  - I tried to do these with pure CSS first, it's impossible (or at least, highly unadvisable).
+ *
+ * The "sticky header" can be a bit finicky. Some versions of iOS stop JS execution while
+ * scrolling and/or stop repaints while scrolling, so getting this to work well is a pain.
+ * Also, bear in mind that with webkit overflow scrolling, a user can actual scroll above
+ * the top of the page, and the events you'll see then are pretty weird. Try to avoid letting
+ * the blank space behind the header at the top of the page show.
+ *
+ * The "mobile side menu" needs to open when the user taps the more button on the sticky header.
+ * We're using CSS transitions to handle the animations. When opening the menu, first you need
+ * to throw the .mobileWillBeActive class on the .pageWrapper to get things set up, followed
+ * by .mobileActive to trigger all the transitions. When collapsing it, take down .mobileActive,
+ * wait for the transition to finish (using a timeout unfortunately) and then remove .mobileWillBeActive.
+ * .mobileWillBeActive does a number of other important things too. It sets overflow: hidden so
+ * users can't accidentally scroll the page while the menu is out. We need to keep track (in JS) of how far
+ * the user scrolled when they opened the menu so we can put them back there when they close it.
+ *
+ * A few more things about mobile: Be wary of how different browsers handle touch events.
+ * We tried to do an articulated swipe gesture where the menu would "stick" to the user's finger
+ * as they swiped it. However, it was very difficult to tell when they were letting go, since
+ * different mobile devices handle "touchend" events differently.
+ *
+ * So that's most of the hard stuff. If you make changes here, you need to do extensive testing. Remember, this thing has to work:
+ *  - On WebForms and MVC (be wary of markup differences)
+ *  - On phones, tablets and touch laptops
+ *  - With keyboard alone, and with screen readers
+ *  - With mobile screen readers (have fun!)
+ *  - On every normal page in Connexus
+ *
+ * In short, if you make any changes. Make sure you do A LOT of testing afterward.
+ */
+
+//#region cx (Connexus)
+var cx;
+
+(function (cx, logger, $) {
+	'use strict';
+
+	//#region cx.header
+	(function (header) {
+		//#region Constants
+		var LOG_APPLICATION = 'Header';
+		var ENTER_KEY = 13;
+		var SPACE_BAR_KEY = 32;
+		var LEFT_ARROW_KEY = 37;
+		var UP_ARROW_KEY = 38;
+		var RIGHT_ARROW_KEY = 39;
+		var DOWN_ARROW_KEY = 40;
+		//#endregion
+
+		//Private log wrapper
+		function log(msg) {
+			if (logger) {
+				logger.log(msg, LOG_APPLICATION);
+			}
+		}
+
+		function docReady() {
+			setEventHandlers();
+			setActiveState();
+			setupHeaderTooltips();
+
+			//#region IE7 Shim
+			// You win this time, IE7 :(
+			// IE7's layering is really weird, and the account settings dropdown
+			// kept appearing under the updateNav. Fixing it with pure CSS was
+			// proving very difficult, so I found this snippet on CSS-Tricks.
+			if ($('html.ie7').length > 0) {
+				var zIndexNumber = 1000;
+				$('.headerWrapper, .subNav').find('div, ul, li').each(function () {
+					$(this).css('zIndex', zIndexNumber);
+					zIndexNumber -= 10;
+				});
+			}
+			//#endregion
+		}
+
+        /**
+         * Sets focus to the element that presents the current page's main content.
+         */
+		function goToMainContent() {
+
+		    var roleMain = $("[role='main']");
+
+		    if (!roleMain.length) {
+		        return;
+		    }
+
+            if (!roleMain.filter("[tabindex]").length) {
+                roleMain.first().attr("tabindex", "-1");
+            }
+
+		    roleMain.filter("[tabindex]").first().focus();
+		}
+
+		function setActiveState() {
+			var currentPath = location.pathname.toLowerCase(),
+                headerLinks = [
+                    { id: '#homeLink', url: /^\/home/ },
+                    { id: '#plannerLink', url: /^\/planner/ },
+					{ id: '#sectionsAndStudentsLink', url: /^\/sectionsandstudents/ },
+                    { id: '#libraryLink', url: /^\/library/ },
+                    { id: '#usersLink', url: /^\/webuser/ },
+                    { id: '#rolesLink', url: /^\/location\/security/ }, // Roles needs to be checked first, otherwise Loccations will match instead
+                    { id: '#locationsLink', url: /^\/location/ },
+                    { id: '#sectionsLink', url: /^\/lmu\/sections/ },
+                    { id: '#directoryLink', url: /^\/communication\/directory/ },
+                    { id: '#helpLink', url: /^\/help\.aspx/ },
+                    { id: '#webmailLink', url: /^\/communication\/webmail|^\/webmail/ },
+                    { id: '#gradebookLink', url: /^\/gradebook/ },
+                    { id: '#messageboardLink', url: /^\/forum/ },
+                    { id: '#issueawareLink', url: /^\/issue/ }
+                ];
+
+			for (var i = 0; i < headerLinks.length; i++) {
+			    if (headerLinks[i].url.test(currentPath)) {
+			        if (headerLinks[i].id === "#gradebookLink") {
+			            $("#gradebookStudentLink").parent('li').addClass('activeState');
+                        $("#gradebookTeacherLink").parent('li').addClass('activeState');
+			        } else {
+			            $(headerLinks[i].id).parent('li').addClass('activeState');
+			        }
+			        break;
+				}
+			}
+		}
+
+		function setEventHandlers() {
+			// This is used to throttle the dropdown toggling
+			var toggleDropdownDelay = 200;
+
+			function expandDropdown(e) {
+				var $this = $(this);
+				if ($this.attr('data-dropdown-disabled') !== 'true') {
+
+					// $this is the anchor tag that is clicked to "drop down" the menu
+					if ($this.parent().hasClass('itemWithDropdown')) {
+						// This line collapses all currently expanded dropdowns
+						$('.itemWithDropdown.dropdownExpanded > a').each(function(i, el) {
+							collapseDropdown.call(el, e);
+						});
+
+						$this.attr('aria-expanded', 'true');
+						$this.parent().removeClass('dropdownCollapsed').addClass('dropdownExpanded');
+                        $this.parent().find('.dropdown').attr('aria-hidden', 'false').removeClass('dropdownCollapsed').addClass('dropdownExpanded');
+                        $this.parent().find('ul').attr('aria-hidden', 'false');
+                    }
+
+					$this.attr('data-dropdown-disabled', 'true');
+					setTimeout(function() {
+						$this.removeAttr('data-dropdown-disabled');
+					}, toggleDropdownDelay);
+
+				}
+			}
+
+			function collapseDropdown(e) {
+				var $this = $(this);
+				if ($this.attr('data-dropdown-disabled') !== 'true') {
+
+					// $this is the anchor tag that is clicked to "drop down" the menu
+					// TODO: make this into $this.parent().hasClass('itemWithDropdown')
+					if ($this.parent().find('.dropdown.dropdownExpanded').length > 0) {
+						$this.removeAttr('aria-activedescendant').attr('aria-expanded', 'false');
+						$this.parent().removeClass('dropdownExpanded').addClass('dropdownCollapsed');
+						$this.parent().find('.dropdown').attr('aria-hidden', 'true').removeClass('dropdownExpanded').addClass('dropdownCollapsed');
+						$this.parent().find('ul').children('li').children('a').removeClass('dropdownSelected');
+
+						// This timeout is timed to match the length of the CSS animation
+						setTimeout(function() {
+							$this.parent().removeClass('dropdownCollapsed');
+							$this.parent().find('.dropdown').removeClass('dropdownCollapsed');
+						}, 200);
+					}
+
+					// This is only done on blur to stop the chain reaction of toggle events
+					// when users select a link from a drop down
+					// ('blur' dropdown parent to collapse, followed by 'click' inside of dropdown to expand)
+					$this.attr('data-dropdown-disabled', 'true');
+					setTimeout(function() {
+						$this.removeAttr('data-dropdown-disabled');
+					}, toggleDropdownDelay);
+				}
+			}
+
+			$('ul.menuWithDropdown > li.itemWithDropdown')
+				.click(function(e) {
+					var $this = $(this);
+
+					e.stopPropagation();
+					e.stopImmediatePropagation();
+
+					if ($this.hasClass('dropdownExpanded')) {
+						return collapseDropdown.call($this.children('a')[0], e);
+					} else {
+						return expandDropdown.call($this.children('a')[0], e);
+					}
+				});
+
+			$('body').on('click.closeDropdown', '*:not(.dropdownExpanded)', cx.utils.throttle(function(e) {
+				$('li.itemWithDropdown.dropdownExpanded').each(function(index, el) {
+					collapseDropdown.call($(el).children('a')[0], e);
+				});
+			}, 10));
+
+			$('ul.menuWithDropdown > li > a')
+				.on('keydown', function(e) {
+					//covers all arrow keys and the space bar
+					if ((e.which >= LEFT_ARROW_KEY && e.which <= DOWN_ARROW_KEY) || e.which === SPACE_BAR_KEY) {
+						e.preventDefault();
+					}
+				})
+				.on('keyup.horizontal', function(e) {
+					var $this = $(this),
+					    linkList = $this.parent().find('ul').children('li').children('a'),
+					    currentIndex = linkList.index($this);
+
+					//Left and Right
+					if (e.which === LEFT_ARROW_KEY || e.which === RIGHT_ARROW_KEY) {
+						e.preventDefault();
+
+						linkList = $this.parent().parent().children('li').children('a');
+						currentIndex = linkList.index($this);
+
+						// Left Arrow
+						if (e.which === LEFT_ARROW_KEY && 0 < currentIndex) {
+							currentIndex--;
+						}
+
+						// Right Arrow
+						if (e.which === RIGHT_ARROW_KEY && currentIndex < linkList.length) {
+							currentIndex++;
+						}
+
+						linkList.eq(currentIndex).focus();
+					}
+				})
+				.on('focus', function() {
+					var $this = $(this),
+					    descTabIndex = -1;
+
+					$this
+						.on('keyup.menuSelect', function(e) {
+							var $this = $(this),
+							    linkList = $this.parent().find('ul').children('li').children('a'),
+							    currentIndex = linkList.index($this);
+
+							// Up and Down
+							if (e.which === UP_ARROW_KEY || e.which === DOWN_ARROW_KEY) {
+								e.preventDefault();
+
+								// Up Arrow
+								if (e.which === UP_ARROW_KEY && descTabIndex > 0) {
+									descTabIndex--;
+								}
+
+								// Down Arrow
+								if (e.which === DOWN_ARROW_KEY && descTabIndex < linkList.length - 1) {
+									if (descTabIndex < 0) {
+										expandDropdown.call(this, e);
+									}
+
+									descTabIndex++;
+								}
+
+								linkList.removeClass('dropdownSelected');
+								var selectedEl = linkList.eq(descTabIndex);
+								selectedEl.addClass('dropdownSelected');
+								$this.attr('aria-activedescendant', selectedEl.attr('id'));
+							}
+
+							// Space and Enter
+							if (e.which === ENTER_KEY || e.which === SPACE_BAR_KEY) {
+								e.preventDefault();
+
+								if (descTabIndex < 0) {
+									$this.click();
+								} else {
+									linkList[descTabIndex].click();
+								}
+							}
+						});
+				})
+				.on('blur', function(e) {
+					//Prevent blur action from completing before onClick event has been initiated.
+					setTimeout(collapseDropdown.bind(this, e), toggleDropdownDelay);
+				});
+
+			//Allow menu to collapse only when a click is released, rather than when it is initiated.
+			$('.dropdown a').on('focus', function(e) {
+				console.log('HEY');
+				var $parentAnchor = $(this).parent().parent().parent().parent().children('a');
+				$parentAnchor.attr('data-dropdown-disabled', 'true');
+				setTimeout(function() {
+					$parentAnchor.removeAttr('data-dropdown-disabled');
+				}, toggleDropdownDelay);
+			});
+
+		}
+
+		function setupHeaderTooltips() {
+			$('.topIcon')
+				.not('.mobileMenuItem .topIcon')
+				.parent()
+				.cxTooltip({
+					forceBottom: true,
+					className: 'headerTooltip'
+				});
+		}
+
+
+		//Used to html decode url.
+		function htmlDecode(value) {
+			return $('<div/>').html(value).text();
+		}
+
+		//This replaces the old way of setting the homepage url.
+		//We have to do this as we are now using MVC for new home pages and we lose the full URI when
+		//attempting to reference SCRIPT_NAME from Server variables. (/homepage).
+		function setHomePageUrl(url) {
+			var cookieName = "Current_Homepage_URL";
+			var urlDecode = htmlDecode(url);
+			if (urlDecode && urlDecode !=null && typeof (urlDecode) !== 'undefined') {
+				// This did not work in IE as client side script, session cookie creation is off by default.
+				//http://www.library.fullerton.edu/documents/IE_settings_for_ILLiad_requests_to_work.pdf
+				//cx.utils.cookie.setSessionCookie(cookieName, urlDecode);
+				//Works in all cases.  We remove this cooke when the user logs in.
+				cx.utils.cookie.setCookie(cookieName, urlDecode);
+			}
+			$("#homeLink, #mobileHomeLink").attr("href", urlDecode);
+		}
+
+		// Public Methods
+		header.docReady = docReady;
+		header.goToMainContent = goToMainContent;
+		header.setActiveState = setActiveState;
+		header.setHomePageUrl = setHomePageUrl;
+
+		//#region cx.header.mobile
+		(function (mobile) {
+			// Private attributes
+			var headerIsDisplayed = true,
+                sideMenuIsDisplayed = false,
+                sideMenuDeployTime = 250; // This needs to be kept in sync with header.less
+
+			// Properties
+			mobile.headerIsDisplayed = function () { return headerIsDisplayed; };
+			mobile.sideMenuIsDisplayed = function () { return sideMenuIsDisplayed; };
+			mobile.sideMenuDeployTime = function () { return sideMenuDeployTime; };
+
+			// Public attributes
+			mobile.canHideHeader = true;
+
+			// Public Methods
+			mobile.docReady = docReady;
+			mobile.setEventHandlers = setEventHandlers;
+			mobile.setStickyHeader = setStickyHeader;
+
+			// Articulated swipe works well on iOS, but not on Android
+			mobile.setSwipeToClose = setUnarticulatedSwipeToClose;
+
+			// We need to throttle the toggling of the side menu otherwise some devices will fire it twice
+			mobile.toggleSideMenu = cx.utils.throttle(toggleSideMenu, sideMenuDeployTime + 100);
+
+			function docReady() {
+				setEventHandlers();
+			}
+
+			function setEventHandlers() {
+				mobile.setStickyHeader();
+
+				// This is for iOS. Without it, clicking on Mobile Header items requires two taps
+				// I'm pretty sure this is a result of the cxTooltips
+				// -CWU 11/18/2014
+				if (/iPhone|iPad/.test(navigator.userAgent)) {
+					$('.topIcon').on('touchend', function (e) {
+						$(this).click();
+					});
+				}
+
+				// The link needs to be on touchend, not click
+				// Otherwise, it will take two taps in order to open
+				$(document).on('click', '#mobileMoreLink, .mobileMenuContentMask', mobile.toggleSideMenu);
+
+				$.fn.cxResizeHandler(function (e) {
+					if (sideMenuIsDisplayed) {
+						mobile.toggleSideMenu(e);
+					}
+				});
+			}
+
+			function setUnarticulatedSwipeToClose(active) {
+				var beginTouch;
+				if (active) {
+					$('body')
+                        .on('touchstart.swipeCloseMobileMenu', function (e) {
+                        	var touch = e.originalEvent.touches[0] || e.originalEvent.changedTouches[0];
+
+                        	beginTouch = { x: touch.clientX, y: touch.clientY };
+                        })
+                        .on('touchend.swipeCloseMobileMenu, touchcancel.swipeCloseMobileMenu', function (e) {
+                        	var touch = e.originalEvent.touches[0] || e.originalEvent.changedTouches[0],
+                                endTouch = { x: touch.clientX, y: touch.clientY },
+                                screenWidth = $(window).innerWidth(),
+                                navWidth = $('.mobileNavBackground').outerWidth();
+
+                        	if (beginTouch && beginTouch.x < screenWidth - navWidth && endTouch.x > screenWidth - navWidth) {
+                        		mobile.toggleSideMenu(e);
+                        	}
+                        	beginTouch = undefined;
+                        });
+				} else {
+					$('body').off('touchstart.swipeCloseMobileMenu touchend.swipeCloseMobileMenu touchcancel.swipeCloseMobileMenu');
+				}
+			}
+
+
+			// Waiting on Hammer.js before we implement articulated swipe
+			function setArticulatedSwipeToClose(active) {
+				var touches = [],
+                    cancellationTimeout;
+
+				if (active) {
+					$('body')
+                        .on('touchstart.swipeCloseMobileMenu', function (e) {
+                        	clearTimeout(cancellationTimeout);
+                        	var touch = e.originalEvent.touches[0] || e.originalEvent.changedTouches[0];
+                        	//                      cx.utils.debug.drawDot(touch.clientX,touch.clientY);
+                        	touches.push({
+                        		x: touch.clientX,
+                        		y: touch.clientY
+                        	});
+
+                        	cancellationTimeout = setTimeout(function () { touches = []; }, 500);
+                        })
+                        .on('touchmove.swipeCloseMobileMenu', function (e) {
+                        	clearTimeout(cancellationTimeout);
+                        	var touch = e.originalEvent.touches[0] || e.originalEvent.changedTouches[0];
+                        	//                      cx.utils.debug.drawDot(touch.clientX,touch.clientY);
+                        	touches.push({
+                        		x: touch.clientX,
+                        		y: touch.clientY
+                        	});
+
+                        	var screenWidth = $(window).innerWidth(),
+                                navWidth = $('.mobileNavBackground').outerWidth();
+                        	if (touches[0].x + navWidth < screenWidth && touch.clientX > screenWidth - navWidth) {
+                        		$('.mobileNavBackground').css({
+                        			'right': screenWidth - touch.clientX - navWidth + 'px',
+                        			'transition': 'none'
+                        		});
+
+                        		$('.mobileMenuContentMask').css({
+                        			'opacity': 0.5 - (0.5 * (touch.clientX - (screenWidth - navWidth)) / navWidth),
+                        			'transition': 'none'
+                        		});
+
+                        	}
+
+                        	cancellationTimeout = setTimeout(function () { touches = []; }, 500);
+                        })
+                        .on('touchend.swipeCloseMobileMenu touchcancel.swipeCloseMobileMenu', function (e) {
+                        	clearTimeout(cancellationTimeout);
+                        	var touch = e.originalEvent.touches[0] || e.originalEvent.changedTouches[0];
+                        	//                      cx.utils.debug.drawDot(touch.clientX,touch.clientY);
+                        	touches.push({
+                        		x: touch.clientX,
+                        		y: touch.clientY
+                        	});
+
+                        	var screenWidth = $(window).innerWidth(),
+                                navWidth = $('.mobileNavBackground').outerWidth();
+                        	if (touches[0].x + navWidth < screenWidth && touch.clientX > screenWidth - navWidth) {
+                        		mobile.toggleSideMenu(e);
+                        	}
+
+                        	touches = [];
+
+                        });
+				} else {
+					$('body').off('touchstart.swipeCloseMobileMenu touchmove.swipeCloseMobileMenu touchend.swipeCloseMobileMenu touchcancel.swipeCloseMobileMenu');
+				}
+			}
+
+			function setStickyHeader() {
+				var lastScrollOffset = 0,
+                    delta = 5,
+                    navbarHeight = $('.mobileHeader').outerHeight();
+
+				$.fn.cxScrollHandler(function (e) {
+					var scrollOffset = $(window).scrollTop();
+
+					// Make sure they scroll more than delta
+					// Make sure nothing else is preventing us from hiding the header
+					if (Math.abs(lastScrollOffset - scrollOffset) <= delta)
+						return;
+
+					if (mobile.canHideHeader && scrollOffset > 0 && scrollOffset > lastScrollOffset && scrollOffset > navbarHeight) {
+						// Scroll Down
+						$('.mobileHeader').addClass('hideHeader');
+						headerIsDisplayed = false;
+					} else {
+						// Scroll Up
+						$('.mobileHeader').removeClass('hideHeader');
+						headerIsDisplayed = true;
+					}
+
+					lastScrollOffset = scrollOffset;
+				});
+			}
+
+			var currentScroll = { x: 0, y: 0 };
+			function toggleSideMenu(e) {
+				var $pageWrapper = $('.pageWrapper');
+
+				if (!sideMenuIsDisplayed) {
+					// Opening the hamburger menu
+					sideMenuIsDisplayed = true;
+					mobile.canHideHeader = false;
+
+					currentScroll = {
+						x: $(window).scrollLeft(),
+						y: $(window).scrollTop()
+					};
+
+					$pageWrapper
+                        .addClass('mobileWillBeActive')
+                        .css({ 'margin-top': -currentScroll.y + 'px' });
+
+					$('.headerWrapper').prepend('<div class="mobileMenuContentMask" role="button" aria-label="Close Menu" aria-owns="mobileNavBackground" aria-controls="mobileNavBackground" tabindex=0 onclick="javascript: void(0);"></div>');
+
+
+					setTimeout(function () {
+						$pageWrapper.addClass('mobileActive');
+						$('.mobileMenuContentMask').addClass('mobileActive').focus();
+
+						$('#mobileMoreLink').attr('aria-expanded', 'true');
+						$('.mobileNavBackground').attr('aria-hidden', 'false');
+					}, 1);
+
+					setTimeout(function () { mobile.setSwipeToClose(true); }, sideMenuDeployTime + 100);
+
+				} else {
+					// Closing the hamburger menu
+
+					$('.mobileNavBackground').attr('aria-hidden', 'true');
+					$('#mobileMoreLink').attr('aria-expanded', 'false').focus();
+
+					$pageWrapper.removeClass('mobileActive');
+					$('.mobileMenuContentMask').removeClass('mobileActive');
+
+					mobile.setSwipeToClose(false);
+					$('.mobileNavBackground, .mobileMenuContentMask').removeAttr('style');
+
+					setTimeout(function () {
+						$pageWrapper
+                            .removeClass('mobileWillBeActive')
+                            .css({ 'margin-top': '' });
+
+						$(window)
+                            .scrollTop(currentScroll.y);
+
+						$('.mobileMenuContentMask').remove();
+
+						mobile.canHideHeader = true;
+						sideMenuIsDisplayed = false;
+					}, sideMenuDeployTime);
+				}
+			}
+		})(header.mobile || (header.mobile = {}));
+		//#endregion
+	})(cx.header || (cx.header = {}));
+	//#endregion
+
+})(cx || (cx = {}), cx.utils.logger || (cx.utils.logger = {}), jQuery);
+//#endregion
+
+
+//Invoke the header start-up upon DOM being ready and new header being present. Otherwise, bail. This allows us to safely have header.js loaded even when the old header is present.
+$(function () {
+	if ($('.headerWrapper').length > 0 || $('pvs-header').length > 0) {
+		cx.header.docReady();
+		cx.header.mobile.docReady();
+	}
+});
+</script>
+
+</body>
+</html>

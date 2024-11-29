@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>main.html</title>
+</head>
+<body>
+
+<script>
+let is_login = !1, is_process = !1;
+
+function init_srv() {
+  Cookies.get("srv") || Cookies.set("srv", 2)
+}
+
+function check_login() {
+  $.ajax({
+    url: "/user/status.html", type: "GET", dataType: "json", success: function (a) {
+      $("#top-user").html(a.content), 1 === a.is_login && (is_login = !0, $("#auth-modal").remove())
+    }
+  })
+}
+
+function searchMovie() {
+  let a = $("input[name=keyword]").val();
+  "" !== a.trim() && (a = a.replace(/(<([^>]+)>)/gi, "").replace(/[`~!@#$%^&*()_|\=?;'",.<>\{\}\[\]\\\/]/gi, ""), a = a.split(" ").join("+"), window.location.href = "/search.html?q=" + a)
+}
+
+function validateEmail(a) {
+  let b = /^([\w-\.]+@([\w-]+\.)+[\w-]{2,4})?$/;
+  return 0 < a.length && b.test(a)
+}
+
+function subscribe() {
+  let a = $("#error-subscribe"), b = $("#subscribe-email");
+  Cookies.get("y-subscribed") || (a.hide(), "" === b.val().trim() ? (a.text("Please enter your email."), a.show()) : validateEmail(b.val()) ? ($("#subscribe-submit").prop("disabled", !0), $("#subscribe-loading").show(), $.ajax({
+    url: "/user/subscribe.html",
+    type: "POST",
+    dataType: "json",
+    data: {email: b.val()},
+    success: function (b) {
+      1 === b.status && (Cookies.set("y-subscribed", 1, {expires: 365}), $("#success-subscribe").show()), a.val(""), $("#subscribe-loading").hide(), $("#subscribe-submit").removeAttr("disabled")
+    }
+  })) : (a.text("Please enter a valid email."), a.show()))
+}
+
+function initQtip() {
+  $(".ml-mask").qtip({
+    content: {
+      text: function (a, b) {
+        $.ajax({
+          url: b.elements.target.attr("data-url"), type: "GET", loading: !1, success: function (a) {
+            b.set("content.text", a)
+          }
+        })
+      }, title: function () {
+        return $(this).attr("title")
+      }
+    },
+    position: {
+      my: "top left",
+      at: "top right",
+      viewport: $(window),
+      target: "mouse",
+      adjust: {mouse: !1},
+      show: {
+        effect: function () {
+          $(this).slideDown(200)
+        }
+      }
+    },
+    hide: {fixed: !0},
+    style: {classes: "qtip-dark", width: 320, tip: {corner: !1}}
+  })
+}
+
+function get_notify() {
+  0 === $("#list-notify .notify-item").length && $.ajax({
+    url: "/user/get_notify.html",
+    type: "GET",
+    dataType: "json",
+    success: function (a) {
+      1 === a.status && ($("#notify-loading").remove(), $("#list-notify").html(a.html), 0 === parseInt(a.notify_unread) && $(".feed-number").remove())
+    }
+  })
+}
+
+function movies_by_genre(a) {
+  $("#latest-" + a).is(":empty") && $.ajax({
+    url: "/ajax/movies_by_genre/" + a + ".html",
+    type: "GET",
+    dataType: "json",
+    success: function (b) {
+      $("#latest-" + a).html(b.html)
+    }
+  })
+}
+
+function movies_by_top(a) {
+  $("#top-" + a).is(":empty") && $.ajax({
+    url: "/ajax/movies_by_top/" + a + ".html",
+    type: "GET",
+    dataType: "json",
+    success: function (b) {
+      $("#top-" + a).html(b.html)
+    }
+  })
+}
+
+function movies_by_country(a) {
+  $("#latest-" + a).is(":empty") && $.ajax({
+    url: "/ajax/movies_by_country/" + a + ".html",
+    type: "GET",
+    dataType: "json",
+    success: function (b) {
+      $("#latest-" + a).html(b.html)
+    }
+  })
+}
+
+function movie_update_view() {
+  Cookies.get("y-view-" + mid.id) || $.ajax({
+    url: "/ajax/movie_update_view.html",
+    type: "POST",
+    dataType: "json",
+    data: {id: mid.id},
+    success: function () {
+      var a = new Date;
+      a.setTime(a.getTime() + 300000), Cookies.get("y-view-" + mid.id, !0, {expires: a, path: "/"})
+    }
+  })
+}
+
+function movie_rate_info() {
+  $.get("/ajax/rate_info/" + mid.id + ".html", function (a) {
+    $(".mv-rating").html(a)
+  })
+}
+
+function movie_check_favorite(b) {
+  $.get("/user/check_favorite/" + mid.id + ".html", function (c) {
+    if ($("#btn-favorite").html(c), "watch" === b && !Cookies.get("y-notice-favorite-" + mid.id) && 0 < $(".popover-like").length && ("series" === mid.type || "HD" !== movie.quality)) {
+      Cookies.get("y-notice-favorite-" + mid.id, !0, {expires: 3}), $(".popover-like").show();
+      var d = "series" === mid.type ? "Get updated once new episode is available. Favorite this now." : "Get updated once this movie is available in HD. Favorite this now.";
+      $("#popover-notice").text(d), $(".toggle-popover-like").click(function () {
+        $(".popover-like").hide()
+      })
+    }
+  })
+}
+
+function removeFadeOut(a, b) {
+  a.style.transition = "opacity " + b / 1e3 + "s ease", a.style.opacity = 0, setTimeout(function () {
+    a.parentNode.removeChild(a)
+  }, b)
+}
+
+$(document).ready(function () {
+  (init_srv(), $("#search a.box-title").click(function () {
+    $("#search .box").toggleClass("active")
+  }), $("#toggle-xsidebar").click(function () {
+    $("#xsidebar").toggleClass("active"), $("#toggle-xsidebar").toggleClass("active")
+  }), $(".mobile-menu").click(function () {
+    $("#menu,.mobile-menu").toggleClass("active"), $("#search, .mobile-search").removeClass("active")
+  }), $(".mobile-search").click(function () {
+    $("#search,.mobile-search").toggleClass("active"), $("#menu, .mobile-menu").removeClass("active")
+  }), $(".filter-toggle").click(function () {
+    $("#filter").toggleClass("active"), $(".filter-toggle").toggleClass("active")
+  }), $(".bp-btn-light").click(function () {
+    $(".bp-btn-light, #overlay, #media-player, #main").toggleClass("active")
+  }), $("#overlay").click(function () {
+    $(".bp-btn-light, #overlay, #media-player, #main").removeClass("active")
+  }), $("#toggle, .cac-close").click(function () {
+    $("#comment").toggleClass("active")
+  }), $("#toggle-login").click(function () {
+    $("#tab-login").click()
+  }), $("#toggle-register").click(function () {
+    $("#tab-register").click()
+  }), $(".top-menu> li").bind("mouseover", function () {
+    $(this).find(".sub-container").css("display", "block")
+  }), $(".top-menu> li").bind("mouseout", function () {
+    $(this).find(".sub-container").css("display", "none")
+  }), $(function () {
+    function a() {
+      var a = $(this), b = a.find(".modal-dialog");
+      a.css("display", "block"), b.css("margin-top", Math.max(0, ($(window).height() - b.height()) / 2))
+    }
+
+    $(".modal").on("show.bs.modal", a), $(window).on("resize", function () {
+      $(".modal:visible").each(a)
+    })
+  }), 0 < $("#slider").length) && new Swiper("#slider", {
+    pagination: ".swiper-pagination",
+    paginationClickable: !0,
+    loop: !1,
+    autoplay: 4e3
+  }), $(".xlist, .pw-comment .content").perfectScrollbar(), $("#pop-trailer").on("shown.bs.modal", function () {
+    $("#iframe-trailer").attr("src", mid.trailer)
+  }), $("#pop-trailer").on("hide.bs.modal", function () {
+    $("#iframe-trailer").attr("src", "")
+  }), $("#login-form").submit(function (a) {
+    $("#login-submit").prop("disabled", !0), $("#login-loading").show();
+    var b = $(this).serializeArray();
+    $.ajax({
+      url: "/user/login.html", type: "POST", data: b, dataType: "json", success: function (a) {
+        0 === a.status && ($("#error-message").show(), $("#error-message").text(a.message), $("#login-submit").removeAttr("disabled"), $("#login-loading").hide()), 1 === a.status && window.location.reload()
+      }
+    }), a.preventDefault()
+  }), $("#register-form").submit(function (a) {
+    $("#register-submit").prop("disabled", !0), $("#register-loading").show(), $(".error-message").hide();
+    var b = $(this).serializeArray();
+    $.ajax({
+      url: "/user/register.html", type: "POST", data: b, dataType: "json", success: function (a) {
+        ($(".error-message").hide(), 0 === a.status) && ($("#register-error").show(), $("#register-error").text(a.message), $("#register-submit").removeAttr("disabled"), $("#register-loading").hide()), 1 === a.status && window.location.reload()
+      }
+    }), a.preventDefault()
+  }), $("#request-form").submit(function (a) {
+    $("#request-submit").prop("disabled", !0), $("#request-loading").show();
+    var b = $(this).serializeArray();
+    $.ajax({
+      url: "/user/request.html", type: "POST", data: b, dataType: "json", success: function (a) {
+        1 == a.status && ($("#message-success").show(), setTimeout(function () {
+          $("#message-success").hide()
+        }, 5e3), document.getElementById("request-form").reset()), $("#request-submit").removeAttr("disabled"), $("#request-loading").hide()
+      }
+    }), a.preventDefault()
+  }), $("#profile-form").submit(function (a) {
+    $("#btn-update").prop("disabled", !0), $("#submit-loading").show();
+    var b = new FormData(this);
+    $.ajax({
+      url: "/user/update.html",
+      type: "POST",
+      data: b,
+      dataType: "json",
+      mimeType: "multipart/form-data",
+      contentType: !1,
+      processData: !1,
+      cache: !1,
+      success: function (a) {
+        if ($(".error-message").hide(), 0 === a.status) {
+          for (var b in a.messages) $("#error-" + b).show(), $("#error-" + b).text(a.messages[b]);
+          $("#btn-update").removeAttr("disabled"), $("#submit-loading").hide()
+        }
+        1 === a.status && window.location.reload()
+      }
+    }), a.preventDefault()
+  });
+  var b = !0, c = !0;
+  $(".search-suggest").mouseover(function () {
+    b = !1
+  }), $(".search-suggest").mouseout(function () {
+    b = !0
+  }), $("#search-suggest-home").mouseover(function () {
+    c = !1
+  }), $("#search-suggest-home").mouseout(function () {
+    c = !0
+  });
+  var d = null;
+  $("input[name=keyword]").keyup(function () {
+    null != d && clearTimeout(d), d = setTimeout(function () {
+      d = null;
+      var a = $("input[name=keyword]").val().trim();
+      3 < a.length ? $.ajax({
+        url: "/searching.html",
+        type: "POST",
+        dataType: "json",
+        data: {keyword: a},
+        success: function (a) {
+          $(".search-suggest").html(a.html), "" === a.html.trim() ? $(".search-suggest").hide() : $(".search-suggest").show()
+        }
+      }) : $(".search-suggest").hide()
+    }, 600)
+  }), $("input[name=keyword]").blur(function () {
+    b && $(".search-suggest").hide()
+  }), $("input[name=keyword]").focus(function () {
+    "" !== $(".search-suggest").html() && $(".search-suggest").show()
+  }), $("input[name=keyword]").keypress(function (a) {
+    13 == a.which && searchMovie()
+  }), $("input[name=keyword]").blur(function () {
+    c && $("#search-suggest-home").hide()
+  }), $("input[name=keyword]").focus(function () {
+    "" !== $("#search-suggest-home").html() && $("#search-suggest-home").show()
+  }), $("input[name=keyword]").keypress(function (a) {
+    13 == a.which && search_home()
+  }), $("#forgot-form").submit(function (a) {
+    $("#forgot-form").prop("disabled", !0);
+    var b = $(this).serializeArray();
+    $.ajax({
+      url: "/user/forgot", type: "POST", data: b, dataType: "json", success: function (a) {
+        0 === a.status && ($("#forgot-error-message").show(), $("#forgot-error-message").text(a.message)), 1 === a.status && ($("#forgot-success-message").show(), $("#forgot-success-message").text(a.message)), $("#forgot-submit").removeAttr("disabled")
+      }
+    }), a.preventDefault()
+  })
+});
+var recap_search, onloadCallback = function () {
+  0 < $("#recaptcha-search").length && grecaptcha.render("recaptcha-search", {
+    sitekey: "6LdXaBkUAAAAAF7rfe4tb17Enf6_rwA51rK8Ckze",
+    callback: search_token_refresh
+  }), 0 < $("#recaptcha-search-2").length && grecaptcha.render("recaptcha-search-2", {
+    sitekey: "6LdXaBkUAAAAAF7rfe4tb17Enf6_rwA51rK8Ckze",
+    callback: search_submit
+  })
+};
+$("#filter-movies").click(function () {
+  let b = [], c = [], d = [];
+  $(".genre-ids:checked").each(function () {
+    b.push($(this).val())
+  }), $(".country-ids:checked").each(function () {
+    c.push($(this).val())
+  }), b = 0 < b.length ? b.join(",") : "all", c = 0 < c.length ? c.join(",") : "all";
+  let f = $("input[name=year]:checked").val();
+  "custom" === f && (f = $("input[name=custom-year]").val());
+  let g = $("input[name=type]:checked").val();
+  d.push("genre=" + b), d.push("country=" + c), d.push("types=" + g), d.push("year=" + f), window.location.href = "/filter?" + d.join("&")
+}), $(document).on("click", "#favorite", function () {
+  let b = $(this).attr("data-movie"), c = $(this).attr("data-act");
+  console.log(is_login), is_login ? $.ajax({
+    url: "/user/add_favorite.html",
+    type: "POST",
+    dataType: "json",
+    data: {mid: b, act: c},
+    success: function () {
+      "added" === c ? ($(".btn-favorite").addClass("active"), is_process = "added" === c, document.getElementById("favorite").removeAttribute("id")) : ($(".btn-favorite").removeClass("active"), is_process = "removed" === c, document.getElementById("favorite").removeAttribute("id"), removeFadeOut(document.getElementById("movie-" + b), 1e3))
+    }
+  }) : $("#pop-auth").modal("show")
+});
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>detect.html</title>
+</head>
+<body>
+
+<script>
+// <!-- Detects the idpstatus cookie on the enduser's browser -->
+// <!-- If the cookie is present provide user the authenticated experience by making authentication calls to Okta -->
+
+//read browser cookies
+function getCookie(cname) {
+  let name = cname + "=";
+  let ca = document.cookie.split(";");
+  for (let i = 0; i < ca.length; i++) {
+    let c = ca[i];
+    while (c.charAt(0) == " ") {
+      c = c.substring(1);
+    }
+    if (c.indexOf(name) == 0) {
+      return c.substring(name.length, c.length);
+    }
+  }
+  return "";
+}
+
+//check for the local session cookie 'unifiedloggedinuser'
+var unifiedLoginExists = getCookie("unifiedloggedinuser");
+//check for the okta session cookie 'idpstatus'
+var idpStatus = getCookie("idpstatus");
+var loginFailExists = getCookie("loginstatus");
+
+var currentUrl = window.location.href;
+
+// detection logic
+// If local session cookie is present that means local session is already active. Skip the authentication call to okta.
+// If local session cookie is NOT present check for the idpstatus cookie to provide the authenticated experience to the user
+if (!unifiedLoginExists && !loginFailExists) {
+  // do nothing and skip the okta call if okta session  is inactive
+  if (idpStatus) {
+    console.log(
+        "Okta status is active. Provide authenticated experience to the user."
+    );
+
+    document.addEventListener('DOMContentLoaded', function () {
+      var hrefUrl = window.location.href;
+      var originUrl = encodeURIComponent(hrefUrl);
+      var xhr = new XMLHttpRequest();
+      xhr.open(
+          'POST',
+          'https://prod-verify.mktg.workday.com/authentication/fetch',
+          true
+      );
+      xhr.onreadystatechange = function () {
+        if (xhr.readyState === 4) {
+          if (xhr.status === 200) {
+            try {
+              var responseText = JSON.parse(xhr.responseText);
+              var responseData = JSON.parse(responseText.body);
+              var authorizationEndpoint = responseData.authorizationEndpoint;
+              var clientId = responseData.clientId;
+              //var clientSecret = responseData.clientSecret;
+              var redirectUri = responseData.redirectUri;
+              var state = responseData.state;
+              if (
+                  typeof unifiedLoginExists === 'undefined' ||
+                  !unifiedLoginExists
+              ) {
+                // Initiate the authorization call to Okta
+                initiateAuthentication(
+                    authorizationEndpoint,
+                    clientId,
+                    redirectUri,
+                    state,
+                    originUrl
+                );
+              }
+            } catch (error) {
+              console.error('Error parsing response:', error);
+            }
+          } else {
+            console.error('Error fetching configuration:', xhr.statusText);
+          }
+        }
+      };
+      xhr.onerror = function () {
+        console.error('Network error occurred');
+      };
+      xhr.send();
+      // Step 1: Make call to the Okta authorization endpoint
+      function initiateAuthentication(
+          authorizationEndpoint,
+          clientId,
+          redirectUri,
+          state,
+          originUrl
+      ) {
+        var authorizationUrl =
+            authorizationEndpoint +
+            '?response_type=code' +
+            '&client_id=' +
+            clientId +
+            '&redirect_uri=' +
+            encodeURIComponent(redirectUri) +
+            '&scope=openid profile email' +
+            '&state=' +
+            state +
+            '~' +
+            originUrl +
+            '&nonce=5678';
+        window.location.href = authorizationUrl;
+      }
+    });
+  } else {
+    // if okta session cookie is not present, skip the authentication call to Okta
+    console.log(
+        "Okta status is not active. Provide un-authenticated experience to the user."
+    );
+  }
+}
+
+</script>
+
+</body>
+</html>

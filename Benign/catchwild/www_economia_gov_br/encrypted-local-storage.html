@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>encrypted-local-storage.html</title>
+</head>
+<body>
+
+<script>
+import { cookiesByName } from "./cookies.js";
+import { isNotNull, isNull, isString } from "./types.js";
+
+const storage = window.localStorage;
+const crypt = window.crypto;
+
+export class EncryptedLocalStorage {
+    constructor(key, options) {
+        this.options = {
+            useCookies: (options || {}).useCookies || false,
+            cookieName: (options || {}).cookieName || 'Encrypted-Local-Storage-Key'
+        };
+        this._ready = (async () => {
+            this.cryptKey = await loadKey(key, this.options.useCookies, this.options.cookieName);
+            return this;
+        })();
+    }
+
+    getItem(key) {
+        this._ready = (async () => {
+            await this._ready;
+
+            const ivAndEncryptedValueBase64Joined = storage.getItem(key);
+
+            if (isNull(ivAndEncryptedValueBase64Joined)) {
+                return undefined;
+            }
+
+            const ivAndEncryptedValueBase64Array = ivAndEncryptedValueBase64Joined.split(".");
+            if (ivAndEncryptedValueBase64Array.length !== 2) {
+                throw 'encrypted-local-storage.js EncryptedLocalStorage getItem() key: value in storage cannot is not well formed.';
+            }
+
+            const ivBase64 = ivAndEncryptedValueBase64Array[0];
+            const iv = new Uint8Array([...atob(ivBase64)].map(char => char.charCodeAt(0)));
+
+            const encryptedValueBase64 = ivAndEncryptedValueBase64Array[1];
+            const encryptedValueBytes = new Uint8Array([...atob(encryptedValueBase64)].map(char => char.charCodeAt(0)));
+            let valueJsonBytes;
+            try {
+                valueJsonBytes = await crypt.subtle.decrypt(
+                    {
+                        name: "AES-GCM",
+                        iv
+                    },
+                    this.cryptKey,
+                    encryptedValueBytes
+                );
+            } catch (error) {
+                throw 'encrypted-local-storage.js EncryptedLocalStorage getItem() key: value in storage cannot be decrypted.';
+            }
+
+            const valueJson = new TextDecoder().decode(valueJsonBytes);
+
+            try {
+                return JSON.parse(valueJson);
+            } catch (error) {
+                throw 'encrypted-local-storage.js EncryptedLocalStorage getItem() key: value in storage cannot be parsed as JSON.';
+            }
+        })();
+        return this._ready;
+    }
+
+    setItem(key, value) {
+        this._ready = (async () => {
+            await this._ready;
+
+            let valueJson;
+            try {
+                valueJson = JSON.stringify(value);
+            } catch (error) {
+                throw 'encrypted-local-storage.js EncryptedLocalStorage setItem() value: value cannot be marshalled into JSON.';
+            }
+
+            const valueJsonBytes = new TextEncoder().encode(valueJson);
+
+            const iv = crypt.getRandomValues(new Uint8Array(12));
+
+            let encryptedValueJsonBytes;
+            try {
+                encryptedValueJsonBytes = await crypt.subtle.encrypt(
+                    {
+                        name: "AES-GCM",
+                        iv
+                    },
+                    this.cryptKey,
+                    valueJsonBytes
+                );
+            } catch (error) {
+                throw 'encrypted-local-storage.js EncryptedLocalStorage setItem() value: value cannot be encrypted.';
+            }
+
+            const encryptedValueJsonBase64 = btoa(String.fromCharCode(...new Uint8Array(encryptedValueJsonBytes)));
+            const ivBase64 = btoa(String.fromCharCode(...iv));
+            const ivAndEncryptedValueBase64Joined = ivBase64 + "." + encryptedValueJsonBase64;
+            storage.setItem(key, ivAndEncryptedValueBase64Joined);
+
+            return this;
+        })();
+        return this._ready;
+    }
+
+    clearKey() {
+        this._ready = (async () => {
+            await this._ready;
+            this.cryptKey = null;
+            if (this.options.useCookies === true && isNotNull(this.options.cookieName)) {
+                document.cookie = this.options.cookieName + '=; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=None; Secure';
+            }
+        })();
+        return this._ready;
+    }
+}
+
+async function loadKey(key, useCookies, cookieName) {
+    const cryptKeyBytes = await loadKeyBytes(key, useCookies, cookieName);
+    try {
+        return await crypt.subtle.importKey(
+            "raw",
+            cryptKeyBytes,
+            "AES-GCM",
+            false,
+            ["encrypt", "decrypt"]
+        );
+    } catch (error) {
+        throw 'encrypted-local-storage.js EncryptedLocalStorage constructor() cryptKeyBufferSource: error creating key.';
+    }
+}
+
+async function loadKeyBytes(key, useCookies, cookieName) {
+    if (isNull(key)) {
+        if (useCookies === true && isNotNull(cookieName)) {
+            const cookieKeyBase64 = cookiesByName()[cookieName];
+            if (isNotNull(cookieKeyBase64)) {
+                return new Uint8Array([...atob(cookieKeyBase64)].map(char => char.charCodeAt(0)));
+            }
+        }
+        const keyBytes = crypt.getRandomValues(new Uint8Array(32));
+        saveKeyOnCookieIfNeeded(keyBytes, useCookies, cookieName);
+        return keyBytes;
+    }
+
+    if (isString(key)) {
+        try {
+            const keyBytes = new Uint8Array(await crypt.subtle.digest('SHA-256', new TextEncoder().encode(key)));
+            saveKeyOnCookieIfNeeded(keyBytes, useCookies, cookieName);
+            return keyBytes;
+        } catch (error) {
+            throw 'encrypted-local-storage.js EncryptedLocalStorage constructor() key: error creating string based key.';
+        }
+    }
+
+    if (!(key instanceof Uint8Array)) {
+        throw 'encrypted-local-storage.js EncryptedLocalStorage constructor() key: must be Uint8Array or String.';
+    }
+
+    if (key.byteLength != 32) {
+        throw 'encrypted-local-storage.js EncryptedLocalStorage constructor() key: must have 32 bytes.';
+    }
+    
+    const keyBytes = key;
+    saveKeyOnCookieIfNeeded(keyBytes, useCookies, cookieName);
+    return keyBytes;
+}
+
+function saveKeyOnCookieIfNeeded(keyBytes, useCookies, cookieName) {
+    if (useCookies !== true || isNull(cookieName)) {
+        return;
+    }
+    const newKeyBase64 = btoa(String.fromCharCode(...keyBytes)).replace(/={1,2}$/, '');
+    document.cookie = cookieName + '=' + newKeyBase64 + '; Path=/; SameSite=None; Secure';
+}
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>collapsible-content-scroll-into-view.html</title>
+</head>
+<body>
+
+<script>
+/**
+ * This script lives in https://tfs.its.uu.se/DefaultCollection/Webbplattform/_git/misc-js
+ *
+ * This Javascript will expand and scroll to collapsible content on page load 
+ * and will also trigger when pressing anchor links that are connected to collapsible content.
+ */
+// Function to smoothly scroll to the specified HTML element
+const scrollToElement = (element) => {
+  if (element) {
+    // setTimeout is needed since the scroll event seems to be interrupted by the click event.
+    setTimeout(() => {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' });
+    }, 300);
+  }
+};
+
+// Function to toggle the collapsible state of the specified HTML element
+const toggleCollapsible = (element) => {
+  if (element && element.getAttribute('aria-expanded') === 'false') {
+    requestAnimationFrame(() => {
+      element.click();
+    });
+  }
+};
+
+// Function to handle actions on page load
+const onLoadHandler = () => {
+  const url = window.location.href;
+  const urlHasAnchorId = url.includes('#');
+
+  if (urlHasAnchorId) {
+    const anchorId = url.split('#')[1];
+    const collapsibleContent = document.querySelector(`div:not(.sv-custom-module) [id='${anchorId}']`);
+    const collapsibleElement = document.querySelector(`.sv-collapsible-content:has([id='${anchorId}']) a.env-collapse-header, [id='${anchorId}'] + div:has(.sv-collapsible-content) a.env-collapse-header`);
+
+    if (collapsibleElement) {
+      toggleCollapsible(collapsibleElement);
+      scrollToElement(collapsibleContent || collapsibleElement);
+    }
+  }
+};
+
+// Function to handle actions when clicking on anchor links
+const onClickHandler = () => {
+  const links = document.querySelectorAll('a[href*="#"]:not(.env-collapse-header)');
+  links.forEach((link) => {
+    link.addEventListener('click', (e) => {
+      const urlFormatRegex = /\d\.[a-f0-9]+.html/;
+      // Don't run code if the url contains sitevision identifier.
+      if (!urlFormatRegex.test(window.location.pathname)) {
+        const href = link.getAttribute('href');
+        const anchorId = href.split('#')[1];
+
+        if (window.location.pathname + window.location.search === href.split('#')[0]) {
+          e.preventDefault();
+          // Update the URL without triggering a full page reload
+          history.pushState(null, null, `#${anchorId}`);
+
+          const collapsibleContent = document.querySelector(`[id='${anchorId}']`);
+          const collapsibleElement = document.querySelector(`.sv-collapsible-content:has([id='${anchorId}']) a.env-collapse-header, [id='${anchorId}'] + div:has(.sv-collapsible-content) a.env-collapse-header`);
+
+          // Toggle collapsible state and scroll to the element
+          toggleCollapsible(collapsibleElement);
+          scrollToElement(collapsibleContent || collapsibleElement);
+        }
+      }
+    });
+  });
+};
+
+window.onload = () => {
+  onLoadHandler();
+  onClickHandler();
+};
+
+</script>
+
+</body>
+</html>

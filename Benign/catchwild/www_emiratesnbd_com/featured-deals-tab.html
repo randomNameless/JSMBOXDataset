@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>featured-deals-tab.html</title>
+</head>
+<body>
+
+<script>
+$(document).ready(function () {
+    FeaturedDeals($('#featureddeals-tab a.active'));
+    $('.tab-item__link').click(function () {
+        if ($(this).data('loaded') != true) {
+            FeaturedDeals($(this));
+        }
+    });
+});
+function FeaturedDeals(link) {
+    if ($('#featureddeals-tab').length > 0) {
+        var setingsId = link.data('settingsid');
+        var autoSelect = link.data('autoselect');
+        if (autoSelect == "True") {
+            GetFeaturedDealsData(setingsId, link);
+            //else {
+            //    setTimeout(function () {
+            //        nbdCardDeals();
+            //    }, 300);
+            //}
+        }
+        //else {
+        //    setTimeout(function () {
+        //        nbdCardDeals();
+        //    }, 300);
+        //}
+    }
+}
+function GetFeaturedDealsData(setingsId, link) {
+    $.ajax({
+        type: 'POST',
+        url: '/enbdapi/v1/deals/featureddealstab',
+        data: {
+            'SettingsId': setingsId,
+            'Language': ENBD.CurrentLanguage
+        },
+        success: function (data) {
+            UpdateFeaturedDealsTemplate(data, link);
+        }
+    });
+}
+function UpdateFeaturedDealsTemplate(data, link) {
+    var template = document.getElementById('FeaturedDeals-template').innerHTML;
+    var templateScript = Handlebars.compile(template);
+    var context = data;
+    var html = templateScript(context);
+    $(link.attr("href")).html(html);
+    $(link).data("loaded", true);
+    setTimeout(function () {
+        nbdCardDeals();
+    }, 100);
+}
+
+//Card Slider
+$(function () {
+
+    $(function () {
+        nbdCardDeals();
+    });
+
+}(jQuery));
+
+var nbdCardDeals = function () {
+    // card deals
+    new Swiper('.card-deals__swiper', {
+        slidesPerView: 2,
+        spaceBetween: 0,
+        autoHeight: true,
+        // Navigation arrows
+        navigation: {
+            nextEl: '.card-deals__swiper-next',
+            prevEl: '.card-deals__swiper-prev',
+        },
+        pagination: {
+            el: '.card-deals__swiper-pagination',
+            clickable: true,
+        },
+        breakpoints: {
+            540: {
+                slidesPerView: 2,
+            },
+            768: {
+                slidesPerView: 3,
+            },
+            1200: {
+                slidesPerView: 4,
+            },
+        },
+    });
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>hvg-token-helper.html</title>
+</head>
+<body>
+
+<script>
+function hvg_get_cookie_helper(name){
+            return document.cookie.split(';').some(c => {
+                return c.trim().startsWith(name + '=');
+            });
+        }
+
+function hvg_delete_cookie_helper( name, path, domain ) {
+	if( hvg_get_cookie_helper( name ) ) {
+		document.cookie = name + "=" +
+		  ((path) ? ";path="+path:"")+
+		  ((domain)?";domain="+domain:"") +
+		  ";expires=Thu, 01 Jan 1970 00:00:01 GMT";
+	}
+}
+
+async function hvg_verifyToken(verifyUrl, cookieDomain) {
+	try {
+		const response = await fetch(verifyUrl, {
+			method: "GET", // or 'PUT'
+			headers: {
+				"Content-Type": "application/json",
+			},
+			mode: "cors",
+			credentials: "include"
+		});
+
+		console.log("verify token response", response);
+		if (!response.ok) {
+			var textResp = await response.text();
+			if (textResp !== "ok"){
+				hvg_delete_cookie_helper("token","/",cookieDomain);
+			}
+		}
+
+	} catch (error) {
+		console.error("Error:", error);
+	}
+}
+</script>
+
+</body>
+</html>

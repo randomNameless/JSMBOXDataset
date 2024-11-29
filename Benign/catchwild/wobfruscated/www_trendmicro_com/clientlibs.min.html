@@ -1,0 +1,4419 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>clientlibs.min.html</title>
+</head>
+<body>
+<script>//
+// DO NOT MODIFY THIS FILE DIRECTLY
+// If you do, your changes will be overwritten and lost. Instead, make your changes to
+// the appropriate files in the js folder, then run Grunt to generate this file.
+// Instructions for running Grunt are in the readme file at the project root.
+//
+
+
+// GET ELEMENT BY ID
+function id(el){
+	return document.getElementById(el);
+}
+
+function hasClass(el, className) {
+	if (el.classList){
+		return el.classList.contains(className);
+	}
+	else if (el.className) {
+		return !!el.className.match(new RegExp('(\\s|^)' + className + '(\\s|$)'));
+	}
+	return false;
+}
+
+function addClass(el, className) {
+	if (el.classList){
+		el.classList.add(className);
+	}
+	else if (!hasClass(el, className)){
+		el.className += " " + className;
+	}
+}
+
+function removeClass(el, className) {
+	if (el.classList){
+		el.classList.remove(className);
+	}
+	else if (hasClass(el, className)) {
+		var reg = new RegExp('(\\s|^)' + className + '(\\s|$)');
+		el.className=el.className.replace(reg, ' ');
+	}
+}
+
+function closest(el, className) {
+	while (el && !hasClass(el, className)) {
+		el = el.parentNode;
+	}
+	return el;
+}
+
+/*
+* Debounce
+*/
+// Returns a function, that, as long as it continues to be invoked, will not
+// be triggered. The function will be called after it stops being called for
+// N milliseconds. If `immediate` is passed, trigger the function on the
+// leading edge, instead of the trailing.
+function debounce(func, wait, immediate) {
+	var timeout;
+	return function() {
+		var context = this,
+			args = arguments;
+
+		var later = function() {
+			timeout = null;
+			if (!immediate) {
+				func.apply(context, args);
+			}
+		};
+		var callNow = immediate && !timeout;
+		clearTimeout(timeout);
+		timeout = setTimeout(later, wait);
+		if (callNow) {
+			func.apply(context, args);
+		}
+	};
+}
+
+//Returns the difference between two strings "a" and "b", assuming "b" contains a subsequence containing
+//all of the letters in "a" in the same order
+function getStringDifference(a, b) {
+	var i = 0;
+	var j = 0;
+	var result = "";
+
+	while (j < b.length)
+	{
+		if (a[i] != b[j] || i == a.length)
+			result += b[j];
+		else
+			i++;
+		j++;
+	}
+	return result;
+}
+
+function dropDecimal(price) {
+	//Drop decimal if ".00" or keep as it is
+	return parseFloat(price) - parseInt(price) > 0 ? parseFloat(price) : parseInt(price);
+}
+
+function getPriceWithCommas(price) {
+	var splitPrice = price.toString().split(".");
+	splitPrice[0] = splitPrice[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+	return splitPrice.join(".");
+}
+
+function allArrayElementsEqual(myArray) {
+//Check if all the elements in the array are same
+	if (myArray.length) {
+		return !!myArray.reduce(function(a, b){ return (a === b) ? a : NaN; });
+	}
+	else {
+		return false;
+	}
+}
+
+function isMobileDevice() {
+	if (window.innerWidth < 768) {
+		return true;
+	}
+
+	return false;
+}
+
+function isLandscapeMode() {
+	if(window.innerWidth > window.innerHeight) {
+		return true;
+	}
+
+	return false;
+}
+
+function isIE() {
+	var ua = window.navigator.userAgent;
+
+	var msie = ua.indexOf('MSIE ');
+	if (msie > 0) {
+		// IE 10 or older => return version number
+		//return parseInt(ua.substring(msie + 5, ua.indexOf('.', msie)), 10);
+
+		return true;
+	}
+
+	var trident = ua.indexOf('Trident/');
+	if (trident > 0) {
+		// IE 11 => return version number
+		//var rv = ua.indexOf('rv:');
+		//return parseInt(ua.substring(rv + 3, ua.indexOf('.', rv)), 10);
+
+		return true;
+	}
+
+	var edge = ua.indexOf('Edge/');
+	if (edge > 0) {
+		// Edge (IE 12+) => return version number
+		//return parseInt(ua.substring(edge + 5, ua.indexOf('.', edge)), 10);
+
+		return true;
+	}
+
+	// other browser
+
+	return false;
+}
+
+function isIE10orOlder() {
+
+	var ua = window.navigator.userAgent;
+
+	var msie = ua.indexOf('MSIE ');
+	if (msie > 0) {
+		// IE 10 or older => return version number
+		//return parseInt(ua.substring(msie + 5, ua.indexOf('.', msie)), 10);
+		return true;
+	}
+}
+
+//Returns the text with its special characters (©, &copy;, &reg;, ®) wrapped in <sup></sup>
+function superscriptSpecialSymbols(text) {
+	['©','&copy;','&reg;','®'].forEach(function(element) {
+		text = text.split(element).join( "<sup>" + element + "</sup>" );
+	});
+
+	return text;
+}
+
+//Eg: sectionSelector = ".content-wrap", parentSectionSelector = ".responsiveColumnControl"
+// The height of the tallest .content-wrap in each .responsiveColumnControl is added to all .content-wrap sections under that ".responsiveColumnControl"
+function matchSectionHeights(sectionSelector, parentSectionSelector) {
+	if ($(window).width() > 767) {
+		var selectedResponsiveColumnControls = $(parentSectionSelector).has(sectionSelector);
+
+		for (var i = 0; i < selectedResponsiveColumnControls.length; i++) {
+			var currentContainer = selectedResponsiveColumnControls[i];
+			var sections = currentContainer.querySelectorAll(sectionSelector);
+
+			if (sections.length > 1) {
+				var sectionHeightArray = [];
+
+				for (var j = 0; j < sections.length; j++) {
+					$(sections[j]).css("min-height","auto");
+					sectionHeightArray[j] = $(sections[j]).outerHeight();
+				}
+
+				if (!allArrayElementsEqual(sectionHeightArray)) {
+					var sectionMaxHeight = Math.max.apply(Math,sectionHeightArray);
+					//var elementWithMaxHeight = sectionHeightArray.indexOf(sectionMaxHeight);
+
+					if (sectionMaxHeight > 0) {
+						for (var k = 0; k < sections.length; k++) {
+							//if (k != elementWithMaxHeight) {
+							//$(sections[k]).outerHeight(sectionMaxHeight);
+							$(sections[k]).css("min-height",(sectionMaxHeight+"px"));
+							//}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+/* ---- global object for element js ---- */
+var TrendMicro = {};
+
+
+
+TrendMicro.BootStrapModal = function()
+{
+	// There is only one real modal on the page at a time
+	// Here are its state variables
+	this.currentVideoId = '';
+    this.currentSrc = '';
+
+    this.metadata = {};
+    this.metadata.title = '';
+    this.metadata.description = '';
+    this.metadata.mediaURL = '';
+    this.metadata.link = '';
+
+    // These are just some class "constants"
+    this.dataTargetSuffix = 'Modal';
+
+    this.intervalHandle = {};
+	this.isOpen = false;
+
+	this.authorModeQueryParameter = 'wcmmode';
+	this.authorModeDisabled = 'disabled';
+
+	this.modalViewQueryParameter = 'modal-view'
+	this.modalViewTrue = 'true'
+};
+
+TrendMicro.PlayListVideo = function()
+{
+	this.source = '';
+	this.image = '';
+	this.title = '';
+	this.description = '';
+	this.captions = '';
+	this.index = '';
+	this.playlistOptions = '';
+	this.onPauseContent = '';
+	this.onCompleteContent = '';
+};
+
+TrendMicro.BootStrapModal.prototype.init = function()
+{
+	this.setupElements();
+
+	$("a.bs-modal").on(
+		'click',
+		{
+			self: this
+		},
+		this.clickHandler
+	);
+
+	// Use the Bootstrap custom event to detect when the iframe is closed, and stop the video
+	// Reminder: on( event, selector, data, function )
+	$('body').on( 'hidden.bs.modal', '#defaultModal', { self: this }, this.deactivateModal );
+	$('body').on( 'hidden.bs.modal', '#playlistViewModal', { self: this }, this.deactivateModal );
+};
+
+
+// We've moved this to a function to enable updating the markup during a browser event
+TrendMicro.BootStrapModal.prototype.getDefaultModalMarkup = function()
+{
+	markup  = '<div class="modal fade" id="defaultModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">';
+	markup += '	<div class="modal-dialog modal-lg" role="document">';
+	markup += '		<div class="modal-content">';
+	markup += '			<div class="modal-header">';
+	markup += '				<h5 class="modal-title" id="exampleModalLabel">' + superscriptSpecialSymbols(this.metadata.title) + '</h5>';
+	markup += '				<button type="button" class="close" data-dismiss="modal" aria-label="Close">';
+//	markup += '					<span aria-hidden="true">&times;</span>';
+	markup += '						<span class="material-symbols-outlined close-icon-align">close</span>';
+
+	markup += '				</button>';
+	markup += '				<div class="dropdown">';
+	markup += '					<button type="button" class="modal-share" data-toggle="dropdown" aria-label="Share"	aria-haspopup="true" aria-expanded="false">';
+	markup += '						<span class="material-symbols-outlined share-icon-align icon-share">share</span>';
+//	markup += '						<span class="icon-share"></span>';
+
+	markup += '					</button>';
+	markup += '					<div class="dropdown-menu" id="copy-paste">';
+	markup += '						<input type="text-field" class="copy-to-clipboard-content" />';
+
+	// markup += '						<button type="button" class="copy-to-clipboard-button button white-to-red">'+Granite.I18n.get("Copy link")+'</button>';
+	markup += '						<button type="button" class="copy-to-clipboard-button button white-to-red">Copy link</button>';
+
+	markup += '					</div>';
+	markup += '				</div>';
+	markup += '			</div>';
+	markup += '			<div class="modal-body">';
+	markup += '			</div>';
+	markup += '		</div>';
+	markup += '	</div>';
+	markup += '</div>';
+
+	return markup;
+};
+
+// We've moved this to a function to support updating it during a browser event
+TrendMicro.BootStrapModal.prototype.getImageViewerModalMarkup = function()
+{
+	markup  = '<div class="modal fade" id="imageViewModal" tabindex="-1" role="dialog" aria-labelledby="imageViewModalLabel" aria-hidden="true">';
+	markup += '	<div class="modal-dialog modal-lg" role="document">';
+	markup += '		<div class="modal-content">';
+	markup += '			<div class="modal-header">';
+	markup += '				<div class="modal-title" id="imageViewModalLabel">';
+	markup += '					<span class="modal-main-title">' + superscriptSpecialSymbols(this.metadata.title) + '</span>';
+	markup += '					<span class="modal-sub-title">' + this.metadata.description + '</span>';
+	markup += '				</div>';
+	markup += '				<button type="button" class=close"close" data-dismiss="modal" aria-label="Close">';
+	markup += '						<span class="material-symbols-outlined close-icon-align">close</span>';
+//	markup += '					<span aria-hidden="true">X</span>';
+	markup += '				</button>';
+	markup += '				<div class="dropdown">';
+	markup += '					<a href="' + this.currentSrc + '" class="download-button" download><span class="icon-mcm-download"></span></a>';
+	markup += '					<button type="button" class="modal-share" data-toggle="dropdown" aria-label="Share"	aria-haspopup="true" aria-expanded="false">';
+	markup += '						<span class="material-symbols-outlined share-icon-align icon-share">share</span>';
+//	markup += '						<span class="icon-share"></span>';
+
+	markup += '					</button>';
+	markup += '					<div class="dropdown-menu">';
+	markup += '						<div class="addthis_inline_share_toolbox" data-url="' + this.metadata.link + '" data-title="' + this.metadata.title + '" data-description="' + this.metadata.description + '" data-media="' + this.metadata.mediaURL + '" ></div>';
+	markup += '					</div>';
+	markup += '				</div>';
+	markup += '			</div>';
+	markup += '			<div class="modal-body">';
+	markup += '			</div>';
+	markup += '		</div>';
+	markup += '	</div>';
+	markup += '</div>';
+
+	return markup;
+};
+
+// We've moved this to a function to enable updating the markup during a browser event
+// JWPlayer Playlist modal
+TrendMicro.BootStrapModal.prototype.getPlaylistViewModalMarkup = function()
+{
+	markup  = '<div class="modal fade" id="playlistViewModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">';
+	markup += '	<div class="modal-dialog modal-lg" role="document">';
+	markup += '		<div class="modal-content">';
+	markup += '			<div class="modal-header">';
+	markup += '				<h5 class="modal-title" id="exampleModalLabel">' + superscriptSpecialSymbols(this.metadata.title) + '</h5>';
+	markup += '				<button type="button" class="close" data-dismiss="modal" aria-label="Close">';
+	markup += '					<span class="material-symbols-outlined close-icon-align">close</span>';
+	markup += '				</button>';
+	markup += '				<div class="dropdown">';
+	markup += '					<button type="button" class="modal-share" data-toggle="dropdown" aria-label="Share"	aria-haspopup="true" aria-expanded="false">';
+	markup += '						<span class="material-symbols-outlined share-icon-align icon-share">share</span>';
+	markup += '					</button>';
+	markup += '					<div class="dropdown-menu" id="copy-paste">';
+	markup += '						<input type="text-field" class="copy-to-clipboard-content" />';
+	markup += '						<button type="button" class="copy-to-clipboard-button button white-to-red">Copy link</button>';
+	markup += '					</div>';
+	markup += '				</div>';
+	markup += '			</div>';
+	markup += '			<div class="modal-body">';
+	markup += '				<div class="cta-card hidden"><div class="card-container"><div class="overlay"></div></div></div>';
+	markup += '			</div>';
+	markup += '		</div>';
+	markup += '	</div>';
+	markup += '</div>';
+
+	return markup;
+};
+
+TrendMicro.BootStrapModal.prototype.enableModalsForRTE = function(rteLinks)
+{
+	rteLinks.each(
+		function() {
+			var title = $(this).attr('title');
+			var url = $(this).attr('href');
+
+			// Get everything after the last '/'  -->  only allow "a-z, A-Z, 1-9, -, _"
+			var id = ( url.substring(url.length, url.lastIndexOf("/")+1) ).replace(/[^a-zA-Z1-9_\-]/g, "");
+
+			$(this).attr(
+				{
+					'class': 'bs-modal',
+					'id': id,
+					'data-modal-title': title
+				}
+			);
+		}
+	);
+};
+
+TrendMicro.BootStrapModal.prototype.setupElements = function()
+{
+	// Brace for losing this
+	var self = this;
+
+	// Weird RTE cases
+	self.enableModalsForRTE( $("span.bs-modal").find("a") );
+	self.enableModalsForRTE( $("span.bs-modal").closest("a") );
+
+	// Set the data-toggle and data-target attributes as well
+	$("a.bs-modal").attr('data-toggle','modal');
+	$("a.bs-modal").each( function(){
+		// We use the data-modal-behavior field if present
+		targetAttribute = $(this).attr( 'data-modal-behavior' );
+
+		if( targetAttribute != null ) {
+			$(this).attr( 'data-target', '#' + targetAttribute + self.dataTargetSuffix );
+		}
+		else {
+			$(this).attr('data-target','#defaultModal');	// Default option for no modal behavior set
+		}
+	});
+
+	// clear out the anchor links to prevent changing the page
+	var modals = document.querySelectorAll("a.bs-modal");
+	for( var i = 0; i < modals.length; i++ )
+	{
+		// Watch for modals that were already init'ed in another process
+		var data_iframe_src = $(modals[i]).attr( 'data-iframe-src');
+		if( (data_iframe_src === undefined) || (data_iframe_src === null) )
+		{
+			modals[i].setAttribute( "data-iframe-src", modals[i].getAttribute("href") );
+			modals[i].setAttribute( "href", "#" );
+		}
+	}
+};
+
+TrendMicro.BootStrapModal.prototype.copyHandler = function( event )
+{
+	var copyTextarea = document.querySelector('.copy-to-clipboard-content');
+	$(copyTextarea).select();
+	var successful = document.execCommand('copy');
+};
+
+TrendMicro.BootStrapModal.prototype.clickHandler = function( event )
+{
+	// (this) is pointed at whichever HTML element triggered this function
+	// We will be passing member scope through the event.data.self variable
+	var self = event.data.self;
+	var jqueryWrappedElement = $(this);
+	var iframeSrc = jqueryWrappedElement.attr("data-iframe-src");
+
+	// pass thru the wcmmode=disabled if present
+	iframeSrc = self.passQueryParameter( window.location, iframeSrc, self.authorModeQueryParameter, self.authorModeDisabled );
+
+	// Anything we're running on should pass the modal-view=true parameter
+	iframeSrc = self.addQueryParameter( window.location, iframeSrc, self.modalViewQueryParameter, self.modalViewTrue)
+
+	if( self.isOpen ) { return; }	// Don't do anything if a modal is already open
+
+	if ( self.isException(iframeSrc) )
+	{
+		var tab = window.open(iframeSrc, '_blank');
+		event.stopPropagation();
+		event.preventDefault();
+	}
+	else
+	{
+		var idAttribute = jqueryWrappedElement.attr("id");
+		var modalString = '';
+
+		if( idAttribute ) { modalString = '?modal=' + idAttribute; }
+
+		var imageString = "<div class='img-wrap'><img src='" + iframeSrc + "' class='modal-img'/></div>";
+		var videoString = "<div class='modal-video' id='modal-video-" + iframeSrc + "'></div>";
+		var iframeString  = '<iframe class="modal-iframe" src="' + iframeSrc + '">';
+			iframeString += '	<p>Your browser does not support iframes.</p>';
+			iframeString += '</iframe>';
+
+		self.currentSrc = iframeSrc;
+
+		// Do these before we inject markup into the page
+		self.setTitle( jqueryWrappedElement.attr("data-modal-title") );
+		self.setDescription( jqueryWrappedElement.attr("data-modal-description") );
+		self.setMediaURL( jqueryWrappedElement.attr("data-modal-resource-url") );
+		self.setLink( window.location.host + window.location.pathname + modalString + window.location.hash );
+
+		// Inject the modal into the page
+		$(".modal-wrap").html( self.getModalMarkup( $(this).attr('data-modal-behavior') ) );
+
+		// determine best way to show the asset based on it's filetype
+		var type = self.checkURL( iframeSrc );
+		switch( type )
+		{
+			case 'img':
+				$(".modal-body").html( imageString );
+				break;
+
+			case 'video':
+				if ( $(this).attr('data-modal-behavior') == 'playlistView' ) {
+					self.setupPlaylist(jqueryWrappedElement);
+				}
+				else {
+					$(".modal-body").html( videoString );
+					jwplayer.key = $(".jwPlayerString").text().trim();
+					jwplayer( 'modal-video-' + iframeSrc ).setup({
+						file: iframeSrc
+					});
+					setTimeout(
+						function()
+						{
+							jwplayer( 'modal-video-'+ iframeSrc ).play();
+							self.currentVideoId = 'modal-video-' + iframeSrc;
+						},
+						500
+					);
+				}
+				break;
+
+			default:
+				$(".modal-body").html( iframeString );
+				if( iframeString.indexOf('www.youtube.com') !== -1 ) {
+					$(".modal-iframe").attr('allowFullScreen','');
+				}
+				else {
+					$(".modal-content").addClass('light-modal'); //Light theme for iframe if not youtube video
+				}
+				break;
+		}
+
+		$('#copy-paste .copy-to-clipboard-content').val(
+			window.location.host + window.location.pathname + modalString + window.location.hash
+		);
+
+		var copyTextareaBtn = document.querySelector('.copy-to-clipboard-button');
+
+		if (copyTextareaBtn !== null) {
+			copyTextareaBtn.addEventListener('click', self.copyHandler );
+		}
+
+		self.isOpen = true;
+	}
+};
+
+TrendMicro.BootStrapModal.prototype.setDescription = function( description )
+{
+	if( description !== '' )
+	{
+		 this.metadata.description = description;
+	}
+
+};
+
+TrendMicro.BootStrapModal.prototype.setTitle = function( title )
+{
+	if( title == '' || title === undefined )
+	{
+		// Their can be iframes, so only run with the first title element
+		this.metadata.title = $(document).find("title")[0].text;
+	}
+	else
+	{
+		this.metadata.title = title;
+	}
+};
+
+TrendMicro.BootStrapModal.prototype.setLink = function( link )
+{
+	if( link !== '' )
+	{
+		 this.metadata.link = 'https://' + link;
+	}
+};
+
+TrendMicro.BootStrapModal.prototype.setMediaURL = function( link )
+{
+	if( link !== '' )
+	{
+		 this.metadata.mediaURL = link;
+	}
+};
+
+TrendMicro.BootStrapModal.prototype.setupPlaylist = function( currentJqueryWrappedElement )
+{
+	var self = this;
+	var currentVideo = new TrendMicro.PlayListVideo();
+	var nextVideo = new TrendMicro.PlayListVideo();
+
+	currentVideo.source = currentJqueryWrappedElement.attr("data-iframe-src");
+	currentVideo.image = currentJqueryWrappedElement.attr("data-video-image");
+	currentVideo.title = currentJqueryWrappedElement.attr("data-video-title");
+	currentVideo.description = currentJqueryWrappedElement.attr("data-video-description");
+	currentVideo.captions = currentJqueryWrappedElement.attr("data-video-captions");
+	currentVideo.index = currentJqueryWrappedElement.attr("data-video-index");
+	currentVideo.playlistOptions = currentJqueryWrappedElement.attr("data-playlist-opts");
+
+	var $onPauseWrap = currentJqueryWrappedElement.closest(".video-trigger").find(".on-pause-overlay-content");
+	var $onCompleteWrap = currentJqueryWrappedElement.closest(".video-trigger").find(".on-complete-overlay-content");
+
+	currentVideo.onPauseContent = $onPauseWrap.length ? $onPauseWrap.html() : 'blah';
+	currentVideo.onCompleteContent = $onCompleteWrap.length ? $onCompleteWrap.html() : 'blah2';
+
+	if (currentVideo.title !== "") {
+		$("#playlistViewModal .modal-title").text(currentVideo.title);
+	}
+
+	var optionsJSON = JSON.parse(currentVideo.playlistOptions);
+	var playlist = optionsJSON.playlist;
+
+	var videoString = "<div class='modal-video' id='modal-video-" + currentVideo.index + "'></div>";
+
+	$(".modal-body").append( videoString );
+	jwplayer.key = $(".jwPlayerString").text().trim();
+	jwplayer( 'modal-video-' + currentVideo.index ).setup({
+		file: currentVideo.source,
+		image: currentVideo.image,
+		title: currentVideo.title,
+		description: currentVideo.description,
+		tracks: [{
+			file:	currentVideo.captions,
+			label:	"English",
+			kind:	"captions"
+
+		}]
+	});
+
+	setTimeout(
+		function()
+		{
+			/*start playlst*/
+			//jwplayer( 'modal-video-'+ currentVideo.index ).playlistItem(currentVideo.index);
+
+			jwplayer( 'modal-video-'+ currentVideo.index ).play();
+			self.currentVideoId = 'modal-video-' + currentVideo.index;
+		},
+		500
+	);
+
+	/**next video**/
+	if (playlist.length > 1) {
+		if (currentVideo.index == playlist.length - 1) {
+			nextVideo.index = 0;
+		}
+		else {
+			nextVideo.index = parseInt(currentVideo.index) + 1;
+		}
+	}
+
+	var $nextVideo = currentJqueryWrappedElement.closest(".tm-playlist").find("[data-video-index='" + nextVideo.index + "']");
+
+	nextVideo.source = $nextVideo.attr("data-iframe-src");
+	nextVideo.image = $nextVideo.attr("data-video-image");
+	nextVideo.title = $nextVideo.attr("data-video-title");
+	nextVideo.description = $nextVideo.attr("data-video-description");
+
+	/** setup JW player event handlers **/
+	jwplayer( 'modal-video-'+ currentVideo.index ).on('pause',function(){
+		self.onPauseHandler(self, 'modal-video-'+ currentVideo.index, currentVideo);
+	});
+
+	jwplayer( 'modal-video-'+ currentVideo.index ).on('complete',function(){
+		self.onCompleteHandler(self, 'modal-video-'+ currentVideo.index, currentVideo, nextVideo);
+	});
+};
+
+TrendMicro.BootStrapModal.prototype.onPauseHandler = function( self, videoID, currentVideo )
+{
+	var onPauseContent;
+	onPauseContent  = '<div class="on-pause-card">';
+	onPauseContent += '		<div class="resume-video-wrap">';
+	onPauseContent += '			<button class="resume-video" title="Resume"><span class="icon-triangle-right material-symbols-outlined">arrow_right</span></button>';
+	onPauseContent += '		</div>';
+	onPauseContent += '		<div class="on-pause-content">' + currentVideo.onPauseContent + '</div>';
+	onPauseContent += '</div>';
+
+	$("#playlistViewModal .cta-card .card-container").append(onPauseContent);
+
+	$("#playlistViewModal .resume-video").on(
+		"click",
+		{
+			self: self,
+			videoID: videoID
+		},
+		self.resumeVideoHandler
+	);
+
+	$("#playlistViewModal .cta-card").removeClass("hidden");
+};
+
+TrendMicro.BootStrapModal.prototype.onCompleteHandler = function( self, currentVideoID, currentVideo, nextVideo )
+{
+	var onCompleteContent;
+    	onCompleteContent  = '<div class="on-complete-card">';
+    	onCompleteContent += '		<div class="on-complete-content"><div class="on-complete-inner-wrap">' + currentVideo.onCompleteContent + '</div></div>';
+    	onCompleteContent += '		<div class="next-video-wrap">';
+    	onCompleteContent += '			<div class="next-video-inner-wrap">';
+		onCompleteContent += '				<span class="up-next">Up next in<span class="timer"> 15</span></span>';
+    	onCompleteContent += '				<div class="next-video-image">';
+    	onCompleteContent += '					<div class="image-wrap">';
+    	onCompleteContent += '						<img src="' + nextVideo.image + '" alt="' + nextVideo.title + '" class="hidden-xs">';
+    	onCompleteContent += '						<span class="icon-triangle-right hidden-xs"></span>';
+    	onCompleteContent += '					</div>';
+		onCompleteContent += '					<p class="body-subhead-title">' + nextVideo.title + '</p>';
+		onCompleteContent += '					<p class="video-description">' + nextVideo.description + '</p>';
+		onCompleteContent += '					<div class="mobile-play-button"><span class="material-symbols-outlined icon-triangle-right">arrow_right</span></div>';
+    	onCompleteContent += '				</div>';
+    	onCompleteContent += '			</div>';
+    	onCompleteContent += '		</div>';
+    	onCompleteContent += '</div>';
+
+	$("#playlistViewModal .cta-card .card-container").append(onCompleteContent);
+
+	$("#playlistViewModal .next-video-image").on(
+		"click",
+		{
+			self: self,
+			currentVideoID: currentVideoID,
+			nextVideo: nextVideo
+		},
+		self.nextVideoHandler
+	);
+
+	$("#playlistViewModal .cta-card").removeClass("hidden");
+
+	var timeleft = 14;
+
+	self.intervalHandle = setInterval(function(){
+		$("#playlistViewModal .timer").html(" " + timeleft);
+		timeleft -= 1;
+
+		if(timeleft < 0){
+			clearInterval(self.intervalHandle);
+			$("#playlistViewModal .next-video-image").trigger('click');
+		}
+	}, 1000);
+};
+
+TrendMicro.BootStrapModal.prototype.resumeVideoHandler = function( event )
+{
+	//alert("Video Completed");
+	var self = event.data.self;
+	var videoID = event.data.videoID;
+	$("#playlistViewModal .cta-card").addClass("hidden");
+	$("#playlistViewModal .on-pause-card").remove();
+
+	jwplayer(videoID).play();
+};
+
+TrendMicro.BootStrapModal.prototype.nextVideoHandler = function( event )
+{
+	//alert("Video Completed");
+	var self = event.data.self;
+	var currentVideoID = event.data.currentVideoID;
+	var nextVideo = event.data.nextVideo;
+
+    clearInterval(self.intervalHandle);
+	$("#playlistViewModal .cta-card").addClass("hidden");
+	$("#playlistViewModal .on-complete-card").remove();
+
+	if (nextVideo.title !== "") {
+		$("#playlistViewModal .modal-title").text(nextVideo.title);
+	}
+
+	jwplayer(currentVideoID).remove();
+	self.setupPlaylist($(".jwPlayer [data-video-index='" + nextVideo.index + "']"));
+};
+
+TrendMicro.BootStrapModal.prototype.deactivateModal = function( event )
+{
+	// (this) is pointed at whichever HTML element triggered this function
+    // We will be passing member scope through the event.data.self variable
+	var self = event.data.self;
+	var type = self.checkURL( self.currentSrc );
+
+	if( type == 'video' )
+	{
+		jwplayer( self.currentVideoId ).stop(); //Stop the video
+		clearInterval(self.intervalHandle);
+	}
+	else if( type == 'iframe')
+	{
+		$(".modal-iframe").remove(); //Remove the iframe (mainly to stop youtube video)
+	}
+
+	self.isOpen = false;
+};
+
+TrendMicro.BootStrapModal.prototype.checkURL = function( url )
+{
+	if (url !== null)
+	{
+		if (url.match(/\.(jpeg|jpg|gif|png)/))
+		{
+			return 'img';
+		}
+		else if (url.match(/\.(mp4)/))
+		{
+			return 'video';
+		}
+		else
+		{
+			return 'iframe';
+		}
+	}
+};
+
+TrendMicro.BootStrapModal.prototype.isException = function( url )
+{
+	if (url !== null)
+	{
+		var parser = new UAParser();
+		var user_agent = navigator.userAgent;
+
+		parser.setUA( user_agent );
+		var os = parser.getOS().name;
+
+		if ( url.match(/\.(pdf)/) && (os == 'Android' || os == 'iOS' || $(window).width() < 1024) ) {
+			return true;
+		}
+	}
+	return false;
+};
+
+TrendMicro.BootStrapModal.prototype.getModalMarkup = function( dataModalBehavior )
+{
+	switch( dataModalBehavior )
+	{
+		case 'imageView':
+			return this.getImageViewerModalMarkup();
+
+		case 'playlistView':
+			return this.getPlaylistViewModalMarkup();
+
+		default:
+			return this.getDefaultModalMarkup();
+	}
+};
+
+TrendMicro.BootStrapModal.prototype.activateAutoModal = function()
+{
+	if( this.isOpen ) { return; }
+	let modalIDAttribute = this.getModalQueryParameter();
+	if( modalIDAttribute )
+	{
+		$('#' + modalIDAttribute ).trigger( 'click' );
+	}
+};
+
+TrendMicro.BootStrapModal.prototype.getModalQueryParameter = function()
+{
+	let query = window.location.search.substring(1);
+	let vars = query.split("&");
+	for( let i = 0; i < vars.length; i++ )
+	{
+		var pair = vars[i].split("=");
+		if( pair[0] == 'modal' )
+		{
+			return pair[1];
+		}
+	}
+
+	return false;
+};
+
+TrendMicro.BootStrapModal.prototype.hasQueryParameter = function( urlString, parameter, value )
+{
+	let url;
+
+	try {
+		url = new URL(urlString);
+	} catch( e ) {
+		return false;
+	}
+
+	let params = url.searchParams;
+	if( !params ) { return false; }
+
+	return params.has( parameter, value );
+};
+
+TrendMicro.BootStrapModal.prototype.passQueryParameter = function( browserURL, urlString, queryParameter, queryValue )
+{
+	if( !this.hasQueryParameter( browserURL, queryParameter, queryValue ) ) { return urlString; }
+
+	let origin = new URL( browserURL ).origin;
+	let url;
+
+	try {
+		url = new URL( urlString, origin );
+	} catch( e ) {
+		return urlString;
+	}
+
+	let searchParams = url.searchParams
+	url.searchParams.append( queryParameter, queryValue );
+	return url.toString();
+};
+
+TrendMicro.BootStrapModal.prototype.addQueryParameter = function( browserURL, urlString, queryParameter, queryValue )
+{
+	let origin = new URL( browserURL ).origin;
+	let url;
+
+	try {
+		url = new URL( urlString, origin );
+	} catch( e ) {
+		return urlString;
+	}
+
+	let searchParams = url.searchParams
+	url.searchParams.append( queryParameter, queryValue );
+	return url.toString();
+};
+
+bsModal = new TrendMicro.BootStrapModal();
+
+$(document).ready(function()
+{
+	bsModal.init();
+	bsModal.activateAutoModal();
+});
+
+
+
+
+if( typeof TrendObserver === 'undefined' ) {
+	TrendObserver = class {
+		// We're going to use the array calls for ease of use
+		clients
+
+		constructor() {
+			this.clients = [];
+		}
+
+		addObserver(clientObject, callback) {
+			let pair = {
+				'client': clientObject,
+				'callback': callback
+			};
+
+			this.clients.push(pair);
+		}
+
+		removeObserver(clientObject) {
+			// Just use the filter() method to recreate this array with the specified item removed
+			this.clients = this.clients.filter(pair => {
+				return pair.client !== clientObject;
+			});
+		}
+
+		notifyAll() {
+			this.clients.forEach(item => {
+				item.callback.call(item.client);
+			});
+		}
+	}
+}
+
+if( typeof OffsetCalculator === 'undefined' ) {
+	OffsetCalculator = class {
+		resizeOffsetElements
+
+		constructor(elements = []) {
+			this.resizeOffsetElements = elements
+		}
+
+		calculateOffset() {
+			let result = 0;
+
+			this.resizeOffsetElements.forEach((element) => {
+				result += element.offsetHeight;
+			});
+
+			return Math.floor( result ) - 1;	// No decimals, drop by one in case decimals have popped us over 1
+		}
+
+		addOffsetElement(element) {
+			this.resizeOffsetElements.push(element);
+		};
+
+		removeOffsetElement(element) {
+			let index = this.resizeOffsetElements.indexOf(element);
+			this.resizeOffsetElements.splice(index, 1);
+		};
+
+		removeOffsetElementByClassAttribute(classAttribute) {
+			for (let i = 0; i < this.resizeOffsetElements.length; i++) {
+				if (this.resizeOffsetElements[i].classList.contains(classAttribute)) {
+					this.removeOffsetElement(this.resizeOffsetElements[i]);
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		hasElement( classAttribute ) {
+			for( let i = 0; i < this.resizeOffsetElements.length; i++ ) {
+				if( this.resizeOffsetElements[i].classList.contains( classAttribute ) ) {
+					return true;
+				}
+			}
+
+			return false;
+		}
+	}
+}
+
+TrendMicro.Accordion = function( element, multiOpen, parentAccordionList ) {
+	this.element = element;
+	this.multiOpen = multiOpen;
+	this.parentAccordionList = parentAccordionList;
+
+	this.accordionBodySelector = ".accordionBody";
+	this.accordionHeadingSelector = ".accordion_heading";
+	this.accordionButtonSelector = ".accordion_button";
+	this.accordionBodyElement = element.querySelector( this.accordionBodySelector );
+	this.accordionHeadingElement = element.querySelector( this.accordionHeadingSelector );
+	this.accordionButtonElement = element.querySelector( this.accordionButtonSelector);
+	this.startOpenClass = 'start-open';
+
+	this.openState = this.isOpenOnLoad()
+
+	// We only want the individual open/close event to trigger from the heading, not the body of the accordion
+	$(element).find(this.accordionHeadingSelector).on( 'click', { self: this }, this.clickHandler );
+};
+
+TrendMicro.Accordion.prototype.isOpenOnLoad = function()
+{
+	return this.accordionBodyElement.classList.contains( this.startOpenClass );
+}
+
+TrendMicro.Accordion.prototype.clickHandler = function( event )
+{
+	let self = event.data.self;
+
+	if( self.openState ) {
+		self.close();
+	} else {
+		if( !self.multiOpen ) { self.parentAccordionList.closeAll(); }
+		self.open();
+	}
+}
+
+TrendMicro.Accordion.prototype.open = function()
+{
+	this.accordionButtonElement.innerHTML = "remove";
+	//finding accordionBody and finding items with 'button' class and adding 'hide-arrow'
+	$(this.accordionBodyElement).find('.button').addClass('hide-arrow');
+	$(this.accordionBodyElement).slideDown(() => {
+		//after slideDown finding each 'button' within accordionBody and removing the 'hide-arrow' class
+		$(this.accordionBodyElement).find('.button').removeClass('hide-arrow');
+	});
+	// $(this.accordionBodyElement).slideDown(260);
+	// $(this.accordionBodyElement).find('.button').removeClass('hide-arrow');
+	this.openState = true;
+}
+
+TrendMicro.Accordion.prototype.close = function()
+{
+	this.accordionButtonElement.innerHTML = "add";
+	//finding accordionBody and finding items with 'button' class and adding 'hide-arrow'
+	$(this.accordionBodyElement).slideUp();
+	$(this.accordionBodyElement).find('.button').addClass('hide-arrow');
+	//$(this.accordionBodyElement).slideUp(260);
+	this.openState = false;
+}
+
+TrendMicro.AccordionList = function( element )
+{
+	this.element = element;
+	this.accordionSelector = ".accordion";
+	this.openAllSelector = ".open-all";
+	this.closeAllSelector = ".close-all";
+	this.multiOpenAttribute = "multiOpen";
+	this.multiOpen = this.isMultiOpen( this.element );
+
+	this.accordions = [];
+	this.accordionElements = element.querySelectorAll( this.accordionSelector );
+	this.accordionElements.forEach( (element) => {
+		this.accordions.push( new TrendMicro.Accordion( element, this.multiOpen, this ) );
+	});
+
+	this.openAllElement = element.querySelector( this.openAllSelector );
+	if( this.openAllElement != null ) {
+		$(this.openAllElement).on('click', {self: this}, function (event) {
+			event.data.self.openAll();
+		})
+	}
+
+	this.closeAllElement = element.querySelector( this.closeAllSelector );
+	if( this.closeAllElement != null ) {
+		$(this.closeAllElement).on( 'click', {self:this}, function(event){
+			event.data.self.closeAll();
+		})
+	}
+};
+
+TrendMicro.AccordionList.prototype.isMultiOpen = function( element )
+{
+	return element.hasAttribute(this.multiOpenAttribute) && element.getAttribute(this.multiOpenAttribute) === this.multiOpenAttribute;
+}
+
+TrendMicro.AccordionList.prototype.openAll = function()
+{
+	this.accordions.forEach( (accordionObject ) => {
+		accordionObject.open();
+	})
+}
+
+TrendMicro.AccordionList.prototype.closeAll = function()
+{
+	this.accordions.forEach( (accordionObject ) => {
+		accordionObject.close();
+	})
+}
+
+TrendMicro.AccordionOpenClose = function( element, accordionController )
+{
+	this.element = element;
+	this.accordionController = accordionController;
+	this.parentElement = element.parentElement;
+	this.openElement = element.querySelector( '.open-all-accordions' );
+	this.closeElement = element.querySelector( '.close-all-accordions' );
+
+	$( this.openElement ).on( 'click', {self:this}, this.openClickHandler );
+	$( this.closeElement ).on( 'click', {self:this}, this.closeClickHandler );
+};
+
+TrendMicro.AccordionOpenClose.prototype.openClickHandler = function( eventObject )
+{
+	let self = eventObject.data.self;
+
+	self.accordionController.openAll( self.parentElement );
+}
+
+TrendMicro.AccordionOpenClose.prototype.closeClickHandler = function( eventObject )
+{
+	let self = eventObject.data.self;
+
+	self.accordionController.closeAll( self.parentElement );
+}
+
+TrendMicro.AccordionController = function() {
+	this.accordionListSelector = ".accordionList";
+	this.accordionOpenCloseSelector = '.accordionOpenCloseAllV1'
+
+	this.accordionLists = [];
+	this.accordionOpenCloseObjects = [];
+};
+
+TrendMicro.AccordionController.prototype.init = function()
+{
+	let accordionListElements = document.querySelectorAll( this.accordionListSelector );
+	accordionListElements.forEach( (element) => {
+		this.accordionLists.push( new TrendMicro.AccordionList(element) );
+	});
+
+	let openCloseElements = document.querySelectorAll( this.accordionOpenCloseSelector );
+	openCloseElements.forEach( (element) => {
+		this.accordionOpenCloseObjects.push( new TrendMicro.AccordionOpenClose( element, this ) );
+	});
+};
+
+TrendMicro.AccordionController.prototype.openAll = function( parentElement )
+{
+	this.accordionLists.forEach( (accordionList) => {
+		if( accordionList.element.parentElement.parentElement === parentElement ) {
+			accordionList.openAll();
+		}
+	});
+}
+
+TrendMicro.AccordionController.prototype.closeAll = function( parentElement )
+{
+	this.accordionLists.forEach( (accordionList) => {
+		if( accordionList.element.parentElement.parentElement === parentElement ) {
+			accordionList.closeAll();
+		}
+	});
+}
+
+let accordionController = new TrendMicro.AccordionController();
+$(document).ready( function() {
+	accordionController.init();
+});
+
+TrendMicro.AccordionWithImage = function() {
+	this.mobileMaxWidth = "(max-width: 1023px)";
+	this.desktopMinWidth = "(min-width: 1024px)";
+};
+
+TrendMicro.AccordionWithImage.prototype.init = function(){
+
+	let accordion_with_images = document.querySelectorAll( ".accordionWithImageV1 .accordionWithImage");
+	for( var i=0; i < accordion_with_images.length; i++ ){
+		this.initAccordionWithImage( accordion_with_images[i] );
+	}
+};
+
+TrendMicro.AccordionWithImage.prototype.initAccordionWithImage = function( accordion_with_image ){
+
+	// On page-load open the first tab of the accordion
+	let first_tab = $(accordion_with_image).find('.accordionContainer:first .accordion-heading');
+	this.openTab( first_tab );
+};
+
+TrendMicro.AccordionWithImage.prototype.handleTabClick = function( clickedTab ){
+
+	// If the clicked tab is already open, then close it. Otherwise, open the tab
+	if( $(clickedTab).find('.add').hasClass('hide-icon') ) {
+
+		this.closeTab( clickedTab );
+	}
+	else{
+		// ------------------
+		// else, open the tab
+		// ------------------
+			// Reset all tabs
+			let accordion_with_image = $(clickedTab).closest('.accordionWithImageV1');
+			this.collapseAll( accordion_with_image );
+
+			this.openTab( clickedTab );
+	}
+};
+
+TrendMicro.AccordionWithImage.prototype.closeTab = function( tab ){
+
+	// Toggles between slideUp and slideDown for selected element.
+	$(tab).next('.accordion-content').slideUp(200);
+
+	// Toggles dropdown icon to plus/minus.
+	$(tab).find('.dropdown-icon').toggleClass('hide-icon');
+};
+
+TrendMicro.AccordionWithImage.prototype.openTab = function( tab ){
+
+	// Toggles between slideUp and slideDown for selected element.
+	$(tab).next('.accordion-content').slideToggle(200);
+
+	// Toggles dropdown icon to plus/minus.
+	$(tab).find('.dropdown-icon').toggleClass('hide-icon');
+};
+
+TrendMicro.AccordionWithImage.prototype.collapseAll = function( accordion_with_image ){
+
+ 	$( accordion_with_image ).find('.accordion-heading .add').removeClass('hide-icon');
+ 	$( accordion_with_image ).find('.accordion-heading .remove').addClass('hide-icon');
+ 	$( accordion_with_image ).find('.accordion-content').slideUp();
+};
+
+
+$(document).ready( function() {
+	accordionWithImageObj = new TrendMicro.AccordionWithImage();
+	accordionWithImageObj.init();
+
+	$(".accordionWithImageV1 .accordion-heading").click(function() {
+
+		accordionWithImageObj.handleTabClick( this );
+	});
+});
+
+TrendMicro.HorizontalJumpLink = function()
+{
+	this.sections = null;
+	this.navLi = null;
+	this.stickButton = null;
+	this.globalNavHeight = 0;
+	this.footerOffset = 0;
+	this.stickyTop = null;
+	this.mainNav = $(".page-header").height();
+
+	this.stickyNavElements = null;
+	this.offsetCalculator = null;
+	this.mainNavObject = null;
+	this.disruptorObject = null;
+};
+
+TrendMicro.HorizontalJumpLink.prototype.init = function( mainNavObject = null )
+{
+	this.mainNavObject = mainNavObject;
+	this.stickyNavElements = document.querySelectorAll( '.jumpLinkBarV1 .sticky-nav.stickyHorizontal' );
+	for( let i=0; i < this.stickyNavElements.length; i++ ){
+		this.initStickyNavs( this.stickyNavElements[i] );
+	}
+
+	this.offsetCalculator = new OffsetCalculator();
+	// Use headerAssembly instead of pageHeader, in case disruptors have been added into/under the header
+	if( this.mainNavObject.headerAssembly != null ) {
+		//this.offsetCalculator.addOffsetElement( this.mainNavObject.headerAssembly );
+		this.offsetCalculator.addOffsetElement( this.mainNavObject.pageHeader );
+	}
+};
+
+TrendMicro.HorizontalJumpLink.prototype.initStickyNavs = function( stickyNav )
+{
+	if( $(stickyNav).length < 1 ) {	return; }
+
+	this.stickyTop = $(stickyNav).offset().top;
+
+	// -------------------------------------------------------------
+	// .sticky-section selector
+	// Note: Here, closest() is a javascript call, not a jQuery call
+	// -------------------------------------------------------------
+	this.sections = stickyNav.closest('.aem-Grid').querySelectorAll(".sticky-section");
+
+	// --------------
+	// navLi selector
+	// --------------
+	this.navLi = stickyNav.querySelectorAll('.container-content ul li');
+
+	// ---------------------------
+	// StickButton for Mobile view
+	// ---------------------------
+	this.stickButton = $(stickyNav).find('.stick-button');
+	let firstItemText = $(stickyNav).find("li:first-child a").text();
+	$(this.stickButton).find(".stickButtonText").text( firstItemText );
+
+	$(window).on("scroll", {self:this, stickynav:stickyNav}, this.scrollListener);
+	$(window).on("resize orientationchange", {self:this, stickynav:stickyNav}, this.resizeListener);
+	$(this.stickButton).on("click", {self:this}, this.stickButtonClickListener);
+
+	// -----------------------
+	// Nav item click Listener
+	// -----------------------
+	const navItem = $(".sticky-nav").find(".container-content ul li a");
+	$(navItem).on( "click", {self:this}, this.navItemClickListener );
+};
+
+TrendMicro.HorizontalJumpLink.prototype.findCurrentId = function(){
+
+	let current = "";
+
+	(this.sections).forEach( (section) => {
+		const sectionTop = section.offsetTop;
+		if (pageYOffset >= sectionTop - this.mainNav - 80) {
+			current = section.getAttribute("id");
+		}
+	});
+
+	return current;
+};
+
+TrendMicro.HorizontalJumpLink.prototype.activateCurrentNavItem = function( currentId )
+{
+	this.navLi.forEach( (li) => {
+		li.classList.remove("active");
+		if ( $(li).find("a").attr("href") === ("#" + currentId) ) {
+			li.classList.add("active");
+
+			$( this.stickButton ).find(".stickButtonText").text( $(li).find("a").text() );
+		}
+	});
+};
+
+// -------------------------------------------------------------
+// Calculate the top of jumplink horizontal nav based on whether
+// global nav displays or not
+// -------------------------------------------------------------
+TrendMicro.HorizontalJumpLink.prototype.findVerticalOffset = function ()
+{
+	return this.offsetCalculator.calculateOffset();
+};
+
+TrendMicro.HorizontalJumpLink.prototype.setStickyNavTop = function( stickyNav )
+{
+	$(stickyNav).parent('.jumpLinkBarV1').css("top", this.globalNavHeight + "px");
+}
+
+TrendMicro.HorizontalJumpLink.prototype.findFooterOffset = function()
+{
+	if( $('.footer-wrapper').length ) {
+		return $('.footer-wrapper').offset().top - 100;
+	} else {
+		return 0;
+	}
+};
+
+TrendMicro.HorizontalJumpLink.prototype.makeItSticky = function( scrollObj, stickyNav )
+{
+	let footerBoolean = this.footerOffset != 0 ? $(scrollObj).scrollTop() < this.footerOffset : true;
+	let windowScroll = $(scrollObj).scrollTop();
+	let menuPositionMinusOffset = this.stickyTop - this.globalNavHeight
+
+	if( menuPositionMinusOffset < 0 ) { menuPositionMinusOffset = 0; }
+
+	if( (windowScroll > menuPositionMinusOffset) && footerBoolean ) {
+		$(stickyNav).parent('.jumpLinkBarV1').addClass("sticky");
+	} else {
+		$(stickyNav).parent('.jumpLinkBarV1').removeClass("sticky");
+		$(stickyNav).parent(".jumpLinkBarV1").removeAttr("style");
+	}
+};
+
+TrendMicro.HorizontalJumpLink.prototype.scrollListener = function( event )
+{
+	let self = event.data.self;
+	let stickyNav = event.data.stickynav;
+
+	let currentId = self.findCurrentId();
+	self.activateCurrentNavItem( currentId );
+	self.globalNavHeight = self.findVerticalOffset();
+	self.setStickyNavTop( stickyNav );
+	self.footerOffset = self.findFooterOffset();
+
+	self.makeItSticky( this, stickyNav );
+};
+
+TrendMicro.HorizontalJumpLink.prototype.resizeListener = function( event )
+{
+	let self = event.data.self;
+	let stickyNav = event.data.stickynav;
+	self.setStickyNavTop( stickyNav );
+};
+
+TrendMicro.HorizontalJumpLink.prototype.stickButtonClickListener = function( event )
+{
+	let self = event.data.self;
+
+	if (!$(this).closest(".sticky-nav").hasClass("stickyVertical")) {
+		$(this).parent().find("ul").slideToggle();
+	}
+	$(this).closest(".container-content").toggleClass("on");
+};
+
+TrendMicro.HorizontalJumpLink.prototype.navItemClickListener = function( event )
+{
+	let self = event.data.self;
+	const _id = $(this).attr("href");
+
+	if ($(_id).length) {
+		$("html, body").animate(
+			{
+				scrollTop: $(_id).offset().top - self.mainNav - 78,
+			},
+			800,
+			function () {
+				history.pushState({}, "", _id);
+			}
+		);
+	}
+
+	let parentContainer = $(this).closest(".container-content");
+	let parentStickyNav = $(this).closest('.sticky-nav');
+	if ( $(parentContainer).hasClass("on") && !$(parentStickyNav).hasClass("stickyVertical") ) {
+		$(this).closest('ul').slideUp().closest(".container-content").removeClass("on");
+	}
+};
+
+TrendMicro.HorizontalJumpLink.prototype.removeDisruptorHandler = function()
+{
+	this.offsetCalculator.removeOffsetElementByClassAttribute( this.disruptorObject.offsetSelector );
+	this.positionJumpLinkBar();
+}
+
+TrendMicro.HorizontalJumpLink.prototype.showDisruptorHandler = function()
+{
+	this.offsetCalculator.addOffsetElement( this.disruptorObject.element );
+	this.positionJumpLinkBar();
+}
+
+TrendMicro.HorizontalJumpLink.prototype.hideDisruptorHandler = function()
+{
+	this.offsetCalculator.removeOffsetElementByClassAttribute( this.disruptorObject.offsetSelector );
+	this.positionJumpLinkBar();
+}
+
+TrendMicro.HorizontalJumpLink.prototype.positionJumpLinkBar = function()
+{
+	this.globalNavHeight = this.findVerticalOffset();
+
+	// This shouldn't even have multiple horizontal bars, as they'll just jumble up, but here we are
+	this.stickyNavElements.forEach( (stickyNavElement) => {
+		this.setStickyNavTop( stickyNavElement );
+	});
+}
+
+TrendMicro.HorizontalJumpLink.prototype.showMainMenuHandler = function()
+{
+	if( !this.offsetCalculator.hasElement( this.mainNavObject.selectorForHorizontalJumpLink ) ) {
+		//this.offsetCalculator.addOffsetElement( this.mainNavObject.headerAssembly );
+		this.offsetCalculator.addOffsetElement( this.mainNavObject.pageHeader );
+		this.positionJumpLinkBar();
+	}
+}
+
+TrendMicro.HorizontalJumpLink.prototype.hideMainMenuHandler = function()
+{
+	this.offsetCalculator.removeOffsetElementByClassAttribute( this.mainNavObject.selectorForHorizontalJumpLink );
+	this.positionJumpLinkBar();
+}
+
+$(document).ready( function() {
+	horizontalJumpLinkObj = new TrendMicro.HorizontalJumpLink();
+	horizontalJumpLinkObj.init( mainNavMenu );
+});
+
+TrendMicro.VerticalJumpLink = function()
+{
+	this.isClicked = false;
+	this.clickedItem = null;
+	this.isScrolling = false;
+	this.jumpLinkRoot = null;
+	this.mainNav = null;
+	this.topSpace = null;
+	this.sliderHeight = null;
+	this.slyObject = null;
+};
+
+TrendMicro.VerticalJumpLink.prototype.init = function(event) {
+	// These must be done first for calculations needed in initStickyNavs()
+	this.mainNav = $(".businessHeaderV1 .headerAssemblyV1 .page-header").height();
+	this.topSpace = this.mainNav + 30;
+	this.sliderHeight = this.topSpace + 80 + "px";
+
+	let stickyNavs = document.querySelectorAll('.jumpLinkBarV1 .sticky-nav.stickyVertical');
+	for (let i = 0; i < stickyNavs.length; i++) {
+		this.initStickyNavs(stickyNavs[i]);
+	}
+};
+
+
+TrendMicro.VerticalJumpLink.prototype.initStickyNavs = function( stickyNav ){
+
+	// --------------------------------
+	// Adding some classes and wrappers
+	// --------------------------------
+	if( $(stickyNav).hasClass('stickyVertical') ){
+
+			$(stickyNav).closest('.jumpLinkBarV1').wrap('<div class="flex-row aem-GridColumn stickyVWrapper"></div>');
+
+			// -----------------------------------------------------------------------------------------------------------------------
+			// After executing the above code, $('.jumpLinkWrapperV1') is no longer a sibling of $('.jumpLinkBarV1'). So, let's use
+			// appendTo() to move $('.jumpLinkWrapperV1') to the parent wrapper of $('.jumpLinkBarV1'), making $('.jumpLinkBarV1') and
+			// $('.jumpLinkWrapperV1') siblings again
+			// -----------------------------------------------------------------------------------------------------------------------
+				$(stickyNav).closest('.stickyVWrapper').siblings('.jumpLinkWrapperV1').appendTo( $(stickyNav).closest('.jumpLinkBarV1').parent('.stickyVWrapper') );
+				$(stickyNav).closest('.jumpLinkBarV1').addClass('col-xs-1').removeClass('aem-GridColumn');
+				$(stickyNav).closest('.jumpLinkBarV1').siblings('.jumpLinkWrapperV1').wrap('<div class="col-xs-11"></div>');
+
+			// ----------------------------------------------------------------------------------------
+			// Seems like Intersection Observer doesn't play nice with bootstrap 3.x. As a result
+			// when user clicks on an item in the vertical nav bar, the content jumps
+			// to the targeted content rather than smoothly scrolling to it. Here we're adding a
+			// css class to the <HTML> tag so we can select it in css and add "scroll-behavior: smooth"
+			// to our HTML tag (only when we have jumpLink component is present on the page)
+			// ----------------------------------------------------------------------------------------
+				this.jumpLinkRoot = document.getElementsByTagName( 'html' )[0];
+				this.jumpLinkRoot.setAttribute('class', 'jumplink-smoothscroll');
+
+			// -----------------------------------
+			// Let's actually make stickNav sticky
+			// -----------------------------------
+				$(stickyNav).addClass("sticky");
+
+	}else{
+		return;
+	}
+
+	$(stickyNav).find('li a').on( 'click', {self:this}, this.stickyNavClickHandler );
+	this.intersectionObserver( stickyNav );
+	this.setUpSlyScroll( stickyNav );
+
+	// -------------------------------------------------------------------------
+	// Stick-button for mobile view.
+	// It shows/hides the vertical nav bar on the left side of the mobile screen
+	// -------------------------------------------------------------------------
+		$(stickyNav).find('.stick-button').click( {self:this}, this.stickButton );
+
+	// ------------------------------------------------------------------------------------------------
+	// Checks when scrolling stops. Based on the reference below
+	//
+	// Reference:
+	// https://gomakethings.com/detecting-when-a-visitor-has-stopped-scrolling-with-vanilla-javascript/
+	//
+	// When scrolling stops, it resets isClicked and clickedItem
+	// ------------------------------------------------------------------------------------------------
+		$(window).on("scroll",{self:this}, this.scrollListener );
+
+	// -------------------------------------------
+	// When browser resizes, it reloads Sly object
+	// -------------------------------------------
+		$(window).on("resize orientationchange", {self:this}, this.handleWindowResize );
+
+	// ---------------------------------------
+	// Click handler for the double up-chevron
+	// ---------------------------------------
+		$(stickyNav).find('.verticalprev').on('click', {self:this, root_element:stickyNav}, this.resetVerticalJumpLinkNav );
+
+};
+
+TrendMicro.VerticalJumpLink.prototype.activateVerticalJumpLinkItem = function( removeItem, activateItem){
+
+	$(removeItem).removeClass('active');
+	$(activateItem).addClass('active');
+};
+
+TrendMicro.VerticalJumpLink.prototype.resetVerticalJumpLinkNav = function( event ){
+
+	let self = event.data.self;
+	let stickyNav = event.data.root_element
+
+	// -------------------------------------------------------------------
+	// Note: $(selector)[0].click() invokes a click action on the selector
+	// -------------------------------------------------------------------
+	$(stickyNav).find('ul li:first-child a')[0].click();
+	self.slyObject.slideTo(0);
+};
+
+TrendMicro.VerticalJumpLink.prototype.stickyNavClickHandler = function( event ){
+
+	let self = event.data.self;
+	self.isClicked = true;
+	self.clickedItem = $(this);
+	$(this).closest('.stickyVWrapper').find('.jumpLinkWrapperV1').css('top', '0px');
+};
+
+TrendMicro.VerticalJumpLink.prototype.intersectionObserver = function( stickyNav ){
+
+	let self = this;
+	const sections = stickyNav.closest('.stickyVWrapper').querySelectorAll('.jumpLinkWrapperV1 .sticky-section');
+
+	const observer = new IntersectionObserver( entries => {
+		entries.forEach( entry => {
+			let target_id = entry.target.id
+			// ----------------------------------------------------------------------
+			// If user clicked on an item in vertical jumplink nav bar, don't observe
+			// ----------------------------------------------------------------------
+			if( self.isClicked ){
+
+				// -------------------------------------------------------------
+				// Adjust the content position if sticky global nav is displayed
+				// -------------------------------------------------------------
+				if( !$('.businessHeaderV1 .sticky-nav').length ){
+					$(stickyNav).closest('.stickyVWrapper').find('.jumpLinkWrapperV1').css('position', 'relative').css('top', self.mainNav + 'px');
+				}
+
+				$(self.clickedItem).closest('ul').children('li.active').removeClass('active');
+				$(self.clickedItem).closest('li').addClass('active');
+
+			}else{
+
+				// ------------------------------------------------------------------
+				// This else happens when user is scrolling the content (as opposed
+				// to clicking on an item in vertical jumplink nav bar) which invokes
+				// intersectionObserver
+				// ------------------------------------------------------------------
+				if( entry.isIntersecting ){
+
+					let removeItem = $(stickyNav).find("ul li a[href|='#" + target_id + "']").closest('ul').children('li.active');
+					let activateItem = $(stickyNav).find("ul li a[href|='#" + target_id + "']").closest('li');
+					self.activateVerticalJumpLinkItem( removeItem, activateItem );
+				}
+			}
+		})// entries.forEach( entry => {...
+
+	}, {threshold: 1,})
+
+	sections.forEach( (section) => {
+		observer.observe( section );
+	});
+};
+
+TrendMicro.VerticalJumpLink.prototype.setUpSlyScroll = function( stickyNav )
+{
+	if( $(stickyNav).hasClass( 'stickyVertical' ) ) {
+
+		$(stickyNav).css( "height", "calc(100vh - " + this.sliderHeight + ")", );
+		$(stickyNav).css("top", this.topSpace + "px");
+
+		// --------------------------------------------------------------------------
+		// Instantiate the sly object. The original jQuery implementation is replaced
+		// by creating an sly object which allows us to consume all the sly API
+		// methods.
+		// --------------------------------------------------------------------------
+		const slyOptions = {
+			itemNav: "basic",
+			activateOn: "click",
+			mouseDragging: 1,
+			touchDragging: 1,
+			releaseSwing: 1,
+			speed: 300,
+			smart: 1,
+			startAt: 0,
+			nextPage: $(stickyNav).find('.verticalnext')
+		};
+
+		this.slyObject = new Sly( stickyNav.querySelector( '.slyScroll' ) , slyOptions );
+		this.slyObject.init();
+	}
+};
+
+TrendMicro.VerticalJumpLink.prototype.handleWindowResize = function( event )
+{
+	let self = event.data.self;
+	let clearTime;
+
+	if( typeof clearTime !== 'undefined' ){
+		clearTimeout( clearTime );
+	}
+
+	clearTime = setTimeout(function () {	self.slyObject.reload(); }, 200 );
+};
+
+TrendMicro.VerticalJumpLink.prototype.stickButton = function( event )
+{
+	let self = event.data.this;
+	if ( !$(this).closest( ".sticky-nav" ).hasClass( "stickyVertical" ) ) {
+		$(this).parent().find("ul").slideToggle();
+	}
+	$(this).closest(".container-content").toggleClass("on");
+};
+
+TrendMicro.VerticalJumpLink.prototype.scrollListener = function( event)
+{
+	let self = event.data.self;
+	clearTimeout( self.isScrolling );
+	self.isScrolling = setTimeout( function() {
+		self.isClicked = false;
+		self.clickedItem = null;
+
+		let windowScrollTop = $(window).scrollTop();
+		let documentHeight = $(document).height();
+		let windowHeight = $(window).height();
+		let scrollPercent = windowScrollTop / (documentHeight - windowHeight);
+
+		if (self.slyObject && self.slyObject.pos && self.slyObject.pos.end !== null) {
+			// Calculate new Sly position based on scroll percent
+			let slyMaxScroll = self.slyObject.pos.end;
+			let newSlyPosition = scrollPercent * slyMaxScroll;
+
+			// Move Sly to the new position
+			self.slyObject.slideTo(newSlyPosition);
+		} else {
+			console.error("slyObject or slyObject.pos.end is null or undefined");
+		}
+	}, 66 );
+};
+
+verticalJumpLinkObj = new TrendMicro.VerticalJumpLink();
+$(document).ready( function() {
+	verticalJumpLinkObj.init();
+});
+
+TrendMicro.CardFeedSlider = function() {
+};
+
+TrendMicro.CardFeedSlider.prototype.init = function() {
+
+	if (document.querySelectorAll('.cardFeedV1').length > 0) {
+		let swiperInstance;
+		function initSwiper() {
+			if (window.innerWidth < 1024) {
+				if (!swiperInstance) {
+					swiperInstance = new Swiper('.cardFeedV1 .card-wrap', {
+						// Swiper options here
+						speed: 400,
+						spaceBetween: 12,
+						autoplay: {
+							delay: 3000,
+						},
+						keyboard: {
+							enabled: true,
+						},
+						breakpoints: {
+							300: {
+								slidesPerView: 1.18,
+							},
+							768: {
+								slidesPerView: 2.24,
+							},
+						},
+					});
+				}
+			} else {
+				if (swiperInstance) {
+					swiperInstance.destroy(true, true); // Same as slick sliders 'unslick'
+					swiperInstance = null;
+				}
+			}
+		}
+
+		window.addEventListener('resize', initSwiper);
+		initSwiper();
+	}
+
+	let feedTitle = $('.cardFeedV1 .feed-title').text();
+	if ( $.trim(feedTitle) === "") {
+		$('.cardFeedV1 .feed-title-wrapper').addClass('hidden');
+	} else {
+		$('.cardFeedV1 .feed-title-wrapper').removeClass('hidden');
+	}
+};
+
+const newCardFeedSlider = new TrendMicro.CardFeedSlider();
+$(function() {
+	newCardFeedSlider.init();
+});
+
+
+TrendMicro.CardSlider = function() {
+};
+
+TrendMicro.CardSlider.prototype.init = function() {
+	// Apply Equal Height
+	let cardSecuritySlider = $('.cardSliderV1 .cards, .cardSliderV2 .cards');
+	if( cardSecuritySlider.length === 0 ) { return; }
+	this.initCardSlider( cardSecuritySlider );
+
+	offSetCarousel();
+	$(window).resize(offSetCarousel);
+
+	// Offset Carousel margin + width, depending on view width
+	function offSetCarousel() {
+		$('.cardSliderV1.aem-GridColumn, .cardSliderV2 .cardSlider__V2 .inner-container').each(function () {
+			var winWidth = $( window ).width();
+			if (winWidth < 1200) {
+				return $(this).attr('style', 'max-width: 100%; padding-left: 20px !important;');
+			} else if (winWidth < 1600) {
+				var addedWidth = (($('body').width() - 1024) / 2); // Get margin
+				return $(this).attr('style', 'max-width: ' + (1024 + addedWidth) + 'px; margin-left: ' + addedWidth + 'px !important;');
+			} else {
+				// winWidth >= 1600
+				return $(this).attr('style', 'max-width: ' + 1368 + 'px');
+			}
+		});
+	}
+
+	// Remove icon margin, if image has not been added, so title can align with top of slide
+	$('.cardSliderV1 .slick-slide .icon picture, .cardSliderV2 .slick-slide .icon picture').each(function() {
+		if ( $(this).find('img').length ) {
+			$(this).parent().parent().siblings(".header").css('marginTop', '29px');
+		} else {
+			$(this).parent().parent().siblings(".header").css('marginTop', 0);
+		}
+	});
+
+	// Adjust Horizontal Alignment for Btn Array
+	this.horizontalAlignBtnArray();
+};
+
+// Slick Carousel Website: https://kenwheeler.github.io/slick/
+// Slick Carousel Github: https://github.com/kenwheeler/slick#slick
+TrendMicro.CardSlider.prototype.initCardSlider = function( element ) {
+	element.slick({
+		nextArrow: '<span class="icon-arrow-right"></span>',
+		prevArrow: '<span class="icon-arrow-left"></span>',
+		autoplay: false,
+		arrows: true,
+		dots: false,
+		slidesToShow: this.slidesToShow(),
+		slidesToScroll: 1,
+		mobileFirst: true,
+		infinite: false,
+		speed: 300
+	});
+};
+
+TrendMicro.CardSlider.prototype.slidesToShow = function(){
+	let screenWidth = this.getScreenWidth();
+
+	if( screenWidth <= 559 ){
+		return 1.35
+	}else if( screenWidth <= 767 ){
+		return 1.45
+	}else if(screenWidth <= 1023 ){
+		return 1.46
+	}else if(screenWidth <= 1199 ){
+		return 2.29
+	}else if(screenWidth <= 1599 ){
+		return 2.32
+	}else{
+		return 3
+	}
+};
+
+TrendMicro.CardSlider.prototype.horizontalAlignBtnArray = function(){
+	$('.cardSliderV1 .buttonArrayV1, .cardSliderV2 .buttonArrayV1').each(function(){
+		if ( $(this).find('.button-array.center-align').length ) {
+			$(this).css('justify-content', 'center');
+		} else if ( $(this).find('.button-array.right-align').length ) {
+			$(this).css('justify-content', 'flex-end');
+		}
+	});
+};
+
+TrendMicro.CardSlider.prototype.getScreenWidth = function(){
+	return screen.width;
+};
+
+const newCardSlider = new TrendMicro.CardSlider();
+
+// We bind to load on the window so we can run our height calculations AFTER images have loaded
+// Now we bind to document.ready because on.load was taking far too long to resize into a slider
+$(document).ready( function() {
+	newCardSlider.init();
+});
+
+// This was defined earlier in the page from the header
+if( typeof cludoSettings !== 'undefined' ) {
+	var CludoObject = new Cludo( cludoSettings.settingsObject );
+	CludoObject.init();
+}
+
+$( document ).ready(function() {
+	$( ".containerV1 > .container-wrap" ).each( function () {
+		if ($(this).hasClass("container-full-width")) {
+			$(this).parent().addClass('container-full-width');
+		}
+
+		if ($(this).hasClass("full-browser-width")) {
+			$(this).parent().addClass('full-browser-width');
+		}
+	} );
+});
+
+TrendMicro.QuoteSlider = function() {
+};
+
+TrendMicro.QuoteSlider.prototype.init = function() {
+	this.initQuoteSlider();
+};
+
+// Slick Carousel Website: https://kenwheeler.github.io/slick/
+// Slick Carousel Github: https://github.com/kenwheeler/slick#slick
+TrendMicro.QuoteSlider.prototype.initQuoteSlider = function() {
+	let customerQuoteSlider = $('.customerQuoteSliderV1 .slider,.customerQuoteSliderV2 .slider');
+
+	if( customerQuoteSlider.length === 0 ) { return; }
+
+	customerQuoteSlider.slick({
+		nextArrow: '<span class="icon-arrow-right"></span>',
+		prevArrow: '<span class="icon-arrow-left"></span>',
+		arrows: true,
+		dots: true,
+        slidesToShow: 1,
+        slidesToScroll: 1,
+		mobileFirst: true,
+		infinite: false,
+		speed: 300,
+	});
+
+	$(".customerQuoteSliderV1 .slick-dots, .customerQuoteSliderV2 .slick-dots").wrap("<div class='slick-dots-container'></div>");
+};
+
+const newQuoteSlider = new TrendMicro.QuoteSlider();
+$(function() {
+	newQuoteSlider.init();
+});
+
+TrendMicro.QuoteSliderV3 = function() {
+};
+
+TrendMicro.QuoteSliderV3.prototype.init = function() {
+	this.initQuoteSlider();
+};
+
+// Slick Carousel Website: https://kenwheeler.github.io/slick/
+// Slick Carousel Github: https://github.com/kenwheeler/slick#slick
+TrendMicro.QuoteSliderV3.prototype.initQuoteSlider = function() {
+	var swiper = new Swiper(".customerQuoteSwiper", {
+		slidesPerView: 1,
+		pagination: {
+			el: ".customerQuoteSwiper-pagination",
+			clickable: true,
+		},
+
+		breakpoints: {
+			415: {
+				navigation: {
+					enabled: false,
+					nextEl: ".swiper-button-next",
+					prevEl: ".swiper-button-prev",
+				},
+			},
+			1200: {
+				navigation: {
+					enabled: true,
+					nextEl: ".swiper-button-next",
+					prevEl: ".swiper-button-prev",
+				},
+			},
+		},
+	});
+};
+
+const newQuoteSliderV3 = new TrendMicro.QuoteSliderV3();
+$(function() {
+	newQuoteSliderV3.init();
+});
+
+TrendMicro.FilterListV1HandlebarsResults = function()
+{
+	this.resultCardSelector = '.filter-list-result-grid-template';
+	this.resultListSelector = '.filter-list-result-list-template';
+
+	this.cardView = 'card'
+	this.listView = 'list'
+
+	this.filterListResultGridTemplate = null;
+	this.parentComponent = null;
+};
+
+TrendMicro.FilterListV1HandlebarsResults.prototype.init = function( parentComponent )
+{
+	this.loadCardView( parentComponent );
+	this.parentComponent = parentComponent;
+};
+
+TrendMicro.FilterListV1HandlebarsResults.prototype.loadCardView = function( parentComponent )
+{
+	let filterListResultScript = parentComponent.querySelector( this.resultCardSelector ).innerHTML;
+	this.filterListResultGridTemplate = Handlebars.compile( filterListResultScript );
+};
+
+TrendMicro.FilterListV1HandlebarsResults.prototype.loadListView = function( parentComponent )
+{
+	let filterListResultScript = parentComponent.querySelector( this.resultListSelector ).innerHTML;
+	this.filterListResultGridTemplate = Handlebars.compile( filterListResultScript );
+};
+
+// Handlebars: if statement helper
+Handlebars.registerHelper('notEqual', function(lvalue, rvalue, options) {
+	if (Handlebars.Utils.isFunction(lvalue)) {
+		lvalue = lvalue.call(this);
+	}
+
+	if ( lvalue === rvalue ) {
+		return options.inverse(this);
+	} else {
+		return options.fn(this);
+	}
+});
+
+Handlebars.registerHelper('equal', function(lvalue, rvalue, options) {
+	if (Handlebars.Utils.isFunction(lvalue)) {
+		lvalue = lvalue.call(this);
+	}
+
+	if ( lvalue != rvalue ) {
+		return options.inverse(this);
+	} else {
+		return options.fn(this);
+	}
+});
+
+TrendMicro.FilterListV1HandlebarsResults.prototype.getResultsMarkup = function( jsonObject, viewType )
+{
+	switch( viewType )
+	{
+		case this.cardView:
+			this.loadCardView( this.parentComponent );
+			break;
+
+		case this.listView:
+			this.loadListView( this.parentComponent );
+			break;
+	}
+
+	return this.filterListResultGridTemplate( jsonObject );
+}
+
+TrendMicro.FilterListV1 = function()
+{
+	this.cardMode = 'card';
+	this.listMode = 'list';
+
+	this.hiddenMode = 'hidden';
+
+	this.resultsHandler = new TrendMicro.FilterListV1HandlebarsResults();
+
+	this.componentElement = [];
+	this.selectElements = [];
+
+	this.searchElement = null;
+	this.sortSelectElement = null;
+	this.resultsContainerElement = null;
+	this.noResultsContainerElement = null;
+	this.startingIndexElement = null;
+	this.endingIndexElement = null;
+	this.totalResultsElement = null;
+	this.pageNavElement = null;
+
+	// These should not be modified unless overloading in a descendent class/prototype
+	this.defaultSelectValue = 'all';
+	this.componentSelector = '.filterListV1';
+	this.selectElementsSelector = 'select';
+	this.tagSelectSelector = 'filter-category';
+	this.sortSelector = 'select.sort';
+	this.targetCaretClass = '.bs-caret';
+	this.searchSelector = '.search-input';
+	this.noResultsSelector = '.results-list'
+	this.rightContainer = '.right-container'
+	this.expandMoreMarkup = '<span class="material-symbols-outlined">expand_more</span>';
+	this.resultsContainerSelector = '.layout-container'
+	this.cardDescriptionSelector = '.card .description'
+	this.maximumDescriptionLength = 200;
+	this.etcText = '...';
+	this.startingIndexSelector = '.starting-index';
+	this.endingIndexSelector = '.ending-index';
+	this.totalResultsSelector = '.total-results';
+	this.pageNavSelector = '.page-nav';
+	this.previousSelector = '.page-nav > .previous';
+	this.nextSelector = '.page-nav > .next';
+	this.filterListTextContainer = '.text-container.publishedPage';
+	this.filterListHeading = '.filter-list-heading .heading';
+	this.filterListDescription = '.filter-list-description .description';
+	this.viewButtonsSelector = '.change-view-container .view-modes button';
+	this.cardViewButtonSelector = '.change-view-container .grid_view'	// See view_options in filterList author dialog
+	this.listViewButtonSelector = '.change-view-container .reorder'	// See view_options in filterList author dialog
+	this.enableFilteringAttribute = 'enable-filtering'
+
+	this.currentPageNumber = 0;
+	this.viewMode = this.cardMode;
+	this.location = window.location.protocol + "//" + window.location.host + window.location.pathname;
+	this.location = this.location.replace( '.html', '.filterListTagSearch.json' );
+};
+
+TrendMicro.FilterListV1.prototype.exitSearch = function() {
+	$('.filterListV1 .search-bar .material-symbols-outlined').on( 'click', {self:this}, this.exitSearchEventHandler )
+};
+
+TrendMicro.FilterListV1.prototype.firstViewMode = function()
+{
+	let button = $( this.viewButtonsSelector )[0];
+	$(button).children().addClass('active');
+	if( button ) { return this.mapViewOptionsToViewMode( button.getAttribute( 'class' ) ) }
+	return null;
+}
+
+TrendMicro.FilterListV1.prototype.filterOptions = function( selectElement, availableTagsArray )
+{
+	// We could access .options on HTMLSelectElement, but this fails more cleanly
+	let optionElements = selectElement.querySelectorAll( 'option' );
+	let self = this;
+	optionElements.forEach( (optionElement) => {
+		if( self.isTagAvailable(optionElement, availableTagsArray ) ) {
+			optionElement.removeAttribute( 'hidden' );
+		}
+		else {
+			// DO NOT remove the items from the select, you won't be able to get them back, use hidden
+			optionElement.setAttribute( 'hidden', 'true' );
+		}
+	});
+};
+
+TrendMicro.FilterListV1.prototype.gatherFormValues = function( objectParameter )
+{
+	objectParameter.tagString = this.gatherTagSelectValues( this.selectElements );	// Just grab every tag select for now
+	objectParameter.sortString = this.getSortString( this.sortSelector );
+	objectParameter.searchString = this.getSearchString( this.searchSelector );
+
+	return objectParameter;
+};
+
+TrendMicro.FilterListV1.prototype.gatherTagSelectValues = function( selectElements )
+{
+	let self = this;
+	let values = []
+	selectElements.forEach( (item) => {
+		if( item.classList.contains( self.tagSelectSelector ) ) {
+			let value = $(item).val();
+			if (value !== this.defaultSelectValue) {
+				values.push(value);
+			}
+		}
+	});
+
+	return this.uriEncodeArray( values ).join( ',' );
+};
+
+TrendMicro.FilterListV1.prototype.getSearchString = function( searchSelector )
+{
+	let searchElement = this.componentElement.querySelector( searchSelector );
+	if( searchElement ) {
+		return encodeURI(searchElement.value);
+	} else {
+		return '';
+	}
+};
+
+TrendMicro.FilterListV1.prototype.getSortString = function( sortSelector )
+{
+	return $(this.sortSelectElement).val();
+};
+
+TrendMicro.FilterListV1.prototype.init = function() {
+
+	this.componentElement = document.querySelector( this.componentSelector );
+	if( !this.componentElement ) { return }
+
+	this.selectElements = this.componentElement.querySelectorAll( this.selectElementsSelector );
+	this.resultsContainerElement = this.componentElement.querySelector( this.resultsContainerSelector );
+	this.searchElement = this.componentElement.querySelector( this.searchSelector );
+	this.sortSelectElement = this.componentElement.querySelector( this.sortSelector );
+	this.noResultsContainerElement = this.componentElement.querySelector( this.noResultsSelector );
+	this.startingIndexElement = this.componentElement.querySelector( this.startingIndexSelector );
+	this.endingIndexElement = this.componentElement.querySelector( this.endingIndexSelector );
+	this.totalResultsElement = this.componentElement.querySelector( this.totalResultsSelector );
+	this.pageNavElement = this.componentElement.querySelector( this.pageNavSelector );
+	this.nextElement = this.componentElement.querySelector( this.nextSelector );
+	this.prevElement = this.componentElement.querySelector( this.previousSelector );
+	this.textContainer = this.componentElement.querySelector( this.filterListTextContainer );
+	this.heading = this.componentElement.querySelector( this.filterListHeading );
+	this.description = this.componentElement.querySelector( this.filterListDescription );
+
+	this.initBootstrapSelect( this.selectElements );
+	this.toggleTextContainer();
+	this.replaceBootstrapSelectIcon( this.componentElement, this.targetCaretClass, this.expandMoreMarkup );
+	this.searchOnClick();
+	this.exitSearch();
+	this.searchOnBlur();
+	this.searchSubmitOnEnter();
+
+	$('.top-filters[theme="dark-mode"]').each(function() {
+		$(this).closest('.filterListV1').addClass('dark-mode').removeClass('light-mode');
+	});
+
+	$('.top-filters[theme="light-mode"]').each(function() {
+		$(this).closest('.filterListV1').removeClass('dark-mode').addClass('light-mode');
+	});
+
+	this.selectElements.forEach( (select) => {
+		$(select).on( 'changed.bs.select', {'self':this}, this.onChangeSelectHandler )
+	})
+
+	$(this.prevElement).on( 'click', {self:this}, this.onPaginationClickHandler );
+	$(this.nextElement).on( 'click', {self:this}, this.onPaginationClickHandler );
+	$(this.cardViewButtonSelector).on( 'click', {self:this}, this.onViewChangeHandler );
+	$(this.listViewButtonSelector).on( 'click', {self:this}, this.onViewChangeHandler );
+
+	this.viewMode = this.firstViewMode();
+	if( this.viewMode == null ) { this.viewMode = this.loadDefaultMode(); }
+
+	this.resultsHandler.init( this.componentElement );
+
+	// Javascript won't let me set multiple variables with a function, so use an object. I'm sorry.
+	let passByReference = { tagString: '', sortString: '', searchString: '' };
+	passByReference = this.gatherFormValues( passByReference );
+	this.submitAjax( passByReference.tagString, passByReference.sortString, passByReference.searchString );
+};
+
+TrendMicro.FilterListV1.prototype.initBootstrapSelect = function( selectElements ) {
+	selectElements.forEach( (select) => {
+		$(select).selectpicker();
+	})
+};
+
+TrendMicro.FilterListV1.prototype.initModals = function()
+{
+	if( window.bsModal )
+	{
+		window.bsModal.init();
+		window.bsModal.activateAutoModal();
+	}
+};
+
+TrendMicro.FilterListV1.prototype.isTagAvailable = function( optionElement, availableTagsArray )
+{
+	let value = optionElement.value;
+	if( value === 'all' ) {	return true; }
+	if( availableTagsArray.includes( value ) ) { return true; }
+
+	return false;
+};
+
+TrendMicro.FilterListV1.prototype.loadDefaultMode = function()
+{
+	return $(this.rightContainer).data( 'only-view-mode' );
+}
+
+TrendMicro.FilterListV1.prototype.makeQueryString = function( tagString, sortString, searchString, pageNumber )
+{
+	let selectionParameter = tagString ? 'selected=' + tagString : '';
+	let sortParameter = 'sort=' + sortString;
+	let searchParameter = searchString ? 'search=' + searchString : '';
+	let pageParameter = pageNumber ? 'page=' + pageNumber : '';
+
+	let result = '?' + sortParameter;
+	if( selectionParameter ) { result += '&' + selectionParameter; }
+	if( searchParameter ) { result += '&' + searchParameter; }
+	if( pageParameter ) { result += '&' + pageParameter }
+
+	return result;
+};
+
+TrendMicro.FilterListV1.prototype.mapViewOptionsToViewMode = function( buttonClassAttribute )
+{
+	// Map the viewOptions dialog options in filter list author dialog to view mode
+	switch (buttonClassAttribute) {
+		case 'reorder':
+			$(this.listViewButtonSelector).children().addClass('active');
+			$(this.cardViewButtonSelector).children().removeClass('active');
+			return this.listMode;
+
+		default:
+		case 'grid_view':
+			$(this.listViewButtonSelector).children().removeClass('active');
+			$(this.cardViewButtonSelector).children().addClass('active');
+			return this.cardMode;
+	}
+};
+
+TrendMicro.FilterListV1.prototype.replaceBootstrapSelectIcon = function( componentElement, targetClass, markup ) {
+	// Remove Bootstrap Caret icon if it exists in any Select element, and replace with Google material icon
+	componentElement.querySelectorAll( targetClass ).forEach( (caretSpanElement) => {
+		// Jquery handles appending markup much easier than native DOM
+		let caretJQuery = $(caretSpanElement);
+		caretJQuery.parent().append( markup );
+		caretJQuery.remove();
+	});
+};
+
+TrendMicro.FilterListV1.prototype.refreshSelects = function( selectElements, availableTagsArray )
+{
+	var self = this;
+	selectElements.forEach( (select) => {
+		if( !self.selectHasEnableFilteringAttribute( select ) ) {
+			return; // skip this select, no filtering of available tags
+		}
+
+		if( select.classList.contains( self.tagSelectSelector ) ) {
+			self.filterOptions(select, availableTagsArray);
+			$(select).selectpicker('refresh');
+		}
+	})
+};
+
+TrendMicro.FilterListV1.prototype.searchOnBlur = function() {
+	$(".filterListV1 input[type='search']").blur(function () {
+		if( $(this).val().length === 0 ) {
+			$(".filterListV1 .search-bar").removeClass('active').removeClass('on-blur');
+			$('.filterListV1 .search-bar .material-symbols-outlined').removeClass('close').text('search');
+			$('.filterListV1 .search-bar input.search-input').val('');
+		} else {
+			$(".filterListV1 .search-bar").removeClass('active').addClass('on-blur');
+		}
+	});
+};
+
+TrendMicro.FilterListV1.prototype.searchOnClick = function() {
+	$('.filterListV1 .search-bar').click(function() {
+		$(this).addClass('active');
+		$(this).find('.material-symbols-outlined').addClass('close').text('cancel');
+		$(".filterListV1 .search-bar input.search-input").focus();
+	});
+};
+
+TrendMicro.FilterListV1.prototype.searchSubmitOnEnter = function() {
+	$(".filterListV1 input[type='search']").on( 'keypress', {self:this}, this.enterKeyHandler );
+};
+
+TrendMicro.FilterListV1.prototype.selectHasEnableFilteringAttribute = function( selectElement )
+{
+	return selectElement.hasAttribute( this.enableFilteringAttribute )
+}
+
+TrendMicro.FilterListV1.prototype.setPaginationNumbers = function( startingIndex, endingIndex, totalCount, currentPageNumber, prevPageNumber, nextPageNumber )
+{
+	this.startingIndexElement.innerHTML = startingIndex;
+	this.endingIndexElement.innerHTML = endingIndex;
+	this.totalResultsElement.innerHTML = totalCount;
+	this.currentPageNumber = currentPageNumber;
+
+	if( prevPageNumber !== 0 )
+	{
+		this.prevElement.setAttribute( 'page-number', prevPageNumber );
+		this.prevElement.classList.remove( this.hiddenMode );
+	} else {
+		this.prevElement.removeAttribute( 'page-number' );
+		this.prevElement.classList.add( this.hiddenMode );
+	}
+
+	if( nextPageNumber !== currentPageNumber )
+	{
+		this.nextElement.setAttribute( 'page-number', nextPageNumber );
+		this.nextElement.classList.remove( this.hiddenMode );
+	} else {
+		this.nextElement.removeAttribute( 'page-number' );
+		this.nextElement.classList.add( this.hiddenMode );
+	}
+
+	if( totalCount === 0 ) {
+		$(this.pageNavElement).hide();
+	}
+	else {
+		$(this.pageNavElement).show();
+	}
+};
+
+TrendMicro.FilterListV1.prototype.stripModalFromURL = function()
+{
+	let url = window.location.toString()
+	const regExp = /modal=([a-zA-Z0-9_\-]+)/;
+	history.pushState( 'Filterlist safe URL', '', url.replace( regExp, '' ) );
+}
+
+TrendMicro.FilterListV1.prototype.submitAjax = function( tagString, sortString, searchString, page )
+{
+	let queryString = this.makeQueryString( tagString, sortString, searchString, page )
+	let self = this;
+
+	$.ajax(
+		{
+			url: self.location + queryString,
+			dataType: "json",
+			success: function( data ) {
+				self.noResultsContainerElement.classList.add( 'hidden' );
+				let cardsHTML = self.resultsHandler.getResultsMarkup( data, self.viewMode );
+				self.resultsContainerElement.innerHTML = cardsHTML;
+				if( data !== undefined ) {	// Skip this if we don't get data back, leave selects alone
+					self.refreshSelects(self.selectElements, data.activeTagIDs);
+					self.setPaginationNumbers(data.startingIndex, data.endingIndex, data.totalResults, data.currentPage, data.prevPage, data.nextPage );
+					self.truncateCardDescriptionText();
+					self.initModals();
+					self.stripModalFromURL();	// Trim off the automodal query parameter after the first go round
+				}
+			},
+			'statusCode': {
+				204: function( data ) {
+					self.noResultsContainerElement.classList.remove( 'hidden' );
+					self.setPaginationNumbers( 0, 0, 0, 0, 0, 0 );
+				}
+			},
+			error: function( data ) { }
+			// TODO: replace error function
+		}
+	);
+};
+
+TrendMicro.FilterListV1.prototype.toggleTextContainer = function( selectElements ) {
+	// Hide Text Container if Heading and Description do not exist, only on Published Page. Will always show on edit page.
+	if ( $.trim($(this.heading).text()) === '' && $.trim($(this.description).text()) === '' ) {
+		$(this.textContainer).hide();
+	}
+};
+
+TrendMicro.FilterListV1.prototype.truncateCardDescriptionText = function() {
+	// Truncate Card with image + Button Array Description Text
+	let self = this;
+	$(this.componentElement).find(this.cardDescriptionSelector).each(function() {
+		self.truncateTextNode( this, self.maximumDescriptionLength );
+	});
+};
+
+TrendMicro.FilterListV1.prototype.truncateTextNode = function( element, maximumLength ) {
+	let textToTruncate = element.innerText;
+	if( textToTruncate.length > maximumLength ) {
+		element.innerText = textToTruncate.slice(0, maximumLength ) + this.etcText;
+	}
+};
+
+TrendMicro.FilterListV1.prototype.uriEncodeArray = function( stringArray )
+{
+	for( i = 0; i < stringArray.length; i++ ) {
+		stringArray[i] = encodeURIComponent( stringArray[i] );
+	}
+
+	return stringArray;
+};
+
+// Event handlers
+
+TrendMicro.FilterListV1.prototype.enterKeyHandler = function( eventObject )
+{
+	let self = eventObject.data.self;
+
+	if ( eventObject.which === 13 ) {
+		// Just trigger a change on the sort drop down when the user hits enter, it will gather the inputs
+		$(self.sortSelectElement).trigger( 'change' );
+	}
+};
+
+TrendMicro.FilterListV1.prototype.exitSearchEventHandler = function( eventObject )
+{
+	let self = eventObject.data.self;
+
+	eventObject.stopPropagation();
+	$(".filterListV1 .search-bar").removeClass('active').removeClass('on-blur');
+	$(this).removeClass('close').text('search');
+	// Clear search input
+	$(self.searchElement).val('');
+	$(self.sortSelectElement).trigger( 'change' );
+};
+
+TrendMicro.FilterListV1.prototype.onChangeSelectHandler = function( eventObject )
+{
+	let selectElement = this;
+	let self = eventObject.data.self;
+
+	// Javascript won't let me set multiple variables with a function, so use an object. I'm sorry.
+	let passByReference = { tagString: '', sortString: '', searchString: '' };
+	passByReference = self.gatherFormValues( passByReference );
+	self.submitAjax( passByReference.tagString, passByReference.sortString, passByReference.searchString );
+};
+
+TrendMicro.FilterListV1.prototype.onPaginationClickHandler = function( eventObject )
+{
+	let clickedElement = this;
+	let self = eventObject.data.self;
+
+	if( !clickedElement.hasAttribute( 'page-number' ) ) { return; }
+
+	let pageNumber = clickedElement.getAttribute( 'page-number' );
+
+	// Javascript won't let me set multiple variables with a function, so use an object. I'm sorry.
+	let passByReference = { tagString: '', sortString: '', searchString: '', page: pageNumber };
+	passByReference = self.gatherFormValues( passByReference );
+	self.submitAjax( passByReference.tagString, passByReference.sortString, passByReference.searchString, passByReference.page );
+};
+
+TrendMicro.FilterListV1.prototype.onViewChangeHandler = function( eventObject )
+{
+	let clickedElement = this;
+	let self = eventObject.data.self;
+
+	let classAttribute = clickedElement.getAttribute('class');
+
+	let previousViewMode = self.viewMode;
+	self.viewMode = self.mapViewOptionsToViewMode( classAttribute );
+
+	if( previousViewMode === self.viewMode ) { return; }
+
+	// Javascript won't let me set multiple variables with a function, so use an object. I'm sorry.
+	let passByReference = { tagString: '', sortString: '', searchString: '', page: self.currentPageNumber };
+	passByReference = self.gatherFormValues( passByReference );
+	self.submitAjax( passByReference.tagString, passByReference.sortString, passByReference.searchString, passByReference.page );
+};
+
+TrendMicro.FilterListV1.prototype.onChangeSelectHandler = function( eventObject )
+{
+	let selectElement = this;
+	let self = eventObject.data.self;
+
+	// Javascript won't let me set multiple variables with a function, so use an object. I'm sorry.
+	let passByReference = { tagString: '', sortString: '', searchString: '' };
+	passByReference = self.gatherFormValues( passByReference );
+	self.submitAjax( passByReference.tagString, passByReference.sortString, passByReference.searchString );
+};
+
+/* Setup and run */
+var FilterListV1 = new TrendMicro.FilterListV1();
+$(function() {
+	FilterListV1.init();
+});
+
+TrendMicro.FullPageTabs = function()
+{
+	this.componentSelector = '.fullPageTabsV1'
+	this.navigationToggleSelector = 'ul.nav-toggle';
+	this.tabAnchorElementsSelector = 'li > a[data-toggle="tab"]';
+	this.activeTabDisplayOnMobileSelector = '.mobile-only';
+	this.tabTogglesOnMobileSelector = 'li:not(' + this.activeTabDisplayOnMobileSelector + ')';
+	this.imageContainerSelector = '.toggle-component-image-container';
+	this.defaultTabSelector = '.highlight';
+	this.activeTabParameterName = 'tab';
+
+	this.shownTabToggleSelector = "ul.nav-toggle, ul.tab-nav-wrapper > li > a[data-toggle='tab']"
+};
+
+// We're reusing these from tabs, but call them on our scope
+TrendMicro.FullPageTabs.prototype.getHash = function() { return TrendMicro.Tabs.prototype.getHash.call(this); };
+TrendMicro.FullPageTabs.prototype.getActiveTabQueryParameter = function() { return TrendMicro.Tabs.prototype.getActiveTabQueryParameter.call(this); };
+
+TrendMicro.FullPageTabs.prototype.init = function() {
+	this.navigationToggleElements = $( this.navigationToggleSelector );
+	var self = this;
+	var hash = this.getHash();
+	for( var i = 0; i < this.navigationToggleElements.size(); i++ )
+	{
+		var currentJqueryElement = $( this.navigationToggleElements[i] );
+
+		if ( !this.validHashFragment || !this.activateTabBasedOnHash( currentJqueryElement, hash ) )
+		{	// If we found and activated a matching hash link, we don't do any of this
+			if (this.isDefaultTabSet(currentJqueryElement)) {
+				this.toggleHighlightedTab(currentJqueryElement)
+			} else {
+				this.toggleFirstTab(currentJqueryElement)
+			}
+		}
+
+		currentJqueryElement.find( this.tabAnchorElementsSelector ).on(
+			"click",
+			{ scope: this,	componentElement: currentJqueryElement }, // data object
+			this.tabClickHandler // Reminder, this function will be called with scope set to the element receiving the event
+		);
+
+		currentJqueryElement.find( this.tabAnchorElementsSelector ).on(
+			"shown.bs.tab",
+			{ scope: this, componentElement: currentJqueryElement },
+			this.tabShowHandler
+		);
+
+		$( this.shownTabToggleSelector ).on(
+			"shown.bs.tab",
+			{ scope: this, componentElement: currentJqueryElement },
+			this.resizeHandler
+		);
+
+		if (window.matchMedia('(max-width: 1023px)').matches) {	// Load this behavior only if the page loaded as mobile, best we can do
+			currentJqueryElement.on(
+				"click",
+				this.activeTabDisplayOnMobileSelector,
+				{ scope: this, navigationElement: currentJqueryElement },
+				this.mobileDisplayTabClickHandler
+			);
+
+			currentJqueryElement.on(
+				"click",
+				this.tabTogglesOnMobileSelector,
+				{ scope: this, navigationElement: currentJqueryElement },
+				this.mobileToggleTabClickHandler
+			);
+		}
+	}
+};
+
+TrendMicro.FullPageTabs.prototype.showClickedOnTabMenuEntriesOnMobile = function( navElement )
+{
+	navElement.children( this.tabTogglesOnMobileSelector ).show();
+};
+
+TrendMicro.FullPageTabs.prototype.hideAllTabMenuEntriesOnMobile = function( navElement )
+{
+	navElement.children( this.tabTogglesOnMobileSelector ).hide();
+};
+
+TrendMicro.FullPageTabs.prototype.deselectAllTabMenuEntriesOnMobile = function( navElement )
+{
+	navElement.children( this.tabTogglesOnMobileSelector ).removeClass('selected');
+};
+
+TrendMicro.FullPageTabs.prototype.setTextForActiveTabDisplay = function( navElement, text )
+{
+	navElement.children( this.activeTabDisplayOnMobileSelector ).html( text );
+};
+
+TrendMicro.FullPageTabs.prototype.changeComponentDisplayBackgroundImage = function( jqueryWrappedClickedElement, tabNavigationElement )
+{
+	var tabIndex = jqueryWrappedClickedElement.attr("id");
+	var idAttr = jqueryWrappedClickedElement.parent().parent().attr("id");
+	var imageId = idAttr + "-" + tabIndex;
+	tabNavigationElement.closest( this.imageContainerSelector ).attr( 'id', imageId ); // This one is used from the mobile
+};
+
+TrendMicro.FullPageTabs.prototype.validHashFragment = function( jqueryWrappedElement )
+{
+	return (hash !== '') && (jqueryWrappedElement.find( 'a[href="' + hash + '"]' ).length > 0)
+};
+
+TrendMicro.FullPageTabs.prototype.activateTabBasedOnHash = function( jqueryWrappedElement, hash )
+{
+	var matches = jqueryWrappedElement.find( 'a[href="' + hash + '"]' );
+	if( matches.length === 0 ) { return false; }
+
+	var match = $(matches[0]);
+	match.tab('show'); // If desktop, show the tab
+
+	// If mobile, display the tab title in the default dropdown select
+	this.toggleComponentUpdateDefaultDropdownText( jqueryWrappedElement, match.text() );
+	this.changeComponentDisplayBackgroundImage( match, jqueryWrappedElement );
+	match.parent().addClass("selected");
+	return true;
+};
+
+TrendMicro.FullPageTabs.prototype.toggleComponentUpdateDefaultDropdownText = function( jqueryWrappedElement, tabText )
+{
+	jqueryWrappedElement.find( 'li.mobile-only a' ).text(tabText);
+};
+
+TrendMicro.FullPageTabs.prototype.isDefaultTabSet = function( jqueryWrappedElement )
+{
+	return jqueryWrappedElement.find(this.defaultTabSelector).length > 0;
+};
+
+TrendMicro.FullPageTabs.prototype.toggleHighlightedTab = function( jqueryWrappedElement )
+{
+	var highlightedTabElement = $(jqueryWrappedElement.find(this.defaultTabSelector)[0]);
+	highlightedTabElement.closest( this.navigationToggleSelector ).find('.active').removeClass('active');
+	highlightedTabElement.closest( this.componentSelector ).find('.tab-pane.active').removeClass('active');
+	highlightedTabElement.parent().addClass('active');
+
+	// Display background image for both mobile and desktop
+	var tabTargetURL = highlightedTabElement.attr('href');
+	this.changeComponentDisplayBackgroundImage( highlightedTabElement, jqueryWrappedElement );
+
+	// If mobile, display the tab title in the default dropdown select
+	this.toggleComponentUpdateDefaultDropdownText( jqueryWrappedElement, highlightedTabElement.text() );
+
+	// Added selected class to the highlighted li. This is required in order to add the checkmark to the selected tab
+	$(highlightedTabElement).parent().addClass("selected");
+
+	if ( tabTargetURL.split('')[0] === '#' ) {
+		highlightedTabElement.closest( this.componentSelector ).find(tabTargetURL).addClass('active');
+	}
+};
+
+TrendMicro.FullPageTabs.prototype.toggleFirstTab = function( jqueryWrappedElement )
+{
+	var firstTab = $( jqueryWrappedElement.find( 'li:nth-child(2)' ).find('a') );
+	this.changeComponentDisplayBackgroundImage( firstTab, jqueryWrappedElement );
+
+	this.toggleComponentUpdateDefaultDropdownText( jqueryWrappedElement, firstTab.text() );
+	firstTab.parent().addClass("selected");
+};
+
+
+/* Event handlers */
+
+TrendMicro.FullPageTabs.prototype.tabClickHandler = function( event )
+{
+	var self = event.data.scope;
+
+	event.preventDefault();
+	$(this).tab('show');
+	window.location.hash = this.hash; // $(element).hash() will strip off the hash in the href
+};
+
+TrendMicro.FullPageTabs.prototype.tabShowHandler = function( event )
+{
+	var self = event.data.scope;
+	event.preventDefault();
+	self.changeComponentDisplayBackgroundImage( $(this), event.data.componentElement ); // Wait until tab content is visible
+};
+
+TrendMicro.FullPageTabs.prototype.mobileDisplayTabClickHandler = function( event )
+{
+	var self = event.data.scope;
+	self.showClickedOnTabMenuEntriesOnMobile( event.data.navigationElement );
+};
+
+TrendMicro.FullPageTabs.prototype.mobileToggleTabClickHandler = function( event )
+{
+	var self = event.data.scope;
+
+	self.deselectAllTabMenuEntriesOnMobile( event.data.navigationElement );
+	$(this).addClass('selected');
+	self.setTextForActiveTabDisplay( event.data.navigationElement, $(this).html() );
+	self.hideAllTabMenuEntriesOnMobile( event.data.navigationElement );
+};
+
+TrendMicro.FullPageTabs.prototype.resizeHandler = function( event )
+{
+	var self = event.data.scope;
+	var jqueryWrappedComponent = event.data.componentElement;
+/*
+	if ( jqueryWrappedComponent.find(".simplifiedPriceWidget")) {
+		matchSimplifiedWidgetHeight(); //matches the height of Simplified Price Widgets inside tabs
+	}
+	if ( jqueryWrappedComponent.find(".productHighlight")) {
+		matchProductHighlightHeight(); //matches the height of productHighlight Components inside tabs
+	}
+	if ( jqueryWrappedComponent.find(".consumerHoverContainer")) {
+		matchConsumerHoverHeight(); //matches the height of Consumer Hover Container Components inside tabs
+	}
+	if ( jqueryWrappedComponent.find(".pageTreeView")) {
+		matchPTVHeight();	// resize tiles in pageTreeView components inside tabs
+	}
+	if ( jqueryWrappedComponent.find(".accordionDrawersTabbed")) {
+		window.accordionDrawersObject.drawerHeightSetup();
+	}
+ */
+};
+
+/* Setup and run */
+var FullPageTabs = new TrendMicro.FullPageTabs();
+$(document).ready( function () {
+	FullPageTabs.init();
+});
+
+TrendMicro.GridSlider = function() {
+};
+
+TrendMicro.GridSlider.prototype.init = function() {
+	this.initGridSlider();
+};
+
+// Slick Carousel Website: https://kenwheeler.github.io/slick/
+// Slick Carousel Github: https://github.com/kenwheeler/slick#slick
+TrendMicro.GridSlider.prototype.initGridSlider = function() {
+	let successStorySlider = $('.gridCardSliderV1 .slides-success-stories, .gridCardSliderV2 .slides-success-stories');
+	if( successStorySlider.length === 0 ) { return; }
+	successStorySlider.slick({
+		nextArrow: '<span class="icon-arrow-right"></span>',
+		prevArrow: '<span class="icon-arrow-left"></span>',
+		autoplay: false,
+		arrows: true,
+		dots: false,
+        slidesToShow: 1.4,
+        slidesToScroll: 1,
+		mobileFirst: true,
+		infinite: false,
+		speed: 300,
+		variableWidth: true,
+		responsive: [
+			{
+				breakpoint: 413,
+				settings: {
+					slidesToShow: 1.9,
+					slidesToScroll: 1
+				}
+			},
+			{
+				breakpoint: 767,
+				settings: {
+					slidesToShow: 2,
+					slidesToScroll: 1
+				}
+			},
+			{
+				breakpoint: 1023,
+				settings: {
+					slidesToShow: 3,
+					slidesToScroll: 1
+				}
+			},
+			{
+				breakpoint: 1199,
+				settings: {
+					slidesToShow: 3,
+					slidesToScroll: 1
+				}
+			},
+			{
+				breakpoint: 1599,
+				settings: {
+					slidesToShow: 3,
+					slidesToScroll: 1
+				}
+			}
+		]
+	});
+};
+
+const newGridSlider = new TrendMicro.GridSlider();
+$(function() {
+	newGridSlider.init();
+});
+
+TrendMicro.GridCardSliderV3 = function() {
+};
+
+TrendMicro.GridCardSliderV3.prototype.init = function() {
+	this.initGridCardSliderV3();
+};
+
+// Slick Carousel Website: https://kenwheeler.github.io/slick/
+// Slick Carousel Github: https://github.com/kenwheeler/slick#slick
+TrendMicro.GridCardSliderV3.prototype.initGridCardSliderV3 = function() {
+	// let successStorySlider = $('.gridCardSliderV3 .gridCardSliderV3Swiper');
+	// if( successStorySlider.length === 0 ) { return; }
+
+	var swiper = new Swiper(".gridCardSliderV3 .gridCardSliderV3Swiper", {
+		navigation: {
+			prevEl: ".swiper-button-prev",
+			nextEl: ".swiper-button-next",
+		},
+		slidesPerView: 1.4,
+		breakpoints: {
+			768: {
+				slidesPerView: 2.1,
+			},
+			1024: {
+				slidesPerView: 2.9,
+			},
+			1200: {
+				slidesPerView: 3,
+			},
+		},
+	});
+
+};
+
+const newGridCardSliderV3 = new TrendMicro.GridCardSliderV3();
+$(function() {
+	newGridCardSliderV3.init();
+});
+
+TrendMicro.TrustCenterNav = function() {
+};
+
+TrendMicro.TrustCenterNav.prototype.init = function() {
+	this.toggleMobileNavTitleClickEvent();
+	this.toggleNavClickEvent();
+};
+
+
+TrendMicro.TrustCenterNav.prototype.toggleMobileNavTitleClickEvent = function(e) {
+	// Add styles to selected tab li and remove from all other tabs
+	$('.navigationV1 .title').on('click', function() {
+		// Toggle top nav links
+       if ($('.navigationV1 .descendant-links-container').width() <1200 ){
+			$('.navigationV1 .descendant-links-container').slideToggle();
+			// Flip Arrow
+			$(this).find(".material-symbols-outlined").toggleClass("hide");
+       }
+	});
+
+};
+
+TrendMicro.TrustCenterNav.prototype.toggleNavClickEvent = function(e) {
+	 	 $(".navigationV1 ul.top-level-menu .label").on("click", handleNavClick);
+		 function handleNavClick() {
+		  const isActive = $(this).hasClass("active");
+			//below two lines will reset the class state
+		  $('.expand-more').removeClass('hide');
+		  $('.expand-less').addClass('hide');
+
+		  if (isActive) {
+			$(this).siblings(".drop-down-menu").slideToggle();
+			$(this).toggleClass("active");
+			// Toggles Icons
+			$(this).find(".expand-more").removeClass("hide");
+			$(this).find(".expand-less").addClass("hide");
+		  } else {
+			// Close already opened menus
+			$(".active").removeClass("active").siblings(".drop-down-menu").slideUp();
+			// Toggle top nav links
+			$(this).siblings(".drop-down-menu").slideToggle();
+			$(this).toggleClass("active");
+			// Toggle top nav links
+			$(this).find(".expand-more").addClass("hide");
+			$(this).find(".expand-less").removeClass("hide");
+		  }
+		}
+};
+
+// Setup our object and run it's init when the page has fully loaded
+var trustcenterNavObject = new TrendMicro.TrustCenterNav();
+
+$(document).ready(function() {
+	trustcenterNavObject.init();
+});
+
+TrendMicro.HeroSlider = function( classSelector, dataObject )
+{
+	// ------------
+	// gsap related
+	// ------------
+	this.split = null;
+	this.animation = null;
+	this.targetElementsArray = ["ol", "ul", "li", "pre", "blockquote", "p", ".buttonArrayV1 .button-array li", "h1", "h2", "h3", "h4", "h5", "h6"];
+	this.activeSlideTargetElements = this.activeSlideTargetElementsList();
+
+	this.element = document.querySelector( '.' + classSelector );
+	this.slickDotsClassSelector = '.slick-dots';
+	this.slickDotsContainerMarkup = "<div class='slick-dots-container'></div>";
+	this.gridContainerClass = "aem-GridColumn";
+	this.currentSlideSelector = '.heroSliderV1 .slick-current';
+	//this.hideClass = 'hide-animation';
+
+	$( this.element ).slick( dataObject );
+	this.styleSlickDots( this.element, this.slickDotsClassSelector, this.slickDotsContainerMarkup, this.gridContainerClass );
+
+	let currentSlide = this.getCurrentSlide( this.element )
+	this.triggerAnimation( currentSlide )
+
+	$(this.element).on( 'beforeChange', {'self':this}, this.beforeSlideChangeHandler );
+	$(this.element).on( 'afterChange', {'self':this}, this.afterSlideChangeHandler );
+};
+
+TrendMicro.HeroSlider.prototype.activeSlideTargetElementsList = function()
+{
+	let activeSlideTargetElements = "";
+
+	for( let i=0; i < this.targetElementsArray.length - 1; i++ )
+	{
+		activeSlideTargetElements = activeSlideTargetElements + ".heroSliderV1 .slick-active " + this.targetElementsArray[i] + ", ";
+	}
+
+	let lastElement = this.targetElementsArray.length - 1;
+	activeSlideTargetElements = activeSlideTargetElements + ".heroSliderV1 .slick-active " + this.targetElementsArray[lastElement];
+
+	return activeSlideTargetElements;
+};
+
+TrendMicro.HeroSlider.prototype.styleSlickDots = function( componentElement, dotsClassSelector, dotContainerMarkup, gridClass )
+{
+	let dotsElement = $(componentElement).find( dotsClassSelector );
+	$(dotsElement).wrap( dotContainerMarkup );
+	$(dotsElement).addClass( gridClass );
+};
+
+TrendMicro.HeroSlider.prototype.isValid = function()
+{
+	return this.element.length === 1
+};
+
+TrendMicro.HeroSlider.prototype.beforeSlideChangeHandler = function( event, slick, currentSlide, nextSlide )
+{
+	var self = event.data.self;
+
+	let currentSlideElement = slick.$slides.get(currentSlide);
+	self.resetAnimationBeforeChange( currentSlideElement );
+
+	let nextSlideElement = slick.$slides.get( nextSlide );
+	self.hideAnimatedElement( nextSlideElement );
+};
+
+TrendMicro.HeroSlider.prototype.afterSlideChangeHandler = function( event, slick, currentSlide )
+{
+	var self = event.data.self;
+
+	let currentSlideElement = slick.$slides.get(currentSlide);
+	//self.showAnimatedElement( currentSlideElement );
+	self.triggerAnimation( currentSlideElement );
+};
+
+TrendMicro.HeroSlider.prototype.getCurrentSlide = function( sliderElement )
+{
+	return sliderElement.querySelector( this.currentSlideSelector )
+};
+
+TrendMicro.HeroSlider.prototype.resetAnimationBeforeChange = function( currentSlideElement )
+{
+	let parsysElement = currentSlideElement.querySelector( '.hero-slide .parsys');
+	let animationClass = this.getAnimationClass( parsysElement );
+	// if( animationClass != null ) {
+	// 	this.removeAnimation( parsysElement, animationClass );
+	// }
+};
+
+TrendMicro.HeroSlider.prototype.triggerAnimation = function( currentSlideElement )
+{
+
+	// let parsysElement = currentSlideElement.querySelector( '.hero-slide .parsys');
+	// let animationClass = this.getAnimationClass( parsysElement );
+	// if( animationClass != null && animationClass != 'null' ) {
+	// 	this.addAnimation( parsysElement, animationClass );
+	// }
+
+
+	let parsysElement = currentSlideElement.querySelector( '.hero-slide .parsys');
+	let animationClass = this.getAnimationClass( parsysElement );
+
+	switch (animationClass)
+	{
+		case 'fadeInLeft':
+			 this.fadeInLeft();
+			break;
+		case 'fadeInDown':
+			 this.fadeInDown();
+			break;
+		default:
+	}
+};
+
+TrendMicro.HeroSlider.prototype.fadeInLeft = function()
+{
+	gsap.timeline().fromTo( this.activeSlideTargetElements,  {delay: 0.7, xPercent: -20, opacity: 0, ease: "power1.out", stagger: 0.1}, {xPercent: 0, opacity: 1, ease: "power1.out", stagger: 0.1});
+};
+
+TrendMicro.HeroSlider.prototype.fadeInDown = function()
+{
+	gsap.timeline().fromTo( this.activeSlideTargetElements,  {delay: 0.7, yPercent: -50, opacity: 0, ease: "power1.out"}, {yPercent: 0, opacity: 1, ease: "power1.out"});
+};
+
+TrendMicro.HeroSlider.prototype.getAnimationClass = function( parsysElement )
+{
+	return parsysElement.getAttribute( 'data-animation' );
+};
+
+// TrendMicro.HeroSlider.prototype.addAnimation = function( parsysElement, animationClass )
+// {
+// 	parsysElement.classList.add( 'animate__animated', 'animate__' + animationClass );
+// }
+//
+// TrendMicro.HeroSlider.prototype.removeAnimation = function( parsysElement, animationClass )
+// {
+// 	parsysElement.classList.remove( 'animate__animated', 'animate__' + animationClass );
+// }
+
+TrendMicro.HeroSlider.prototype.hideAnimatedElement = function( slideElement )
+{
+	// let parsysElement = slideElement.querySelector( '.hero-slide .parsys');
+	// parsysElement.classList.add( this.hideClass );
+
+	let parsysElement = slideElement.querySelector( '.hero-slide .parsys');
+	if ($(parsysElement).attr("data-animation"))
+	{
+		let targetElementsList = this.targetElementsArray.join();
+		$(parsysElement).find( targetElementsList ).css("opacity", 0);
+	}
+};
+
+// TrendMicro.HeroSlider.prototype.showAnimatedElement = function( slideElement )
+// {
+// 	let parsysElement = slideElement.querySelector( '.hero-slide .parsys');
+// 	parsysElement.classList.remove( this.hideClass );
+// }
+
+TrendMicro.HeroSliderController = function()
+{
+	this.heroSliders = []
+};
+
+TrendMicro.HeroSliderController.prototype.addHeroSlider = function( classSelector, dataObject )
+{
+	let heroSlider = new TrendMicro.HeroSlider( classSelector, dataObject )
+	if( heroSlider.isValid() )
+	{
+		this.heroSliders.push( heroSlider );
+	}
+};
+
+let heroSliderController = new TrendMicro.HeroSliderController();
+
+TrendMicro.HeroSliderV2 = function( classSelector, swiperConfigObject )
+{
+	// ------------
+	// gsap related
+	// ------------
+	this.split = null;
+	this.animation = null;
+	this.targetElementsArray = ["ol", "ul", "li", "pre", "blockquote", "p", ".buttonArrayV1 .button-array li", "h1", "h2", "h3", "h4", "h5", "h6"];
+	this.activeSlideTargetElements = this.activeSlideTargetElementsList();
+
+	this.nextButtonElement = null
+	this.prevButtonElement = null;
+
+	this.slideSelector = null;
+	this.loopEnabled = false;
+
+	this.element = document.querySelector( '.' + classSelector );
+	this.currentSlideSelector = '.swiper-slide-active';
+	this.previousSlideSelector = '.swiper-slide-prev';
+	this.nextSlideSelector = '.swiper-slide-next';
+	this.nextButtonSelector = '.swiper-button-next';
+	this.prevButtonSelector = '.swiper-button-prev';
+
+
+	if( this.element != null ) {
+		this.nextButtonElement = this.element.querySelector( this.nextButtonSelector );
+		this.prevButtonElement = this.element.querySelector( this.prevButtonSelector );
+		this.initSwiper( this.element, swiperConfigObject );
+	}
+};
+
+TrendMicro.HeroSliderV2.prototype.initSwiper = function( element, swiperConfigObject )
+{
+	this.heroSwiper = new Swiper( this.element, swiperConfigObject );
+	this.heroSwiper.heroSliderV2Object = this; // Swiper event handlers doesn't allow for passing custom data
+	this.loopEnabled = swiperConfigObject.loop;
+
+	let currentSlide = this.getCurrentSlide(this.heroSwiper.el);
+	this.triggerAnimation( currentSlide );
+
+	this.heroSwiper.on( 'slideChangeTransitionStart', this.beforeSlideChangeHandler );
+	this.heroSwiper.on( 'slideChangeTransitionEnd', this.afterSlideChangeHandler );
+
+	this.slideSelector = new TrendMicro.HeroSlideSelectorV2( this );
+
+	if (this.heroSwiper.slides.length < 2 ) {
+		this.hideArrows();
+	}
+}
+
+TrendMicro.HeroSliderV2.prototype.activeSlideTargetElementsList = function()
+{
+	let activeSlideTargetElements = "";
+
+	for( let i=0; i < this.targetElementsArray.length - 1; i++ )
+	{
+		activeSlideTargetElements = activeSlideTargetElements + ".heroSliderV2 .swiper-slide-active " + this.targetElementsArray[i] + ", ";
+	}
+
+	let lastElement = this.targetElementsArray.length - 1;
+	activeSlideTargetElements = activeSlideTargetElements + ".heroSliderV2 .swiper-slide-active " + this.targetElementsArray[lastElement];
+
+	return activeSlideTargetElements;
+};
+
+TrendMicro.HeroSliderV2.prototype.isValid = function()
+{
+	return this.element != null
+};
+
+// Previous and Next
+TrendMicro.HeroSliderV2.prototype.beforeSlideChangeHandler = function( swiper )
+{
+	var self = swiper.heroSliderV2Object;
+
+	let currentSlideElement = swiper.slides[swiper.realIndex];
+	self.hideAnimatedElement( currentSlideElement );
+
+	let prevSlideElement = swiper.slides[swiper.previousIndex];
+	self.hideAnimatedElement( prevSlideElement );
+};
+
+TrendMicro.HeroSliderV2.prototype.afterSlideChangeHandler = function( swiper )
+{
+	var self = swiper.heroSliderV2Object;
+
+	let currentSlideElement = swiper.slides[swiper.realIndex];
+	self.triggerAnimation( currentSlideElement );
+	if( self.slideSelector != null ) { self.slideSelector.updateSlider( swiper.realIndex ); }
+};
+
+TrendMicro.HeroSliderV2.prototype.getCurrentSlide = function( sliderElement )
+{
+	return sliderElement.querySelector( this.currentSlideSelector )
+};
+
+TrendMicro.HeroSliderV2.prototype.triggerAnimation = function( currentSlideElement )
+{
+	let parsysElement = currentSlideElement.querySelector( '.parsys' );
+	let animationClass = this.getAnimationClass( parsysElement );
+
+	switch (animationClass)
+	{
+		case 'fadeInLeft':
+			 this.fadeInLeft();
+			break;
+		case 'fadeInDown':
+			 this.fadeInDown();
+			break;
+		default:
+	}
+};
+
+TrendMicro.HeroSliderV2.prototype.fadeInLeft = function()
+{
+	gsap.timeline().fromTo( this.activeSlideTargetElements,  {delay: 0.7, xPercent: -20, opacity: 0, ease: "power1.out", stagger: 0.1}, {xPercent: 0, opacity: 1, ease: "power1.out", stagger: 0.1});
+};
+
+TrendMicro.HeroSliderV2.prototype.fadeInDown = function()
+{
+	gsap.timeline().fromTo( this.activeSlideTargetElements,  {delay: 0.7, yPercent: -50, opacity: 0, ease: "power1.out"}, {yPercent: 0, opacity: 1, ease: "power1.out"});
+};
+
+TrendMicro.HeroSliderV2.prototype.getAnimationClass = function( parsysElement )
+{
+	return parsysElement.getAttribute( 'data-animation' );
+};
+
+TrendMicro.HeroSliderV2.prototype.hideAnimatedElement = function( slideElement )
+{
+	// let parsysElement = slideElement.querySelector( '.hero-slide .parsys');
+	// parsysElement.classList.add( this.hideClass );
+
+	let parsysElement = slideElement.querySelector( '.parsys' );
+	if ($(parsysElement).attr("data-animation"))
+	{
+		let targetElementsList = this.targetElementsArray.join();
+		$(parsysElement).find( targetElementsList ).css("opacity", 0);
+	}
+};
+
+TrendMicro.HeroSliderV2.prototype.slideTo = function( index, speed = 300 )
+{
+	if (this.loopEnabled) {
+		this.heroSwiper.slideToLoop(index, speed, true);
+	} else {
+		this.heroSwiper.slideTo(index, speed, true);
+	}
+};
+
+TrendMicro.HeroSliderV2.prototype.hideArrows = function()
+{
+	$(this.nextButtonElement).addClass('hide');
+	$(this.prevButtonElement).addClass('hide');
+}
+
+TrendMicro.HeroSliderControllerV2 = function()
+{
+	this.heroSliders = []
+};
+
+// Reminder that we need config data at runtime, so we don't run on document.ready
+TrendMicro.HeroSliderControllerV2.prototype.addHeroSlider = function( classSelector, dataObject )
+{
+	let heroSlider = new TrendMicro.HeroSliderV2( classSelector, dataObject )
+	if( heroSlider.isValid() )
+	{
+		this.heroSliders.push( heroSlider );
+	}
+};
+
+let heroSliderControllerV2 = new TrendMicro.HeroSliderControllerV2();
+
+TrendMicro.HeroSlideSelector = function() {
+};
+
+TrendMicro.HeroSlideSelector.prototype.init = function() {
+	if( $('.heroSliderV1 .hero-slide-selector').length === 0 ) { return; }
+
+	this.hideSliderArrows();
+	this.activateNewSliderNav();
+	this.toggleHeroSlideSelector();
+};
+
+
+TrendMicro.HeroSlideSelector.prototype.hideSliderArrows = function() {
+	if ( $('.hero-slide-selector').length > 0 ) {
+		$('.heroSliderV1 .hero-slides .slick-arrow').addClass('hide');
+	}
+};
+
+TrendMicro.HeroSlideSelector.prototype.activateNewSliderNav = function() {
+	// Update navigation on slide change
+	$('.hero-slides').on('beforeChange', function(event, slick, currentSlide, nextSlide){
+		// Remove active class from all navigation items
+		$('.hero-slide-selector-list li').removeClass('active');
+		// Add active class to the current navigation item (nextSlide + 1 for 1-based index)
+		$('.hero-slide-selector-list li:nth-child(' + (nextSlide + 1) + ')').addClass('active');
+	});
+
+	// Handle navigation item click
+	$('.hero-slide-selector-list li').click(function(){
+		let index = $(this).index(); // Get the index of clicked navigation item
+		$('.hero-slides').slick('slickGoTo', index); // Go to the corresponding slide
+	});
+};
+
+TrendMicro.HeroSlideSelector.prototype.toggleHeroSlideSelector = function() {
+	$('.hero-slide-selector-closed').on('click', function() {
+		$(this).hide();
+		$('.hero-slide-selector-open').show();
+	});
+
+	$('.hero-slide-selector-open .close').on('click', function() {
+		$('.hero-slide-selector-open').hide();
+		$('.hero-slide-selector-closed').css('display', 'flex');
+	});
+};
+
+const newHeroSlideSelector = new TrendMicro.HeroSlideSelector();
+$(function() {
+	newHeroSlideSelector.init();
+});
+
+
+
+TrendMicro.HeroSlideSelectorV2 = class
+{
+	heroSliderV2Object = null;
+	heroSliderElement = null;
+	selectElement = null;
+	liElements = null;
+
+	selectElementSelector = '.hero-slide-selector';
+	liSelector = '.hero-slide-selector-list li';
+	openPanelSelector = '.hero-slide-selector-open';
+	closeButtonSelector = '.hero-slide-selector-open .close';
+	closedPanelSelector = '.hero-slide-selector-closed';
+
+	slidesSelector = '.hero-slides';					// This should not be in our class, we should have a method hook into heroSliderV2
+
+	constructor( heroSliderV2Object )
+	{
+		if( heroSliderV2Object === undefined ) { return; }
+		this.heroSliderV2Object = heroSliderV2Object;
+
+		if( !heroSliderV2Object.isValid() ) { return; }
+		this.heroSliderElement = heroSliderV2Object.element;
+
+		// Our select is a direct sibling of the heroSliderV2.element
+		this.selectElement = this.heroSliderElement.parentElement.querySelector( this.selectElementSelector );
+		if( this.selectElement == null ) { return; }
+		this.liElements = $(this.selectElement).find( this.liSelector )
+
+		this.heroSliderV2Object.hideArrows();
+		this.activateNewSliderNav( this.liElements, this.clickHandler );
+		this.toggleHeroSlideSelector( this.selectElement, this.closedPanelSelector, this.closeButtonSelector, this.openButtonClickHandler, this.closeButtonClickHandler );
+	}
+
+	activateNewSliderNav( liElements, clickHandler )
+	{
+		liElements.each( (index, element) => {
+			$(element).on( 'click', {'self':this}, clickHandler );
+		});
+	}
+
+	toggleHeroSlideSelector( selectElement, closedPanelSelector, closeButtonSelector, openHandler, closeHandler )
+	{
+		$(selectElement).find( closedPanelSelector ).on( 'click', {'self':this}, openHandler );
+		$(selectElement).find( closeButtonSelector ).on( 'click', {'self':this}, closeHandler );
+	}
+
+	// Reminder that the following functions will be called on another object's scope, so (this) will be the element receiving the event
+
+	clickHandler( eventObject )
+	{
+		let clickedElement = this;
+		let self = eventObject.data.self;
+
+		let index = $(clickedElement).index();
+		self.heroSliderV2Object.slideTo( index );
+	}
+
+	openButtonClickHandler( eventObject )
+	{
+		let clickedElement = this;	// closedPanelSelector element
+		let self = eventObject.data.self;
+
+		$( clickedElement ).hide();
+		$( self.selectElement ).find( self.openPanelSelector ).show();
+	}
+
+	closeButtonClickHandler( eventObject )
+	{
+		let clickedElement = this;
+		let self = eventObject.data.self;
+
+		$( self.selectElement ).find( self.openPanelSelector ).hide();
+		$( self.selectElement ).find( self.closedPanelSelector ).css( 'display', 'flex' );
+	}
+
+	updateSlider( slideIndex )
+	{
+		if( this.liElements == null ) {
+			return;
+		}
+		// Remove active from all li elements
+		this.liElements.each( ( index, element) => {
+			$(element).removeClass( 'active' );
+		});
+
+		$(this.liElements[slideIndex]).addClass( 'active' );
+	}
+}
+
+//// JS For Horizontal Accordions Component
+
+TrendMicro.HorizontalAccordion = function() {
+};
+
+TrendMicro.HorizontalAccordion.prototype.init = function(element, multiple) {
+	this.el = element || {};
+	this.multiple = multiple || false;
+
+	// Variables
+	let accordionItems = this.el.find('.horizontalAccordionV1 .accordion');
+
+	// Event
+	accordionItems.on('click', {el: this.el, multiple: this.multiple}, this.dropdownOnClick);
+
+	// Toggle Mobile Nav Menu
+	this.dropdownOnClick();
+
+	// Resize: Show accordion menu on tablet landscape and up
+	this.onResize();
+
+	// Click anywhere on document to close navigation
+	this.documentClick();
+
+	// On Mobile display CTA as full width if there is only 1 authored
+	this.buttonFullWidthMobile();
+};
+
+TrendMicro.HorizontalAccordion.prototype.dropdownOnClick = function(event) {
+
+		  $('.horizontalAccordionV1 .accordion').on( "click", function(e) {
+			// Toggles between slideUp and slideDown for selected element.
+			$(this).find('.hidden-textarea').slideToggle(200);
+			// Toggles Dropdown Icon on Accordion
+			$(this).find('.dropdown-icon').toggleClass("dropdown-icon-up");
+			// Toggles background-image on mobile
+			$(this).parent('.item-accordion').toggleClass('hide-img');
+			// Prevents the Accordion to show/hide content panel multiple times.
+			e.stopImmediatePropagation();
+		  });
+
+		  if ($(window).width() >= 1200) {
+			$('.horizontalAccordionV1 .accordion').unbind("click"); //Disables click event on Desktop
+		  }
+};
+
+
+TrendMicro.HorizontalAccordion.prototype.onResize = function(e) {
+	$(window).resize(function() {
+
+		if ($(window).width() < 1199) {
+
+		  $('.horizontalAccordionV1 .accordion').on( "click", function(e) {
+			// Toggles between slideUp and slideDown for selected element.
+			$(this).find('.hidden-textarea').slideToggle(200);
+			// Toggles Dropdown Icon on Accordion
+			$(this).find('.dropdown-icon').toggleClass("dropdown-icon-up");
+			// Toggles background-image on mobile
+			$(this).parent('.item-accordion').toggleClass('hide-img');
+			// Prevents the Accordion to show/hide content panel multiple times.
+			e.stopImmediatePropagation();
+		  });
+
+		}
+		if ($(window).width() >= 1200) {
+			$('.horizontalAccordionV1 .accordion').unbind("click"); //Disables click event on Desktop
+		}
+	});
+};
+
+
+TrendMicro.HorizontalAccordion.prototype.documentClick = function() {
+	$(document).on('click', function(e) {
+
+	// If Accordion Panel is open set to display none
+	$('.horizontalAccordionV1 .accordion').find('.hidden-textarea').css('display', 'none');
+
+	// If Accordion Panel is open remove dropdown icon up
+	$('.horizontalAccordionV1 .accordion').find('.dropdown-icon').removeClass("dropdown-icon-up");
+
+	// Adds background-image to Accordion on mobile when user clicks
+	if ($('this:not(.hide-img)'))
+		$('.horizontalAccordionV1 .item-accordion').addClass('hide-img');
+	});
+};
+
+
+TrendMicro.HorizontalAccordion.prototype.buttonFullWidthMobile = function() {
+	$('.horizontalAccordionV1 .buttonArrayV1').each(function() {
+	  let $this = $(this);
+	  if ($this.find('a').length == 1) { //If there is only 1 '<a>' we add the class below
+			$this.find('.button-array').addClass('btn-full-width');
+	  }
+	});
+};
+
+
+const newHorizontalAccordion = new TrendMicro.HorizontalAccordion();
+$(function() {
+
+	let accordionHorizontal = $('.horizontalAccordionV1 .accordion');
+
+	if( accordionHorizontal.length > 0 ) {
+		newHorizontalAccordion.init(accordionHorizontal, false);
+	}
+});
+
+TrendMicro.ListTabV1 = function() {};
+
+TrendMicro.ListTabV1.prototype.init = function() {
+	let listTabV1Component = $('.listTabV1');
+	if ( listTabV1Component.length === 0 ) { return; }
+
+	this.initListTabV1DropDownMenu();
+};
+
+TrendMicro.ListTabV1.prototype.initListTabV1DropDownMenu = function() {
+	let dropdownContent = " .dropdownContent";
+	$(".listTabV1 .list-view-select > span").click(function(event){
+		event.stopPropagation();
+		let spanParentId = $(this).closest('.area-container').attr('id');
+		$(this).toggleClass('rotate');
+		$("#"+spanParentId + dropdownContent).toggleClass("show");
+	});
+
+	$('.listTabV1 .list-view-select').on('click', function() {
+		let listParentId = $(this).closest('.area-container').attr('id');
+		$(".listTabV1 " + "#"+listParentId + " .list-view-select > span").toggleClass('rotate');
+		$("#"+listParentId + dropdownContent).toggleClass("show");
+	});
+
+	// Close the dropdown if the user clicks outside of it
+	window.onclick = function(event) {
+		if (!event.target.matches('.listTabV1 .list-view-select')) {
+		  var dropdowns = document.getElementsByClassName("list-menu");
+
+		  if ($('.list-menu.show').length > 0) {
+		  	$(".listTabV1 .list-view-select > span").removeClass('rotate');
+		  }
+
+		  for (var i = 0; i < dropdowns.length; i++) {
+			var openDropdown = dropdowns[i];
+
+			if (openDropdown.classList.contains('show')) {
+			  openDropdown.classList.remove('show');
+			}
+		  }
+		}
+	}
+};
+
+const newListTabV1 = new TrendMicro.ListTabV1();
+$(function() {
+	newListTabV1.init();
+});
+
+
+
+TrendMicro.LogoCarousel = function() {
+};
+
+TrendMicro.LogoCarousel.prototype.init = function() {
+	this.initLogoCarousel();
+};
+
+TrendMicro.LogoCarousel.prototype.initLogoCarousel = function() {
+	const swiper = new Swiper('.logoCarouselV1 .logo-carousel', {
+		slidesPerView: 2,
+		loop: true,
+		autoplay: {
+			disableOnInteraction: false,
+			pauseOnMouseEnter: true,
+		},
+		breakpoints: {
+			575: {
+				slidesPerView: 3,
+			},
+			768: {
+				slidesPerView: 4,
+			},
+			991: {
+				slidesPerView: 6,
+			},
+			1200: {
+				slidesPerView: 7,
+			},
+			1439: {
+				slidesPerView: 9,
+			},
+		},
+		on: {
+			resize: function () {
+				this.autoplay.resume(); // If more than one swiper JS slider is on a page, this will keep all sliders autoplaying
+			},
+		},
+	});
+};
+
+const newLogoCarousel = new TrendMicro.LogoCarousel();
+$(function() {
+	newLogoCarousel.init();
+});
+
+
+$(document).ready( function() {
+
+	gsap.registerPlugin(ScrollTrigger);
+
+	gsap.from(".unit-wrap", {
+		y: 100,
+		duration: 1,
+		opacity: 0,
+		scrollTrigger: {
+			trigger: ".unit-wrap",
+			start: "top 70%",
+			// markers: true,
+//			toggleActions: "play none reverse reverse",
+			toggleActions: "play reverse play none",
+			onEnter: counterAnimationUp,
+			// onLeave: counterAnimation,
+			// onEnterBack: counterAnimationUp,
+			// onLeaveBack: counterAnimationUp,
+		}
+	});
+
+	function counterAnimationUp() {
+		$(".number-animations-wrap .counter").each( function(){
+
+			// In the step and complete callback functions $(this) no longer refers to the target element
+			var thisNumber = $(this);
+
+			var finalValue = $(this).text();
+
+			$(this).animate({
+				finalVal: finalValue
+			},{
+				duration:2000,
+				easing: 'linear',
+				step: function( currentVal ){
+					$(thisNumber).text( Math.floor(currentVal) );
+				},
+				complete: function () {
+					$(thisNumber).text(finalValue);
+				}
+			});
+		});
+	}
+});
+
+TrendMicro.Tabs = function() {
+	this.componentSelector = '.tabsV1';
+	this.navButtonSelector = ".nav-tabs a[data-toggle='tab']";
+	this.anchorDataToggleSelector = "ul.nav-tabs, ul.tab-nav-wrapper > li > a[data-toggle='tab']";
+	this.tabContentSelector = ".tab-content";
+	this.fullWidthClass = '.tabs-full-width';
+	this.activeTabParameterName = 'tab';
+
+	this.hash = this.getHash();
+};
+
+TrendMicro.Tabs.prototype.init = function() {
+	this.tabComponents = $( this.componentSelector );
+	for( var i = 0; i < this.tabComponents.length; i++ ) {
+
+		// enable jquery for this current DOM element
+		var currentJqueryComponent = $(this.tabComponents[i]);
+
+		currentJqueryComponent.find( this.navButtonSelector ).click( this.clickHandler );
+		currentJqueryComponent.find( this.anchorDataToggleSelector ).on(
+			"shown.bs.tab", // event
+			{ // data object
+				scope: this,
+				component: currentJqueryComponent
+			},
+			this.hookTabShowToResizeFunctions // event handler
+		);
+
+		this.setFullBrowserWidth( currentJqueryComponent );
+	}
+
+	if( this.hash !== '' ) {
+		this.activateTabFromHash( this.hash );
+	}
+	else {
+		this.activateTabFromHighlight();
+	}
+
+	this.activateNestedTabs();
+};
+
+TrendMicro.Tabs.prototype.clickHandler = function( event ) {
+	event.preventDefault();
+	$(this).tab('show');
+
+	window.location.hash = this.hash;
+};
+
+TrendMicro.Tabs.prototype.hookTabShowToResizeFunctions = function( event ) {
+	var self = event.data.scope;
+	var component = event.data.component;
+
+	var tabContentElement = component.find( self.tabContentSelector );
+	if( !tabContentElement.length ) { return; }
+
+	var tabContent = $(tabContentElement[0]);
+
+	// TODO: Setup observer patterns for these
+	if( tabContent.find(".simplifiedPriceWidget").length ) {
+		matchSimplifiedWidgetHeight(); //matches the height of Simplified Price Widgets inside tabs
+	}
+
+	if( tabContent.find(".productHighlight").length ) {
+		matchProductHighlightHeight(); //matches the height of productHighlight Components inside tabs
+	}
+
+	if( tabContent.find(".consumerHoverContainer").length ) {
+		matchConsumerHoverHeight(); //matches the height of Consumer Hover Container Components inside tabs
+	}
+
+	if( tabContent.find(".pageTreeView").length ) {
+		matchPTVHeight();	// resize tiles in pageTreeView components inside tabs
+	}
+
+	if( tabContent.find(".accordionDrawersTabbed").length ) {
+		window.accordionDrawersObject.drawerHeightSetup();
+	}
+};
+
+TrendMicro.Tabs.prototype.setFullBrowserWidth = function( jqueryComponent )
+{
+	var fullWidthChildElement = jqueryComponent.find( this.fullWidthClass );
+	if( !fullWidthChildElement.length ) { return; }
+	$(fullWidthChildElement[0]).parents(".tabs, .tabsV2, .tabsV3").addClass('full-browser-width-wrap');
+};
+
+TrendMicro.Tabs.prototype.getHash = function()
+{
+	var hash = window.location.hash;
+	if( hash.length ) { return hash; }
+
+	hash = this.getActiveTabQueryParameter();
+	if( hash.length ) { return '#' + hash; } // activateTabFromHash expects a # in front
+
+	return '';
+};
+
+TrendMicro.Tabs.prototype.getActiveTabQueryParameter = function()
+{
+    var url = document.location.href;
+    var queryStrings = url.substring( url.indexOf('?') + 1 ).split( '&' );
+    for( var i = 0, result = {}; i < queryStrings.length; i++) {
+        var split = queryStrings[i].split('=');
+        if( split[0] === this.activeTabParameterName ) {
+			return decodeURIComponent(split[1]).match( /[a-zA-Z0-9\-]+/g )[0];
+		}
+    }
+
+    return '';
+};
+
+TrendMicro.Tabs.prototype.activateTabFromHash = function( hash )
+{
+	if( hash === '' ) return;
+
+	var selector = '.nav-tabs a[href="' + hash + '"]';
+	if ( $( selector ).length > 0 ) { $( selector ).tab( 'show' ); }
+};
+
+TrendMicro.Tabs.prototype.activateTabFromHighlight = function()
+{
+	var selector = '.nav-tabs .highlight';
+	var element = $( selector );
+
+	if ( element.length > 0 ) {
+		var highlightedTabElement = $(element[0]);
+		var tabTargetURL = highlightedTabElement.attr('href');
+
+		highlightedTabElement.closest('.nav-tabs').find('.active').removeClass('active');
+		highlightedTabElement.closest('.tabsV2, .tabsV3').find('.tab-pane.active').removeClass('active');
+		highlightedTabElement.parent().addClass('active');
+
+		if ( tabTargetURL.split('')[0] === '#' ) {
+			highlightedTabElement.closest('.tabsV2, .tabsV3').find(tabTargetURL).addClass('active');
+		}
+	}
+};
+
+TrendMicro.Tabs.prototype.activateNestedTabs = function()
+{
+	var linksInTabContent = $( $(".tabs, .tab-border")[0] ).find('a').filter( function() {
+		return this.href.indexOf(window.location.href.replace(window.location.hash,"")) !== -1 &&
+				this.href.match(/#tabs-(?:[a-zA-Z0-9]{6})-([0-9]+)$/) &&
+				!$(this).closest(".tab-border").length;
+	});
+
+	if (linksInTabContent.length > 0) {
+		$(linksInTabContent).each(function() {
+			var currentLink = this;
+			$(currentLink).click(function() {
+				var targetTabElement = $(this).closest('tab-border').find('.nav-tabs a[href="#' + $(currentLink).attr("href").split("#").pop() + '"]');
+				targetTabElement.click();
+				$('html, body').animate({
+					scrollTop:$(targetTabElement).offset().top - 215
+				},800);
+			});
+		});
+	}
+};
+
+var tabs = new TrendMicro.Tabs();
+$(document).ready( function() {
+	tabs.init();
+});
+
+TrendMicro.Tile = function()
+{
+	this.hoverViewportRequirement = 991;
+	this.tileParagraphSelector = ".tile__para";
+	this.tileLinkSelector = ".tile__link";
+	this.tileWrapperSelector = ".tile__wrapper";
+	this.hoverTileSelector = ".tile.hover";
+	this.tileSelector = ".tileV1 .tile";
+};
+
+TrendMicro.Tile.prototype.init = function() {
+	if ($(this.tileSelector).length && !isMobileDevice()) {
+		this.matchTileHeight();
+		let rematchTileHeightFunction = debounce(this.matchTileHeight, 250);
+		window.addEventListener('resize', rematchTileHeightFunction);
+	}
+
+	// If Tile V1 exists, run the function.
+	// We don't want this function to run when ArrayTileV1/hoverLayout/staticLayout exist on the page (TILE V2)
+	if ($(this.tileSelector).length > 0) {
+		this.calculateHoverHeight();
+	}
+
+	this.horizontalAlignBtnArray();
+
+	// Only have hover event
+	if ($(window).width() > 1024) {
+		$('.tileLayoutV1 .hoverLayout .hover').hover(
+			function () {
+				$(this).find('.tile__wrapper').removeClass('slideInDown');
+				$(this).find('.tile__wrapper').addClass('slideInUp');
+			}, function () {
+				$(this).find('.tile__wrapper').removeClass('slideInUp');
+				$(this).find('.tile__wrapper').addClass('slideInDown');
+			}
+		);
+	} else if ($(window).width() <= 1024) {
+		// Add Click event to smaller screens due to sensitive hover event that was always applied on scroll in the past,
+		// making tiles open when they weren't suppose to be open
+		$('.tileLayoutV1 .hoverLayout .hover').on('click', function(e) {
+			$(this).closest('.hoverLayout').find('.hover.mobile-active').removeClass('mobile-active').find('.tile__wrapper').removeClass('slideInUp').addClass('slideInDown');
+			$(this).addClass('mobile-active').find('.tile__wrapper').removeClass('slideInDown').addClass('slideInUp');
+
+			// Give option to close hover tile that was just opened (toggle hover tile with click event)
+			if ($(e.target).hasClass('mobile-active')) {
+				$(this).removeClass('mobile-active').find('.tile__wrapper').removeClass('slideInUp').addClass('slideInDown');
+			}
+		});
+	}
+};
+
+TrendMicro.Tile.prototype.matchTileHeight = function() {
+	matchSectionHeights( '.tileV1 .tile__title', '.responsiveColumnControlV1' );
+	matchSectionHeights( '.tileV1 .tile__wrapper', '.responsiveColumnControlV1' );
+	matchSectionHeights( '.tileV1 .richText', '.responsiveColumnControlV1' );
+	matchSectionHeights( '.tileV1 .tile__title_static', '.responsiveColumnControlV1' );
+    matchSectionHeights( '.tileV1 .tile__wrapper_static', '.responsiveColumnControlV1' );
+};
+
+TrendMicro.Tile.prototype.calculateHoverHeight = function() {
+	if( parseInt( $(window).width() ) > this.hoverViewportRequirement ) {
+ 		let tileItems = $(this.tileSelector);
+ 		let tileHover = $(this.hoverTileSelector);
+ 		let tileHiddenHeight;
+
+ 		//each function to find the height of the tile para and tile link and then set the transformY to it.
+ 		tileItems.each(function() {
+ 			let tileItem = $(this);
+ 			let tileParaChild = tileItem.find('.tile__para');
+ 			let tileTitleChild = tileItem.find('.tile__link');
+ 			let tileWrapper = tileItem.find('.tile__wrapper');
+ 			let tileParaHeight = tileParaChild.outerHeight(true);
+ 			let tileTitleHeight = tileTitleChild.outerHeight(true);
+ 			tileHiddenHeight = tileParaHeight + tileTitleHeight;
+
+ 			tileWrapper.css( 'transform', 'translateY(' + tileHiddenHeight + 'px)' );
+ 		});
+
+ 		//Closure over self and tileHiddenHeight
+ 		let self = this;
+		$( this.hoverTileSelector ).hover(
+			function() {
+				tileHiddenHeight = parseInt($(this).find( self.tileWrapperSelector ).css('transform').split(',')[5], 10);
+				$(this).find( self.tileWrapperSelector ).css( 'transform', 'translateY(0px)' );
+			},
+			function() {
+				$(this).find( self.tileWrapperSelector ).css( 'transform', 'translateY(' + tileHiddenHeight + 'px)' );
+			}
+		);
+ 	}
+};
+
+// NEW! Tile Layout Horizontal Button Alignment
+TrendMicro.Tile.prototype.horizontalAlignBtnArray = function(){
+	$('.tileLayoutV1 .arrayTileV1 .buttonArrayV1').each(function(){
+		if ( $(this).find('.button-array.center-align').length ) {
+			$(this).css('justify-content', 'center');
+		} else if ( $(this).find('.button-array.right-align').length ) {
+			$(this).css('justify-content', 'flex-end');
+		}
+	});
+};
+
+
+var tile = new TrendMicro.Tile();
+//removed the line with $(document).ready(function() { bc while loading faster it was creating uneven align issue
+$(window).on("load", function() {
+	$('.static-layout').parent().parent().parent().toggleClass('tile-container', true);
+	tile.init();
+});
+
+
+
+
+
+
+
+TrendMicro.TileNavMenu = function() {
+};
+
+TrendMicro.TileNavMenu.prototype.init = function() {
+	this.initTileNavMenu();
+};
+
+TrendMicro.TileNavMenu.prototype.initTileNavMenu = function( element ) {
+	let tileNavMenuCarousel = $('.tileNavMenuV1 .tile-nav-menu-slider');
+	if ( tileNavMenuCarousel.length === 0 ) { return; }
+
+	const tileNavMenuSwiper = new Swiper('.tile-nav-menu-slider', {
+		speed: 300,
+		slidesPerView: 1.2,
+		spaceBetween: 24,
+		loop: false,
+		pagination: {
+			el: '.swiper-pagination',
+			type: 'bullets',
+			clickable: true
+		},
+		keyboard: {
+			enabled: true,
+		},
+		breakpoints: {
+			768: {
+				loop: true,
+				slidesPerView: 3,
+				spaceBetween: 12,
+			},
+			1024: {
+				spaceBetween: 0,
+			}
+		},
+	});
+
+	// Get number of slides
+	const slideCount = tileNavMenuSwiper.slides.length;
+
+	if (slideCount === 3) {
+		tileNavMenuCarousel.addClass('three-slide-carousel');
+		togglePagination();
+		$(window).on('resize', function(){
+			togglePagination();
+		});
+	} else if (slideCount === 4) {
+		tileNavMenuCarousel.addClass('four-slide-carousel');
+	} else if (slideCount === 5) {
+		tileNavMenuCarousel.addClass('five-slide-carousel');
+	} else if (slideCount === 6) {
+		tileNavMenuCarousel.addClass('six-slide-carousel');
+	}
+
+	function togglePagination() {
+		let w = $(window).width();
+		if (w >= 768 && w <= 1024) {
+			$('.tileNavMenuV1 .tile-nav-menu-slider .swiper-pagination').hide();
+		} else {
+			$('.tileNavMenuV1 .tile-nav-menu-slider .swiper-pagination').show();
+		}
+	}
+};
+
+const newTileNavMenu = new TrendMicro.TileNavMenu();
+
+$(document).ready( function() {
+	newTileNavMenu.init();
+});
+
+TrendMicro.VerticalTabs = function() {
+	this.mobileMaxWidth = "(max-width: 1199px)";
+	this.desktopMinWidth = "(min-width: 1200px)";
+};
+
+TrendMicro.VerticalTabs.prototype.init = function(){
+
+	let vertical_tabs = document.querySelectorAll(".verticalTabsV1 .verticalTabs");
+	for (var i = 0; i < vertical_tabs.length; i++) {
+		this.initVerticalTabs( vertical_tabs[i] );
+	}
+};
+
+TrendMicro.VerticalTabs.prototype.initVerticalTabs = function( vertical_tab ){
+	$(vertical_tab).find(".tabContent:not(:first)").addClass("inactive");
+
+	let first_tab = $( vertical_tab ).find(".tabButton:first");
+
+	// Need to mark the last .tabButton so we can target its :after pseudo element using css
+	$( vertical_tab ).find(".tabButton:last").addClass("lastTabButton");
+
+	this.addTabWrapper( vertical_tab );
+	this.setTabAsOpen( first_tab );
+	this.addSelectedTabClass( first_tab );
+	this.calculateTabContentHeight( first_tab );
+};
+
+TrendMicro.VerticalTabs.prototype.handleTabClick = function( clickedTab ){
+
+	let tab_index = $(clickedTab).index("div.tabButton");
+	$(clickedTab).closest('.verticalTabsV1').find('.tabContent').addClass("inactive");
+	$(clickedTab).next('.tabContent').removeClass("inactive");
+	this.addSelectedTabClass( clickedTab );
+	this.setTabAsOpen( clickedTab );
+	this.calculateTabContentHeight( clickedTab );
+};
+
+TrendMicro.VerticalTabs.prototype.addSelectedTabClass = function( clickedTab ){
+	$(clickedTab).closest('.verticalTabsV1').find('.tabButton').removeClass("selectedTab");
+	$(clickedTab).addClass("selectedTab");
+};
+
+/**
+ * Add the class openedTab from the given tab selector
+ */
+TrendMicro.VerticalTabs.prototype.setTabAsOpen = function( tab ){
+
+	$( tab ).closest(".verticalTabsV1 .verticalTabs").find(".tabWrapper").addClass("closedTab");
+	$( tab ).closest(".tabWrapper").removeClass( "closedTab" );
+
+	$( tab ).closest(".verticalTabsV1 .verticalTabs").find(".tabWrapper").removeClass("openedTab");
+	$( tab ).closest(".tabWrapper").addClass( "openedTab" );
+
+	$( tab ).closest('.verticalTabsV1').find('.tabButton span').html("expand_more");
+	$( tab ).find('span').html("expand_less");
+};
+
+/**
+ * Matches the height of the tabContent to the number of Tabs added via Author Dialog
+ */
+TrendMicro.VerticalTabs.prototype.calculateTabContentHeight = function( vertical_tab ){
+	let numberOfTabs = $(vertical_tab).closest(".verticalTabs").find(".tabButton").length;
+
+	let fractionalUnits = "";
+	for (let i = 0; i < numberOfTabs; i++) {
+		fractionalUnits+= "min-content ";
+	}
+	// We added an invisible row to make sure the overlay image stays at the bottom of the component
+	fractionalUnits += "1fr";
+
+
+	if( window.matchMedia( this.desktopMinWidth ).matches )
+	{
+		$( vertical_tab ).closest('.verticalTabs').css( "grid-template-rows", fractionalUnits);
+	}
+	else
+	{
+		$( vertical_tab ).closest('.verticalTabs').css( "grid-template-rows", "none" );
+	}
+};
+
+/**
+ * In mobile view it adds a div wrapper around each pair of tabButton and tabContent classes
+ */
+TrendMicro.VerticalTabs.prototype.addTabWrapper = function( vertical_tab ){
+
+	if( window.matchMedia( this.mobileMaxWidth ).matches ){
+
+		// Fist wrap the tabContent with tabWrapper div
+		$(vertical_tab).find('.tabContent').wrap( "<div class='tabWrapper'></div>" );
+
+		// Loop through each tabButton and move it to inside tabWrapper and before tabContent
+		$(vertical_tab).find('.tabButton').each(function(){
+
+			let tabContentSelector = $(this).next('.tabWrapper').children('.tabContent');
+			$(this).insertBefore(tabContentSelector);
+		});
+	}
+};
+
+$(document).ready( function() {
+	verticalTabsObj = new TrendMicro.VerticalTabs();
+	verticalTabsObj.init();
+
+	$(".verticalTabsV1 .tabButton").click(function () {
+		verticalTabsObj.handleTabClick( this );
+	});
+});
+
+TrendMicro.CustomerQuote = function() {
+};
+
+TrendMicro.CustomerQuote.prototype.init = function() {
+	$('.customerQuoteV1').each(function() {
+		if ( $(this).find('.left-half').length ) {
+			$(this).css({
+				'display': 'flex',
+				'justify-content': 'flex-start'
+			});
+		} else if ( $(this).find('.right-half').length ) {
+			$(this).css({
+				'display': 'flex',
+				'justify-content': 'flex-end'
+			});
+		}
+	});
+};
+
+const newCustomerQuote = new TrendMicro.CustomerQuote();
+
+$(function() {
+	newCustomerQuote.init();
+});
+
+document.addEventListener("DOMContentLoaded", function () {
+	var jwPlayers = $('.jwPlayerContainer');
+
+	// Verify that one or more JWPlayers are present on the page.
+	if (typeof jwPlayers != "undefined") {
+		$.each(jwPlayers, function (i, jwPlayerDiv) {
+			jwPlayerDiv = $(jwPlayerDiv);
+			var videoID = jwPlayerDiv.attr("id");
+			var opts = jwPlayerDiv.data("jwplayeropts");
+			jwplayer.key = jwPlayerDiv.data("jwplayerlicense");
+			jwplayer(videoID).setup(opts);
+
+			// Smoother repeat process, seek to time 0 (seconds) when reaching the end of the video
+			if (opts.repeat === "true") {
+				jwplayer(videoID).onTime(function (timing) {
+					// Polling rate of 'onTime' is inconsistent, need to pad duration
+					if (timing.position >= (timing.duration - 0.4))
+						jwplayer(videoID).seek(0);
+				});
+			}
+		});
+	}
+
+	if ($('.tm-playlist').length && !isMobileDevice()) {
+		matchJWHeight();
+
+		var rematchJWHeight = debounce(matchJWHeight, 250);
+		window.addEventListener('resize', rematchJWHeight);
+	}
+});
+
+function matchJWHeight() {
+	matchSectionHeights('.text-wrap','.jwPlayer');
+}
+
+TrendMicro.HoverHighlight = function()
+{
+	this.hoverHighlightItem = ".hoverHighlightV1 .item";
+};
+
+
+TrendMicro.HoverHighlight.prototype.init = function() {
+	this.initHoverHighlight();
+};
+
+
+TrendMicro.HoverHighlight.prototype.initHoverHighlight = function() {
+   var hoverHighlightItemMaxHeight = 0;
+
+       $(this.hoverHighlightItem).each(function () {
+           if ($(this).height() > hoverHighlightItemMaxHeight) {
+               hoverHighlightItemMaxHeight = $(this).height();
+           }
+       });
+
+       $(this.hoverHighlightItem).height(hoverHighlightItemMaxHeight);
+};
+
+
+var newHoverHighlight = new TrendMicro.HoverHighlight();
+
+$(document).ready(function(){
+	newHoverHighlight.init();
+	$('.hoverHighlightV1').each(function(e){
+        const _item = $(this).find('.item').length;
+         _item === 1 && $(this).find('.item').parent('a').addClass('single');
+    })
+
+});
+
+TrendMicro.JavascriptTable = function( rootElement )
+{
+	this.rootElement = rootElement;
+	this.hiddenClass = 'tablet-hidden';
+	this.tableSelector = '.table-target';
+	this.selectSelector = 'select[name="column-select"]';
+	this.cellSelector = '.table-row > div';
+
+	this.selectElements = null;
+	this.tableElement = null;
+
+	// Don't call this part unless the page has loaded
+	this.selectElements = this.rootElement.querySelectorAll( this.selectSelector );
+	this.tableElement = this.rootElement.querySelector( this.tableSelector );
+
+	const columnCount = this.selectElements.length;
+	if( columnCount > 0 ) {
+		for( let i = 0; i < columnCount; i++ ) {
+			$(this.selectElements[i]).selectpicker();
+			$(this.selectElements[i]).on( 'changed.bs.select', {self:this}, this.selectChangeHandler );
+		}
+
+		$(this.selectElements[0]).trigger( 'changed.bs.select' );
+	}
+
+	// Remove Bootstrap Caret icon if it exists (it will if table has a table head), and replace with Google material icon
+	$('.tableV1 .bs-caret').each(function() {
+		if ( $(this).length > 0) {
+			$(this).parent().append('<span class="material-symbols-outlined">expand_more</span>');
+			$(this).remove();
+		}
+	});
+
+	// ON Select Change: Remove Bootstrap Caret icon, and replace with Google material icon
+	let selectElement = document.querySelector(".tableV1 select");
+	selectElement.addEventListener("change", (event) => {
+		this.removeBootstrapCaretIcon();
+
+		if ( !$('.tableV1 .material-symbols-outlined').length ) {
+			this.addGoogleMaterialIcon();
+		}
+	});
+};
+
+TrendMicro.JavascriptTable.prototype.selectChangeHandler = function( eventObject )
+{
+	let selectElement = this;
+	let self = eventObject.data.self;
+	let targetClass = $(selectElement).val();
+
+	self.showColumn( targetClass );
+	self.syncSelects( targetClass );
+};
+
+TrendMicro.JavascriptTable.prototype.syncSelects = function( value )
+{
+	const columnCount = this.selectElements.length;
+	if( columnCount > 0 ) {
+		for( let i = 0; i < columnCount; i++ ) {
+			// Update all the selects without triggering .change()
+			$(this.selectElements[i]).val( value );
+			$(this.selectElements[i]).selectpicker( 'refresh' );
+		}
+	}
+};
+
+TrendMicro.JavascriptTable.prototype.showColumn = function( targetClass )
+{
+	const selectedTDs = this.tableElement.querySelectorAll( this.cellSelector );
+
+	selectedTDs.forEach( (item) => {
+		if( item.classList.contains( targetClass ) ) {
+			item.classList.remove( this.hiddenClass );
+		}
+		else {
+			item.classList.add( this.hiddenClass );
+		}
+	});
+};
+
+TrendMicro.JavascriptTable.prototype.removeBootstrapCaretIcon = function()
+{
+	$('.tableV1 .bs-caret').remove();
+};
+
+TrendMicro.JavascriptTable.prototype.addGoogleMaterialIcon = function()
+{
+	$('.tableV1 .dropdown-toggle').append('<span class="material-symbols-outlined">expand_more</span>');
+};
+
+TrendMicro.JavascriptTableController = function( componentClass )
+{
+	this.componentClass = componentClass;
+	this.components = []; // Every component on this page
+}
+
+TrendMicro.JavascriptTableController.prototype.init = function()
+{
+	var componentElements = document.querySelectorAll( '.' + this.componentClass );
+
+	componentElements.forEach( (item) => {
+		this.components.push( new TrendMicro.JavascriptTable( item ) );
+	});
+}
+
+
+$(function() {
+	var javascriptTableController = new TrendMicro.JavascriptTableController( 'tableV1' );
+	javascriptTableController.init();
+
+	$('.tableV1 select, .tableV1 .bootstrap-select').removeClass('hidden');
+});
+
+TrendMicro.RssCarousel = function( item )
+{
+	this.nextButtonSelector = '.swiper-button-next-rss';
+	this.prevButtonSelector = '.swiper-button-prev-rss';
+	this.swiperElementSelector = '.swiper-container .rss-feed-slider'
+
+	this.element = item;
+	this.nextButtonElement = item.querySelector( this.nextButtonSelector );
+	this.prevButtonElement = item.querySelector( this.prevButtonSelector );
+	this.swiperElement = item.querySelector( this.swiperElementSelector );
+
+	this.swiperConfig = {
+		breakpoints: {
+			414: {
+				slidesPerView: 1.2,
+			},
+			768: {
+				slidesPerView: 2.5,
+			},
+			1024: {
+				slidesPerView: 3.4,
+			},
+			1600: {
+				slidesPerView: 4.4,
+			},
+		},
+		grabCursor: true,
+		navigation: {
+			nextEl: this.nextButtonElement,
+			prevEl: this.prevButtonElement
+		},
+		spaceBetween: 24,
+		speed: 500,
+		watchOverflow: true
+	}
+
+	this.swiper = new Swiper( this.swiperElement, this.swiperConfig );
+};
+
+TrendMicro.SwiperController = function( componentClass )
+{
+	this.componentClass = componentClass;
+	this.components = []; // Every component on this page
+}
+
+TrendMicro.SwiperController.prototype.init = function()
+{
+	var componentElements = document.querySelectorAll( '.' + this.componentClass );
+
+	componentElements.forEach( (item) => {
+		this.components.push( new TrendMicro.RssCarousel( item ) );
+	});
+}
+
+var swiperController = new TrendMicro.SwiperController( 'rssCarouselV1' );
+$(document).ready(function() {
+	swiperController.init();
+});</script>
+</body>
+</html>

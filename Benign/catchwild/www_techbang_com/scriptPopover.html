@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>scriptPopover.html</title>
+</head>
+<body>
+
+<script>
+import { reactive } from 'https://unpkg.com/petite-vue?module';
+export const popoverScript = reactive({
+  /** Variable popover */
+  popoverVar: {},
+
+  /** Functions */
+  initPopoverElement(customId){
+    this.popoverVar[customId]={
+      show: false,
+      isClick: false,
+      posX: 0,
+      posY: 0,
+      element: null,
+      timeout: undefined
+    }
+    this.popoverVar[customId].element = document.getElementById("tts-popover-content-"+customId);
+  },
+  togglePopover(e, customId) {
+    if(!this.popoverVar[customId]){
+      this.initPopoverElement(customId);
+    }
+    if (!this.popoverVar[customId].element) {
+      return;
+    }
+    if ("click" === e.type) {
+      if (this.popoverVar[customId].show && this.popoverVar[customId].isClick) {
+        this.popoverVar[customId].isClick = false;
+        this.clearData(customId);
+        return;
+      }
+      this.popoverVar[customId].isClick = true;
+      if(this.popoverVar[customId].show){
+        return;
+      }
+    }
+    clearTimeout(this.popoverVar[customId].timeout);
+    this.popoverVar[customId].show = true;
+    this.popoverVar[customId].element.style.display = "block";
+    const rectElement = e.target.getBoundingClientRect();
+    if((window.innerWidth - rectElement.left)>= (this.popoverVar[customId].element.clientWidth/2)){
+      this.popoverVar[customId].posX = rectElement.left;
+    }else{
+      this.popoverVar[customId].posX = 50;
+    }
+    this.popoverVar[customId].posX = Math.max(0, this.popoverVar[customId].posX);
+    this.popoverVar[customId].posY =rectElement.bottom - 5;
+  },
+  clearDataBlur(e, customId) {
+    if (!e.relatedTarget) {
+      return this.clearClick(customId);
+    }
+    const myElement = e.relatedTarget;
+    if ("tts-popover-content-"+customId === myElement.id) {
+      return;
+    }
+    const parent = this.popoverVar[customId].element;
+    if (null === parent || !parent.contains(myElement)) {
+      return this.clearClick(customId);
+    }
+    this.$nextTick(() => {
+      this.clearClick(customId);
+    });
+  },
+  clearClick(customId) {
+    this.popoverVar[customId].isClick = false;
+    this.clearData(customId);
+  },
+  clearDataTimeout(customId){
+    this.popoverVar[customId].timeout = setTimeout(() => {
+      this.clearData(customId);
+    }, 500);
+  },
+  clearData(customId) {
+    if (this.popoverVar[customId].isClick) {
+      return;
+    }
+    this.popoverVar[customId].show = false;
+    this.popoverVar[customId].posX = 0;
+    this.popoverVar[customId].posY = 0;
+  },
+})
+</script>
+
+</body>
+</html>

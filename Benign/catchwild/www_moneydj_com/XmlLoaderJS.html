@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XmlLoaderJS.html</title>
+</head>
+<body>
+
+<script>
+function XmlLoader() {
+	//�P�_ActiveXObject��_�ϥ�
+	this.URL = '';
+	this.sParam1;
+	this.sParam2;
+	this.sParam3;
+	this.sParam4;
+	this.sParam5;
+	this.sParam6;
+	this.sParam7;
+	this.callbackfunc;
+	this.LoadXML=XMLLoder_Load;
+	this.LoadXML1=XMLLoder_Load1;
+	this.XMLObj=null;
+	this.async=true;			//�P�B�����
+	this.readyStateXMLHTTP = 0;
+	this.statusXMLHTTP = 0;
+	this.bDoFail = true;
+}
+
+function XMLLoder_Load()
+{
+	var tempObj = this;
+
+	if (this.async)
+	{
+		this.bDoFail = false;
+		$.ajax({
+			url: tempObj.URL, //�~����xml��
+			type: 'GET',
+			dataType: 'xml',
+			success: function(xmlDoc, textStatus, xhr){
+				tempObj.callbackfunc(xhr, tempObj.sParam1, tempObj.sParam5, tempObj.sParam2, tempObj.sParam3, tempObj.sParam4, tempObj.sParam6, tempObj.sParam7, true);			
+			},
+			error:function (xhr, ajaxOptions, thrownError) {
+				
+			},
+			complete:function (xhr, textStatus) {
+				tempObj.bDoFail = false;			
+				if(!tempObj.async)
+				{
+					tempObj.readyStateXMLHTTP = xhr.readyState;
+					tempObj.statusXMLHTTP = xhr.status;
+				}
+			}
+		});
+
+	}
+}
+
+function XMLLoder_Load1()
+{
+	if(window.ActiveXObject || window.XMLHttpRequest){ // for IE and Mozilla
+		//�ŧi new ����
+		try 
+		{
+			this.XMLObj = new ActiveXObject("Msxml2.XMLHTTP");
+		}
+		catch (e) 
+		{
+			try 
+			{
+				this.XMLObj = new ActiveXObject("Microsoft.XMLHTTP");
+			}
+			catch (e) 
+			{
+				this.XMLObj = null;
+			}
+		}
+
+		// for Mozilla
+		if ( !this.XMLObj && typeof( XMLHttpRequest) != "undefined" ) 
+		{ 
+			this.XMLObj=new XMLHttpRequest() 
+		}
+		else
+		{
+			if ( !this.XMLObj)
+			{			
+				return this.XMLObj;
+			}
+		}
+		
+		
+		//���wŪ�������᪺�ƥ�B�z��k
+		//�]���ƥ�Ĳ�o�� this�Y�ܬ�page�A�]���b�����ŧi�@ �ܼưѦҨ쪫�󥻨��A�A�I�s
+		var tempObj = this;
+		
+		if (this.async)
+		{
+			this.bDoFail = false;
+
+			this.XMLObj.onreadystatechange = function()
+			{
+				if (tempObj.XMLObj.readyState==4)
+				{
+					this.readyStateXMLHTTP = tempObj.XMLObj.readyState;
+					this.statusXMLHTTP = tempObj.XMLObj.status;
+					if (tempObj.XMLObj.status == 200 || tempObj.XMLObj.status == 304) {			
+						tempObj.callbackfunc(tempObj.XMLObj, tempObj.sParam1, tempObj.sParam5, tempObj.sParam2, tempObj.sParam3, tempObj.sParam4, tempObj.sParam6, tempObj.sParam7, true);
+					}
+					else {
+						tempObj.callbackfunc(tempObj.XMLObj, tempObj.sParam1, tempObj.sParam5, tempObj.sParam2, tempObj.sParam3, tempObj.sParam4, tempObj.sParam6, tempObj.sParam7, true);
+					}
+				}
+				
+				return;
+			};
+		}
+
+		this.bDoFail = false;
+		this.XMLObj.open("GET", this.URL, this.async);
+		this.XMLObj.setRequestHeader('Content-Type', 'big5');
+		this.XMLObj.send(null);
+		if(!this.async)
+		{
+			this.readyStateXMLHTTP = tempObj.XMLObj.readyState;
+			this.statusXMLHTTP = tempObj.XMLObj.status;
+		}
+	}		
+
+	return this.XMLObj;
+}
+
+
+//================================================================
+// Function: SelectSingleNodeValue
+// EX: 
+// Source: <Result SF="0">
+// Call:   SelectSingleNodeValue(xmlResult,'//Result/@SF')
+// Result: 0
+//================================================================
+function SelectSingleNodeValue(xmlDoc, sXPath)
+{
+	if (window.ActiveXObject || "ActiveXObject" in window)  // for IE
+	{
+		//return xmlDoc.selectSingleNode(sXPath).nodeValue;
+		return $(xmlDoc).find(sXPath).text();
+	}
+	else if(window.XMLHttpRequest)	// for Mozilla
+	{
+		if (document.implementation && document.implementation.createDocument)      
+		{        
+			var oEvaluator = new XPathEvaluator();		
+			var oResult=oEvaluator.evaluate(sXPath, xmlDoc, null, XPathResult.ORDERED_NODE_ITERATOR_TYPE, null);
+			var results=oResult.iterateNext();
+			oEvaluator = null;
+			return results.nodeValue;       
+		}    
+	}
+	return '';
+}
+
+//================================================================
+// Function: SelectSingleNodeText
+// EX: 
+// Source: <ResultTest><Test>Test-Text</Test></ResultTest>
+// Call:   SelectSingleNodeText(xmlResult,'//ResultTest/Test')
+// Result: Test-Text
+//================================================================
+function SelectSingleNodeText(xmlDoc, sXPath)
+{
+	if (window.ActiveXObject || "ActiveXObject" in window) // for IE
+	{
+		//return xmlDoc.selectSingleNode(sXPath);
+		return $(xmlDoc).find(sXPath).text();
+	}
+	else if(window.XMLHttpRequest)	// for Mozilla
+	{
+		if (document.implementation && document.implementation.createDocument)      
+		{        
+			var oEvaluator = new XPathEvaluator();		
+			var oResult=oEvaluator.evaluate(sXPath, xmlDoc, null, XPathResult.ORDERED_NODE_ITERATOR_TYPE, null);
+			var results=oResult.iterateNext();
+			oEvaluator = null;
+			return results.textContent;       
+		}    
+	}
+
+	return '';
+}
+
+//================================================================
+// Function: SelectNodes
+// EX: 
+// Source: <Result><Data ID="2303" PC="19.30" ...><Data ID="2303" PC="19.30" ...></<Result>
+// Call:   SelectNodes(xmlResult, "//Result/Data")
+// Result: nodes array
+//================================================================
+function SelectNodes(xmlDoc, sXPath)
+{	
+	if (window.ActiveXObject || "ActiveXObject" in window)  // for IE
+	{
+		//return xmlDoc.selectNodes(sXPath);
+		//return $(xmlDoc).find(sXPath);
+		
+		//sXPath  '//channel/item' changeto 'channel>item'
+		var arrXPath = sXPath.split("/").filter(function(n){return n});
+		sXPath = arrXPath.join(">");
+		return  $(xmlDoc).find(sXPath);
+	}
+	else if(window.XMLHttpRequest)	// for Mozilla
+	{
+		var oEvaluator = new XPathEvaluator();
+		var oResult = oEvaluator.evaluate(sXPath, xmlDoc, null, XPathResult.ORDERED_NODE_ITERATOR_TYPE, null);
+		var aNodes = new Array();
+		if (oResult != null) {
+			var oElement = oResult.iterateNext();
+			while(oElement) {
+				aNodes.push(oElement);
+				oElement = oResult.iterateNext();
+			}
+		}
+		return aNodes;
+	}
+	
+	return null;
+	
+}
+
+
+
+</script>
+
+</body>
+</html>

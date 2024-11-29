@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>wechat-share.html</title>
+</head>
+<body>
+
+<script>
+var defaultAppId = 'wx76c290b8781542ee';
+// var defaultSignApi = 'https://newmedia-nf.southcn.com/api/home/weixin/getWxShareSign';
+var defaultSignApi = 'https://nfnewmedia.southcn.com/api/home/weixin/getWxShareSign';
+
+var __appid = window.WECHAT_SHARE_APPID || defaultAppId;
+var __signApi = window.WECHAT_SHARE_SIGN_API || defaultSignApi;
+var __config = window.WECHAT_SHARE_CONFIG || {};
+var __wechatBaseConfig = window.WECHAT_BASE_CONFIG || {};
+
+// __signApi = '/api/getWxShareSign'; // 新媒体内网访问限制
+
+var wechatShare = {
+  init: function (opt) {
+    window.wx.config({
+      debug: __wechatBaseConfig.debug || false,
+      appId: opt.appId,
+      timestamp: opt.timestamp,
+      nonceStr: opt.nonceStr,
+      signature: opt.signature,
+      jsApiList: __wechatBaseConfig.jsApiList || [
+        'updateAppMessageShareData',
+        'updateTimelineShareData',
+        // onMenuShareAppMessage onMenuShareTimeline 兼容在微信电脑端点击分享的场景
+        'onMenuShareAppMessage',
+        'onMenuShareTimeline',
+      ],
+      openTagList: __wechatBaseConfig.openTagList || ['wx-open-launch-app', 'wx-open-launch-weapp'],
+    });
+
+    wechatShare.updateConfig();
+  },
+  updateConfig: function () {
+    // 重新给 __config 赋值，因为一开始并不一定有 window.WECHAT_SHARE_CONFIG 的引用（可能一开始引用的是 {}）
+    var __config = window.WECHAT_SHARE_CONFIG || {};
+
+    var postTitle = $('#article_title') ? $('#article_title').text().trim() : '';
+    var postShareImgURL = $('meta[name=shareImgURL]').attr('content');
+
+    var link = __config.link || window.location.href;
+    var imgUrl =
+      __config.imgUrl ||
+      postShareImgURL ||
+      'https://nfcms-mainsiteoss.southcn.com/__cms_base/__tpl_asset/img/nfw-logo-2.jpg';
+
+    // 加随机数解决某些场景下分享卡片因缓存导致图片丢失的问题
+    link = link + (link.indexOf('?') === -1 ? '?' : '&') + 'r=' + Math.random();
+    imgUrl = imgUrl + (imgUrl.indexOf('?') === -1 ? '?' : '&') + 'r=' + Math.random();
+
+    var shareConfig = {
+      title: __config.title || postTitle || window.document.title || '南方网',
+      link: link,
+      desc: __config.desc || $('meta[name=description]').attr('content') || '',
+      imgUrl: imgUrl,
+    };
+
+    window.wx.ready(function () {
+      // console.log('test 1');
+      window.wx.updateAppMessageShareData(shareConfig);
+      window.wx.updateTimelineShareData(shareConfig);
+      window.wx.onMenuShareAppMessage(shareConfig);
+      window.wx.onMenuShareTimeline(shareConfig);
+    });
+  },
+  getSign: function () {
+    $.post(
+      __signApi,
+      {
+        appid: __appid,
+        url: encodeURIComponent(location.href.split('#')[0]),
+      },
+      function (res) {
+        var opt = res.data || {};
+        if (opt.appId) {
+          wechatShare.init(opt);
+        }
+      }
+    );
+  },
+};
+
+if (/MicroMessenger/i.test(navigator.userAgent) && window.top === window.self) {
+  // 微信内置浏览器并且不是被 iframe 嵌入的情况
+  if (!__config.isLazy) {
+    wechatShare.getSign();
+  } else {
+    // 在合适的业务逻辑处调用 wechatShare.getSign();
+  }
+}
+
+</script>
+
+</body>
+</html>

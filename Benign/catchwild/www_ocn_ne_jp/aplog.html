@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>aplog.html</title>
+</head>
+<body>
+
+<script>
+window.GooAdLogger._send = function(){
+    try{
+        var cookie =function(k){
+            var x = document.cookie.split(";").map( y => y.split("=") )
+            for( var i = 0; i < x.length; i ++ )
+                if( k == x[i][0].trim() ) return x[i][1]
+        }
+        var meta = function(t){
+            try{
+                return document.getElementsByName(t)[0].content
+            }catch(e){
+                return ""
+            }
+        }
+
+        var sessname = "goologsess"
+        if( ! sessionStorage.getItem(sessname) ) sessionStorage.setItem(sessname,(new Date).getTime())
+
+        var cookies = {
+            bta: cookie("BTA"),
+            dcdc: cookie("DCDC")
+        }
+        
+        var orientation_type = ""
+        try{
+            orientation_type = screen.orientation.type
+        }catch(e){}
+
+        while(this.b.length){
+            var b = this.b.shift()
+            var cn = b[0]
+            var cd = b[1]
+
+            var payload = JSON.stringify({
+                url: location.href,
+                ref: document.referrer,
+                nguserid: cookie('NGUserID'),
+                title: document.title,
+                description: meta("description"),
+                keywords: meta("keywords"),
+                ts: (new Date).getTime(),
+                timezone: (new Date).getTimezoneOffset(),
+                ua: navigator.userAgent,
+                lang: navigator.language,
+                charset: document.charset,
+                session: sessionStorage.getItem(sessname),
+                color_depth: screen.colorDepth,
+                orientation: orientation_type,
+                screenwidth: screen.width,
+                screenheight: screen.height,
+                clientwidth: document.documentElement.clientWidth,
+                clientheight: document.documentElement.clientHeight,
+                cookies: cookies,
+                name: cn,
+                data: cd
+            })
+
+            var xhr = new XMLHttpRequest();
+            xhr.open('post','https://owb101.goo.ne.jp/webbeacon',true)
+            xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded')
+            xhr.send(payload)
+        }
+    }catch(e){}
+}
+window.GooAdLogger._send()
+
+</script>
+
+</body>
+</html>

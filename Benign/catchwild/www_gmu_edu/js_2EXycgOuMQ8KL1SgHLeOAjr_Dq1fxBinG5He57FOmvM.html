@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>js_2EXycgOuMQ8KL1SgHLeOAjr_Dq1fxBinG5He57FOmvM.html</title>
+</head>
+<body>
+
+<script>
+/**
+ * @file
+ * External links js file.
+ */
+
+(function ($, Drupal, drupalSettings) {
+
+  'use strict';
+
+  Drupal.extlink = Drupal.extlink || {};
+
+  Drupal.extlink.attach = function (context, drupalSettings) {
+    if (typeof drupalSettings.data === 'undefined' || !drupalSettings.data.hasOwnProperty('extlink')) {
+      return;
+    }
+
+    // Define the jQuery method (either 'append' or 'prepend') of placing the
+    // icon, defaults to 'append'.
+    var extIconPlacement = 'append';
+    if (drupalSettings.data.extlink.extIconPlacement && drupalSettings.data.extlink.extIconPlacement != '0') {
+          extIconPlacement = drupalSettings.data.extlink.extIconPlacement;
+        }
+
+    // Strip the host name down, removing ports, subdomains, or www.
+    var pattern = /^(([^\/:]+?\.)*)([^\.:]{1,})((\.[a-z0-9]{1,253})*)(:[0-9]{1,5})?$/;
+    var host = window.location.host.replace(pattern, '$2$3$6');
+    var subdomain = window.location.host.replace(host, '');
+
+    // Determine what subdomains are considered internal.
+    var subdomains;
+    if (drupalSettings.data.extlink.extSubdomains) {
+      subdomains = '([^/]*\\.)?';
+    }
+    else if (subdomain === 'www.' || subdomain === '') {
+      subdomains = '(www\\.)?';
+    }
+    else {
+      subdomains = subdomain.replace('.', '\\.');
+    }
+
+    // Whitelisted domains.
+    var whitelistedDomains = false;
+    if (drupalSettings.data.extlink.whitelistedDomains) {
+      whitelistedDomains = [];
+      for (var i = 0; i < drupalSettings.data.extlink.whitelistedDomains.length; i++) {
+        whitelistedDomains.push(new RegExp('^https?:\\/\\/' + drupalSettings.data.extlink.whitelistedDomains[i].replace(/(\r\n|\n|\r)/gm,'') + '.*$', 'i'));
+      }
+    }
+
+    // Build regular expressions that define an internal link.
+    var internal_link = new RegExp('^https?://([^@]*@)?' + subdomains + host, 'i');
+
+    // Extra internal link matching.
+    var extInclude = false;
+    if (drupalSettings.data.extlink.extInclude) {
+      extInclude = new RegExp(drupalSettings.data.extlink.extInclude.replace(/\\/, '\\'), 'i');
+    }
+
+    // Extra external link matching.
+    var extExclude = false;
+    if (drupalSettings.data.extlink.extExclude) {
+      extExclude = new RegExp(drupalSettings.data.extlink.extExclude.replace(/\\/, '\\'), 'i');
+    }
+
+    // Extra external link CSS selector exclusion.
+    var extCssExclude = false;
+    if (drupalSettings.data.extlink.extCssExclude) {
+      extCssExclude = drupalSettings.data.extlink.extCssExclude;
+    }
+
+    // Extra external link CSS selector explicit.
+    var extCssExplicit = false;
+    if (drupalSettings.data.extlink.extCssExplicit) {
+      extCssExplicit = drupalSettings.data.extlink.extCssExplicit;
+    }
+
+    // Find all links which are NOT internal and begin with http as opposed
+    // to ftp://, javascript:, etc. other kinds of links.
+    // When operating on the 'this' variable, the host has been appended to
+    // all links by the browser, even local ones.
+    // In jQuery 1.1 and higher, we'd use a filter method here, but it is not
+    // available in jQuery 1.0 (Drupal 5 default).
+    var external_links = [];
+    var mailto_links = [];
+    $('a:not([data-extlink]), area:not([data-extlink])', context).each(function (el) {
+      try {
+        var url = '';
+        if (typeof this.href == 'string') {
+          url = this.href.toLowerCase();
+        }
+        // Handle SVG links (xlink:href).
+        else if (typeof this.href == 'object') {
+          url = this.href.baseVal;
+        }
+        if (url.indexOf('http') === 0
+          && ((!internal_link.test(url) && !(extExclude && extExclude.test(url))) || (extInclude && extInclude.test(url)))
+          && !(extCssExclude && $(this).is(extCssExclude))
+          && !(extCssExclude && $(this).parents(extCssExclude).length > 0)
+          && !(extCssExplicit && $(this).parents(extCssExplicit).length < 1)) {
+          var match = false;
+          if (whitelistedDomains) {
+            for (var i = 0; i < whitelistedDomains.length; i++) {
+              if (whitelistedDomains[i].test(url)) {
+                match = true;
+                break;
+              }
+            }
+          }
+          if (!match) {
+            external_links.push(this);
+          }
+        }
+        // Do not include area tags with begin with mailto: (this prohibits
+        // icons from being added to image-maps).
+        else if (this.tagName !== 'AREA'
+          && url.indexOf('mailto:') === 0
+          && !(extCssExclude && $(this).parents(extCssExclude).length > 0)
+          && !(extCssExplicit && $(this).parents(extCssExplicit).length < 1)) {
+          mailto_links.push(this);
+        }
+      }
+      // IE7 throws errors often when dealing with irregular links, such as:
+      // <a href="node/10"></a> Empty tags.
+      // <a href="http://user:pass@example.com">example</a> User:pass syntax.
+      catch (error) {
+        return false;
+      }
+    });
+
+    if (drupalSettings.data.extlink.extClass !== '0' && drupalSettings.data.extlink.extClass !== '') {
+      Drupal.extlink.applyClassAndSpan(external_links, drupalSettings.data.extlink.extClass, extIconPlacement);
+    }
+
+    if (drupalSettings.data.extlink.mailtoClass !== '0' && drupalSettings.data.extlink.mailtoClass !== '') {
+      Drupal.extlink.applyClassAndSpan(mailto_links, drupalSettings.data.extlink.mailtoClass, extIconPlacement);
+    }
+
+    if (drupalSettings.data.extlink.extTarget) {
+      // Apply the target attribute to all links.
+      $(external_links).filter(function () {
+        // Filter out links with target set if option specified.
+        return !(drupalSettings.data.extlink.extTargetNoOverride && $(this).is('a[target]'));
+      }).attr({target: '_blank'});
+
+      // Add noopener rel attribute to combat phishing.
+      $(external_links).attr('rel', function (i, val) {
+        // If no rel attribute is present, create one with the value noopener.
+        if (val === null || typeof val === 'undefined') {
+          return 'noopener';
+        }
+        // Check to see if rel contains noopener. Add what doesn't exist.
+        if (val.indexOf('noopener') > -1) {
+          if (val.indexOf('noopener') === -1) {
+            return val + ' noopener';
+          }
+          // Noopener exists. Nothing needs to be added.
+          else {
+            return val;
+          }
+        }
+        // Else, append noopener to val.
+        else {
+          return val + ' noopener';
+        }
+      });
+    }
+
+    if (drupalSettings.data.extlink.extNofollow) {
+      $(external_links).attr('rel', function (i, val) {
+        // When the link does not have a rel attribute set it to 'nofollow'.
+        if (val === null || typeof val === 'undefined') {
+          return 'nofollow';
+        }
+        var target = 'nofollow';
+        // Change the target, if not overriding follow.
+        if (drupalSettings.data.extlink.extFollowNoOverride) {
+          target = 'follow';
+        }
+        if (val.indexOf(target) === -1) {
+          return val + ' nofollow';
+        }
+        return val;
+      });
+    }
+
+    if (drupalSettings.data.extlink.extNoreferrer) {
+      $(external_links).attr('rel', function (i, val) {
+        // When the link does not have a rel attribute set it to 'noreferrer'.
+        if (val === null || typeof val === 'undefined') {
+          return 'noreferrer';
+        }
+        if (val.indexOf('noreferrer') === -1) {
+          return val + ' noreferrer';
+        }
+        return val;
+      });
+    }
+
+    Drupal.extlink = Drupal.extlink || {};
+
+    // Set up default click function for the external links popup. This should be
+    // overridden by modules wanting to alter the popup.
+    Drupal.extlink.popupClickHandler = Drupal.extlink.popupClickHandler || function () {
+      if (drupalSettings.data.extlink.extAlert) {
+        return confirm(drupalSettings.data.extlink.extAlertText);
+      }
+    };
+
+    $(external_links).off("click.extlink");
+    $(external_links).on("click.extlink", function (e) {
+      return Drupal.extlink.popupClickHandler(e, this);
+    });
+  };
+
+  /**
+   * Apply a class and a trailing <span> to all links not containing images.
+   *
+   * @param {object[]} links
+   *   An array of DOM elements representing the links.
+   * @param {string} class_name
+   *   The class to apply to the links.
+   * @param {string} icon_placement
+   *   'append' or 'prepend' the icon to the link.
+   */
+  Drupal.extlink.applyClassAndSpan = function (links, class_name, icon_placement) {
+    var $links_to_process;
+    if (drupalSettings.data.extlink.extImgClass) {
+      $links_to_process = $(links);
+    }
+    else {
+      var links_with_images = $(links).find('img, svg').parents('a');
+      $links_to_process = $(links).not(links_with_images);
+    }
+
+    if (class_name !== '0') {
+      $links_to_process.addClass(class_name);
+    }
+
+    // Add data-extlink attribute.
+    $links_to_process.attr('data-extlink', '');
+
+    var i;
+    var length = $links_to_process.length;
+    for (i = 0; i < length; i++) {
+      var $link = $($links_to_process[i]);
+      if (drupalSettings.data.extlink.extUseFontAwesome) {
+        if (class_name === drupalSettings.data.extlink.mailtoClass) {
+          $link[icon_placement]('<span class="fa-' + class_name + ' extlink"><span class="' + drupalSettings.data.extlink.extFaMailtoClasses + '" aria-label="' + drupalSettings.data.extlink.mailtoLabel + '"></span></span>');
+        }
+        else {
+          $link[icon_placement]('<span class="fa-' + class_name + ' extlink"><span class="' + drupalSettings.data.extlink.extFaLinkClasses + '" aria-label="' + drupalSettings.data.extlink.extLabel + '"></span></span>');
+        }
+      }
+      else {
+        if (class_name === drupalSettings.data.extlink.mailtoClass) {
+          $link[icon_placement]('<svg focusable="false" class="' + class_name + '" role="img" aria-label="' + drupalSettings.data.extlink.mailtoLabel + '" xmlns="http://www.w3.org/2000/svg" viewBox="0 10 70 20"><metadata><sfw xmlns="http://ns.adobe.com/SaveForWeb/1.0/"><sliceSourceBounds y="-8160" x="-8165" width="16389" height="16384" bottomLeftOrigin="true"/><optimizationSettings><targetSettings targetSettingsID="0" fileFormat="PNG24Format"><PNG24Format transparency="true" filtered="false" interlaced="false" noMatteColor="false" matteColor="#FFFFFF"/></targetSettings></optimizationSettings></sfw></metadata><title>' + drupalSettings.data.extlink.mailtoLabel + '</title><path d="M56 14H8c-1.1 0-2 0.9-2 2v32c0 1.1 0.9 2 2 2h48c1.1 0 2-0.9 2-2V16C58 14.9 57.1 14 56 14zM50.5 18L32 33.4 13.5 18H50.5zM10 46V20.3l20.7 17.3C31.1 37.8 31.5 38 32 38s0.9-0.2 1.3-0.5L54 20.3V46H10z"/></svg>');
+        }
+        else {
+          $link[icon_placement]('<svg focusable="false" class="' + class_name + '" role="img" aria-label="' + drupalSettings.data.extlink.extLabel + '" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 40"><metadata><sfw xmlns="http://ns.adobe.com/SaveForWeb/1.0/"><sliceSourceBounds y="-8160" x="-8165" width="16389" height="16384" bottomLeftOrigin="true"/><optimizationSettings><targetSettings targetSettingsID="0" fileFormat="PNG24Format"><PNG24Format transparency="true" filtered="false" interlaced="false" noMatteColor="false" matteColor="#FFFFFF"/></targetSettings></optimizationSettings></sfw></metadata><title>' + drupalSettings.data.extlink.extLabel + '</title><path d="M48 26c-1.1 0-2 0.9-2 2v26H10V18h26c1.1 0 2-0.9 2-2s-0.9-2-2-2H8c-1.1 0-2 0.9-2 2v40c0 1.1 0.9 2 2 2h40c1.1 0 2-0.9 2-2V28C50 26.9 49.1 26 48 26z"/><path d="M56 6H44c-1.1 0-2 0.9-2 2s0.9 2 2 2h7.2L30.6 30.6c-0.8 0.8-0.8 2 0 2.8C31 33.8 31.5 34 32 34s1-0.2 1.4-0.6L54 12.8V20c0 1.1 0.9 2 2 2s2-0.9 2-2V8C58 6.9 57.1 6 56 6z"/></svg>');
+        }
+      }
+    }
+  };
+
+  Drupal.behaviors.extlink = Drupal.behaviors.extlink || {};
+  Drupal.behaviors.extlink.attach = function (context, drupalSettings) {
+    // Backwards compatibility, for the benefit of modules overriding extlink
+    // functionality by defining an "extlinkAttach" global function.
+    if (typeof extlinkAttach === 'function') {
+      extlinkAttach(context);
+    }
+    else {
+      Drupal.extlink.attach(context, drupalSettings);
+    }
+  };
+
+})(jQuery, Drupal, drupalSettings);
+;
+'use strict';
+
+var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
+
+(function (Drupal, $) {
+  Drupal.behaviors.accordion = {
+    attach: function attach() {
+      var accordions = $('.accordion');
+      var accordionOptions = {
+        collapsible: true,
+        active: false
+      };
+
+      accordions.once().each(function (_idx, accordion) {
+        var is_active = $(accordion).attr('data-expanded') === 'expanded' ? 0 : false;
+        $(accordion).accordion(_extends({}, accordionOptions, { active: is_active }));
+      });
+    }
+  };
+})(Drupal, jQuery);;
+!function(v,m,y,t){"use strict";var C="slick",b="unslick",w=C+"--initialized",e=".slick:not(."+w+")",z=".slick__slider",_=".slick__arrow",P=".b-lazy[data-src]:not(.b-loaded)",x=".media__icon--close",$="is-playing",A="is-paused",D="data-thumb",L="data-b-thumb",S=m.blazy||{};function i(e){var n,i,s=v(e),a=v("> "+z,e).length?v("> "+z,e):s,o=v("> "+_,e),t=a.data(C)?v.extend({},y.slick,a.data(C)):v.extend({},y.slick),l=!("array"!==v.type(t.responsive)||!t.responsive.length)&&t.responsive,d=t.appendDots,c="blazy"===t.lazyLoad&&S,r=a.find(".media--player").length,f=a.hasClass(b);if(f||(t.appendDots=d===_?o:d||v(a)),l)for(n in l)Object.prototype.hasOwnProperty.call(l,n)&&l[n].settings!==b&&(l[n].settings=v.extend({},y.slick,k(t),l[n].settings));function u(n){a.find(P).length&&((n=a.find(n?".slide:not(.slick-cloned) "+P:".slick-active "+P)).length||(n=a.find(".slick-cloned "+P)),n.length&&S.init&&S.init.load(n))}function h(){r&&g(),c&&u(!1)}function g(){a.removeClass(A);var n=a.find("."+$);n.length&&n.removeClass($).find(x).click()}function p(){a.addClass(A).slick("slickPause")}function k(l){return f?{}:{slide:l.slide,lazyLoad:l.lazyLoad,dotsClass:l.dotsClass,rtl:l.rtl,prevArrow:v(".slick-prev",o),nextArrow:v(".slick-next",o),appendArrows:o,customPaging:function(n,i){var s,t=n.$slides.eq(i),e=t.find("["+D+"]"),a=D;e.length||(e=t.find("["+L+"]"),a=L),e.length&&(s=(s=e.find("img").attr("alt"))?m.checkPlain(s):"Preview",s='<img alt="'+m.t(s)+'" src="'+e.attr(a)+'">',s=0<l.dotsClass.indexOf("thumbnail")?'<div class="slick-dots__thumbnail">'+s+"</div>":"");i=n.defaults.customPaging(n,i);return s?i.add(s):i}}}a.data(C,t),(t=a.data(C)).randomize&&!a.hasClass("slick-initiliazed")&&a.children().sort(function(){return.5-Math.random()}).each(function(){a.append(this)}),f||a.on("init.sl",function(n,i){d===_&&v(i.$dots).insertAfter(i.$prevArrow);i=a.find(".slick-cloned.slick-active "+P);c&&i.length&&S.init&&S.init.load(i)}),c?a.on("beforeChange.sl",function(){u(!0)}):(i=v(".media",a)).length&&(i.find("[data-src]").length||i.hasClass("b-bg"))&&i.closest(".slide__content").addClass("is-loading"),a.on("setPosition.sl",function(n,i){var s,t;i=(s=i).slideCount<=s.options.slidesToShow,t=i||!1===s.options.arrows,a.attr("id")===s.$slider.attr("id")&&(s.options.centerPadding&&"0"!==s.options.centerPadding||s.$list.css("padding",""),i&&(s.$slideTrack.width()<=s.$slider.width()||v(e).hasClass("slick--thumbnail"))&&s.$slideTrack.css({left:"",transform:""}),(s=a.find(".b-loaded ~ .b-loader")).length&&s.remove(),o.length&&v.each(["next","prev"],function(n,i){v(".slick-"+i,o)[t?"addClass":"removeClass"]("visually-hidden")}))}),a.slick(k(t)),a.parent().on("click.sl",".slick-down",function(n){n.preventDefault();n=v(this);v("html, body").stop().animate({scrollTop:v(n.data("target")).offset().top-(n.data("offset")||0)},800,v.easing&&t.easing?t.easing:"swing")}),t.mouseWheel&&a.on("mousewheel.sl",function(n,i){return n.preventDefault(),a.slick(i<0?"slickNext":"slickPrev")}),c||a.on("lazyLoaded lazyLoadError",function(n,i,s){var t;t=(s=v(t=s)).closest(".slide")||s.closest("."+b),s.parentsUntil(t).removeClass(function(n,i){return(i.match(/(\S+)loading/g)||[]).join(" ")})}),a.on("afterChange.sl",h),r&&(a.on("click.sl",x,g),a.on("click.sl",".media__icon--play",p)),s.removeClass(function(n,i){return(i.match(/(\S+)loading/g)||[]).join(" ")}),f&&a.slick(b),s.addClass(w)}m.behaviors.slick={attach:function(n){t.once(i,C,e,n)},detach:function(n,i,s){"unload"===s&&t.once.removeSafely(C,e,n)}}}(jQuery,Drupal,drupalSettings,dBlazy);
+;
+(function ($) {
+
+  Drupal.behaviors.initSlider = {
+    attach: function (context, settings) {
+
+      $(document).ready(function(){
+        $('.slick-slider').slick({
+          dots: false,
+          speed: 800,
+          autoplay: true,
+          arrows: true,
+          skin: 'fullwidth'
+        });
+      });
+
+    }
+  };
+
+})(jQuery);
+;
+/*! js-cookie v3.0.1 | MIT */
+!function(e,t){"object"==typeof exports&&"undefined"!=typeof module?module.exports=t():"function"==typeof define&&define.amd?define(t):(e=e||self,function(){var n=e.Cookies,o=e.Cookies=t();o.noConflict=function(){return e.Cookies=n,o}}())}(this,(function(){"use strict";function e(e){for(var t=1;t<arguments.length;t++){var n=arguments[t];for(var o in n)e[o]=n[o]}return e}return function t(n,o){function r(t,r,i){if("undefined"!=typeof document){"number"==typeof(i=e({},o,i)).expires&&(i.expires=new Date(Date.now()+864e5*i.expires)),i.expires&&(i.expires=i.expires.toUTCString()),t=encodeURIComponent(t).replace(/%(2[346B]|5E|60|7C)/g,decodeURIComponent).replace(/[()]/g,escape);var c="";for(var u in i)i[u]&&(c+="; "+u,!0!==i[u]&&(c+="="+i[u].split(";")[0]));return document.cookie=t+"="+n.write(r,t)+c}}return Object.create({set:r,get:function(e){if("undefined"!=typeof document&&(!arguments.length||e)){for(var t=document.cookie?document.cookie.split("; "):[],o={},r=0;r<t.length;r++){var i=t[r].split("="),c=i.slice(1).join("=");try{var u=decodeURIComponent(i[0]);if(o[u]=n.read(c,u),e===u)break}catch(e){}}return e?o[e]:o}},remove:function(t,n){r(t,"",e({},n,{expires:-1}))},withAttributes:function(n){return t(this.converter,e({},this.attributes,n))},withConverter:function(n){return t(e({},this.converter,n),this.attributes)}},{attributes:{value:Object.freeze(o)},converter:{value:Object.freeze(n)}})}({read:function(e){return'"'===e[0]&&(e=e.slice(1,-1)),e.replace(/(%[\dA-F]{2})+/gi,decodeURIComponent)},write:function(e){return encodeURIComponent(e).replace(/%(2[346BF]|3[AC-F]|40|5[BDE]|60|7[BCD])/g,decodeURIComponent)}},{path:"/"})}));
+;
+/**
+* DO NOT EDIT THIS FILE.
+* See the following change record for more information,
+* https://www.drupal.org/node/2815083
+* @preserve
+**/
+function _typeof(obj) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (obj) { return typeof obj; } : function (obj) { return obj && "function" == typeof Symbol && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }, _typeof(obj); }
+function ownKeys(object, enumerableOnly) { var keys = Object.keys(object); if (Object.getOwnPropertySymbols) { var symbols = Object.getOwnPropertySymbols(object); enumerableOnly && (symbols = symbols.filter(function (sym) { return Object.getOwnPropertyDescriptor(object, sym).enumerable; })), keys.push.apply(keys, symbols); } return keys; }
+function _objectSpread(target) { for (var i = 1; i < arguments.length; i++) { var source = null != arguments[i] ? arguments[i] : {}; i % 2 ? ownKeys(Object(source), !0).forEach(function (key) { _defineProperty(target, key, source[key]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(target, Object.getOwnPropertyDescriptors(source)) : ownKeys(Object(source)).forEach(function (key) { Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key)); }); } return target; }
+function _defineProperty(obj, key, value) { key = _toPropertyKey(key); if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
+function _toPropertyKey(arg) { var key = _toPrimitive(arg, "string"); return _typeof(key) === "symbol" ? key : String(key); }
+function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input === null) return input; var prim = input[Symbol.toPrimitive]; if (prim !== undefined) { var res = prim.call(input, hint || "default"); if (_typeof(res) !== "object") return res; throw new TypeError("@@toPrimitive must return a primitive value."); } return (hint === "string" ? String : Number)(input); }
+(function ($, Drupal, cookies) {
+  var deprecatedMessageSuffix = "is deprecated in Drupal 9.0.0 and will be removed in Drupal 10.0.0. Use the core/js-cookie library instead. See https://www.drupal.org/node/3104677";
+  var isFunction = function isFunction(obj) {
+    return Object.prototype.toString.call(obj) === '[object Function]';
+  };
+  var parseCookieValue = function parseCookieValue(value, parseJson) {
+    if (value.indexOf('"') === 0) {
+      value = value.slice(1, -1).replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+    }
+    try {
+      value = decodeURIComponent(value.replace(/\+/g, ' '));
+      return parseJson ? JSON.parse(value) : value;
+    } catch (e) {}
+  };
+  var reader = function reader(cookieValue, cookieName, converter, readUnsanitized, parseJson) {
+    var value = readUnsanitized ? cookieValue : parseCookieValue(cookieValue, parseJson);
+    if (converter !== undefined && isFunction(converter)) {
+      return converter(value, cookieName);
+    }
+    return value;
+  };
+  $.cookie = function (key) {
+    var value = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : undefined;
+    var options = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : undefined;
+    Drupal.deprecationError({
+      message: "jQuery.cookie() ".concat(deprecatedMessageSuffix)
+    });
+    if (value !== undefined && !isFunction(value)) {
+      var attributes = _objectSpread(_objectSpread({}, $.cookie.defaults), options);
+      if (typeof attributes.expires === 'string' && attributes.expires !== '') {
+        attributes.expires = new Date(attributes.expires);
+      }
+      var cookieSetter = cookies.withConverter({
+        write: function write(cookieValue) {
+          return encodeURIComponent(cookieValue);
+        }
+      });
+      value = $.cookie.json && !$.cookie.raw ? JSON.stringify(value) : String(value);
+      return cookieSetter.set(key, value, attributes);
+    }
+    var userProvidedConverter = value;
+    var cookiesShim = cookies.withConverter({
+      read: function read(cookieValue, cookieName) {
+        return reader(cookieValue, cookieName, userProvidedConverter, $.cookie.raw, $.cookie.json);
+      }
+    });
+    if (key !== undefined) {
+      return cookiesShim.get(key);
+    }
+    var results = cookiesShim.get();
+    Object.keys(results).forEach(function (resultKey) {
+      if (results[resultKey] === undefined) {
+        delete results[resultKey];
+      }
+    });
+    return results;
+  };
+  $.cookie.defaults = _objectSpread({
+    path: ''
+  }, cookies.defaults);
+  $.cookie.json = false;
+  $.cookie.raw = false;
+  $.removeCookie = function (key, options) {
+    Drupal.deprecationError({
+      message: "jQuery.removeCookie() ".concat(deprecatedMessageSuffix)
+    });
+    cookies.remove(key, _objectSpread(_objectSpread({}, $.cookie.defaults), options));
+    return !cookies.get(key);
+  };
+})(jQuery, Drupal, window.Cookies);;
+(function($) {
+  'use strict';
+
+  Drupal.behaviors.emergency_alert_get_message = {
+    attach: function(context, settings) {
+      $.ajax({
+        type: 'GET',
+        url: '/gmu-emergency-alerts/get-active-alerts',
+        success: function(response) {
+          if (response.length > 0) {
+            response.forEach(function(item) {
+              var itemDescription = item.description;
+              if (typeof itemDescription === 'string') {
+                $('.block-emergency-alerts').css('display', 'block');
+              }
+              $('.gmu-emergency-alerts .alert-message p').text(
+                item.description
+              );
+              var alert =
+                '<button class="collapsible alerts-button"> <span class="alert-title"> Mason Alert </span><span class="alert-more gmu-alert-toggle">More<i class="fa fa-plus-circle" aria-hidden="true"></i></span><span class="alert-less gmu-alert-toggle">Less <i class="fa fa-minus-circle" aria-hidden="true"></i></span> </button> <div class="content alert-message"><p>' +
+                item.description +
+                '</p></div>';
+              $('.gmu-emergency-alerts').html(alert);
+              var cookie = $.cookie('alertClosed');
+              if (item.is_new || cookie === undefined || cookie === 'open') {
+                $('.gmu-emergency-alerts .collapsible.alerts-button').addClass(
+                  'active'
+                );
+                $('.gmu-emergency-alerts .alert-message').css(
+                  'display',
+                  'block'
+                );
+                $.cookie('alertClosed', 'open', { path: '/' });
+              } else {
+                $(
+                  '.gmu-emergency-alerts .collapsible.alerts-button'
+                ).removeClass('active');
+                $('.gmu-emergency-alerts .alert-message').css(
+                  'display',
+                  'none'
+                );
+              }
+            });
+            if($('#banner').length){
+              $('body').attr('style', 'padding-top: ' + Number($('#banner').offset().top + 40) + 'px !important');
+            }
+          }
+        },
+      });
+      $(document, context).once('emergency_alert_get_message').ajaxComplete(function(event, xhr, settings) {
+        var coll = document.querySelectorAll(
+          '.gmu-emergency-alerts .collapsible'
+        );
+        var i;
+
+        for (i = 0; i < coll.length; i++) {
+          coll[i].addEventListener('click', function() {
+            this.classList.toggle('active');
+            var content = this.nextElementSibling;
+            if (content.style.display === 'block') {
+              content.style.display = 'none';
+            } else {
+              content.style.display = 'block';
+            }
+          });
+        }
+        $('.gmu-emergency-alerts .alerts-button').click(function() {
+          if ($('#banner').length) {
+            $('body').attr('style', 'padding-top: ' + Number($('#banner').offset().top + 40) + 'px !important');
+          }
+          var cookie = $.cookie('alertClosed');
+          if (cookie === undefined) {
+            $.cookie('alertClosed', 'closed');
+          } else {
+            if (cookie === 'closed') {
+              $.cookie('alertClosed', 'open', { path: '/' });
+            } else {
+              $.cookie('alertClosed', 'closed', { path: '/' });
+            }
+          }
+        });
+      });
+    },
+  };
+})(jQuery);
+;
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>vui-impl.html</title>
+</head>
+<body>
+
+<script>
+var vui = {
+  query: (typeof vuiConfig != "undefined") && vuiConfig.query ? vuiConfig.query : ((typeof this.vQuery != "undefined") ? vQuery : undefined),
+	
+	global: function() {
+		return window;
+	},
+
+	provide: function(name) {
+	    var parts = name.split(/\./);
+	    if(parts[parts.length-1]=="*"){
+	        parts.pop();
+	    }
+
+	    var obj = window;
+	    for (var i = 0; i < parts.length; ++i ) {
+	    	if ( typeof obj[parts[i]] == "undefined" ) {
+	    		obj[parts[i]] = {};
+	    	}
+
+	    	obj = obj[parts[i]];
+	    }
+	},
+
+	require: function(name) {
+		return;
+	},
+
+	exists: function(pkg, scope){
+		scope = scope || window;
+
+		var parts = pkg.split(/\./);
+
+		for (var i = 0; i < parts.length; ++i ) {
+			if ( typeof scope[parts[i]] == "undefined" ) {
+				return false;
+			}
+			scope = scope[parts[i]];
+		}
+		return true;
+	},
+
+	byId: function(id) {
+		if ( !vui.isString(id) ) { return id; }
+
+		return vui.query("#" + id)[0];
+	},
+
+	combine: function(obj, properties) {
+		return vui.query.extend(obj, properties || {});
+	},
+
+	ready: function(func) {
+		vui.query(function() {
+			try {
+				func();
+			} catch (e) {
+				if ( vui.log.isError() ) {
+					vui.log.error("Unable to run ready function", e);
+				}				
+			}
+		});
+	},
+	
+	subscribe: function(eventName, handler) {
+		var b = vui.query("html");
+		if ( b.length > 0 ) {
+			b.bind(eventName, handler);
+		} else {
+			vui.query(function() {vui.query("html").bind(eventName, handler);});
+		}
+	},
+
+	unsubscribe: function(eventName, handler) {
+		var b = vui.query("html");
+		if ( b.length > 0 ) {
+			b.unbind(eventName, handler);
+		} else {
+			vui.query(function() {vui.query("html").unbind(eventName, handler);});
+		}
+	},
+
+	publish: function(eventName, data) {
+		var event = vui.query.Event(eventName);
+		event.preventDefault();
+
+		var b = vui.query("html");
+		if ( b.length > 0 ) {
+			b.trigger(event, data);
+		} else {
+			vui.query(function() {vui.query("html").trigger(event, data);});
+		}
+	},
+
+	clearSubscriptions: function(eventName) {
+		var b = vui.query("html");
+		if ( b.length > 0 ) {
+			b.unbind(eventName);
+		} else {
+			vui.query(function() {vui.query("html").unbind(eventName);});
+		}
+	},
+
+	getAttribute: function(elem, attrName) {
+		var n = vui.isString(elem) ? '#' + elem : elem;
+		return vui.query(n).attr(attrName);
+	},
+
+	trim: function(str) {
+		return vui.query.trim(str);
+	},
+
+	addClass: function(elem, classNames) {
+		var n = vui.isString(elem) ? '#' + elem : elem;
+		vui.query(n).addClass(classNames);
+	},
+
+	removeClass: function(elem, classNames) {
+		var n = vui.isString(elem) ? '#' + elem : elem;
+		vui.query(n).removeClass(classNames);
+	},
+
+	ajax: function(options) {
+		var data = {
+			url: options.url,
+			type: options.method,
+			async: !options.sync,
+			data: options.data,
+			dataType: "text",
+			cache: false,
+			timeout: options.timeout,
+
+			beforeSend: function(xhr) {
+				if ( !options.headers ) {
+					return;
+				}
+
+				for ( var h in options.headers ) {
+					xhr.setRequestHeader(h, options.headers[h]);
+				}
+			},
+
+			success: function(data, status, xhr) {
+				if ( vui.isFunction(options.success) ) {
+					options.success(data, xhr);
+				}
+			},
+
+			error: function(xhr, status, error) {
+				if ( vui.isFunction(options.error) ) {
+					if ( !error ) {
+						error = status;
+					}
+					options.error(xhr, error);
+				}
+			}
+		};
+		if(options.traditional){
+			data.traditional = options.traditional;
+		}
+
+		vui.query.ajax(data);
+	},
+
+	ajaxForm: function(options) {
+		var data = {
+			url: options.url,
+			type: options.method,
+			async: !options.sync,
+			data: options.data,
+			timeout: options.timeout,
+			dataType: options.transport == "xml" ? "xml" : null,
+
+			beforeSend: function(xhr) {
+				if ( !options.headers ) {
+					return;
+				}
+
+				for ( var h in options.headers ) {
+					xhr.setRequestHeader(h, options.headers[h]);
+				}
+			},
+
+			success: function(data, status, xhr) {
+				if ( !vui.isFunction(options.success) ) {
+					return;					
+				}
+				
+				if ( options.transport == "json" ) {
+					// We know that the vquery form plugin returns the HTML document as the responseXML
+					// So use that first to pull the data we want
+					var fallback = true;
+					if ( xhr.responseXML && xhr.responseXML.getElementsByTagName ) {
+						var pre = xhr.responseXML.getElementsByTagName('pre')[0];
+						if ( pre ) {
+							data = pre.innerHTML;
+							fallback = false;
+						}
+					}
+					
+					if ( fallback ) {
+						// strip off <pre> </pre>
+						var startIndex = Math.max(data.indexOf('/*{"xapi'), 0);
+
+						var endIndex = data.indexOf('"---end-marker---"}]}}}*/');
+						if ( endIndex < 0 ) {
+							endIndex = data.length;
+						} else {
+							endIndex += 25;
+						}
+						
+						data = data.substring(startIndex, endIndex);
+					}
+				} else if ( options.transport == "xml" ) {
+					data = vui.xml.get(data);
+				}
+
+				options.success(data, xhr);
+			},
+
+			error: function(xhr, status, error) {
+				if ( vui.isFunction(options.error) ) {
+					if ( !error ) {
+						error = status;
+					}
+					options.error(xhr, error);
+				}
+			}
+		};
+
+		options.xhr = vui.query("#" + options.formId).ajaxSubmit(data);
+	},
+
+	ajaxUpload: function(options) {
+		var data = {
+			url: options.url,
+			contentType : false,
+			processData : false, // disable jQuery data parser
+			type: options.method,
+			data: options.data,   // this should be a FormData object
+			timeout: options.timeout,
+			xhr: function() {  // custom xhr
+				var myXhr = vui.query.ajaxSettings.xhr();
+				if (options.onprogress && myXhr && myXhr.upload) { // check if upload property exists
+					myXhr.upload.addEventListener('progress',options.onprogress, false); // for handling the progress of the upload
+				}
+				return myXhr;
+			},
+			success: function(data, status, xhr) {
+				if ( vui.isFunction(options.success) ) {
+					options.success(data, xhr);
+				}
+			},
+
+			error: function(xhr, status, error) {
+				if ( vui.isFunction(options.error) ) {
+					if ( !error ) {
+						error = status;
+					}
+					options.error(xhr, error);
+				}
+			}
+		};
+
+		vui.query.ajax(data);
+	}
+};
+
+</script>
+
+</body>
+</html>

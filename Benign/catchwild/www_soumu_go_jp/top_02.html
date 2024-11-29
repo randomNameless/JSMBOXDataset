@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>top_02.html</title>
+</head>
+<body>
+
+<script>
+var _ua = (function(){
+	return {
+		ltIE6:typeof window.addEventListener == "undefined" && typeof document.documentElement.style.maxHeight == "undefined",
+		ltIE7:typeof window.addEventListener == "undefined" && typeof document.querySelectorAll == "undefined",
+		ltIE8:typeof window.addEventListener == "undefined" && typeof document.getElementsByClassName == "undefined",
+		IE:document.uniqueID,
+		Firefox:window.sidebar,
+		Opera:window.opera,
+		Webkit:!document.uniqueID && !window.opera && !window.sidebar && !window.orientation && window.localStorage,
+		Mobile:typeof window.orientation != "undefined",
+		mobile:/android|iphone|ipad|ipod/i.test(navigator.userAgent.toLowerCase())
+	}
+})();
+
+var top2 = {
+	init : function() {
+		// EmergencyNote
+		if ($('#text div a').html() != "" & !(_ua.ltIE6)) {
+			var lastCode = null;
+			var stopFlag = 0;
+			$("#text").show();
+			var slider = $('#text').bxSlider({
+				mode: 'horizontal',
+				speed: 300,
+				pager: false,
+				auto: true,
+				pause: 6000,
+				controls: false
+			});
+			$('#m-start').click(function(){
+				slider.startShow();
+				stopFlag = 0;
+				return false;
+			});
+			$('#m-stop').click(function(){
+				slider.stopShow();
+				stopFlag = 1;
+				return false;
+			});
+			document.onkeydown = function(event){
+				event = event || window.event;
+				lastCode = event.keyCode || event.which;
+			};
+			document.onkeyup = function(event){
+				lastCode = null;
+			};
+
+			$('#text div a').focus(function(){
+				if (lastCode == 9) {
+					slider.stopShow();
+					var thumbIndex = $('#text div a').index(this);
+					var cnt = slider.getSlideCount();
+					if (thumbIndex === cnt) $('.topimg-panel a:eq(0)').focus()
+					if (thumbIndex === cnt+1) {
+						thumbIndex = cnt-1;
+						$('#text div a:eq('+ thumbIndex +')').focus();
+						slider.goToSlide(thumbIndex);
+					}
+					if (thumbIndex === cnt+1) $('').focus()
+				}
+				if (cnt > thumbIndex) {
+					slider.goToSlide(thumbIndex);
+				}
+			}).blur(function(){
+				if (lastCode == 9) {
+					slider.startShow();
+					lastCode == "";
+				}
+			});
+
+		} else if ($('#text div a').html() == "") {
+			$("#EmergencyNote").hide();
+		} else if (_ua.ltIE6) {
+			$("#text").show();
+			$("#m-start").hide();
+			$("#m-stop").hide();
+		}
+			
+		// MainImg
+		$('.topimg-nav').show();
+		$('.noscript').show();
+		$("#loading").fadeOut(function() {
+			$(".topimg img").show();
+		});
+		$('#fragment-2').sliderkit({
+			cssprefix: 'topimg',
+			shownavitems:6,
+			autospeed:7000,
+			/*
+            height:375,
+			*/
+            width: 780,
+			circular:true,
+			keyboard:true
+		});
+		var tabcnt = null;
+		var mytopimg = $('#fragment-2').data('sliderkit');
+		$('#playbtn').click(function(){
+			if (mytopimg.isPlaying==null)
+				mytopimg.autoScrollStart();
+			return false;
+		});
+		$('#stopbtn').click(function(){
+			if (mytopimg.isPlaying!=null)
+				mytopimg.autoScrollStop();
+			return false;
+		});
+
+
+		$('div.topimg-panel a').keyup(function(event){
+			event = event || window.event;
+			if(event.keyCode == 9 && event.shiftKey){
+				mytopimg.stepBackward();
+			} else if (event.keyCode == 9){
+				mytopimg.stepForward();
+			}
+		});
+
+		$('div.topimg-panel a').blur(function(){
+			mytopimg.autoScrollStart();
+		});
+		
+		// ブラウザによっては、white-spaceにnowrapを入れないとズレる
+		//alert(_ua.ltIE8+","+ $.browser.version);
+		// IE6は最初の文字しか出てこない....
+		// IE7ならOK
+		// IE8の場合はnowrapを追加すべし..
+		// IE8の互換表示ならOK
+		// IE9の場合はnowrapを追加すべし..
+		// IE9の互換表示ならOK
+		if (_ua.ltIE6){	// IE6には必須
+			$('div.bx-wrapper').css('white-space','nowrap');
+		} else if (_ua.ltIE7) {
+		} else {
+			$('div.bx-wrapper').css('width','');
+		}
+	}
+}
+
+//addEvent(function(){ top2.init() });
+
+/* tab_txt */
+$(function () {
+var tabContainer = $('div.NewsArea div');
+tabContainer.hide().filter(':first').show();
+$('div.NewsArea ul.news_menu a').click(function () {
+   tabContainer.hide();
+   tabContainer.filter(this.hash).show();
+   $('div.NewsArea ul.news_menu a').removeClass('selected');
+   $(this).addClass('selected');
+   return false;
+})
+.filter(':first').click();
+});
+
+/* tab_img */
+$(function(){  
+var handler = $('ul#nav li a');
+var url = document.URL;
+var urlId = url.substr(url.lastIndexOf('#'));
+var urlIdJudgment = urlId.lastIndexOf('#');
+$('ul#nav').each(function(){
+    $('#top_bunya > div:first').show();
+        var imgSrc = $('ul#nav li:first img').attr('src');
+        var imgDot = imgSrc.lastIndexOf('.');
+        var onSrc = imgSrc.substr(0, imgDot) + '_on' + imgSrc.substr(imgDot, 4);
+        $('ul#nav li:first img').attr('src',onSrc).addClass('tab-on');
+});
+top2.init();
+/*
+$('#pg').click(function() {
+	top2.init();
+}); 
+$('#pg').parent().focus(function(){
+	top2.init();
+});
+*/
+// クリック時の動作
+handler.click(function() {
+	// クリックしたタブ画像をオンの状態に
+	var imgSrc = $(this).children('img').attr('src').replace(/_on/g, "");
+	var imgDot = imgSrc.lastIndexOf('.');
+	var onSrc = imgSrc.substr(0, imgDot) + '_on' + imgSrc.substr(imgDot, 4);
+	$(this).children('img').attr('src',onSrc);
+	// タブ画像の切り替え
+	var imgOff = $('ul#nav li img.tab-on').attr('src').replace(/_on/g, "");
+	$('ul#nav li img.tab-on').attr('src',imgOff);
+	$('ul#nav li img').removeClass('tab-on');
+	$(this).children('img').addClass('tab-on');
+	// コンテンツの切り替え
+	var clickAttr = $(this).attr('href');
+	var showAttr = '#' + $('#top_bunya > div:visible').attr('id');
+	if(clickAttr !== showAttr) {
+		$('#top_bunya > div:visible').hide();
+		var showDiv = '#top_bunya div' + clickAttr;
+		$(showDiv).show();
+		return false;
+	}
+	else {
+		// 何度もクリックした場合もタブ画像をオンの状態に
+		var imgSrc = $(this).children('img').attr('src').replace(/_on/g, "");
+		var imgDot = imgSrc.lastIndexOf('.');
+		var onSrc = imgSrc.substr(0, imgDot) + '_on' + imgSrc.substr(imgDot, 4);
+		$(this).children('img').attr('src',onSrc);
+		return false;
+	}
+})
+// ロールオーバー
+handler.hover(function() {
+	var classJudgment = $(this).children('img').attr('class');
+	if(classJudgment != 'tab-on') {
+		var imgSrc = $(this).children('img').attr('src');
+		var imgDot = imgSrc.lastIndexOf('.');
+		var onSrc = imgSrc.substr(0, imgDot) + '_on' + imgSrc.substr(imgDot, 4);
+		$(this).children('img').attr('src',onSrc);
+	}
+	}, function() {
+	var classJudgment = $(this).children('img').attr('class');
+	if(classJudgment != 'tab-on') {
+		var imgOff = $(this).children('img').attr('src').replace(/_on/g, "");
+		$(this).children('img').attr('src',imgOff);
+	}
+	});
+});
+
+/* サブナビ展開 */
+$(function () {
+	var tgtIMG, tgtDL, tgtDD;
+	if ($("div#rightMenu").size()>0){
+		// 初期化 #rightMenu>dl>ddを全て非表示にする
+		$("dl dd", "#rightMenu").each(function(){
+			$(this).css("display","none");
+		});
+		// #rightMenu>dl>dtをクリックしたら、対応するddの表示・非表示を切り替える
+		$("dl dt a.subMenuBtn", "#rightMenu").click(function(){
+			tgtIMG = $(this);
+			tgtDD = $(this).parent();
+			tgtDL = $(tgtDD).parent();
+
+			while($(tgtDD).next().is('dd')){
+				tgtDD = $(tgtDD).next();
+				if ($(tgtDD).css("display") == "none"){
+					$(tgtDD).css("display","");
+					$(tgtIMG).find('img:first').attr("src", "/main_content/000269751.gif");
+				} else {
+					$(tgtDD).css("display","none");
+					$(tgtIMG).find('img:first').attr("src", "/main_content/000269744.gif");
+				}
+			}
+			$("a.subMenuBtn").blur();
+		});
+	}
+});
+/* バナースライド */
+document.addEventListener('DOMContentLoaded', function() {
+  const carousel = document.getElementById('carousel');
+  const images = carousel.querySelectorAll('.carousel-container img');
+  const thumbnails = carousel.querySelectorAll('.thumbnail');
+  const pauseButton = document.getElementById('pauseButton');
+  const resumeButton = document.getElementById('resumeButton');
+  const loadingElement = carousel.querySelector('.loading');
+  const prevLink = carousel.querySelector('.prev-link');
+  const nextLink = carousel.querySelector('.next-link');
+
+  let currentIndex = 0;
+  let intervalId;
+  let imagesLoaded = 0;
+
+  function showImage(index) {
+    images[currentIndex].classList.remove('active');
+    thumbnails[currentIndex].classList.remove('active');
+    currentIndex = index;
+    images[currentIndex].classList.add('active');
+    thumbnails[currentIndex].classList.add('active');
+    resetCarousel();
+  }
+
+  function startCarousel() {
+    if (!intervalId) {
+      intervalId = setInterval(function() {
+        const nextIndex = (currentIndex + 1) % images.length;
+        showImage(nextIndex);
+      }, 7000);
+    }
+  }
+
+  function pauseCarousel() {
+    clearInterval(intervalId);
+    intervalId = null;
+    pauseButton.disabled = true;
+    resumeButton.disabled = false;
+  }
+
+  function resumeCarousel() {
+    startCarousel();
+    pauseButton.disabled = false;
+    resumeButton.disabled = true;
+  }
+
+  function resetCarousel() {
+    clearInterval(intervalId);
+    intervalId = setTimeout(function() {
+      const nextIndex = (currentIndex + 1) % images.length;
+      showImage(nextIndex);
+    }, 7000);
+  }
+
+  function checkImagesLoaded() {
+    imagesLoaded++;
+    if (imagesLoaded === images.length) {
+      loadingElement.style.display = 'none';
+      showImage(0);
+      startCarousel();
+    }
+  }
+
+  images.forEach(function(image) {
+    if (image.complete) {
+      checkImagesLoaded();
+    } else {
+      image.addEventListener('load', checkImagesLoaded);
+    }
+  });
+
+  thumbnails.forEach(function(thumbnail, index) {
+    thumbnail.addEventListener('click', function() {
+      showImage(index);
+    });
+  });
+
+  document.addEventListener('keydown', function(event) {
+    if (event.key === 'ArrowLeft') {
+      const prevIndex = (currentIndex - 1 + images.length) % images.length;
+      showImage(prevIndex);
+    } else if (event.key === 'ArrowRight') {
+      const nextIndex = (currentIndex + 1) % images.length;
+      showImage(nextIndex);
+    }
+  });
+
+  pauseButton.addEventListener('click', function(event) {
+    event.preventDefault();
+    pauseCarousel();
+  });
+
+  resumeButton.addEventListener('click', function(event) {
+    event.preventDefault();
+    resumeCarousel();
+  });
+});
+</script>
+
+</body>
+</html>

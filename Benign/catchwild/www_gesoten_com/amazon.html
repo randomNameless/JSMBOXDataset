@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>amazon.html</title>
+</head>
+<body>
+
+<script>
+var AmazonLogin = (function() {
+    var accessTokenProvider = $.Deferred();
+    var orderReferenceProvider = $.Deferred();
+    var loginRedirectURL = null;
+    var sellerID;
+    var loginOptions;
+    var buttonOptions;
+    //ログイン完了
+    function onLogin(response) {
+      var addressConsentToken = response.access_token;
+      console.log("[addressConsentToken]", arguments);
+      accessTokenProvider.resolve(addressConsentToken);
+    }
+    function onSignIn(orderReference) {//the onSignIn option takes a function as a value. The function is passed the orderReference 
+        var amazonOrderReferenceId = orderReference.getAmazonOrderReferenceId();
+        console.log("[referenceId]", amazonOrderReferenceId);
+        orderReferenceProvider.resolve(amazonOrderReferenceId);
+    }
+    //エラーハンドラ
+    function onError(error) {
+      console.log(error.getMessage());
+    }
+    //パラメータ設定
+    function init(clientID, _sellerID, options) {
+      window.onAmazonLoginReady = function() {
+        amazon.Login.setClientId(clientID);
+        amazon.Login.setUseCookie(false);
+      };
+      sellerID = _sellerID;
+      loginOptions = options || {scope: 'profile payments:widget'};
+    }
+    function setupLoginButton(elementID, buttonOptions, loginCallback) {
+      var options = buttonOptions || {};
+      options.useAmazonAddressBook = false;
+      options.onError = onError;
+      options.authorization = function () {
+          amazon.Login.authorize(loginOptions, loginCallback || onLogin);
+      };
+      options.onSignIn = onSignIn;
+      console.log("[setup]", elementID, options, buttonOptions);
+      OffAmazonPayments.Button(elementID, sellerID, options);
+    }
+
+    var exports = {
+      init: init,
+      createButton: setupLoginButton,
+      onAccessTokenProvide: accessTokenProvider.promise(),
+      onOrderReferenceProvide: orderReferenceProvider.promise()
+    };
+    return exports;
+})();
+
+    /*var sellerID = "<spring:message code="amazon.sellerId"/>";
+    AmazonLogin.init(sellerID);//parameter3 = redirectURL
+    AmazonLogin.createButton("AmazonPayButton", {
+          type:  "PwA",
+          color: "Gold",
+          size:  "medium"
+    });
+
+  //ログイン＆ペイメント
+  $.when(AmazonLogin.onAccessTokenProvide, AmazonLogin.onOrderReferenceProvide).then(function(accessToken, orderReferenceId) {
+    console.log("[completeAuth]", arguments);
+    location.href = location.origin + "/opensocial_secure/public/amazon/wallet?session=" + orderReferenceId + "&access_token=" + accessToken;
+  });*/
+
+  //ログイン
+  /*AmazonLogin.createButton("AmazonPayButton", {
+        type:  "PwA",
+        color: "Gold",
+        size:  "medium"
+  }, location.origin + "/login/amazon");
+
+  //sellerID = ;
+    window.onAmazonLoginReady = function() {
+      amazon.Login.setClientId('');
+      amazon.Login.setUseCookie(false);
+    };
+*/
+
+
+</script>
+
+</body>
+</html>

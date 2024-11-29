@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>wxshare_v1.html</title>
+</head>
+<body>
+
+<script>
+//»ñÈ¡·ÖÏíÍ¼Æ¬ÊôÐÔ
+scripts = document.getElementsByTagName('script');
+currentScript = scripts[scripts.length - 1];
+imgurl = currentScript.getAttribute('imgurl');
+link = currentScript.getAttribute('link');
+desc = currentScript.getAttribute('desc');
+title = currentScript.getAttribute('title');
+
+//¼ÓÔØÎ¢ÐÅjs-sdk
+var head = document.getElementsByTagName('head')[0];
+var script = document.createElement('script');
+script.type = 'text/javascript';
+script.onload = script.onreadystatechange = function () {
+    if (!this.readyState || this.readyState === "loaded" || this.readyState === "complete") {
+        share();
+        // Handle memory leak in IE 
+        script.onload = script.onreadystatechange = null;
+    }
+};
+script.src = '//res.wx.qq.com/open/js/jweixin-1.0.0.js';
+if(IsWeixin()){
+    head.appendChild(script);
+}
+
+
+//判断是否微信浏览器
+function IsWeixin() {
+    var ua = navigator.userAgent.toLowerCase();
+    var isWeixin = ua.indexOf('micromessenger') != -1;
+    if (isWeixin) {
+        return true;
+    } else {
+        return false;
+    }
+
+}
+
+//ÉèÖÃÅóÓÑÈ¦ºÍÎ¢ÐÅ·ÖÏí
+function share() {
+    var url = window.location.href;
+    if (url.indexOf('#') > -1) {
+        url = url.split('#')[0];
+    }
+    var sharetitle = $('title').text();
+    var sharelink = url;
+    var shareimgUrl = "http://news.sznews.com/123781.files/fx20170331.jpg";
+
+    if (title != null) {
+        sharetitle = title;
+    }
+
+    if (imgurl != null) {
+        shareimgUrl = imgurl;
+    }
+    if (link != null) {
+        sharelink = link;
+    }
+    var sharedesc = $('title').text();
+    if (desc != null) {
+        sharedesc = desc;
+    }
+    var shareTimeline = $('title').text();
+    console.log(shareimgUrl);
+    $.ajax({
+        url: 'https://v2.sznews.com/weitest/index.php?s=Wxshare/getwx.html',
+        type: 'post',
+        data: {
+            url:url.replace(/&/g, "@")
+        },
+        success: function (msg) {
+
+            msg = JSON.parse(msg);
+            // console.log(msg);
+            wx.config({
+                debug: false,//ÖµÎªtrueÊ±½øÈëdebugÄ£Ê½£¬¿ÉÒÔ´ò³ö×´Ì¬Öµ
+                appId: msg.appId,
+                timestamp: msg.timestamp,
+                nonceStr: msg.nonceStr,
+                signature: msg.signature,
+                jsApiList: ['onMenuShareTimeline', 'onMenuShareAppMessage'
+                  // ËùÓÐÒªµ÷ÓÃµÄ API ¶¼Òª¼Óµ½Õâ¸öÁÐ±íÖÐ
+                ]
+            });
+            wx.ready(function () {
+                //alert(123);
+                wx.checkJsApi({
+                    jsApiList: ['onMenuShareTimeline', 'onMenuShareAppMessage'], // ÐèÒª¼ì²âµÄJS½Ó¿ÚÁÐ±í£¬ËùÓÐJS½Ó¿ÚÁÐ±í¼û¸½Â¼2,
+                    success: function (res) {
+                        // ÒÔ¼üÖµ¶ÔµÄÐÎÊ½·µ»Ø£¬¿ÉÓÃµÄapiÖµtrue£¬²»¿ÉÓÃÎªfalse
+                        // console.log("api success");
+                        //console.log(res);
+
+                    }
+                });
+
+                wx.error(function (res) {
+                })
+                //»ñÈ¡¡°·ÖÏíµ½ÅóÓÑÈ¦¡±°´Å¥µã»÷×´Ì¬¼°×Ô¶¨Òå·ÖÏíÄÚÈÝ½Ó¿Ú
+                wx.onMenuShareTimeline({
+                    title: sharetitle, // ·ÖÏí±êÌâ
+                    link: sharelink, // ·ÖÏíÁ´½Ó
+                    imgUrl: shareimgUrl, // ·ÖÏíÍ¼±ê
+                    success: function () {
+                        // ÓÃ»§È·ÈÏ·ÖÏíºóÖ´ÐÐµÄ»Øµ÷º¯Êý
+
+                        // console.log("share1 success");
+                    },
+                    cancel: function () {
+                        // ÓÃ»§È¡Ïû·ÖÏíºóÖ´ÐÐµÄ»Øµ÷º¯Êý
+                    },
+                    fail: function () {
+                        //alert("share1 fail");
+                    }
+                });
+                //»ñÈ¡¡°·ÖÏí¸øÅóÓÑ¡±°´Å¥µã»÷×´Ì¬¼°×Ô¶¨Òå·ÖÏíÄÚÈÝ½Ó¿Ú
+                wx.onMenuShareAppMessage({
+                    title: sharetitle, // ·ÖÏí±êÌâ
+                    desc: sharedesc, // ·ÖÏíÃèÊö
+                    link: sharelink, // ·ÖÏíÁ´½Ó
+                    imgUrl: shareimgUrl, // ·ÖÏíÍ¼±ê
+                    type: 'link', // ·ÖÏíÀàÐÍ,music¡¢video»òlink£¬²»ÌîÄ¬ÈÏÎªlink
+                    dataUrl: '', // Èç¹ûtypeÊÇmusic»òvideo£¬ÔòÒªÌá¹©Êý¾ÝÁ´½Ó£¬Ä¬ÈÏÎª¿Õ
+                    success: function () {
+                        // ÓÃ»§È·ÈÏ·ÖÏíºóÖ´ÐÐµÄ»Øµ÷º¯Êý
+
+                        // console.log("share2 success");
+                    },
+                    cancel: function () {
+                        // ÓÃ»§È¡Ïû·ÖÏíºóÖ´ÐÐµÄ»Øµ÷º¯Êý
+                    },
+                    fail: function () {
+                        //alert("share2 fail");
+                    }
+                });
+            });
+        }
+    });
+}
+</script>
+
+</body>
+</html>

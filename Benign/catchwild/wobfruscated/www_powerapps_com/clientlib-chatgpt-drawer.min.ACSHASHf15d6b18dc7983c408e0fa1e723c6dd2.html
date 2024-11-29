@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>clientlib-chatgpt-drawer.min.ACSHASHf15d6b18dc7983c408e0fa1e723c6dd2.html</title>
+</head>
+<body>
+<script>(() => {
+    const ATTRIBUTE_SELECTORS = {
+        DATA_MOUNT_CHAT_AI_DRAWER: '[data-mount="ai-chat-drawer"]',
+    };
+
+    const ATTRIBUTES = {
+        IS_AUTHOR: 'data-is-author',
+        IS_ENV_PROD: 'data-is-env-prod',
+        PARAMS: 'data-params',
+    };
+
+    const EventName = {
+        KEY_DOWN: 'keydown',
+        WEBCHAT_CONNECT_FULFILLED: 'webchatconnectfulfilled'
+    };
+
+    const Selector = {
+        WEB_CHAT_FEED: '[role="feed"]',
+        FOOTNOTE_LINK: '.ac-horizontal-separator + .ac-container a, .webchat__link-definitions__list-item-box--as-link',
+        ACTION_SET_BUTTON: '.ac-pushButton:not(.action--ai-feedback)',
+        POSITIVE_FEEDBACK_BUTTON: '[id$="-positive"] .ac-pushButton',
+        NEGATIVE_FEEDBACK_BUTTON: '[id$="-negative"] .ac-pushButton'
+    };
+
+    // Constant values for the AI Chat Drawer component.
+    const IS_AUTHOR = document.querySelector(ATTRIBUTE_SELECTORS.DATA_MOUNT_CHAT_AI_DRAWER).getAttribute(ATTRIBUTES.IS_AUTHOR);
+    const IS_ENV_PROD = document.querySelector(ATTRIBUTE_SELECTORS.DATA_MOUNT_CHAT_AI_DRAWER).getAttribute(ATTRIBUTES.IS_ENV_PROD);
+
+    // Get param for author env.
+    const PARAMS = document.querySelector(ATTRIBUTE_SELECTORS.DATA_MOUNT_CHAT_AI_DRAWER).getAttribute(ATTRIBUTES.PARAMS);
+    const AI_CHAT_DRAWER_API_URL = "/GenerativeAIToken/getSessionToken";
+
+    // Ajax instance for the AI Chat Drawer component.
+    let ajaxUtilAiChatDrawer = null;
+
+    // Class instance for the AI Chat Drawer component (There is only one per page).
+    let aiChatDrawerInstance;
+
+    // Class instance for the AI Chat Search Form component
+    let aiSearchFormInstance;
+
+    // analytics object for telemetry
+    let analytics = null;
+
+    // tuid query param
+    let tuidQueryParam = '';
+
+    /**
+     * Wait for an element to be available in the DOM, and return a promise that resolves when the element is available.
+     * @param {string} selector - The selector for the element to wait for.
+     * @param {HTMLElement} containerElement - The container element to search within. Defaults to document.
+     * @returns {Promise} - A promise that resolves when the element is available.
+     */
+    const waitForElement = (selector, containerElement) => {
+        containerElement = containerElement || document;
+        const elementToObserve = containerElement === document ? document.body : containerElement;
+
+        return new Promise(resolve => {
+            if (containerElement.querySelector(selector)) {
+                return resolve(containerElement.querySelector(selector));
+            }
+
+            const observer = new MutationObserver(() => {
+                if (containerElement.querySelector(selector)) {
+                    observer.disconnect();
+                    resolve(containerElement.querySelector(selector));
+                }
+            });
+
+            observer.observe(elementToObserve, {
+                childList: true,
+                subtree: true
+            });
+        });
+    };
+
+    /**
+     * Send telemetry for the AI Chat Drawer and banner search form.
+     * 
+     * @param {number} behaviorId - The behavior ID for the telemetry event.
+     * @param {string} actionType - The action type for the telemetry event.
+     * @param {object} contentTags - The content tags for the telemetry event.
+     */
+    const sendTelemetry = (behaviorId, actionType, contentTags) => {
+        if (analytics !== null) {
+            const overrides = {
+                behavior: behaviorId,
+                actionType: actionType,
+                contentTags: contentTags
+            };
+            analytics.capturePageAction(null, overrides);
+        }
+    };
+
+    /**
+     * Set the token endpoint for the AI Chat Drawer instance using base endpoint provided by the AjaxUtil instance.
+     * Note: The token endpoint is referenced on the AI Chat Button click event.
+     */
+    const setTokenEndpoint = () => {
+        // Create the AjaxUtil instance for the AI Chat Drawer component. This will be used to get the endpoint base url.
+        ajaxUtilAiChatDrawer = new AjaxUtil({
+            isProd: IS_ENV_PROD === 'true',
+            isAuthor: IS_AUTHOR === 'true'
+        });
+        // aiChatDrawerInstance.tokenEndpoint = `${ajaxUtilAiChatDrawer.baseUrl}${AI_CHAT_DRAWER_API_URL}${tuidQueryParam}`;
+        aiChatDrawerInstance.tokenEndpoint = OneCloudUtil.getMsocapiurl(AI_CHAT_DRAWER_API_URL, tuidQueryParam);
+    };
+
+    /**
+     * Capture telemetry when the user submits the AI chat form using the Enter key. Click should be handled automatically.
+     * 
+     * @param {HTMLElement} inputElem - The input/textarea element in the AI chat drawer.
+     * @param {HTMLElement} sendButton - The submit button in the AI chat drawer.
+     */
+    const handleAiFormSubmitTelemetry = (inputElem, sendButton) => {
+        if (!inputElem || !sendButton) {
+            return;
+        }
+
+        inputElem.addEventListener(EventName.KEY_DOWN, (event) => {
+            if (event.key === 'Enter' && inputElem.value.trim() !== '' && !(event.shiftKey && inputElem.tagName === 'TEXTAREA')) {
+                const behaviorId = 0; // "Undefined"
+                const actionType = 'O'; // "Other"
+                const contentTags = {
+                    id: sendButton.dataset.biId,
+                    compnm: sendButton.dataset.biCompnm
+                };
+                sendTelemetry(behaviorId, actionType, contentTags);
+            }
+        });
+    };
+
+    /**
+     * Set the telemetry attributes on interactive elements once webchat conversation is started, and when messages from bot
+     * are received. When 'webchatconnectfulfilled' event is fired, wait until the webchat feed is available, then set the
+     * telemetry attributes on the send button. When a new message is added to the feed, set the telemetry attributes on the
+     * footnote links and action buttons in the message from bot.
+     */
+    const setTelemetryAttributes = () => {
+        window.addEventListener(EventName.WEBCHAT_CONNECT_FULFILLED, () => {
+            const webChatContainer = aiChatDrawerInstance.webChatContainer;
+            waitForElement(Selector.WEB_CHAT_FEED, webChatContainer).then(() => {
+                setSendButtonTelemetryAttributes();
+                setBotMessageTelemetryAttributes();
+                handleAiFormSubmitTelemetry(aiChatDrawerInstance.webChatTextarea, aiChatDrawerInstance.webChatSendButton);
+            });
+        }, { once: true });
+    };
+
+    /**
+     * Set telemetry attributes on the send button.
+     */
+    const setSendButtonTelemetryAttributes = () => {
+        const sendButton = aiChatDrawerInstance.webChatSendButton;
+
+        if (!sendButton) {
+            console.error('No send button found in AI chat drawer');
+            return;
+        }
+
+        sendButton.dataset.biCompnm = 'AI Chat Drawer';
+        sendButton.dataset.biId = 'Prompt submit';
+    };
+
+    /**
+     * Set telemetry attributes on footnote links and action buttons in messages from bot.
+     */
+    const setBotMessageTelemetryAttributes = () => {
+        // Set up MutationObserver to detect when new messages are added to the chat, and set the telemetry attributes on links/buttons
+        // in messages from bot
+        const webChatFeed = aiChatDrawerInstance.webChatContainer?.querySelector(Selector.WEB_CHAT_FEED);
+
+        if (!webChatFeed) {
+            console.error('No web chat feed found in AI chat drawer');
+            return;
+        }
+
+        const config = { subtree: true, childList: true };
+        const webChatFeedObserver = new MutationObserver((mutationList) => {
+            for (const mutation of mutationList) {
+                if (!mutation.addedNodes.length) {
+                    continue;
+                }
+
+                for (const addedNode of mutation.addedNodes) {
+                    if (!addedNode.classList?.contains('ac-adaptiveCard')) {
+                        continue;
+                    }
+                    setTimeout(() => {
+                        // Tag footnote links
+                        const footnoteLinks = addedNode.querySelectorAll(Selector.FOOTNOTE_LINK);
+                        footnoteLinks.forEach(link => {
+                            link.dataset.biType = 'Footnote link';
+                        });
+
+                        // Tag positive feedback button
+                        const positiveFeedbackButton = addedNode.querySelector(Selector.POSITIVE_FEEDBACK_BUTTON);
+                        if (positiveFeedbackButton) {
+                            positiveFeedbackButton.dataset.biType = 'Thumbs up';
+                        }
+
+                        // Tag negative feedback button
+                        const negativeFeedbackButton = addedNode.querySelector(Selector.NEGATIVE_FEEDBACK_BUTTON);
+                        if (negativeFeedbackButton) {
+                            negativeFeedbackButton.dataset.biType = 'Thumbs down';
+                        }
+
+                        // Tag action buttons
+                        const actionSetButtons = addedNode.querySelectorAll(Selector.ACTION_SET_BUTTON);
+                        actionSetButtons.forEach(button => {
+                            button.dataset.biType = 'Canned prompt button';
+                        });
+                    }, 500);
+                }
+            }
+        });
+        webChatFeedObserver.observe(webChatFeed, config);
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // Get the AI Chat Drawer instance. There should only be one instance on the page.
+        if (window.ocrReimagine !== undefined) {
+            aiChatDrawerInstance = window.ocrReimagine.AIChatDrawer.getInstances()[0];
+            aiSearchFormInstance = window.ocrReimagine.AISearchForm.getInstances()[0];
+        } else {
+            aiChatDrawerInstance = window.m365.AIChatDrawer.getInstances()[0]; // Moray Extensions version of the AI Chat Drawer
+        }
+
+        if (typeof telemetry !== 'undefined') { // AEM
+            analytics = telemetry.webAnalyticsPlugin;
+        } else if (typeof awa !== 'undefined') { // Red tiger
+            analytics = awa.ct;
+        }
+
+        if (!aiChatDrawerInstance) {
+            console.error('No AI Chat Drawer instance found on page');
+            return;
+        }
+
+        // Grab tuid (random uuid) from cookie. If it doesn't exist, save to cookie.
+        const cookieObj = aiChatDrawerInstance.getAIChatDrawerCookieObject();
+        let tuid = cookieObj?.tuid;
+        if (!tuid) {
+            tuid = self.crypto.randomUUID();
+        }
+
+        aiChatDrawerInstance.tuid = tuid;
+        tuidQueryParam = `tuid=${tuid}`;
+
+        setTokenEndpoint();
+        setTelemetryAttributes();
+
+        if (!aiSearchFormInstance) {
+            return;
+        }
+
+        handleAiFormSubmitTelemetry(aiSearchFormInstance.searchInput, aiSearchFormInstance.submitButton);
+    });
+})();</script>
+</body>
+</html>

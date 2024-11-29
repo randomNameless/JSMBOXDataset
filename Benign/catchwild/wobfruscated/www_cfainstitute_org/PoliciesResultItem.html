@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>PoliciesResultItem.html</title>
+</head>
+<body>
+<script>import {
+  resultContext,
+} from "https://static.cloud.coveo.com/atomic/v2/index.esm.js";
+import {dateFormatUnixTimestamp} from "./utility-functions.js";
+
+//Title
+export class PoliciesResultItem extends HTMLElement {
+  shadow;
+  result;
+  initialized = false;
+  loggedIn;
+
+  async connectedCallback() {
+    if (this.initialized) {
+      return;
+    }
+
+    this.initialized = true;
+    this.shadow = this.attachShadow({ mode: "open" });
+
+    try {
+      this.result = await resultContext(this);
+      this.loggedIn = window.drupalSettings.user_roles.includes('authenticated');
+      this.render();
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  render() {
+    const title_display = this.result.raw.title;
+    const link_url = this.result.raw.clickableuri;
+    const description = this.result.raw.field_short_description;
+    const last_update_date = dateFormatUnixTimestamp(this.result.raw.field_official_date);
+    let itemContent = "";
+
+    itemContent = `
+                  <div class="coveo-result-row">
+                    <div class="coveo-result-cell" style="padding-left:15px;">
+                      <div class="coveo-result-row">
+                        <div class="coveo-result-cell" style="font-size:18px;">
+                          <h4 class="coveo-title">
+                            <a href="${link_url}" class='CoveoResultLink'>${title_display}</a>
+                          </h4>
+                          <div class="result-body">
+                            ${description}
+                          </div>
+                          <div class="result-meta">
+                            <span class="result-meta-item">
+                                Last Updated: ${last_update_date}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+            `;
+    this.shadow.innerHTML = itemContent;
+  }
+}</script>
+</body>
+</html>

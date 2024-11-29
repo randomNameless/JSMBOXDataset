@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ai_connect.html</title>
+</head>
+<body>
+
+<script>
+$(function(){
+    var img_src = $('#static_url').val();
+    var inter_url = 'http://aichat.piaproxy.com'
+    if(location.protocol == "https:"){
+        inter_url = 'https://aichat.piaproxy.com'
+    }
+    var uniquely_identifies = $.md5(JSON.stringify(getBrowserInfo(), null, "  "));
+    var is_agent = false;
+    var allow_enter = true;
+    function getBrowserInfo() {
+        let info = {
+            "navigator.platform": navigator.platform,
+            "navigator.language": navigator.languages,
+            "navigator.deviceMemory": navigator.deviceMemory,
+            "navigator.hardwareConcurrency": navigator.hardwareConcurrency,
+            "navigator.userAgent": navigator.userAgent,
+            "screen.height * screen.width": [screen.height, screen.width],
+            "screen.availHeight * screen.availWidth": [screen.availHeight, screen.availWidth],
+            "location.host": location.host,
+        };
+        return info;
+    }
+    aiConnect()
+    function aiConnect(){
+        $(document).on('click','.cloe_ai_box',function(){
+            $('.ai_container').removeClass('on')
+            $('.skype').show()
+        })
+        $(document).on('click','.skype',function(){
+            $('.ai_container').addClass('on')
+            $('.skype').hide()
+        })
+      
+        $("#ai_input_cont").on('input',function(event){
+            if($("#ai_input_cont").val()!=''){
+                $('.send_icon').removeClass('disabled')
+            }else{
+                $('.send_icon').addClass('disabled')
+            }
+        });
+    }
+   
+    $(document).on('click','.questionLi',function(){
+        var _quest = $(this).data('val');
+        is_agent = false;
+        querySpecifyQuest(_quest)
+    })
+    // $(document).on('click','.at_custom',function(){
+    //     var _quest = $(this).text();
+    //     is_agent = true;
+    //     querySpecifyQuest(_quest)
+    // })
+    
+    function querySpecifyQuest(_quest){
+        allow_enter = false;
+        var ai_queat = '<div class="dialogue-li li-user">'+
+                            '<div class="info-txt">'+_quest+'</div>'+
+                        '</div>';
+        var ai_answer = '<div class="dialogue-li ai_loadding">'+
+                            '<img class="dia-img" src="'+img_src+'/index/img/ai_img/head.png" width="40" alt="logo">'+
+                            '<div class="info-txt">'+
+                                '<div class="loader-box">'+
+                                    '<div class="dot-loader"></div>'+
+                                    '<div class="dot-loader dot-loader--2"></div>'+
+                                    '<div class="dot-loader dot-loader--3"></div>'+
+                                '</div>'+
+                            '</div>'+
+                        '</div>'
+        $('.ai_dialogue').append(ai_queat);
+        $('.ai_dialogue').append(ai_answer);
+        setTimeout(() => {
+            $('.li-user .info-txt').css('margin-right','0')
+        }, 0);
+        var scrollHeight = $('.ai_dialogue').prop("scrollHeight");
+        $('.ai_dialogue').animate({scrollTop:scrollHeight}, 300);
+        var is_et = '';
+        if(is_agent){
+            is_et = '1'
+        }
+        let querylang = localStorage.getItem('navLang');
+        let params = {
+            UserSession: uniquely_identifies,
+            Text: _quest
+        }
+        if(querylang == 'hk'){
+            params.Language = 'CN'
+        }
+        $.ajax({
+            type : "POST",
+            url : inter_url+'/wenda/pia',
+            data : JSON.stringify(params),
+            async:true,
+            dataType: 'json',
+            beforeSend:function(xhr,settings){
+                try {
+                     // 匹配正则
+                    let isStart = true;
+                    if(typeof(settings.data)!="object" && settings.url.indexOf("/pay/static_payment") == -1 && settings.url.indexOf("/user/do_questionnaire") == -1){
+                        var param=JSON.parse(settings.data).Text
+                        if(param.indexOf("%3C") > -1 && param.indexOf("%3E") > -1  || param.indexOf("%22") > -1 || param.indexOf("'") > -1  || param.indexOf('"') > -1  || param.indexOf("<") > -1 && param.indexOf(">") > -1){
+                        // if (regexp.test(param)) {
+                            isStart = false;
+                            alert('The input contains dangerous characters, please re-enter');
+                        }
+                        if (!isStart) {
+                            window.location.reload()
+                            return false;
+                        }
+                    } 
+                } catch (error) {
+                    
+                }
+                
+               
+            },
+            success : function(res) {
+                if(res.code==200){
+                    $('.ai_loadding').remove();
+                    var answer_cont = '';
+                    var a_link = ''
+                    if(is_agent){
+                        // if(res.data.url==''){
+                        //     a_link = 'https://t.me/proxy922s5'
+                        // }else{
+                        //     a_link = res.data.url
+                        // }
+                        // answer_cont = '<div class="u_answers"><img class="em_small_logo" src="'+img_src+'/public/img/header/em_small_logo.png" alt=""><p class="a_cont">'+res.data.content+'</p><p class="connect_link"><a href="'+a_link+'" target="_blank">Contact Us <img class="help_link_logo" src="'+img_src+'/public/img/header/hand_small_logo.png" /> </a></p></div>'
+                    }else{
+                        answer_cont = '<div class="info-txt">'+UrlEscape(res.data)+'</div>'
+                    }
+                    ai_answer =  '<div class="dialogue-li">'+
+                                    '<img class="dia-img" src="'+img_src+'/index/img/ai_img/head.png" width="40" alt="logo">'+
+                                    answer_cont+
+                                '</div>'
+                    $('.ai_dialogue').append(ai_answer);
+                    var scrollHeight = $('.ai_dialogue').prop("scrollHeight");
+                    $('.ai_dialogue').animate({scrollTop:scrollHeight}, 0);      
+                    allow_enter = true;       
+                }else{
+                    $('.ai_loadding').remove();
+                }
+            },
+            error: function(){
+                $('.ai_loadding').remove();
+            },
+            complete: function(){
+                $('.ai_loadding').remove();
+            },
+        });
+        
+    }
+
+    $(document).on('click','.send_icon',function(){
+        var _quest = $('#ai_input_cont').val();
+        is_agent = false;
+        $('#ai_input_cont').val('');
+        if(allow_enter){
+            querySpecifyQuest(_quest);
+        }
+    })
+
+    $(document).keydown(function(event){
+        if(event.keyCode==13){
+            is_agent = false;
+            var _quest = $('#ai_input_cont').val();
+            if(_quest == '') return
+            $('#ai_input_cont').val('');
+            $('.send_icon').addClass('disabled');
+            if(allow_enter){
+                querySpecifyQuest(_quest);
+            }
+            allow_enter = false;
+        }
+    });
+    allQuest()
+    function allQuest(){
+        $.ajax({
+            type : "POST",
+            url : inter_url+'/usersession/'+uniquely_identifies,
+            data : {},
+            async:true,
+            dataType: 'json',
+            success : function(res) {
+                if(res.code==200){
+                    var quest_html = ''
+                    if(res.data.length>0){
+
+                        res.data.forEach(function(v,i){
+                            quest_html+='<div class="dialogue-li li-user">'+
+                                            '<div class="info-txt">'+v.Problem+'</div>'+
+                                        '</div>'+
+                                        '<div class="dialogue-li">'+
+                                            '<img class="dia-img" src="'+img_src+'/index/img/ai_img/head.png" width="40" alt="logo">'+
+                                            '<div class="info-txt">'+UrlEscape(v.Answer)+'</div>'+
+                                        '</div>'
+                        })
+                        $('.ai_dialogue').append(quest_html)
+                        $('.li-user .info-txt').css('margin-right','0')
+                        // scroll_offset = $('.ai_dialogue').children(":last-child").offset();
+                        // console.log(scroll_offset.top)
+                        // $(".ai_dialogue").animate({
+                        //     scrollTop:scroll_offset.top
+                        // },0);  
+                        var scrollHeight = $('.ai_dialogue').prop("scrollHeight");
+                        $('.ai_dialogue').animate({scrollTop:scrollHeight}, 0);
+                    }
+                }else{
+
+                }
+            }
+        });
+    }
+    function UrlEscape(html) {
+        var txtContent= html;
+        var httpReg = new RegExp("(http[s]{0,1}|ftp)://[a-zA-Z0-9\\.\\-]+\\.([a-zA-Z]{2,4})(:\\d+)?(/[a-zA-Z0-9\\.\\-~!@#$%^&amp;*+?:_/=<>]*)?", "gi");
+        formatTxtContent = txtContent.replace(httpReg, function(httpText) {
+            return '<a href="' + httpText + '" target="_blank">' + httpText + '</a>';
+        });
+        return txtContent
+    }
+
+    $(".top_public_queat").click(function(){
+        var scrollHeight = $('.ai_dialogue').prop("scrollHeight");
+        $(".ai_dialogue").animate({
+            scrollTop:-scrollHeight
+        },400);
+    })
+
+    $('.ai_dialogue').scroll(function(){
+        var  sTop=$('.ai_dialogue').scrollTop();
+        if (sTop>=500) {
+            $(".top_public_queat").fadeIn();
+        } else{
+            $(".top_public_queat").fadeOut()
+        }
+    })
+
+})
+</script>
+
+</body>
+</html>

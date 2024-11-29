@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>WaiverResultItem.html</title>
+</head>
+<body>
+<script>import {
+  resultContext,
+} from "https://static.cloud.coveo.com/atomic/v2/index.esm.js";
+import {combineField,replaceFunction} from "./utility-functions.js";
+
+//Title
+export class WaiverResultItem extends HTMLElement {
+  shadow;
+  result;
+  initialized = false;
+  loggedIn;
+
+  async connectedCallback() {
+    if (this.initialized) {
+      return;
+    }
+
+    this.initialized = true;
+    this.shadow = this.attachShadow({ mode: "open" });
+
+    try {
+      this.result = await resultContext(this);
+      this.loggedIn = window.drupalSettings.user_roles.includes('authenticated');
+      this.render();
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  render() {
+    const title_display = combineField(this.result.raw.titlebasic,this.result.raw.field_organization_or_university_title);
+    const media_url = this.result.raw.waiver_media_url;
+    let link_url = this.result.raw.clickableuri;
+    //override link_url if media_url is present
+    if (media_url) {
+      link_url = media_url;
+    }
+    const program = this.result.raw.field_learning_product_name;
+    const program_level = replaceFunction(this.result.raw.field_waiver_program_levels_names);
+    const country = this.result.raw.locations_country_names;
+    const waiver_type = this.result.raw.field_waiver_type_name;
+    const what_is_being_waived_detail = this.result.raw.field_waiver_summary;
+    const permanent_id = this.result.raw.permanentid;
+    const waiver_title = this.result.raw.field_waiver_title;
+    const waiver_detail = this.result.raw.description;
+    const additional_information_title = this.result.raw.field_additional_info_title;
+    const additional_information_detail = this.result.raw.field_additional_information;
+    let itemContent = "";
+
+    itemContent = `
+      <style>
+        .CoveoResultLink {
+          color: var(--atomic-on-background);
+          text-decoration: none;
+        }
+
+        .CoveoResultLink:hover,
+        .CoveoResultLink:focus,
+        .CoveoResultLink:focus-visible,
+        .CoveoResultLink:active {
+          text-decoration: underline;
+        }
+
+        .CoveoResultLink[target=_blank]::after {
+          margin-left: var(--cfa--spacing--xs);
+          display: inline-block;
+          content: '\\e89e';
+          vertical-align: middle;
+          font-family: 'material';
+        }
+
+        .result__item {
+          position: relative;
+        }
+
+        .item__meta {
+          display: flex;
+          align-items: center;
+          color: var(--ssa-color-palette-gray-700);
+          margin-bottom: var(--cfa--spacing--xs);
+        }
+
+        .item__meta .coh-style-label-200 {
+          margin-right: .5rem;
+        }
+
+        .content__title {
+          font-size: 1.25rem;
+          font-style: normal;
+          font-weight: 700;
+          line-height: 1.5;
+        }
+
+        .margin--bottom {
+          margin-bottom: .25rem;
+        }
+
+        .margin--bottom--large {
+          margin-bottom: .5rem;
+        }
+
+        .content__description {
+          font-size: 1rem;
+          font-style: normal;
+          font-weight: 400;
+          line-height: 1.5;
+          width: 100%;
+        }
+
+        input.read-more {
+          display: none;
+        }
+
+        input.read-more:not(:checked) ~ .read-more__content {
+          display: none;
+        }
+
+        input.read-more:checked ~ .read-more__content {
+          display: initial;
+        }
+
+        input.read-more:checked ~ label .read-more--collapsed {
+          display: none;
+        }
+
+        input.read-more:not(:checked) ~ label .read-more--expanded {
+          display: none;
+        }
+
+        .read-more__label {
+          text-align: right;
+          color: var(--ssa-color-palette-blue-500);
+          display: flex;
+          width: 100%;
+          justify-content: end;
+          align-items: center;
+          gap: var(--cfa--spacing--sm);
+          cursor: pointer;
+        }
+
+        .read-more__label::after {
+          content: '';
+          font-size: 1.5rem;
+          color: var(--ssa-color-palette-gray-700);
+          font-family: 'Material';
+          transform: rotate(0deg);
+          transition: transform 0.3s;
+        }
+
+        input.read-more:checked ~ .read-more__label::after {
+          transform: rotate(180deg);
+        }
+
+        .coh-style-label-200 {
+          font-size: 1rem;
+          font-style: normal;
+          font-weight: 500;
+          line-height: 1;
+        }
+
+        .coh-style-paragraph-100 {
+          font-size: 1rem;
+          font-style: normal;
+          font-weight: 400;
+          line-height: 1.5;
+        }
+      </style>
+      <div class="result">
+        <div class="result__item">
+          <div class="item__content">
+            <div class="item__meta">
+              <span class="coh-style-paragraph-100">
+                ${waiver_type}
+              </span>
+            </div>
+            <div class="content__title margin--bottom">
+              <a href="${link_url}" class="CoveoResultLink" role="heading">
+                ${title_display}
+              </a>
+            </div>
+            <div class="content__description">
+              <div class="margin--bottom--large">
+                ${program} | ${country}
+              </div>
+              ${what_is_being_waived_detail}
+              <input type="checkbox" class="read-more" id="read-more__toggle">
+              <label for="read-more__toggle" class="read-more__label">
+                <span class="read-more--collapsed">Show details</span>
+                <span class="read-more--expanded">Hide details</span>
+              </label>
+              <div class="read-more__content">
+                <div class="margin--bottom">
+                  <strong>
+                    ${waiver_title}
+                  </strong>
+                </div>
+                ${this.result.raw.description}
+                <div class="margin--bottom">
+                  ${additional_information_title ? (`
+                  <strong>
+                    ${additional_information_title}
+                  </strong>
+                  `) : ''}
+                </div>
+                ${additional_information_detail ?? ''}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    this.shadow.innerHTML = itemContent;
+  }
+}</script>
+</body>
+</html>

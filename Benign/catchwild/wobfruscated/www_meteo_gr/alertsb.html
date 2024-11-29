@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>alertsb.html</title>
+</head>
+<body>
+<script>/*
+ * Alerts Map for meteo.gr
+ * Copyright George Moustris, 2020, gmoustri at gmail dot com
+ * v1.2
+ */
+var pathTimes='/ReusableCode/CFCs/alerts2020times.cfc?method=getData&returnformat=json';
+var pathData ='/ReusableCode/CFCs/alerts2020.cfc?method=getData&returnformat=json';
+//var pathTimes='alerts2020times.cfc.json';
+//var pathData ='alerts2020.cfc.json';
+var pathTiles = "/alerts/tiles/{z}/{x}/{y}.png";
+var pathIcons = "/alerts/dist/icons/";
+
+var DayArray=["Κυριακή","Δευτέρα","Τρίτη","Τετάρτη","Πέμπτη","Παρασκευή","Σάββατο"];
+var phenObj={    phenid: [0,1,2,3,4,5,6,7,8],
+               phenName: [ "Δεν υπάρχουν επικίνδυνα φαινόμενα",         //alert 0= no alert
+                           "Ισχυρή Βροχόπτωση",
+                           "Ισχυρή Βροχόπτωση με Καταιγίδα",
+                           "Θυελλώδεις Άνεμοι",
+                           "Υψηλές Θερμοκρασίες",
+                           "Πολύ Υψηλές Θερμοκρασίες",
+                           "Χαμηλές Θερμοκρασίες",
+                           "Δριμύ Ψύχος",
+                           "Ισχυρή Χιονόπτωση"],
+              phenIcons: [],
+              phenColors: ['#FFFFFF',  //alert 0= default color
+                           '#bbe1fa',
+                           '#4a6d85',
+                           '#ebe6e6',
+                           '#ffcc00',
+                           '#e32249',
+                           '#3282b8',
+                           '#8fe0f2',
+                           '#12cad6']
+              };
+
+var map_maxZoom = 11.5;
+var map_minZoom = 6.5;
+var zoom_lvl_num=map_maxZoom-map_minZoom+1;
+var icons_sz=[30,30];
+var icons_anchor=[Math.floor(icons_sz[0]/2),Math.floor(icons_sz[0]/2)];
+var zoom0=6.5;
+var map0;
+
+function loadDateTimeData() {
+    $.getJSON(pathTimes, function(data) {
+        var fcTimes = data;
+        var weekday=-1;
+        rawDateStrings=[];
+        $("#singleSelect").html('');
+        for ( k = 0; k < fcTimes.length; k++) {
+            var  d = moment(fcTimes[k].FT,"YYYY-MM-DD HH:mm");
+            var weekdayn=d.day();
+            var day = d.date();
+            var month = d.month() + 1;
+            var hours = d.hours();
+            var mins = d.minutes();
+            if (hours < 10) {
+                hours = "0" + hours;
+            };
+            if (mins < 10) {
+                mins = "0" + mins;
+            };
+            if(weekdayn!=weekday){
+                weekday=weekdayn;
+                $("#singleSelect").append("<option value=" + k + '>'+ DayArray[weekday]+" " +day + "/" + month + "-" + hours + ":" + mins + "</option>");
+            }
+            else{
+                $("#singleSelect").append("<option value=" + k + '>'+ day + "/" + month + "-" + hours + ":" + mins + "</option>");
+            }
+            rawDateStrings.push(fcTimes[k].FT); 
+        }
+        alertData=new Object;
+        for(x of data){
+            alertData[x.FT]=[];
+        }
+        $("#singleSelect").change(function() {
+            map0.closePopup(ppup);
+            clearInterval(timerInt);
+            startTimer();
+        });
+        loadAlertData();
+    });
+}
+
+
+function loadAlertData() {
+   $.getJSON(pathData, function(data) { 
+        for(x of data){
+            var dt=x.FT;
+            delete x.FT;
+            if(x.ID==52 || x.ID==53){  //fix evoia
+                x.ID=17;
+            }
+            if(x.A1==0 && x.A2!=0){
+                x.A1=x.A2;
+            }
+           if(x.A1!=0 && x.A2==0){
+                x.A2=x.A1;
+            }
+            alertData[dt].push(x);
+        }
+        startTimer();
+    });
+}
+
+
+function startTimer(){
+    aid=1;
+    timerInt=setInterval(function applyAlerts(){
+        aid= aid==1?2:1;
+        changeIcons();
+        return applyAlerts;
+        }(), 2000);
+}
+
+function changeIcons(){ 
+    var dt=rawDateStrings[$("#singleSelect").val()];
+    var nlayers=geojson.getLayers();
+    var nids=[...Array(nlayers.length).keys()];
+    for(x of alertData[dt]){
+        nids.splice(nids.indexOf(x.ID-1),1);
+        nlayers[x.ID-1].curAlerts=[x.A1,x.A2];
+        nlayers[x.ID-1].icon.setIcon(phenObj.phenIcons[x['A'+aid]]);
+        nlayers[x.ID-1].setStyle({
+            fillColor: phenObj.phenColors[x['A'+aid]]
+        });
+      }
+    //reset remaining
+    for(x of nids){
+        nlayers[x].curAlerts=[0,0];
+        nlayers[x].icon.setIcon(phenObj.phenIcons[0]);
+        nlayers[x].setStyle({
+            fillColor: phenObj.phenColors[0]
+        });
+      }
+}
+
+
+function init0() {
+
+ map0 = L.map('map2', {
+       maxBounds : [[32, 16.93], [45.07, 33.74]],
+       dragging: !L.Browser.mobile,
+       zoomSnap: 0.5
+   });
+
+   var Esri_DarkGreyCanvas = L.tileLayer(pathTiles, {
+       attribution : 'Tiles © OpenStreetMap contributors',
+       maxZoom : map_maxZoom,
+       minZoom : map_minZoom
+   }).addTo(map0);
+
+   map0.setView([38, 24.746948], zoom0);
+   map0.on('zoomstart', function() {
+    for(x of phenObj.phenIcons){
+        x.options.iconSize=[0,0]; // hide icons
+    }
+    changeIcons();
+   });
+   map0.on('zoomend', function() {
+    var scale=map0.getZoom()-zoom0+1;
+    for(x of phenObj.phenIcons){
+        x.options.iconSize=[icons_sz[0]*scale, icons_sz[1]*scale]; // New size!
+        x.options.iconAnchor= [icons_anchor[0]*scale, icons_anchor[1]*scale];
+    }
+    changeIcons();
+   });
+
+   info= L.control.layers({},{},{collapsed : false}).addTo(map0);
+   tdiv=L.DomUtil.create('div','info');
+   tdiv.innerHTML ='<h4>Επιλέξτε ώρα πρόγνωσης:</h4><select class="selectdrop" id="singleSelect" style="width: 100%"></select>'+
+   '<br><img id="nextdt" src="/alerts/dist/images/next.png" alt="" class="mimg" style="float:right">'+
+       '<img id="prevdt" src="/alerts/dist/images/previous.png" alt="" class="mimg" style="float:left">'; 
+   info.getContainer().appendChild(tdiv);
+   
+   $("#prevdt").click(function(){
+       var cval=$("#singleSelect").val();
+       cval--;
+       $("#singleSelect").val(cval<0?0:cval).change();
+   });
+     $("#nextdt").click(function(){
+       var cval=$("#singleSelect").val();
+       cval++;
+       var maxv=$("#singleSelect option").length-1;
+       $("#singleSelect").val(cval>maxv?maxv:cval).change();
+   });
+   
+   //load icons  
+   for (k=0;k<phenObj.phenid.length;k++){
+    phenObj.phenIcons.push(
+      L.icon({
+        iconUrl: pathIcons+k+'.png',
+        iconSize: icons_sz,
+        iconAnchor: icons_anchor
+     })
+    );    
+   }
+
+   //setup popup
+   ppup=L.popup({
+        maxWidth: 300,
+        maxHeight: 300
+    });
+       
+   ppup.show=function(layer){
+       this.setLatLng(layer.iconLatLng);
+       this.setContent( 
+        '<b>Νομός ' + layer.feature.properties.Name + '</b>'+
+        '<p style="margin-top:0.6em;margin-bottom:0.6em ;"><img src="'+phenObj.phenIcons[layer.curAlerts[0]].options.iconUrl+
+                '" alt="" class="imgsmall">'+ phenObj.phenName[layer.curAlerts[0]]+'</p>'+
+         (layer.curAlerts[0]==layer.curAlerts[1]?'': 
+            '<p style="margin-top:0.6em;margin-bottom:0.6em ;"><img src="'+phenObj.phenIcons[layer.curAlerts[1]].options.iconUrl+
+                '" alt="" class="imgsmall">'+phenObj.phenName[layer.curAlerts[1]]+'</p>')
+        );
+        this.update();
+        this.openOn(map0);
+   };
+    
+
+    function style(feature) {
+        return {
+            weight: 1,
+            opacity: 1,
+            color: 'grey',
+            fillOpacity: 1,
+            fillColor: '#FFFFFF'
+        };
+    }
+
+    function highlightFeature(e) {
+        var layer=e.target.options.layer;
+
+        layer.setStyle({
+            weight: 3,
+            color: '#666'
+        });
+
+        if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+            layer.bringToFront();
+        }
+        ppup.show(layer);
+    }
+
+    function resetHighlight(e) {
+        e.target.options.layer.setStyle({
+            weight: 1,
+            opacity: 1,
+            color: 'grey',
+            fillOpacity: 1
+        });
+        map0.closeTooltip(ppup);
+    }
+
+    function zoomToFeature(e) {
+        map0.fitBounds(e.target.getBounds());
+        ppup.show(e.target);
+    }
+    function zoomToFeature2(e) {
+            map0.fitBounds(e.target.options.layer.getBounds());
+            ppup.show(e.target.options.layer);
+        }
+
+    function onEachFeature(feature, layer) {
+        nid++;
+        layer.id=nid;
+        layer.on({
+            click: zoomToFeature
+        });
+        
+    }
+
+    function centroid2(layer){
+        var type=layer.feature.geometry.type;
+        var n=0.0;
+        var lout=[0,0];
+        for(f of layer.getLatLngs()){
+            var ff = (type =='Polygon'?f:f[0]);
+            for(x of ff){
+                n++;
+                lout[0]+=x.lat;
+                lout[1]+=x.lng;
+            }
+        } 
+        return L.latLng(lout[0]/n,lout[1]/n);   
+    }
+    
+    var nid=0;
+    geojson = L.geoJson(nomoiGEO, {
+        style: style,
+        onEachFeature: onEachFeature
+    }).addTo(map0);
+    
+     geojson.eachLayer(function(layer){
+         layer.curAlerts=[0,0];
+         layer.iconLatLng=centroid2(layer);
+         layer.icon=L.marker(layer.iconLatLng,
+              {
+                icon: phenObj.phenIcons[0],
+                interactive: true,
+                layer:layer
+              }).addTo(map0);
+              
+         layer.icon.on('mouseover', function(e){
+            highlightFeature(e);
+         });
+         layer.icon.on('mouseout', function(e){
+            resetHighlight(e);
+         });
+         layer.icon.on('click', function(e){
+            zoomToFeature2(e);
+         });
+      });
+		map0.on('mousemove', showCoords1);
+}
+	
+ 
+function showCoords1(e) {
+	var lat=e.latlng.lat;
+	var lng=e.latlng.lng;
+    $("#lat1").text(Math.floor(lat)+"°"+str_pad('00',Math.floor((lat-Math.floor(lat))*60),true)+"'");
+	$("#lon1").text(Math.floor(lng)+"°"+str_pad('00',Math.floor((lng-Math.floor(lng))*60),true)+"'");
+}
+$(document).ready(function() {
+    init0();
+    loadDateTimeData();
+});</script>
+</body>
+</html>

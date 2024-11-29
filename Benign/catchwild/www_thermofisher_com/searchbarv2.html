@@ -1,0 +1,1779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>searchbarv2.html</title>
+</head>
+<body>
+
+<script>
+(function () {
+	var SearchUtils = window.searchUtils;
+
+	var selectorContainerClass = "chosen-container";
+	var selectorContainerSingle = "chosen-container-single";
+	var selectorContainerCaret = "selector-caret";
+	var selectorContainerSingleNoSearch = "chosen-container-single-nosearch";
+	var selectorWithDropClass = "chosen-with-drop";
+	var selectorSingleResultClass = "chosen-single";
+	var selectorContainerActive = "chosen-container-active";
+	var selectorDropClass = "chosen-drop";
+	var selectorResultsClass = "chosen-results";
+	var activeResultClass = "active-result";
+	var resultSelectedClass = "result-selected";
+	var groupResultClass = "group-result";
+	var groupOptionClass = "group-option";
+
+	if (!window.searchFocusAreaControl) { 
+		window.searchFocusAreaControl = function (container, onSelect) {
+			if (!container) {
+				throw new Error("No container specified");
+			}
+
+			var _data = {};
+			
+			function _init() {
+				_injectStyle();
+				_decorateMainContainer();
+				_addSelectHandler();
+				_addOpenHandler();
+				_addOffContainerClickCloseHandler();
+			}
+
+			function _decorateMainContainer() {
+				container.classList.add(selectorContainerClass);
+				container.classList.add(selectorContainerSingle);
+				container.classList.add(selectorContainerSingleNoSearch);
+				container.classList.add(selectorWithDropClass);
+
+				var innerHtml = "<a class='" + selectorSingleResultClass + "' tabindex='-1'>" +
+					"<span></span><i class='" + selectorContainerCaret + "'></i>" +
+					"</a>" +
+					"<div class='" + selectorDropClass + "'>" +
+					"<ul class='" + selectorResultsClass + "'>" +
+					"</ul>" +
+					"</div>";
+
+				container.innerHTML = innerHtml;
+
+				_openCloseDrop(null, true);
+			}
+
+			// THIS WILL BE REMOVED ONCE SEARCH CSS STUFF IS SORTED OUT WITH HEADER
+			// THIS IS FOR TESTING ONLY
+			// Actual CSS is in focusArea.less
+			function _injectStyle() {
+				var head = document.getElementsByTagName('HEAD')[0];
+				var style = document.createElement('style');
+				style.innerHTML = ".chosen-container .selector-caret{position:absolute;right:25px;top:50%;font-size:10px;background-image: url(/search/searchbar/resources/images/chosen-sprite@2x.png) !important;background-size: 52px 37px !important;background-repeat: no-repeat !important;display: block;background: url(/search/searchbar/resources/images/chosen-sprite.png) no-repeat 0 2px;border-color: #222 transparent transparent transparent;border-style: solid;border-width: 5px 4px 0 4px;height: 0;margin-left: -4px;margin-top: -2px;width: 0;}.chosen-container .chosen-drop ul li{padding-top:5px;padding-bottom:5px;font-size:13px}.chosen-container .chosen-drop ul li.active-result:hover{background-color:#ebf2fa}.chosen-container .chosen-drop ul li.group-result{font-weight:700;border-top:1px solid #dcdcdc;color:#a2a2a2;display:list-item;cursor:default}.chosen-container .chosen-drop ul li.group-option{padding-left:1.5rem}.chosen-container .chosen-drop ul li.result-selected{background-color:#007fff;color:#fff}";
+				head.appendChild(style);
+			}
+
+			function _addSelectHandler() {
+				container.addEventListener("click", function (e) {
+					var target = e.target;
+					if (target.classList.contains(activeResultClass)) {
+						var id = target.getAttribute("data-item-id");
+						if (!!id) {
+							_setSelected(id);
+						}
+					}
+				});
+			}
+
+			function _openCloseDrop(e, forceClose) {
+				var drop = container.querySelector("." + selectorDropClass);
+
+				if (forceClose === true || drop.style.display !== "none") {
+					container.classList.remove(selectorContainerActive);
+					drop.style.display = "none";
+				}
+				else {
+					container.classList.add(selectorContainerActive);
+					drop.style.display = "";
+					var selected = container.querySelector("." + resultSelectedClass);
+					if (!!selected && !!selected.scrollIntoView) {
+						selected.scrollIntoView();
+					}
+				}
+
+				if (!forceClose && !!e) {
+					e.stopPropagation();
+					return false;
+				}
+			}
+
+			function _addOpenHandler() {
+				container.addEventListener("click", _openCloseDrop);
+
+				var selectedText = container.querySelector("." + selectorSingleResultClass);
+				selectedText.addEventListener("click", _openCloseDrop);
+			}
+
+			function _addOffContainerClickCloseHandler() {
+				document.addEventListener("click", function (e) {
+					var target = e.target;
+					
+					if (!container.contains(target) && container !== target) {
+						_openCloseDrop(e, true);
+					}
+				});
+			}
+
+			function _addGroup(id, label, addToTop) {
+				id = String(id);
+
+				var groupResult = _getGroupOrOption(id);
+				if (!groupResult || !groupResult.items) {
+
+					var newGroupObject = {
+						id: id,
+						label: label,
+						isGroup: true,
+						items: {},
+						element: null
+					};
+
+					if (addToTop === true) {
+						var newDataObj = {};
+						newDataObj[id] = newGroupObject;
+
+						_data = SearchUtils.extend(newDataObj, _data);
+					}
+					else {
+						_data[id] = newGroupObject;
+					}
+				}
+				
+				_refresh();
+			}
+
+			function _addOption(id, label, groupId) {
+				id = String(id);
+
+				var parent = _data;
+				var parentElement = container.querySelector("." + selectorResultsClass);
+
+				if (!!groupId) {
+					var groupResult = _getGroupOrOption(groupId);
+
+					if (!!groupResult && !!groupResult.item) {
+						parent = groupResult.item.items;
+						parentElement = groupResult.item.element;
+					}
+					else {
+						return;
+					}
+				}
+				
+				if (!!parent && !!parentElement) {
+					var itemResult = _getGroupOrOption(id);
+					if (!!itemResult && itemResult.item !== null) {
+						return;
+					}
+
+					parent[id] = {
+						id: id,
+						label: label,
+						isGroup: false,
+						groupId: groupId,
+						element: null
+					};
+				}
+
+				_refresh();
+			}
+
+			function _removeGroup(id) {
+				_removeOption(id);
+			}
+
+			function _removeOption(id) {
+				id = String(id);
+
+				var result = _getGroupOrOption(id);
+				if (result !== null && result.item !== null && result.parent !== null) {
+					delete result.parent[id];
+
+					if (Object.keys(result.parent).length === 0) {
+						_removeGroup(result.parent.id);
+					}
+				}
+
+				_refresh();
+			}
+
+			function _setSelected(id, suppressOnSelect) {
+				id = String(id);
+
+				var result = _getGroupOrOption(id);
+				if (result !== null && result.item !== null) {
+					var selected = container.querySelector("." + resultSelectedClass);
+					if (selected !== null) {
+						selected.classList.remove(resultSelectedClass);
+					}
+
+					result.item.element.classList.add(resultSelectedClass);
+
+					var selectedText = container.querySelector("." + selectorSingleResultClass);
+
+					// remove - between words of result.item.label and capitalize first letter of each word
+					if (result.item.label.indexOf("/search/service/typeaheadSuggestions?query=") === -1) {
+						result.item.label = result.item.label.replace(/-/g, " ");
+						//result.item.label = result.item.label.replace(/\w\S*/g, function (txt) { return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase(); });
+						// replace &Amp; with & in result.item.label as it is not a valid label
+						result.item.label = result.item.label.replace("&Amp;", "&");
+						// if Sds is in result.item.label, make uppercase
+						result.item.label = result?.item?.label?.replace("Sds", "SDS");
+					}
+					console.log("result.item.label", result.item.label);
+					selectedText.querySelector("span").innerHTML = result.item.label;
+
+					if (!!onSelect && !suppressOnSelect) {
+						onSelect(id);
+					}
+				}
+			}
+
+			function _refresh() {
+				_clearContainer();
+				_renderAll();
+			}
+
+			function _clearContainer() {
+				var results = container.querySelector("." + selectorResultsClass);
+				results.innerHTML = "";
+			}
+
+			function _renderAll(parent) {
+				parent = parent || _data;
+
+				var results = container.querySelector("." + selectorResultsClass);
+
+				var keys = Object.keys(parent);
+				for (var i = 0; i < keys.length; i++) {
+					var key = keys[i];
+					var value = parent[key];
+					
+					if (value !== null && typeof value === "object") {
+						if (value.isGroup === true) {
+							var group = _createGroupElement(value.id, value.label);
+							results.appendChild(group);
+							value.element = group;
+
+							_renderAll(value.items);
+						} else {
+							var option = _createItemElement(value.id, value.label, value.groupId);
+							results.appendChild(option);
+							value.element = option;
+						}
+					}
+				}
+			}
+
+			function _createItemElement(id, label, groupId) {
+				var option = document.createElement("li");
+				option.setAttribute("data-item-id", id);
+
+				option.classList.add(activeResultClass);
+				if (!!groupId ) {
+					option.classList.add(groupOptionClass);
+				}
+				// remove li element if label is /search/service/typeaheadSuggestions?query={keyword}
+				// as it is not a valid label
+				if (label.indexOf("/search/service/typeaheadSuggestions?query={keyword}") === -1) {
+					// remove - between words of label and capitalize first letter of each word
+					label = label.replace(/-/g, " ");
+					//label = label.replace(/\w\S*/g, function (txt) { return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase(); });
+					// replace &Amp; with & in label as it is not a valid label 
+					label = label.replace("&Amp;", "&");
+					// if Sds is in label, make uppercase
+					label = label.replace("Sds", "SDS");
+					option.innerHTML = label;
+
+				}
+
+				return option;
+			}
+
+			function _createGroupElement(id, label) {
+				var group = document.createElement("li");
+				group.setAttribute("data-item-id", id);
+
+				group.classList.add(groupResultClass);
+				group.innerHTML = label;
+				// remove li element if label is /search/service/typeaheadSuggestions?query={keyword}
+				// as it is not a valid label
+				// if (label.indexOf("/search/service/typeaheadSuggestions?query={keyword}") === -1) {
+				// 	group.classList.remove(groupResultClass);
+				// 	group.innerHTML = label;
+				// }
+
+				return group;
+			}
+
+			function _getGroupOrOption(id, obj) {
+				id = String(id);
+
+				obj = obj || _data;
+
+				var result = null;
+
+				var keys = Object.keys(obj);
+				while (result === null && keys.length > 0) {
+					var key = keys.shift();
+					var value = obj[key];
+
+					if (value !== null && typeof value === "object") {
+						if (value.id === id) {
+							result = { item: value, parent: obj };
+						} else if (value.isGroup === true) {
+							result = _getGroupOrOption(id, value.items);
+						}
+					}
+				}
+
+				return result;
+			}
+
+			function _itemExists(id) {
+				return _getGroupOrOption(id) !== null;
+			}
+
+			function _hasItems() {
+				return Object.keys(_data).length > 0;
+			}
+
+			function _count(obj) {
+				obj = obj || _data;
+
+				var keys = Object.keys(obj);
+				var result = keys.length;
+
+				for (var i = 0; i < keys.length; i++) {
+					var key = keys[i];
+					var value = obj[key];
+
+					if (value !== null && typeof value === "object" && !!value.items) {
+						result += _count(value.items);
+					}
+				}
+
+				return result;
+			}
+
+			function _getText() {
+				var selectedText = container.querySelector("." + selectorSingleResultClass + " span");
+				return !!selectedText ? selectedText.innerText : "";
+			}
+
+			_init();
+	
+			return {
+				// Public methods
+				addOption: _addOption,
+				removeOption: _removeOption,
+				addGroup: _addGroup,
+				removeGroup: _removeGroup,
+				setSelected: _setSelected,
+				itemExists: _itemExists,
+				hasItems: _hasItems,
+				count: _count,
+				getText: _getText,
+				element: container
+			};
+		};
+	}
+})();
+
+/**
+ * a jQuery object
+ * @typedef {Object} jQuery
+ */
+
+/**
+ * baseProvider object
+ * @typedef {Object} baseProvider
+ */
+
+/**
+ * Searchbar NameSpace Script
+ * @author 
+ * @version 1.0.1
+ * @param {object} NS - The namespace type of object.
+ * @returns {Object} Namespace - The Namespace method.
+ * @constructor
+ */
+
+if (typeof (NS) == "undefined") {
+    var NS = (function (global) {
+        "use strict";
+
+        // empty object to verify namespaced objects
+        function Namespace() {}
+
+        return function (namespace) {
+            var chunks = namespace.split('.'),
+                lastObjRef = global,
+                node = null,
+                i;
+
+            // iterate over chunks
+            for (i = 0; i < chunks.length; ++i) {
+                // set current
+                node = chunks[i];
+
+                // exist?
+                if (typeof lastObjRef[node] !== 'undefined') {
+                    // must be a namespace
+                    if (lastObjRef[node] instanceof Namespace === false) {
+                        throw new Error('Non Namespace Object exists, cannot create namespace.');
+                    }
+
+                    // assign
+                    lastObjRef = lastObjRef[node];
+                    // next iteration
+                    continue;
+                }
+
+                // create new object
+                lastObjRef[node] = new Namespace();
+
+                // assign new last object reference
+                lastObjRef = lastObjRef[node];
+            }
+
+            // return reference to prevent double typing
+            return lastObjRef;
+        };
+    }(this));
+}
+console.log("==> SearchBar v.2023");
+
+window.searchConstants = window.searchConstants || {
+  selectorId: "chosenselector",
+  selectorClass: "searchAutoCompleteProviderSelector",
+  focusAreaSelectorId: "focusAreaSelector",
+  choseContainerClass: "chosen-container",
+  suggestId: "suggest1",
+  smartSearchId: "smartsearch",
+  providersEnabledClass: "providers-enabled",
+  primarySearchId: "primarySearch",
+  generalSearchId: "generalSearch",
+  hiddenClass: "hidden",
+  flyoutRecentSearchClass: "flyout-recent-searches",
+  focusAreaSelectUpdatedEventName: "chosen:updated",
+  searchRedirectionURL: "",
+  searchTypeAheadURL: "",
+  searchTypeAheadData: 0,
+  searchRecentSearchData: "",
+  searchShortcutsData: "",
+  searchShortcutsTypeahedList: [],
+};
+
+/*
+	This file is for utils replacing jQuery functionality
+*/
+
+function isObject(obj) {
+	return (obj && typeof obj === 'object' && !Array.isArray(obj));
+}
+
+function isDOMElement(element) {
+	return !!element &&
+		(
+			element instanceof Element ||
+			(typeof Document !== "undefined" && element instanceof Document) ||
+			(typeof HTMLDocument !== "undefined" && element instanceof HTMLDocument)
+		);
+}
+
+function hideElement(element) {
+	if (isDOMElement(element) === true) {
+		element.style.display = "none";
+	}
+}
+
+function showElement(element) {
+	if (isDOMElement(element) === true) {
+		element.style.display = null;
+	}
+}
+
+function findElement(selector, parent) {
+	if (!!selector) {
+		parent = isDOMElement(parent) ? parent : document;
+		return parent.querySelector(selector);
+	}
+
+	return null;
+}
+
+function findElements(selector, parent) {
+	if (!!selector) {
+		parent = isDOMElement(parent) ? parent : document;
+		return parent.querySelectorAll(selector);
+	}
+
+	return null;
+}
+
+function findElementByClassName(className) {
+	return findElement("." + className);
+}
+
+function findElementById(id) {
+	return findElement("#" + id);
+}
+
+function removeElements(parent, elements) {
+	if (isDOMElement(parent) === true && !!elements && elements.length > 0) {
+		for (var i = 0; i < elements.length; i++) {
+			var element = elements[i];
+			if (isDOMElement(element)) {
+				parent.removeChild(element);
+			}
+		}
+	}
+}
+
+function emptyElement(elementOrSelector) {
+	var element = elementOrSelector;
+
+	if (typeof elementOrSelector === "string") {
+		element = findElement(elementOrSelector);
+	}
+
+	if (isDOMElement(element) === true) {
+		element.innerHTML = null;
+	}
+}
+
+function triggerEvent(elementOrSelector, eventName, provider) {
+	var element = elementOrSelector;
+
+	if (typeof elementOrSelector === "string") {
+		element = findElement(elementOrSelector);
+	}
+
+	if (isDOMElement(element) === true && !!eventName) {
+		var customEvent;
+		if (typeof window.CustomEvent === "function" && !!element.dispatchEvent) {			
+			customEvent = new window.CustomEvent(eventName, provider);
+			customEvent.provider = provider;
+			element.dispatchEvent(customEvent);
+		}
+		else if (document.createEvent) {
+			customEvent = document.createEvent("HTMLEvents");
+			customEvent.initCustomEvent(eventName, true, true, { provider: provider });
+			customEvent.eventName = eventName;
+			element.dispatchEvent(customEvent);
+		}
+	}
+}
+
+function addClass(elements, className) {
+	addRemoveClass(elements, className, true);
+}
+
+function removeClass(elements, className) {
+	addRemoveClass(elements, className, false);
+}
+
+function addRemoveClass(elements, className, add) {
+	if (!className) {
+		return;
+	}
+
+	if (isDOMElement(elements) === true) {
+		elements = [elements];
+	}
+	else if (typeof elements === "string") {
+		elements = findElements(elements);
+	}
+
+	if (!!elements && elements.length > 0) {
+		for (var i = 0; i < elements.length; i++) {
+			var element = elements[i];
+
+			if (!!element) {
+				if (add === true) {
+					element.classList.add(className);
+				}
+				else {
+					element.classList.remove(className);
+				}
+			}
+		}
+	}
+}
+
+function loadHtml(element, url, onSuccess) {
+	if (isDOMElement(element) === true && !!url) {
+		var onComplete = function () {
+			var htmlContent = this.responseText;
+			setInnerHTMLWithScripts(element, htmlContent);
+
+			if (!!onSuccess) {
+				onSuccess();
+			}
+		};
+
+		var req = new window.XMLHttpRequest();
+		req.addEventListener("load", onComplete);
+		req.open("GET", url);
+		req.send();
+	}
+}
+
+function setInnerHTMLWithScripts(element, html) {
+	element.innerHTML = html;
+
+	var allScripts = Array.from(element.querySelectorAll("script"));
+	for (var i = 0; i < allScripts.length; i++) {
+		var oldScriptEl = allScripts[i];
+
+		var newScriptEl = document.createElement("script");
+
+		var oldScriptElAttributes = Array.from(oldScriptEl.attributes);
+		for (var j = 0; j < oldScriptElAttributes.length; j++) {
+			var attr = oldScriptElAttributes[j];
+			newScriptEl.setAttribute(attr.name, attr.value);
+		}
+
+		var scriptText = document.createTextNode(oldScriptEl.innerHTML);
+		newScriptEl.appendChild(scriptText);
+
+		oldScriptEl.parentNode.replaceChild(newScriptEl, oldScriptEl);
+	}
+}
+
+// Deep merge
+function extend(toObj, fromObj) {
+	if (!fromObj) {
+		return toObj;
+	}
+
+	if (isObject(toObj) && isObject(fromObj)) {
+		for (var key in fromObj) {
+			if (isObject(fromObj[key])) {
+				if (!toObj[key]) {
+					toObj[key] = {};
+				}
+
+				extend(toObj[key], fromObj[key]);
+			} else {
+				toObj[key] = fromObj[key];
+			}
+		}
+	}
+
+	return toObj;
+}
+
+window.searchUtils = window.searchUtils || {
+	hideElement: hideElement,
+	showElement: showElement,
+	findElement: findElement,
+	findElementByClassName: findElementByClassName,
+	findElementById: findElementById,
+	findElements: findElements,
+	removeElements: removeElements,
+	emptyElement: emptyElement,
+	addClass: addClass,
+	removeClass: removeClass,
+	triggerEvent: triggerEvent,
+	loadHtml: loadHtml,
+	extend: extend
+};
+/**
+ * Searchbar Selector Script
+ * @author 
+ * @version 1.0.1
+ * @returns {Object} searchAutoComplete - The searchAutoComplete object returns.
+ * @constructor
+ */
+
+/**
+ * This is declared globally, you can find it on "globalThis.searchAutoComplete".
+ * <li> It has the same name as the namespaced function.
+ * <li> Why???? why handle it inside the namespace below, but then expose it globally?
+ *
+ * @type {{}|{}}
+ */
+window.searchAutoComplete = window.searchAutoComplete || {};
+var searchAutoCompleteObj = window.searchAutoComplete;
+
+NS('thermofisher.search').searchSelector = function () {
+	var SearchConstants = window.searchConstants;
+	var SearchUtils = window.searchUtils;
+
+	var focusAreaSelector = {
+		instance: null
+	};
+	
+	return {
+		init: function () {
+			if (window.performance && window.performance.mark) {
+				window.performance.mark("searchbar.js:blockBegin");
+			}
+
+			searchAutoCompleteObj.getFocusAreaSelector = function () {
+				return focusAreaSelector.instance;
+			};
+
+			searchAutoCompleteObj.providers = searchAutoCompleteObj.providers || {};
+			// This class is responsible for selector drop down creation
+			// and all related functionality
+			// It is injected in initialization section (see bottom of main script)
+			searchAutoCompleteObj.providerSelector = function () {
+				var _isMouseOver = false;
+
+				function _createSelector(formContainerElem, selectCallback) {
+					// Add selector
+					var selectorElem = document.createElement("div");
+					selectorElem.style.width = "100%";
+					selectorElem.id = SearchConstants.focusAreaSelectorId;
+					
+					var focusAreaSelectorElem = SearchUtils.findElementById(SearchConstants.focusAreaSelectorId);
+					if (!!focusAreaSelectorElem) {
+						SearchUtils.emptyElement(focusAreaSelectorElem);
+						focusAreaSelectorElem.appendChild(selectorElem);
+
+						focusAreaSelector.instance = new window.searchFocusAreaControl(selectorElem, function (id) { 
+							_createSelector_onSelect(id);
+						});
+					}
+
+					selectorElem.addEventListener("onmouseover", function () {
+						_isMouseOver = true;
+					});
+
+					selectorElem.addEventListener("onmouseleave", function () {
+						_isMouseOver = false;
+					});
+
+					function _createSelector_onSelect(id) { 
+						if (window.innerWidth > 1024) {
+							// set time out due to chrome bug for faster events.
+							setTimeout(function () {
+								var suggestElement = SearchUtils.findElementById(SearchConstants.suggestId);
+								if (!!suggestElement) {
+									suggestElement.focus();
+								}
+							}, 10);
+						}
+
+						if (!!selectCallback) {
+							selectCallback(id);
+						}
+
+						var searchInputElem = SearchUtils.findElement("input[role='search']", formContainerElem);
+						if (!!searchInputElem) {
+							searchInputElem.focus();
+						}
+					}
+				}
+
+				// Returns true if provider option is already there
+				function _providerExists(provider) {
+					return focusAreaSelector.instance.itemExists(provider.id);
+				}
+
+				// Removes provider option
+				function _removeProviderOption(providerId) {
+					focusAreaSelector.instance.removeOption(providerId);
+					_showHideSelector();
+				}
+
+				// Adds new option to the selector
+				function _addProviderOption(provider) {
+					if (!!provider.group) { 
+						_addProviderGroup(provider.group);
+					}
+
+					focusAreaSelector.instance.addOption(provider.id, provider.name, provider.group || null);
+					_showHideSelector();
+				}
+
+				// Adds a new <optgroup> to the selector and returns the <optgroup>				
+				function _addProviderGroup(group) {
+					var hasGroup = focusAreaSelector.instance.itemExists(group);
+
+					if (hasGroup === false) { 
+						// Setting Transient Focus Area Category item at top in the dropdown
+						var isProductCategory = group === "Product Category";
+
+						focusAreaSelector.instance.addGroup(group, group, isProductCategory);
+
+						if (isProductCategory === true) {
+							SearchUtils.triggerEvent(focusAreaSelector.instance.element, SearchConstants.focusAreaSelectUpdatedEventName);
+						}
+					}
+				}
+
+				// Shows/hides selector
+				function _showHideSelector() {
+					// TODO: Need to remove based on browser support
+					// If number of options is now 2+ we can show selector
+					// and shift input a bit to the right to make room for the selector
+					var smartSearchElem = SearchUtils.findElement(SearchConstants.smartSearchId);
+					if (!!smartSearchElem) {
+						var count = focusAreaSelector.instance.count();
+						if (count > 1) {
+							smartSearchElem.classList.add(SearchConstants.providersEnabledClass);
+							SearchUtils.triggerEvent(focusAreaSelector.instance.element, SearchConstants.focusAreaSelectUpdatedEventName);
+						}
+						else {
+							smartSearchElem.classList.remove(SearchConstants.providersEnabledClass);
+							SearchUtils.hideElement(focusAreaSelector.instance.element);
+						}
+					}
+				}
+
+				// Return instance of public class to manipulate
+				// selector functionality
+				return function (formContainerId) {
+
+					// Current form context
+					var formContainerElem = SearchUtils.findElementById(formContainerId);
+
+					// Public interface
+					return {
+
+						isNotMouseOver: function () {
+							return !_isMouseOver;
+						},
+
+						// Verifies if selector already exists in this context
+						selectorExists: function () {
+							return !!focusAreaSelector.instance;
+						},
+
+						// Creates selector and places in the document
+						createSelector: function (activate, deactivate, selectCallback) {
+							_createSelector(formContainerElem, activate, deactivate, selectCallback);
+						},
+
+						// Add new provider option to selector
+						addToSelector: function (provider) {
+							if (!provider) {
+								return;
+							}
+							
+							if (!_providerExists(provider)) {
+								_addProviderOption(provider);
+							}
+						},
+
+						removeFromSelector: function (providerId) {
+							_removeProviderOption(providerId);
+						},
+
+						// Sets option for given provider id as selected
+						setActive: function (providerId) {
+							focusAreaSelector.instance.setSelected(providerId, true);
+							setTimeout(function () {
+								SearchUtils.triggerEvent(focusAreaSelector.instance.element, SearchConstants.focusAreaSelectUpdatedEventName);
+							}, 0);
+						}
+					};
+				};
+			}();
+
+			function onSetProvider(provider) {
+				var shouldLoadGuided = false;
+				shouldLoadGuided = shouldShowGuidedSearch(window.location.pathname);
+
+				var primarySearchElem = SearchUtils.findElementById(SearchConstants.primarySearchId);
+				var generalSearchElem = SearchUtils.findElementById(SearchConstants.generalSearchId);
+				var loadingWheel = SearchUtils.findElement("#search-main .loading-wheel-sm");
+
+				SearchUtils.addClass([primarySearchElem, generalSearchElem], SearchConstants.hiddenClass);
+
+				var wcmServer = !!window.environmentURL && !!window.environmentURL.WCMSERVER ? window.environmentURL.WCMSERVER : window.location.host;
+
+				// hides current search and shows Magellan search in following conditions
+				var searchLoadBaseUrl = "//" + wcmServer + "/order/genome-database/antibody-search-form-cq?sourcePage=global-search&subtype=";
+				
+				if (provider.id === "primary-antibodies" && shouldLoadGuided) {
+					SearchUtils.removeClass("#search-main .loading-wheel-sm", SearchConstants.hiddenClass);
+					
+					SearchUtils.loadHtml(primarySearchElem, searchLoadBaseUrl + "primary", function () {
+						SearchUtils.addClass(loadingWheel, SearchConstants.hiddenClass);
+						SearchUtils.removeClass(primarySearchElem, SearchConstants.hiddenClass);
+
+						window.thermofisher.search.searchTypeAhead.deleteMagellanSearch();
+					});
+				} else if (provider.id === "secondary-antibodies" && shouldLoadGuided) {
+					SearchUtils.removeClass(loadingWheel, SearchConstants.hiddenClass);
+					
+					SearchUtils.loadHtml(primarySearchElem, searchLoadBaseUrl + "secondary", function () {
+						SearchUtils.addClass(loadingWheel, SearchConstants.hiddenClass);
+						SearchUtils.removeClass(primarySearchElem, SearchConstants.hiddenClass);
+					});
+
+					SearchUtils.addClass("#search-main", "guided-form");
+				} else if (provider.id === "isotype-controls" && shouldLoadGuided) {
+					SearchUtils.removeClass(loadingWheel, SearchConstants.hiddenClass);
+
+					SearchUtils.loadHtml(primarySearchElem, searchLoadBaseUrl + "control", function () {
+						SearchUtils.addClass(loadingWheel, SearchConstants.hiddenClass);
+						SearchUtils.removeClass(primarySearchElem, SearchConstants.hiddenClass);
+					});
+				} else {
+					SearchUtils.removeClass(generalSearchElem, SearchConstants.hiddenClass);
+				}
+			}
+
+			function shouldShowGuidedSearch(url) {
+				var shouldShowGSH = false;
+				var cqUrlPattern = new RegExp("^/../../");
+				var antibodyProductUrlPattern = new RegExp("^/antibody/product/");
+				var antibodyTargetUrlPattern = new RegExp("^/antibody/target/");
+				var antibodySitemapUrlPattern = new RegExp("^/antibody/sitemap/");
+				var blacklistUrlPatterns = new RegExp("^/(order|store)/");
+
+				// whitelist the CQ pages
+				if (cqUrlPattern.test(url)) {
+					shouldShowGSH = true;
+				}
+
+				// whitelist the antibody product pages
+				if (antibodyProductUrlPattern.test(url)) {
+					shouldShowGSH = true;
+				}
+
+				// TFCE-2665 whitelist following antibody target urls
+				//  antibody/target/gene
+				//  antibody/target/protein
+				//  antibody/target/panther
+				//  antibody/target/gene-ontology
+
+				if (antibodyTargetUrlPattern.test(url)) {
+					if (isIncluded(["/gene/", "/panther/", "/gene-ontology/", "/protein/"], url)) {
+						shouldShowGSH = true;
+					} else {   //other than above URLs, hide GSH
+						shouldShowGSH = false;
+					}
+				}
+
+				//TFCE-2665 whitelist following sitemaps urls
+				///Primary-Antibodies-L1-Sitemap.html
+				//sitemap/Primary-Antibodies-P1-Sitemap.html
+				//sitemap/Primary-Antibodies-G1-Sitemap.html
+				//sitemap/Secondary-Antibodies-L1-Sitemap.html
+				//sitemap/Secondary-Antibodies-L1-Sitemap.html
+
+				if (antibodySitemapUrlPattern.test(url)) {
+					if (isIncluded(["/Primary-Antibodies-P1-Sitemap.html", "/Primary-Antibodies-G1-Sitemap.html", "/Secondary-Antibodies-L1-Sitemap.html", "/Secondary-Antibodies-L1-Sitemap.html"], url)) {
+						shouldShowGSH = true;
+					}
+				}
+
+				// Blacklist the following paths
+				if (isIncluded(["/antibody/primary/query/", "/antibody/primary/keyword/", "/antibody/primary/gene/", "/antibody/primary/target/", "/antibody/secondary/query/", "/antibody/secondary/keyword/", "/antibody/secondary/target/", "/antibody/control/query/", "/antibody/control/keyword/", "/immunoassays/elisa/query/", "/antibody/protein/keyword/", "/antibody/protein/query/", "/home/life-science/cell-analysis/flow-cytometry.html", "/life-science/pcr/real-time-pcr/", "/home/life-science/cell-analysis/flow-cytometry/antibodies-for-flow-cytometry.html", "/home/life-science/cell-analysis/flow-cytometry.html", "/home/life-science/cell-analysis/flow-cytometry/antibodies-for-flow-cytometry.html", "/products-and-services/aspire-member-program"], url)) {
+					shouldShowGSH = false;
+				}
+
+				if (blacklistUrlPatterns.test(url)) {
+					shouldShowGSH = false;
+				}
+
+				//show guided search based on query params
+				if (getUrlParameter('showGSH') === 'true') {
+					shouldShowGSH = true;
+				}
+
+				return shouldShowGSH;
+			}
+
+			function getUrlParameter(name) {
+				name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+				var regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+				var results = regex.exec(window.location.search);
+				return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+			}
+
+			function isIncluded(arr, str) {
+				return new RegExp(arr.join("|")).test(str);
+			}
+
+			document.addEventListener("onSetProvider", function (e) {
+				if (!!e.provider && !!e.provider.id) {
+					onSetProvider(e.provider);
+				}
+			});
+		}
+	};
+}();
+
+/**
+ * Searchbar Provider Script
+ * @author
+ * @version 1.0.1
+ * @param {string} id - The id of the focusarea category.
+ * @param {string} title - The name of the focusarea category.
+ * @param {string} searchUrl - The search url of the focusarea category.
+ * @param {string} typeAheadUrl - The typeahead url of the focusarea category.
+ * @param {string} group - The group name of the focusarea category.
+ * @param {string} include - The include regex pattern url of the focusarea category.
+ * @param {string} exclude - The exclude regex pattern url of the focusarea category.
+ * @param {string} activation - The activation regex pattern url of the focusarea category.
+ * @returns {Object} baseProvider - The baseProvider object returns.
+ * @constructor
+ */
+
+/* Global objects */
+var getKeys = {};
+var baseProvider = {};
+var ltSearchLoadEvent = {};
+
+NS("thermofisher.search").searchProvider = (function () {
+  var SearchConstants = window.searchConstants;
+  var SearchUtils = window.searchUtils;
+  var searchAutoCompleteObj = window.searchAutoComplete;
+  var isChemicalSite =
+    window?.location?.href?.indexOf("chemicals.thermofisher") > -1;
+
+  return {
+    init: function () {
+      // Main search script provider
+      baseProvider = function (
+        id,
+        title,
+        searchUrl,
+        typeAheadUrl,
+        group,
+        include,
+        exclude,
+        activation
+      ) {
+        return function (options) {
+          var defaults = {
+            id: id,
+            name: title,
+            group: group,
+            submitPath: searchUrl,
+            typeAheadUrl: typeAheadUrl,
+            include: include,
+            exclude: exclude,
+            activation: activation,
+          };
+
+          options = SearchUtils.extend(
+            SearchUtils.extend({}, defaults),
+            options
+          );
+
+          // If include and exclude parameters were defined, parse them as
+          // regular expressions
+          if (!!options.include) {
+            options.include = new RegExp(options.include, "i");
+          }
+          if (!!options.exclude) {
+            options.exclude = new RegExp(options.exclude, "i");
+          }
+          if (!!options.activation) {
+            options.activation = new RegExp(options.activation, "i");
+          }
+
+          return {
+            // Provider id: provider is identified by this id when selecting in the drop down
+            id: options.id,
+
+            // Name: it is visible as an option in the drop down
+            name: options.name,
+
+            // Group: Focus areas may or may not be in groups (a.k.a.
+            // categories) and this may be reflected in the drop-down (e.g.,
+            // inside of <optgroup>'s)
+            group: options.group,
+
+            // include: a regular expression to match against the current URL
+            // in order to decide whether this provider should be included on
+            // the current page
+            include: options.include,
+
+            // exclude: a regular expression to match against the current URL
+            // in order to decide whether this provider should be included on
+            // the current page
+            exclude: options.exclude,
+
+            // activation: a regular expression to match against the current URL
+            // in order to decide whether this provider should be activated on
+            // the current page
+            activation: options.activation,
+
+            // isIncluded: a method to test whether this provider should be
+            // included based on a string parameter (probably a URL)
+            isIncluded: function (url) {
+              // A provider should be included and not excluded by default
+              var included = true;
+              var excluded = false;
+
+              if (this.include) {
+                included = this.include.test(url);
+              }
+
+              if (this.exclude) {
+                excluded = this.exclude.test(url);
+              }
+
+              return included && !excluded;
+            },
+            // Prepare Query Data
+            prepareQuery: function (query, services, callback) {
+              window.thermofisher.search.searchTypeAhead.processQuery(
+                query,
+                options,
+                services,
+                callback
+              );
+            },
+            // Prepare Form Submit
+            prepareSubmit: function (form, keyword, e) {
+              window.thermofisher.search.searchTypeAhead.processSubmit(
+                form,
+                keyword,
+                e,
+                options
+              );
+            },
+          };
+        };
+      };
+
+      // Default Provider
+      if (isChemicalSite) {
+        searchAutoCompleteObj.providers.allSources = new baseProvider(
+          "all-categories",
+          "All Categories",
+          "/apac/search/search-result?query={keyword}",
+          "/search/service/typeaheadSuggestions?query={keyword}&countryCode={country_code}&targetSiteId={target_site}"
+        );
+      } else {
+        searchAutoCompleteObj.providers.allSources = new baseProvider(
+          "all-categories",
+          "All Categories",
+          "/search/results?query={keyword}",
+          "/search/service/typeaheadSuggestions?query={keyword}&countryCode={country_code}"
+        );
+      }
+
+      // Translations
+      /* var i18Search = {
+				"en": {
+					"search": "Search"
+				},
+				"fr": {
+					"search": "Rechercher"
+				},
+				"de": {
+					"search": "Suche"
+				},
+				getLabel: function (name) {
+					var result = name;
+
+					// Try get string if resource name is populated
+					if (!!name) {
+
+						var resource = translations[name];
+
+						// If resource was found - let's return it
+						if (!!resource) {
+							result = resource;
+						}
+					}
+
+					return result;
+				}
+			} */
+
+      // Can't use Object.keys cause of IE8 compatibility have to check
+      getKeys = Object.keys;
+      if (!getKeys) {
+        getKeys = function (obj) {
+          var keys = [];
+          for (var i in obj) {
+            if (obj.hasOwnProperty(i)) {
+              keys.push(i);
+            }
+          }
+          return keys;
+        };
+      }
+
+      /**
+       * Note: this is found on "globalThis.searchAutoCompleteFA" not as a part of "thermofisher.search.searchProvider
+       * @type {{getSearchHistory: (function(): {}), globalProvider: {countryCode: string, langCode: string, focusAreaPath: string, items}, addProvider: _self.addProvider, setKeyword: setKeywordExternal, setKeywordNoAuto: setKeywordNoSearch, setProvider: _self.setProvider, setPrecedence: _self.setPrecedence, setMatchedRules: (function(baseProvider): boolean), rankProviders: (function(baseProvider[]): Object), getDictionary: (function(): {}), getHighlightedTerm: (function(): null), removeProvider: _self.removeProvider}}
+       */
+      window.searchAutoCompleteFA = (function (attachToElementId, undefined) {
+        var formElem = SearchUtils.findElementById(attachToElementId);
+
+        var suggestElem = SearchUtils.findElementById(
+          SearchConstants.suggestId
+        );
+        var flyoutRecentSearchElems = SearchUtils.findElements(
+          "." + SearchConstants.flyoutRecentSearchClass,
+          formElem
+        );
+
+        var e = {
+          keyword: suggestElem,
+          recent_searches: flyoutRecentSearchElems,
+        };
+
+        var dictionary = {};
+        var searchHistory = {};
+        var highlightedItem = null;
+
+        function setKeywordExternal() {
+          window.thermofisher.search.searchTypeAhead.setKeywordExternal();
+          // TYPEAHEAD API: THIS REFERENCES PUBLIC API OF searchBarTypeAhead
+        }
+
+        function setKeywordNoSearch() {
+          try {
+            window.thermofisher.search.searchTypeAhead.setKeywordNoSearch();
+            // TYPEAHEAD API: THIS REFERENCES PUBLIC API OF searchBarTypeAhead
+          } catch (err) {
+            // todo: added log statement, but this needs to be handled better
+            console.error(err);
+          }
+        }
+
+        // expose some functions
+        var _self = {
+          // set global provider data
+          globalProvider: window.globalProviderConfig,
+          // get all cached terms
+          getDictionary: function () {
+            return dictionary;
+          },
+          // get search history
+          getSearchHistory: function () {
+            return searchHistory;
+          },
+          // get the currently highlighted term
+          getHighlightedTerm: function () {
+            return highlightedItem;
+          },
+          // set the current keyword
+          setKeyword: setKeywordExternal,
+          setKeywordNoAuto: setKeywordNoSearch,
+          /**
+           * <li> Adds new provider to the list of search providers
+           * <li> Creates provider selector if needed
+           * @param {baseProvider} provider
+           * @param {boolean}      hasCategory
+           */
+          addProvider: function (provider, hasCategory) {
+            // Check if provider exists and if it is included based on the
+            // URL and any include/exclude parameters (in the provider
+            // object)
+            window.searchConstants.searchTypeAheadURL = '';
+            if (provider && provider.isIncluded(window.location.href)) {
+              if (_providers && provider.id) {
+                _providers[provider.id] = provider;
+
+                // Add to the drop down
+                if (_self.providerSelector) {
+                  var selectorExists = _self.providerSelector.selectorExists();
+
+                  if (!selectorExists && !hasCategory) {
+                    _self.providerSelector.createSelector(function (
+                      providerId
+                    ) {
+                      _self.setProvider(providerId, true);
+                    });
+                  }
+
+                  _self.providerSelector.addToSelector(provider);
+                }
+              }
+            }
+          },
+          /**
+           * <li> Set current search provider
+           * <li> Check if selected provider actually exists
+           * <li> Change action based on active search provider
+           * <li> Get recent search data for the new active provider
+           * @param {string}  providerId
+           * @param {boolean} clearSuggestions
+           */
+          setProvider: function (providerId, clearSuggestions) {
+            window.searchConstants.searchTypeAheadURL = '';
+            if (_providers && providerId) {
+              var provider = _providers[providerId];
+              // check for a undefined provider name and load the all-categories provider
+              if (typeof provider === "undefined") {
+                provider = _providers["all-categories"];
+              }
+
+              SearchUtils.triggerEvent(document, "onSetProvider", provider);
+
+              if (!!provider) {
+                _currentProvider = provider;
+                window.curProvider = provider;
+
+                // Set provider selector if not on the right option
+                if (_self.providerSelector) {
+                  _self.providerSelector.setActive(providerId);
+
+                  // Reset search back to initial manual entry mode
+                  // Remove all suggestions and typeaheads
+                  if (clearSuggestions) {
+                    window.isSuggestionsEnabled = false;
+
+                    if (
+                      window.thermofisher.search.searchTypeAhead.suggestionVisible()
+                    ) {
+                      window.thermofisher.search.searchTypeAhead.hideSuggestion();
+                    }
+
+                    window.thermofisher.search.searchTypeAhead.hideResultsBox();
+                    window.hoveredItem = null;
+                    window.thermofisher.search.searchTypeAhead.setKeywordEntry();
+
+                    var query = e.keyword.value;
+
+                    window.thermofisher.search.searchTypeAhead.setKeyword(
+                      query
+                    );
+                    //$('.dim-background').trigger('closedimbg');
+                    SearchUtils.triggerEvent(".dim-background", "closedimbg");
+                  }
+                }
+                // Load recent searches for this provider immediately
+                // loadRecentSearches();
+              }
+
+              // Placeholder set
+              e.keyword.setAttribute(
+                "placeholder",
+                window.thermofisher.search.searchProvider.getPlaceholder(
+                  providerId
+                )
+              );
+            }
+          },
+          /**
+           * <li> Remove provider from the provider collection
+           * <li> Remove provider option from the provider selector
+           * @param {string} providerId
+           */
+          removeProvider: function (providerId) {
+            if (!_providers || !providerId) {
+              return;
+            }
+
+            // Get all added provider ids
+            var providers = getKeys(_providers);
+
+            delete _providers[providerId];
+            _self.providerSelector.removeFromSelector(providerId);
+
+            // Re-get all keys to select first one
+            providers = getKeys(_providers);
+
+            if (_currentProvider.id === providerId) {
+              _self.setProvider(providers[0]);
+            }
+          },
+          /**
+           *
+           * @param {baseProvider} provider
+           * @return {boolean} true if provider rules are matched
+           */
+          setMatchedRules: function (provider) {
+            var rulesMatched = false;
+
+            //Check if there is a provider, activated and it is included.
+            if (
+              provider &&
+              provider.activation &&
+              provider.isIncluded(window.location.href)
+            ) {
+              provider.matchedRules = [];
+              //split up the regex into individual regex rules and add the ones that match.
+              var rules = provider.activation.source.split("|");
+              for (var i = 0; i < rules.length; i++) {
+                if (rules[i] !== "") {
+                  rules[i] = new RegExp(rules[i], "i");
+                  if (rules[i].test(window.location.href)) {
+                    provider.matchedRules.push({ rule: rules[i] });
+                    rulesMatched = true;
+                  }
+                }
+              }
+            }
+
+            return rulesMatched;
+          },
+          /**
+           *
+           * @param {baseProvider} provider
+           */
+          setPrecedence: function (provider) {
+            var urlString = window.location.href;
+            var wildcard = ".*";
+            var dollar = "$";
+
+            for (var j = 0; j < provider.matchedRules.length; j++) {
+              //Below fields are for ranking and precedence
+              provider.matchedRules[j].rank = j;
+              provider.matchedRules[j].endingWildCard = false;
+              provider.matchedRules[j].endingDollar = false;
+              provider.matchedRules[j].matchAtEnd = false;
+              provider.matchedRules[j].precedenceScore = 0;
+              provider.matchedRules[j].endIndex = 0;
+
+              var source = provider.matchedRules[j].rule.source;
+
+              //See if Regex ends in Dollar.
+              if (
+                source.indexOf(dollar, source.length - dollar.length) !== -1
+              ) {
+                provider.matchedRules[j].rule = new RegExp(
+                  source.substring(0, source.length - dollar.length),
+                  "i"
+                );
+                provider.matchedRules[j].endingDollar = true;
+              }
+              //See if Regex ends in Wildcard.
+              if (
+                source.indexOf(wildcard, source.length - wildcard.length) !== -1
+              ) {
+                provider.matchedRules[j].rule = new RegExp(
+                  source.substring(0, source.length - wildcard.length),
+                  "i"
+                );
+                provider.matchedRules[j].endingWildCard = true;
+              }
+              //Find how deep the match is in the url and if it is at the very end of the string.
+              var match = urlString.match(provider.matchedRules[j].rule);
+              if (match && match[0]) {
+                provider.matchedRules[j].endIndex =
+                  urlString.indexOf(match[0]) + match[0].length - 1;
+                if (
+                  provider.matchedRules[j].endIndex ===
+                  urlString.length - 1
+                ) {
+                  provider.matchedRules[j].matchAtEnd = true;
+                }
+              }
+              //This scoring is used for ties, before the original rank.
+              if (provider.matchedRules[j].matchAtEnd === true) {
+                if (provider.matchedRules[j].endingDollar === true) {
+                  provider.matchedRules[j].precedenceScore += 100;
+                  if (provider.matchedRules[j].endingWildCard === true) {
+                    provider.matchedRules[j].precedenceScore -= 10;
+                  }
+                }
+
+                if (provider.matchedRules[j].endingWildCard === false) {
+                  provider.matchedRules[j].precedenceScore += 10;
+                }
+              } else {
+                if (provider.matchedRules[j].endingWildCard === true) {
+                  provider.matchedRules[j].precedenceScore += 10;
+                }
+              }
+            }
+          },
+          /**
+           *
+           * @param {baseProvider[]} providerList List of Providers with matching activation rules.
+           * @return {baseProvider} the most relevant Provider
+           */
+          rankProviders: function (providerList) {
+            for (var i = 0; i < providerList.length; i++) {
+              //For each provider, preserve the original ranking value
+              providerList[i].rank = i;
+
+              //If more then one rule matches for a provider we should sort those to use the most relevant
+              if (providerList[i].matchedRules.length > 1) {
+                //sort the matchedRules for a provider on relevancy first, then original rank
+                providerList[i].matchedRules.sort(function (a, b) {
+                  return (
+                    b.endIndex - a.endIndex ||
+                    b.rule.source.length - a.rule.source.length ||
+                    b.precedenceScore - a.precedenceScore ||
+                    a.rank - b.rank
+                  );
+                });
+              }
+            }
+            //sort the providers on their most relevant rule first, then original rank
+            providerList.sort(function (a, b) {
+              return (
+                b.matchedRules[0].endIndex - a.matchedRules[0].endIndex ||
+                b.matchedRules[0].rule.source.length -
+                  a.matchedRules[0].rule.source.length ||
+                b.matchedRules[0].precedenceScore -
+                  a.matchedRules[0].precedenceScore ||
+                a.rank - b.rank
+              );
+            });
+
+            //Return the most relevant provider
+            return providerList[0];
+          },
+        };
+
+        // Search provider collection
+        var _providers = {};
+
+        // Currently active provider
+        // Default provider is assigned later (see end of main script)
+        var _currentProvider;
+
+        // Initialize provider selector functionality
+        _self.providerSelector =
+          searchAutoCompleteObj.providerSelector(attachToElementId);
+
+        // Add All Sources provider as the first option
+        var allSourcesProvider = searchAutoCompleteObj.providers.allSources();
+        _self.addProvider(allSourcesProvider, false);
+
+        // Selected provider is All sources by default
+        var selectedProviderId = allSourcesProvider.id;
+
+        // List of Providers with matching activation rules.
+        var activeProviderList = [];
+        var loyaltyTrialParam;
+        var providerMetadata;
+
+        // Check if we have Loyalty /store/aspire/trials... in the page URL
+        var idx = window.location.href.indexOf("/store/aspire/trials");
+        if (idx !== -1) {
+          loyaltyTrialParam = window.location.href.substring(idx);
+        }
+        var lwRefinementParam; // SPY - 4205 lw refinement
+        /*  --- SPY-4205 - updated the focus area based on selected refinement only for LW (no impact on endeca)
+				Capture the refinement parameter for LucidWorks
+				i.e "filter=document.result_type_s%3ACitations%20%26%20References" from https://www.qa.thermofisher.com/search/results?query=human&persona=DocSupport&refinementAction=true&filter=document.result_type_s%3ACitations%20%26%20References
+				*/
+        if (window.location.href.indexOf("filter=") > -1) {
+          idx = window.location.href.indexOf("filter=");
+        } else if (window.location.href.indexOf("application=") > -1) {
+          idx = window.location.href.indexOf("application=");
+        }
+        if (idx !== -1) {
+          lwRefinementParam = window.location.href.substring(idx);
+        }
+
+        // Add all CQ providers based on provided metadata
+        if (
+          !!_self.globalProvider &&
+          !!_self.globalProvider.items &&
+          _self.globalProvider.items.length > 0
+        ) {
+          for (var i = 0; i < _self.globalProvider.items.length; i++) {
+            providerMetadata = _self.globalProvider.items[i];
+
+            // If CQ provides an "All Categories" provider, then remove the
+            // default that has already been added
+            if (providerMetadata.id === allSourcesProvider.id) {
+              // A provider has to be set before a provider can be removed
+              _self.setProvider(selectedProviderId);
+              _self.removeProvider(allSourcesProvider.id);
+            }
+
+            var provider = new baseProvider(
+              providerMetadata.id || "provider_" + i,
+              providerMetadata.title,
+              providerMetadata.searchURL,
+              providerMetadata.typeAheadURL,
+              providerMetadata.group,
+              providerMetadata.include,
+              providerMetadata.exclude,
+              providerMetadata.activation
+            )();
+
+            // Register provider
+            _self.addProvider(provider, false);
+
+            //Add MatchedRules to the provider
+            var rulesMatched = _self.setMatchedRules(provider);
+            if (rulesMatched) {
+              _self.setPrecedence(provider);
+              activeProviderList.push(provider);
+            }
+
+            // Search for navId in the provider URL
+            // If navId from current page url is found in the provider URL then select this provider
+            var url = providerMetadata.searchURL + "&";
+            if (
+              (!!loyaltyTrialParam && url.indexOf(loyaltyTrialParam) !== -1) ||
+              /*--- SPY-4205 - updated the focus area based on selected refinement only for LW (no impact on endeca)
+							 * A quick way to test it in the browser would be
+							 * window.location.href.indexOf("application=")||window.location.href.indexOf("filter=")
+							 * var lwRefinementParam=window.location.href.substring(window.location.href.indexOf("filter="));
+							 *
+							 * globalProviderConfig.items.forEach(function(config){
+								if(!!lwRefinementParam && config.searchURL.indexOf(lwRefinementParam) != -1)
+										console.log(config.id);
+								});
+							 *
+							 *
+							 * **/
+              (!!lwRefinementParam && url.indexOf(lwRefinementParam) !== -1)
+            ) {
+              selectedProviderId = provider.id;
+            }
+          }
+
+          //rank list of active providers if there is at least one Active Provider
+          if (activeProviderList[0]) {
+            var activeProvider = _self.rankProviders(activeProviderList);
+            //If rankProviders returned an active provider, set the active provider.
+            selectedProviderId = activeProvider.id;
+          }
+        }
+
+        // Set selected provider - either an "All Sources" or
+        // an focus area provider if there was a navId match - see above ^^
+        //or activeProvider.
+        _self.setProvider(selectedProviderId);
+
+        return _self;
+      })("smartsearch");
+
+      (function () {
+        // do not allow for double instanciation.
+        if (!!window.$typeahead) {
+          return;
+        }
+
+        window.thermofisher.search.searchTypeAhead.init();
+
+        window.$typeahead = window.searchAutoCompleteFA;
+        window.$typeahead.setKeywordNoAuto(
+          window.sessionStorage.getItem("searchKeyword")
+        );
+
+        var location = window.sessionStorage.getItem("isSearchLocation");
+        if (location !== undefined && location === "true") {
+          window.thermofisher.search.searchProvider.setSearchLocation();
+        }
+      })();
+
+      // lt objects load event
+      ltSearchLoadEvent = function () {
+        if (!window?._lt || !window?._lt.user) {
+          console.warn("SearchBar: _lt not found");
+          return;
+        }
+
+        if (
+          !!window?._lt &&
+          !!window?._lt?.user &&
+          !!window?._lt?.user?.loyalty &&
+          window?._lt.user?.loyalty?.initialized !== "undefined" &&
+          !window?._lt?.user?.loyalty?.initialized
+        ) {
+          // finish fast if loyalty is not initialized
+          // this function could be called a second time after the loyalty data is initialized
+          return;
+        }
+
+        var loyaltyActive = window?._lt?.user?.loyalty?.isUserActive(),
+          loyaltyEnrolled = window?._lt?.user?.loyalty?.isUserEnrolled();
+
+        if (!loyaltyActive && !loyaltyEnrolled) {
+          window?.searchAutoCompleteFA?.removeProvider("trial-catalog");
+        }
+      };
+
+      // call function now to determine if loyalty data is initialized
+      ltSearchLoadEvent();
+    },
+    escapeHtmlQuery: function (query) {
+      return encodeURIComponent(query);
+    },
+    getUrlParameter: function (name) {
+      var results = new RegExp("[?&]" + name + "=([^&#]*)").exec(
+        window.location.href
+      );
+      if (results === null) {
+        return null;
+      }
+
+      return decodeURIComponent(results[1]) || 0;
+    },
+    getPlaceholder: function (id) {
+      var defaultText = "Search";
+
+      if (typeof translations !== "undefined") {
+        var defaultId = "all-categories";
+        //var selectedText = $("#chosenselector option:selected").text();
+        //var selectedText = SearchUtils.findElements("#chosenselector option:checked")[0].innerText;
+        var selectedText = searchAutoCompleteObj
+          .getFocusAreaSelector()
+          .getText();
+        var ckLangCode = !!window.getCookie
+          ? window.getCookie("CK_LANG_CODE")
+          : "en";
+        var jaCode = "ja";
+        var krCode = "ko";
+        var categoryPlaceholder =
+          ckLangCode === jaCode || ckLangCode === krCode
+            ? '"' + selectedText + '" ' + window.translations.searchIn
+            : window.translations.searchIn + '"' + selectedText + '"';
+
+        //Mobile
+        if (window.innerWidth <= 1024 && id === defaultId) {
+          id = window.translations.searchButton;
+        } //Desktop
+        else if (window.innerWidth > 1024 && id === defaultId) {
+          id = window.translations.search;
+        } //Focus Area Label
+        else {
+          id = categoryPlaceholder;
+        }
+        return id;
+      }
+      return defaultText;
+    },
+
+    //create function for setting add new provider to the list of search providers
+    setProviderFromReactPage: function (id, title, searchUrl, typeAheadUrl) {
+      var provider = new baseProvider(id, title, searchUrl, typeAheadUrl)();
+      //_self.addProvider(provider, true);
+      window?.searchAutoCompleteFA?.addProvider(provider, false);
+      window?.searchAutoCompleteFA?.setProvider(id);
+      window.searchConstants.searchRedirectionURL = searchUrl;
+      window.searchConstants.searchTypeAheadURL = typeAheadUrl;
+    },
+
+    setSearchLocation: function () {
+      waitForDigitalDataObject(function () {
+        window.digitalData.search.searchLocation = "Top Search";
+        window.sessionStorage.removeItem("isSearchLocation");
+      });
+    },
+  };
+})();
+
+function waitForDigitalDataObject(method) {
+  if (window.digitalData.search) {
+    console.log("digitalData is available, firing method");
+    method();
+  } else {
+    console.log("digitalData is not available, sleeping 50");
+    setTimeout(function () {
+      waitForDigitalDataObject(method);
+    }, 50);
+  }
+}
+
+/*! For license information please see searchBarTypeAhead.js.LICENSE.txt */
+(()=>{var e={296:(e,t,n)=>{var r=n(735).default;function a(){"use strict";e.exports=a=function(){return n},e.exports.__esModule=!0,e.exports.default=e.exports;var t,n={},o=Object.prototype,i=o.hasOwnProperty,s=Object.defineProperty||function(e,t,n){e[t]=n.value},c="function"==typeof Symbol?Symbol:{},l=c.iterator||"@@iterator",u=c.asyncIterator||"@@asyncIterator",d=c.toStringTag||"@@toStringTag";function h(e,t,n){return Object.defineProperty(e,t,{value:n,enumerable:!0,configurable:!0,writable:!0}),e[t]}try{h({},"")}catch(t){h=function(e,t,n){return e[t]=n}}function p(e,t,n,r){var a=t&&t.prototype instanceof b?t:b,o=Object.create(a.prototype),i=new N(r||[]);return s(o,"_invoke",{value:C(e,n,i)}),o}function f(e,t,n){try{return{type:"normal",arg:e.call(t,n)}}catch(e){return{type:"throw",arg:e}}}n.wrap=p;var v="suspendedStart",m="suspendedYield",y="executing",g="completed",w={};function b(){}function x(){}function S(){}var _={};h(_,l,(function(){return this}));var L=Object.getPrototypeOf,k=L&&L(L(D([])));k&&k!==o&&i.call(k,l)&&(_=k);var E=S.prototype=b.prototype=Object.create(_);function A(e){["next","throw","return"].forEach((function(t){h(e,t,(function(e){return this._invoke(t,e)}))}))}function I(e,t){function n(a,o,s,c){var l=f(e[a],e,o);if("throw"!==l.type){var u=l.arg,d=u.value;return d&&"object"==r(d)&&i.call(d,"__await")?t.resolve(d.__await).then((function(e){n("next",e,s,c)}),(function(e){n("throw",e,s,c)})):t.resolve(d).then((function(e){u.value=e,s(u)}),(function(e){return n("throw",e,s,c)}))}c(l.arg)}var a;s(this,"_invoke",{value:function(e,r){function o(){return new t((function(t,a){n(e,r,t,a)}))}return a=a?a.then(o,o):o()}})}function C(e,n,r){var a=v;return function(o,i){if(a===y)throw Error("Generator is already running");if(a===g){if("throw"===o)throw i;return{value:t,done:!0}}for(r.method=o,r.arg=i;;){var s=r.delegate;if(s){var c=T(s,r);if(c){if(c===w)continue;return c}}if("next"===r.method)r.sent=r._sent=r.arg;else if("throw"===r.method){if(a===v)throw a=g,r.arg;r.dispatchException(r.arg)}else"return"===r.method&&r.abrupt("return",r.arg);a=y;var l=f(e,n,r);if("normal"===l.type){if(a=r.done?g:m,l.arg===w)continue;return{value:l.arg,done:r.done}}"throw"===l.type&&(a=g,r.method="throw",r.arg=l.arg)}}}function T(e,n){var r=n.method,a=e.iterator[r];if(a===t)return n.delegate=null,"throw"===r&&e.iterator.return&&(n.method="return",n.arg=t,T(e,n),"throw"===n.method)||"return"!==r&&(n.method="throw",n.arg=new TypeError("The iterator does not provide a '"+r+"' method")),w;var o=f(a,e.iterator,n.arg);if("throw"===o.type)return n.method="throw",n.arg=o.arg,n.delegate=null,w;var i=o.arg;return i?i.done?(n[e.resultName]=i.value,n.next=e.nextLoc,"return"!==n.method&&(n.method="next",n.arg=t),n.delegate=null,w):i:(n.method="throw",n.arg=new TypeError("iterator result is not an object"),n.delegate=null,w)}function O(e){var t={tryLoc:e[0]};1 in e&&(t.catchLoc=e[1]),2 in e&&(t.finallyLoc=e[2],t.afterLoc=e[3]),this.tryEntries.push(t)}function j(e){var t=e.completion||{};t.type="normal",delete t.arg,e.completion=t}function N(e){this.tryEntries=[{tryLoc:"root"}],e.forEach(O,this),this.reset(!0)}function D(e){if(e||""===e){var n=e[l];if(n)return n.call(e);if("function"==typeof e.next)return e;if(!isNaN(e.length)){var a=-1,o=function n(){for(;++a<e.length;)if(i.call(e,a))return n.value=e[a],n.done=!1,n;return n.value=t,n.done=!0,n};return o.next=o}}throw new TypeError(r(e)+" is not iterable")}return x.prototype=S,s(E,"constructor",{value:S,configurable:!0}),s(S,"constructor",{value:x,configurable:!0}),x.displayName=h(S,d,"GeneratorFunction"),n.isGeneratorFunction=function(e){var t="function"==typeof e&&e.constructor;return!!t&&(t===x||"GeneratorFunction"===(t.displayName||t.name))},n.mark=function(e){return Object.setPrototypeOf?Object.setPrototypeOf(e,S):(e.__proto__=S,h(e,d,"GeneratorFunction")),e.prototype=Object.create(E),e},n.awrap=function(e){return{__await:e}},A(I.prototype),h(I.prototype,u,(function(){return this})),n.AsyncIterator=I,n.async=function(e,t,r,a,o){void 0===o&&(o=Promise);var i=new I(p(e,t,r,a),o);return n.isGeneratorFunction(t)?i:i.next().then((function(e){return e.done?e.value:i.next()}))},A(E),h(E,d,"Generator"),h(E,l,(function(){return this})),h(E,"toString",(function(){return"[object Generator]"})),n.keys=function(e){var t=Object(e),n=[];for(var r in t)n.push(r);return n.reverse(),function e(){for(;n.length;){var r=n.pop();if(r in t)return e.value=r,e.done=!1,e}return e.done=!0,e}},n.values=D,N.prototype={constructor:N,reset:function(e){if(this.prev=0,this.next=0,this.sent=this._sent=t,this.done=!1,this.delegate=null,this.method="next",this.arg=t,this.tryEntries.forEach(j),!e)for(var n in this)"t"===n.charAt(0)&&i.call(this,n)&&!isNaN(+n.slice(1))&&(this[n]=t)},stop:function(){this.done=!0;var e=this.tryEntries[0].completion;if("throw"===e.type)throw e.arg;return this.rval},dispatchException:function(e){if(this.done)throw e;var n=this;function r(r,a){return s.type="throw",s.arg=e,n.next=r,a&&(n.method="next",n.arg=t),!!a}for(var a=this.tryEntries.length-1;a>=0;--a){var o=this.tryEntries[a],s=o.completion;if("root"===o.tryLoc)return r("end");if(o.tryLoc<=this.prev){var c=i.call(o,"catchLoc"),l=i.call(o,"finallyLoc");if(c&&l){if(this.prev<o.catchLoc)return r(o.catchLoc,!0);if(this.prev<o.finallyLoc)return r(o.finallyLoc)}else if(c){if(this.prev<o.catchLoc)return r(o.catchLoc,!0)}else{if(!l)throw Error("try statement without catch or finally");if(this.prev<o.finallyLoc)return r(o.finallyLoc)}}}},abrupt:function(e,t){for(var n=this.tryEntries.length-1;n>=0;--n){var r=this.tryEntries[n];if(r.tryLoc<=this.prev&&i.call(r,"finallyLoc")&&this.prev<r.finallyLoc){var a=r;break}}a&&("break"===e||"continue"===e)&&a.tryLoc<=t&&t<=a.finallyLoc&&(a=null);var o=a?a.completion:{};return o.type=e,o.arg=t,a?(this.method="next",this.next=a.finallyLoc,w):this.complete(o)},complete:function(e,t){if("throw"===e.type)throw e.arg;return"break"===e.type||"continue"===e.type?this.next=e.arg:"return"===e.type?(this.rval=this.arg=e.arg,this.method="return",this.next="end"):"normal"===e.type&&t&&(this.next=t),w},finish:function(e){for(var t=this.tryEntries.length-1;t>=0;--t){var n=this.tryEntries[t];if(n.finallyLoc===e)return this.complete(n.completion,n.afterLoc),j(n),w}},catch:function(e){for(var t=this.tryEntries.length-1;t>=0;--t){var n=this.tryEntries[t];if(n.tryLoc===e){var r=n.completion;if("throw"===r.type){var a=r.arg;j(n)}return a}}throw Error("illegal catch attempt")},delegateYield:function(e,n,r){return this.delegate={iterator:D(e),resultName:n,nextLoc:r},"next"===this.method&&(this.arg=t),w}},n}e.exports=a,e.exports.__esModule=!0,e.exports.default=e.exports},735:e=>{function t(n){return e.exports=t="function"==typeof Symbol&&"symbol"==typeof Symbol.iterator?function(e){return typeof e}:function(e){return e&&"function"==typeof Symbol&&e.constructor===Symbol&&e!==Symbol.prototype?"symbol":typeof e},e.exports.__esModule=!0,e.exports.default=e.exports,t(n)}e.exports=t,e.exports.__esModule=!0,e.exports.default=e.exports},207:(e,t,n)=>{var r=n(296)();e.exports=r;try{regeneratorRuntime=r}catch(e){"object"==typeof globalThis?globalThis.regeneratorRuntime=r:Function("r","regeneratorRuntime = r")(r)}},762:function(e){e.exports=function(){"use strict";function e(e,t){(null==t||t>e.length)&&(t=e.length);for(var n=0,r=Array(t);n<t;n++)r[n]=e[n];return r}function t(e,t,n){return(t=function(e){var t=function(e,t){if("object"!=typeof e||!e)return e;var n=e[Symbol.toPrimitive];if(void 0!==n){var r=n.call(e,t||"default");if("object"!=typeof r)return r;throw new TypeError("@@toPrimitive must return a primitive value.")}return("string"===t?String:Number)(e)}(e,"string");return"symbol"==typeof t?t:t+""}(t))in e?Object.defineProperty(e,t,{value:n,enumerable:!0,configurable:!0,writable:!0}):e[t]=n,e}function n(e,t){var n=Object.keys(e);if(Object.getOwnPropertySymbols){var r=Object.getOwnPropertySymbols(e);t&&(r=r.filter((function(t){return Object.getOwnPropertyDescriptor(e,t).enumerable}))),n.push.apply(n,r)}return n}function r(e){for(var r=1;r<arguments.length;r++){var a=null!=arguments[r]?arguments[r]:{};r%2?n(Object(a),!0).forEach((function(n){t(e,n,a[n])})):Object.getOwnPropertyDescriptors?Object.defineProperties(e,Object.getOwnPropertyDescriptors(a)):n(Object(a)).forEach((function(t){Object.defineProperty(e,t,Object.getOwnPropertyDescriptor(a,t))}))}return e}function a(t){return function(t){if(Array.isArray(t))return e(t)}(t)||function(e){if("undefined"!=typeof Symbol&&null!=e[Symbol.iterator]||null!=e["@@iterator"])return Array.from(e)}(t)||i(t)||function(){throw new TypeError("Invalid attempt to spread non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.")}()}function o(e){return o="function"==typeof Symbol&&"symbol"==typeof Symbol.iterator?function(e){return typeof e}:function(e){return e&&"function"==typeof Symbol&&e.constructor===Symbol&&e!==Symbol.prototype?"symbol":typeof e},o(e)}function i(t,n){if(t){if("string"==typeof t)return e(t,n);var r={}.toString.call(t).slice(8,-1);return"Object"===r&&t.constructor&&(r=t.constructor.name),"Map"===r||"Set"===r?Array.from(t):"Arguments"===r||/^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(r)?e(t,n):void 0}}var s=function(e){return"string"==typeof e?document.querySelector(e):e()},c=function(e,t){var n="string"==typeof e?document.createElement(e):e;for(var r in t){var a=t[r];if("inside"===r)a.append(n);else if("dest"===r)s(a[0]).insertAdjacentElement(a[1],n);else if("around"===r){var o=a;o.parentNode.insertBefore(n,o),n.append(o),null!=o.getAttribute("autofocus")&&o.focus()}else r in n?n[r]=a:n.setAttribute(r,a)}return n},l=function(e,t){return e=String(e).toLowerCase(),t?e.normalize("NFD").replace(/[\u0300-\u036f]/g,"").normalize("NFC"):e},u=function(e,t){return c("mark",r({innerHTML:e},"string"==typeof t&&{class:t})).outerHTML},d=function(e,t){t.input.dispatchEvent(new CustomEvent(e,{bubbles:!0,detail:t.feedback,cancelable:!0}))},h=function(e,t,n){var r=n||{},a=r.mode,o=r.diacritics,i=r.highlight,s=l(t,o);if(t=String(t),e=l(e,o),"loose"===a){var c=(e=e.replace(/ /g,"")).length,d=0,h=Array.from(t).map((function(t,n){return d<c&&s[n]===e[d]&&(t=i?u(t,i):t,d++),t})).join("");if(d===c)return h}else{var p=s.indexOf(e);if(~p)return e=t.substring(p,p+e.length),i?t.replace(e,u(e,i)):t}},p=function(e,t){return new Promise((function(n,r){var a;return(a=e.data).cache&&a.store?n():new Promise((function(e,n){return"function"==typeof a.src?new Promise((function(e,n){return"AsyncFunction"===a.src.constructor.name?a.src(t).then(e,n):e(a.src(t))})).then(e,n):e(a.src)})).then((function(t){try{return e.feedback=a.store=t,d("response",e),n()}catch(e){return r(e)}}),r)}))},f=function(e,t){var n=t.data,r=t.searchEngine,a=[];n.store.forEach((function(o,s){var c=function(n){var i=n?o[n]:o,s="function"==typeof r?r(e,i):h(e,i,{mode:r,diacritics:t.diacritics,highlight:t.resultItem.highlight});if(s){var c={match:s,value:o};n&&(c.key=n),a.push(c)}};if(n.keys){var l,u=function(e,t){var n="undefined"!=typeof Symbol&&e[Symbol.iterator]||e["@@iterator"];if(!n){if(Array.isArray(e)||(n=i(e))||t){n&&(e=n);var r=0,a=function(){};return{s:a,n:function(){return r>=e.length?{done:!0}:{done:!1,value:e[r++]}},e:function(e){throw e},f:a}}throw new TypeError("Invalid attempt to iterate non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.")}var o,s=!0,c=!1;return{s:function(){n=n.call(e)},n:function(){var e=n.next();return s=e.done,e},e:function(e){c=!0,o=e},f:function(){try{s||null==n.return||n.return()}finally{if(c)throw o}}}}(n.keys);try{for(u.s();!(l=u.n()).done;)c(l.value)}catch(e){u.e(e)}finally{u.f()}}else c()})),n.filter&&(a=n.filter(a));var o=a.slice(0,t.resultsList.maxResults);t.feedback={query:e,matches:a,results:o},d("results",t)},v="aria-expanded",m="aria-activedescendant",y="aria-selected",g=function(e,t){e.feedback.selection=r({index:t},e.feedback.results[t])},w=function(e){e.isOpen||((e.wrapper||e.input).setAttribute(v,!0),e.list.removeAttribute("hidden"),e.isOpen=!0,d("open",e))},b=function(e){e.isOpen&&((e.wrapper||e.input).setAttribute(v,!1),e.input.setAttribute(m,""),e.list.setAttribute("hidden",""),e.isOpen=!1,d("close",e))},x=function(e,t){var n=t.resultItem,r=t.list.getElementsByTagName(n.tag),o=!!n.selected&&n.selected.split(" ");if(t.isOpen&&r.length){var i,s,c=t.cursor;e>=r.length&&(e=0),e<0&&(e=r.length-1),t.cursor=e,c>-1&&(r[c].removeAttribute(y),o&&(s=r[c].classList).remove.apply(s,a(o))),r[e].setAttribute(y,!0),o&&(i=r[e].classList).add.apply(i,a(o)),t.input.setAttribute(m,r[t.cursor].id),t.list.scrollTop=r[e].offsetTop-t.list.clientHeight+r[e].clientHeight+5,t.feedback.cursor=t.cursor,g(t,e),d("navigate",t)}},S=function(e){x(e.cursor+1,e)},_=function(e){x(e.cursor-1,e)},L=function(e,t,n){(n=n>=0?n:e.cursor)<0||(e.feedback.event=t,g(e,n),d("selection",e),b(e))};function k(e,t){var n=this;return new Promise((function(a,o){var i,s,l,u,d;return i=t||((d=e.input)instanceof HTMLInputElement||d instanceof HTMLTextAreaElement?d.value:d.innerHTML),i=e.query?e.query(i):i,s=i,l=e.trigger,u=e.threshold,(l?l(s):s.length>=u)?p(e,i).then((function(t){try{return e.feedback instanceof Error?a():(f(i,e),e.resultsList&&function(e){var t=e.resultsList,n=e.list,a=e.resultItem,o=e.feedback,i=o.matches,s=o.results;if(e.cursor=-1,n.innerHTML="",i.length||t.noResults){var l=new DocumentFragment;s.forEach((function(e,t){var n=c(a.tag,r({id:"".concat(a.id,"_").concat(t),role:"option",innerHTML:e.match,inside:l},a.class&&{class:a.class}));a.element&&a.element(n,e)})),n.append(l),t.element&&t.element(n,o),w(e)}else b(e)}(e),h.call(n))}catch(e){return o(e)}}),o):(b(e),h.call(n));function h(){return a()}}))}var E=function(e,t){for(var n in e)for(var r in e[n])t(n,r)},A=function(e){var t,n,a,o=e.events,i=(t=function(){return k(e)},n=e.debounce,function(){clearTimeout(a),a=setTimeout((function(){return t()}),n)}),s=e.events=r({input:r({},o&&o.input)},e.resultsList&&{list:o?r({},o.list):{}}),c={input:{input:function(){i()},keydown:function(t){!function(e,t){switch(e.keyCode){case 40:case 38:e.preventDefault(),40===e.keyCode?S(t):_(t);break;case 13:t.submit||e.preventDefault(),t.cursor>=0&&L(t,e);break;case 9:t.resultsList.tabSelect&&t.cursor>=0&&L(t,e);break;case 27:t.input.value="",d("clear",t),b(t)}}(t,e)},blur:function(){b(e)}},list:{mousedown:function(e){e.preventDefault()},click:function(t){!function(e,t){var n=t.resultItem.tag.toUpperCase(),r=Array.from(t.list.querySelectorAll(n)),a=e.target.closest(n);a&&a.nodeName===n&&L(t,e,r.indexOf(a))}(t,e)}}};E(c,(function(t,n){(e.resultsList||"input"===n)&&(s[t][n]||(s[t][n]=c[t][n]))})),E(s,(function(t,n){e[t].addEventListener(n,s[t][n])}))};function I(e){var t=this;return new Promise((function(n,a){var o,i,s;if(o=e.placeHolder,s={role:"combobox","aria-owns":(i=e.resultsList).id,"aria-haspopup":!0,"aria-expanded":!1},c(e.input,r(r({"aria-controls":i.id,"aria-autocomplete":"both"},o&&{placeholder:o}),!e.wrapper&&r({},s))),e.wrapper&&(e.wrapper=c("div",r({around:e.input,class:e.name+"_wrapper"},s))),i&&(e.list=c(i.tag,r({dest:[i.destination,i.position],id:i.id,role:"listbox",hidden:"hidden"},i.class&&{class:i.class}))),A(e),e.data.cache)return p(e).then((function(e){try{return l.call(t)}catch(e){return a(e)}}),a);function l(){return d("init",e),n()}return l.call(t)}))}function C(e){var t=e.prototype;t.init=function(){I(this)},t.start=function(e){k(this,e)},t.unInit=function(){if(this.wrapper){var e=this.wrapper.parentNode;e.insertBefore(this.input,this.wrapper),e.removeChild(this.wrapper)}var t;E((t=this).events,(function(e,n){t[e].removeEventListener(n,t.events[e][n])}))},t.open=function(){w(this)},t.close=function(){b(this)},t.goTo=function(e){x(e,this)},t.next=function(){S(this)},t.previous=function(){_(this)},t.select=function(e){L(this,null,e)},t.search=function(e,t,n){return h(e,t,n)}}return function e(t){this.options=t,this.id=e.instances=(e.instances||0)+1,this.name="autoComplete",this.wrapper=1,this.threshold=1,this.debounce=0,this.resultsList={position:"afterend",tag:"ul",maxResults:5},this.resultItem={tag:"li"},function(e){var t=e.name,n=e.options,r=e.resultsList,a=e.resultItem;for(var i in n)if("object"===o(n[i]))for(var c in e[i]||(e[i]={}),n[i])e[i][c]=n[i][c];else e[i]=n[i];e.selector=e.selector||"#"+t,r.destination=r.destination||e.selector,r.id=r.id||t+"_list_"+e.id,a.id=a.id||t+"_result",e.input=s(e.selector)}(this),C.call(this,e),I(this)}}()},634:(e,t,n)=>{(t=n(314)(!1)).push([e.id,"/* #autoComplete_list_1 {\r\n  padding-inline-start: 0;\r\n}\r\n\r\n#autoComplete_list_1 li {\r\n  list-style: none;\r\n  cursor: default;\r\n}\r\n\r\n.typeahead-term-list-ul {\r\n  width: 100%;\r\n  z-index: 500;\r\n  background: #fff;\r\n  position: absolute;\r\n  box-shadow: 0 2px 2px rgb(0 0 0 / 10%);\r\n  margin-top: 0;\r\n  outline: 0;\r\n  font-size: 12px;\r\n}\r\n\r\n.typeahed-list-space {\r\n  line-height: 22px;\r\n  padding: 4px 16px !important;\r\n  width: 70%;\r\n}\r\n\r\n.typeahed-list-space:hover {\r\n  background: #ebf2fa !important;\r\n}\r\n\r\na.typeahead-term {\r\n  display: inline-block;\r\n  color: #333 !important;\r\n  text-overflow: ellipsis;\r\n  overflow: hidden;\r\n  white-space: nowrap;\r\n  vertical-align: middle;\r\n  border-bottom: 2px solid transparent;\r\n  font-weight: 500;\r\n  text-decoration: none !important;\r\n  width: 100% !important;\r\n  cursor: pointer;\r\n}\r\n\r\na.typeahead-term .typeahead-span mark {\r\n  font-weight: 400;\r\n  color: gray;\r\n  background-color: white;\r\n}\r\n\r\n.search-suggestions {\r\n  margin-bottom: 5px;\r\n  font-weight: 700;\r\n  cursor: default;\r\n  background-color: #e5e5e5;\r\n  font-size: 12px;\r\n}\r\n\r\n.product-title {\r\n  font-family: HelveticaNeue, Helvetica, Arial, sans-serif;\r\n  line-height: 22px;\r\n  padding: 4px 16px !important;\r\n  font-weight: 500;\r\n  cursor: default;\r\n  background-color: #f7f7f7;\r\n  font-size: 14px;\r\n  pointer-events: none;\r\n  color: #1b1b1d;\r\n  margin-bottom: 5px;\r\n}\r\n\r\n.result-item-label {\r\n  width: 70%;\r\n  font-family: HelveticaNeue, Helvetica, Arial, sans-serif;\r\n}\r\n\r\n.result-item-label a {\r\n  padding: 4px 16px !important;\r\n  font-size: 14px;\r\n  font-weight: 400;\r\n}\r\n\r\n.result-item-label a:hover {\r\n  background: #ebf2fa !important;\r\n  width: 100%;\r\n}\r\n\r\n.search-shortcuts-list {\r\n  border-top: 1px solid #dcdcdc;\r\n  cursor: pointer;\r\n  font-size: 14px;\r\n  width: 70%;\r\n}\r\n\r\n.typeahead__container__shortcuts_right {\r\n  position: absolute;\r\n  min-width: 30%;\r\n  width: fit-content;\r\n  left: 70%;\r\n  height: 100%;\r\n  background: inherit;\r\n  border: inherit;\r\n  border-left: 1px solid #e5e5e5;\r\n  box-sizing: content-box;\r\n  white-space: nowrap;\r\n}\r\n\r\n.search-shortcuts-list div {\r\n  line-height: 22px;\r\n}\r\n\r\n.search-shortcuts-list a.quickLinks {\r\n  display: block;\r\n  color: #1e8ae7;\r\n  padding: 10px 10px 6px;\r\n  width: 100%;\r\n  cursor: pointer;\r\n  text-decoration: none;\r\n}\r\n\r\n.search-shortcuts-list .search-shortcuts-list-header {\r\n  font-size: 13px;\r\n  line-height: 18px;\r\n  font-family: HelveticaNeue, Helvetica, Arial, sans-serif;\r\n  padding: 5px 10px;\r\n  cursor: default;\r\n}\r\n\r\n.recent-search-shortcuts-list a.quickLinks {\r\n  display: block;\r\n  color: #1e8ae7;\r\n  padding: 10px 0px 6px;\r\n  width: 100%;\r\n  cursor: pointer;\r\n  text-decoration: none;\r\n}\r\n\r\n#searchMagnifyMobile {\r\n  z-index: 1 !important;\r\n  position: absolute !important;\r\n  right: 0px !important;\r\n  top: 0 !important;\r\n}\r\n\r\n#generalSearchInput #clearable {\r\n  height: 22px !important;\r\n  width: 16px !important;\r\n}\r\n\r\n[hidden] {\r\n  display: none !important;\r\n}\r\n\r\n@media screen and (max-width: 767px) {\r\n  #autoComplete_list_1 {\r\n    padding-inline-start: 0;\r\n    overflow-y: scroll;\r\n  }\r\n  .typeahead-term-list-ul {\r\n    width: 100%;\r\n  }\r\n  .search-shortcuts-list {\r\n    width: 100%;\r\n  }\r\n  .typeahed-list-space {\r\n    width: 100%;\r\n  }\r\n  .result-item-label {\r\n    width: 100%;\r\n  }\r\n  .typeahead__container__shortcuts_right {\r\n    width: 100%;\r\n    left: 0;\r\n    border-top: 1px solid #e5e5e5;\r\n  }\r\n}\r\n\r\n@media (min-width: 768px) and (max-width: 991px) {\r\n  #autoComplete_list_1 {\r\n    padding-inline-start: 0;\r\n    display: flex;\r\n    flex-direction: column;\r\n  }\r\n  \r\n}\r\n\r\n@media (min-width: 992px) and (max-width: 1023px) {\r\n  #autoComplete_list_1 {\r\n    padding-inline-start: 0;\r\n  }\r\n  .typeahead__container__shortcuts_right {\r\n    width: 100%;\r\n    left: 0;\r\n    border-top: 1px solid #e5e5e5;\r\n  }\r\n}\r\n\r\n@media (min-width: 1024px) and (max-width: 2560px) {\r\n  #autoComplete_list_1 {\r\n    padding-inline-start: 0;\r\n    display: flex;\r\n    flex-direction: column;\r\n    min-height: 143px;\r\n  }\r\n} */\r\n",""]),e.exports=t},314:e=>{"use strict";e.exports=function(e){var t=[];return t.toString=function(){return this.map((function(t){var n=function(e,t){var n,r,a,o=e[1]||"",i=e[3];if(!i)return o;if(t&&"function"==typeof btoa){var s=(n=i,r=btoa(unescape(encodeURIComponent(JSON.stringify(n)))),a="sourceMappingURL=data:application/json;charset=utf-8;base64,".concat(r),"/*# ".concat(a," */")),c=i.sources.map((function(e){return"/*# sourceURL=".concat(i.sourceRoot||"").concat(e," */")}));return[o].concat(c).concat([s]).join("\n")}return[o].join("\n")}(t,e);return t[2]?"@media ".concat(t[2]," {").concat(n,"}"):n})).join("")},t.i=function(e,n,r){"string"==typeof e&&(e=[[null,e,""]]);var a={};if(r)for(var o=0;o<this.length;o++){var i=this[o][0];null!=i&&(a[i]=!0)}for(var s=0;s<e.length;s++){var c=[].concat(e[s]);r&&a[c[0]]||(n&&(c[2]?c[2]="".concat(n," and ").concat(c[2]):c[2]=n),t.push(c))}},t}},97:(e,t,n)=>{var r=n(72),a=n(634);"string"==typeof(a=a.__esModule?a.default:a)&&(a=[[e.id,a,""]]);r(a,{insert:"head",singleton:!1}),e.exports=a.locals||{}},72:(e,t,n)=>{"use strict";var r,a=function(){var e={};return function(t){if(void 0===e[t]){var n=document.querySelector(t);if(window.HTMLIFrameElement&&n instanceof window.HTMLIFrameElement)try{n=n.contentDocument.head}catch(e){n=null}e[t]=n}return e[t]}}(),o=[];function i(e){for(var t=-1,n=0;n<o.length;n++)if(o[n].identifier===e){t=n;break}return t}function s(e,t){for(var n={},r=[],a=0;a<e.length;a++){var s=e[a],c=t.base?s[0]+t.base:s[0],l=n[c]||0,u="".concat(c," ").concat(l);n[c]=l+1;var d=i(u),h={css:s[1],media:s[2],sourceMap:s[3]};-1!==d?(o[d].references++,o[d].updater(h)):o.push({identifier:u,updater:v(h,t),references:1}),r.push(u)}return r}function c(e){var t=document.createElement("style"),r=e.attributes||{};if(void 0===r.nonce){var o=n.nc;o&&(r.nonce=o)}if(Object.keys(r).forEach((function(e){t.setAttribute(e,r[e])})),"function"==typeof e.insert)e.insert(t);else{var i=a(e.insert||"head");if(!i)throw new Error("Couldn't find a style target. This probably means that the value for the 'insert' parameter is invalid.");i.appendChild(t)}return t}var l,u=(l=[],function(e,t){return l[e]=t,l.filter(Boolean).join("\n")});function d(e,t,n,r){var a=n?"":r.media?"@media ".concat(r.media," {").concat(r.css,"}"):r.css;if(e.styleSheet)e.styleSheet.cssText=u(t,a);else{var o=document.createTextNode(a),i=e.childNodes;i[t]&&e.removeChild(i[t]),i.length?e.insertBefore(o,i[t]):e.appendChild(o)}}function h(e,t,n){var r=n.css,a=n.media,o=n.sourceMap;if(a?e.setAttribute("media",a):e.removeAttribute("media"),o&&"undefined"!=typeof btoa&&(r+="\n/*# sourceMappingURL=data:application/json;base64,".concat(btoa(unescape(encodeURIComponent(JSON.stringify(o))))," */")),e.styleSheet)e.styleSheet.cssText=r;else{for(;e.firstChild;)e.removeChild(e.firstChild);e.appendChild(document.createTextNode(r))}}var p=null,f=0;function v(e,t){var n,r,a;if(t.singleton){var o=f++;n=p||(p=c(t)),r=d.bind(null,n,o,!1),a=d.bind(null,n,o,!0)}else n=c(t),r=h.bind(null,n,t),a=function(){!function(e){if(null===e.parentNode)return!1;e.parentNode.removeChild(e)}(n)};return r(e),function(t){if(t){if(t.css===e.css&&t.media===e.media&&t.sourceMap===e.sourceMap)return;r(e=t)}else a()}}e.exports=function(e,t){(t=t||{}).singleton||"boolean"==typeof t.singleton||(t.singleton=(void 0===r&&(r=Boolean(window&&document&&document.all&&!window.atob)),r));var n=s(e=e||[],t);return function(e){if(e=e||[],"[object Array]"===Object.prototype.toString.call(e)){for(var r=0;r<n.length;r++){var a=i(n[r]);o[a].references--}for(var c=s(e,t),l=0;l<n.length;l++){var u=i(n[l]);0===o[u].references&&(o[u].updater(),o.splice(u,1))}n=c}}}}},t={};function n(r){var a=t[r];if(void 0!==a)return a.exports;var o=t[r]={id:r,exports:{}};return e[r].call(o.exports,o,o.exports,n),o.exports}n.n=e=>{var t=e&&e.__esModule?()=>e.default:()=>e;return n.d(t,{a:t}),t},n.d=(e,t)=>{for(var r in t)n.o(t,r)&&!n.o(e,r)&&Object.defineProperty(e,r,{enumerable:!0,get:t[r]})},n.o=(e,t)=>Object.prototype.hasOwnProperty.call(e,t),n.nc=void 0,(()=>{"use strict";function e(t){return e="function"==typeof Symbol&&"symbol"==typeof Symbol.iterator?function(e){return typeof e}:function(e){return e&&"function"==typeof Symbol&&e.constructor===Symbol&&e!==Symbol.prototype?"symbol":typeof e},e(t)}function t(t){var n=function(t){if("object"!=e(t)||!t)return t;var n=t[Symbol.toPrimitive];if(void 0!==n){var r=n.call(t,"string");if("object"!=e(r))return r;throw new TypeError("@@toPrimitive must return a primitive value.")}return String(t)}(t);return"symbol"==e(n)?n:n+""}function r(e,n){for(var r=0;r<n.length;r++){var a=n[r];a.enumerable=a.enumerable||!1,a.configurable=!0,"value"in a&&(a.writable=!0),Object.defineProperty(e,t(a.key),a)}}function a(e,t,n){return t&&r(e.prototype,t),n&&r(e,n),Object.defineProperty(e,"prototype",{writable:!1}),e}function o(e,n,r){return(n=t(n))in e?Object.defineProperty(e,n,{value:r,enumerable:!0,configurable:!0,writable:!0}):e[n]=r,e}var i="hidden",s="block",c="none",l="li",u="active",d="click",h="searhTerm",p="searchURL",f="keyword",v="{keyword}",m="focusAreaName",y="{focusAreaName}",g="strictSearch",w="suggest1",b="autoComplete_list_1",x="header-typeahead",S="searchRemove",_="header-typeahead-suggested",L="flyout-recent-searches",k="searchRemoveHide",E="typeahead-term-list-ul",A="search-shortcuts-list",I="search-shortcut-list-no-data",C="/search/browse/category",T="/search/cas",O="data-omni-action",j="/search/results?query=",N="Search All",D=function(e){var t,n=null,r=null===(t=document)||void 0===t?void 0:t.cookie;try{n=r.split(";").map((function(e){return e.trim()})).find((function(t){return t.startsWith(e)})).split("=")[1]||""}catch(e){}return n},R=function(){return D("CK_LANG_CODE")||"en"},P=function(){return D("CK_ISO_CODE")||"us"};function B(e,t,n,r,a,o,i){try{var s=e[o](i),c=s.value}catch(e){return void n(e)}s.done?t(c):Promise.resolve(c).then(r,a)}function M(e){return function(){var t=this,n=arguments;return new Promise((function(r,a){var o=e.apply(t,n);function i(e){B(o,r,a,i,s,"next",e)}function s(e){B(o,r,a,i,s,"throw",e)}i(void 0)}))}}function q(e,t){(null==t||t>e.length)&&(t=e.length);for(var n=0,r=Array(t);n<t;n++)r[n]=e[n];return r}function U(e){return function(e){if(Array.isArray(e))return q(e)}(e)||function(e){if("undefined"!=typeof Symbol&&null!=e[Symbol.iterator]||null!=e["@@iterator"])return Array.from(e)}(e)||function(e,t){if(e){if("string"==typeof e)return q(e,t);var n={}.toString.call(e).slice(8,-1);return"Object"===n&&e.constructor&&(n=e.constructor.name),"Map"===n||"Set"===n?Array.from(e):"Arguments"===n||/^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)?q(e,t):void 0}}(e)||function(){throw new TypeError("Invalid attempt to spread non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.")}()}var H,z,K=n(207),F=n.n(K),G="",Q=[],$=function(){var e=M(F().mark((function e(t,n){var r,a,o,s,c,l,u;return F().wrap((function(e){for(;;)switch(e.prev=e.next){case 0:if(r=R(),a=P(),o=document.getElementById(b),t===G){e.next=37;break}return e.prev=4,e.next=7,fetch("".concat(n,"&language=").concat(r,"&countryCode=").concat(a));case 7:if((l=e.sent).ok){e.next=16;break}return window.searchConstants.searchTypeAheadData=0,window.searchConstants.searchShortcutsTypeahedList=[],console.log("Network response was not ok",l.status),Q=[],o.setAttribute(i,"true"),sessionStorage.setItem("searchTypeAheadData",0),e.abrupt("return",Q);case 16:return e.next=18,l.json();case 18:return u=e.sent,window.searchConstants.searchTypeAheadData=(null==u?void 0:u.length)||0,Q=le(u,t),sessionStorage.setItem("searchTypeAheadData",(null===(s=Q)||void 0===s?void 0:s.length)||0),(null===(c=Q)||void 0===c?void 0:c.length)>0&&(null==o||o.removeAttribute(i),ne("searchTerm")),G=t,e.abrupt("return",Q);case 27:return e.prev=27,e.t0=e.catch(4),window.searchConstants.searchTypeAheadData=0,Q=[],console.log(e.t0),o.setAttribute(i,"true"),sessionStorage.setItem("searchTypeAheadData",0),e.abrupt("return",e.t0);case 35:e.next=38;break;case 37:return e.abrupt("return",Q);case 38:case"end":return e.stop()}}),e,null,[[4,27]])})));return function(t,n){return e.apply(this,arguments)}}(),J=function(){var e=decodeURIComponent(D("s_ecid")||12345667544);try{return fetch("/search/api/recentSearch/"+(null==e?void 0:e.split("|")[1])).then((function(e){return null==e?void 0:e.json()})).then((function(e){return(null==e?void 0:e.keyword)||[]}))}catch(e){return console.log("recent search error",e),[]}},Y=function(){try{return fetch("/search/searchbar/quickLinks").then((function(e){return null==e?void 0:e.json()})).then((function(e){return e||{}}))}catch(e){return e}},W=(null===(H=window)||void 0===H||null===(H=H.location)||void 0===H||null===(H=H.href)||void 0===H?void 0:H.indexOf("chemicals.thermofisher"))>-1,V=function(e){var t;if((null===(t=window)||void 0===t||null===(t=t._lt)||void 0===t||null===(t=t.user)||void 0===t?void 0:t.displayLang)===e.language){var n,r,a=e.destinationLink;return-1===a.indexOf("{countrycode}")&&-1===a.indexOf("{langcode}")||(a=a.replace("{countrycode}",null===(n=window)||void 0===n||null===(n=n._lt)||void 0===n||null===(n=n.user)||void 0===n?void 0:n.displayIso).replace("{langcode}",null===(r=window)||void 0===r||null===(r=r._lt)||void 0===r||null===(r=r.user)||void 0===r?void 0:r.displayLang)),a=W?a.replace("{daydomain}",window.location.hostname):window.location.hostname.includes(".cn")?a.replace("{daydomain}","www.thermofisher.cn"):a.replace("{daydomain}","www.thermofisher.com"),'<div><a class="quickLinks" href="'.concat(a,'" data-uw-rm-brl="false" data-analytics-section="search" data-analytics-container="search-typeahead" data-analytics-parent="search-shortcuts" data-analytics-text="').concat(e.label,'" data-analytics-track-later="true"><span>').concat(e.label,"</span></a></div>")}},X=function(e){var t,n=[];if(null!=e&&e.quickLinks){var r=new Map;for(var a in r=e.quickLinks)if(r[a].length>0){var o=[];o=r[a];for(var i=0;i<o.length;i++){var s,c,l,u;if((null===(s=window)||void 0===s||null===(s=s._lt)||void 0===s||null===(s=s.user)||void 0===s?void 0:s.displayLang)===o[i].language&&(null===(c=window)||void 0===c||null===(c=c._lt)||void 0===c||null===(c=c.user)||void 0===c?void 0:c.displayLang)===o[i].language)if("chem_struct_search_shortcut"===o[i].parameter)"us"!==(null===(l=window)||void 0===l||null===(l=l._lt)||void 0===l||null===(l=l.user)||void 0===l?void 0:l.displayIso)&&"in"!==(null===(u=window)||void 0===u||null===(u=u._lt)||void 0===u||null===(u=u.user)||void 0===u?void 0:u.displayIso)||o[i].destinationLink.includes(".in")||n.push(V(o[i]));else if("element_search_shortcut"===o[i].parameter)W&&("KR_E1_LCD"===o[i].targetsiteId&&"kr"===getCookie("CK_ISO_CODE")&&n.push(V(o[i])),"CN_E1_LCD"===o[i].targetsiteId&&"cn"===getCookie("CK_ISO_CODE")&&n.push(V(o[i])));else if(""!==o[i].targetsiteId||W){if(W){var d,h;"KR_E1_LCD"===o[i].targetsiteId&&"kr"===(null===(d=window)||void 0===d||null===(d=d._lt)||void 0===d||null===(d=d.user)||void 0===d?void 0:d.displayIso)&&n.push(V(o[i])),"CN_E1_LCD"===o[i].targetsiteId&&"cn"===(null===(h=window)||void 0===h||null===(h=h._lt)||void 0===h||null===(h=h.user)||void 0===h?void 0:h.displayIso)&&n.push(V(o[i]))}}else n.push(V(o[i]))}}n.length>1&&n.unshift('<div class="search-shortcuts-list-header">'.concat(translations.moreWaysToSearch,"</div>")),window.searchConstants.searchShortcutsData=n.join("")}return""!==window.searchConstants.searchRecentSearchData&&n.unshift(window.searchConstants.searchRecentSearchData),window.searchConstants.searchRecentSearchData=null===(t=n.join(""))||void 0===t?void 0:t.replace(/,/g,""),n},Z=function(e){var t=document.getElementById(x),n=document.getElementsByClassName(L)[0];if(e.length>1){var r,a,o=document.createElement(l);if(o.classList.add(A,"recent-search-shortcuts-list"),n.style.display=s,t.style.display=s,document.querySelectorAll(".flyout-recent-searches li.search-shortcuts-list").length>0)return;a=e.map((function(e){return e})).join(""),o.innerHTML=a,null==n||n.append(o);var i=document.getElementsByClassName("search-shortcuts-list")[0]||document.getElementsByClassName("search-shortcut-list-no-data")[0];(null===(r=document)||void 0===r?void 0:r.querySelectorAll(".typeahead-term-list li").length)>1&&window.searchConstants.searchTypeAheadData>0?i.classList.add("typeahead__container__shortcuts_right"):i.classList.remove("typeahead__container__shortcuts_right")}},ee=function(e){var t=document.getElementById(b),n=document.getElementById(x),r=document.getElementsByClassName(L)[0];if(e.length>1){var a,o,s=document.createElement(l);window.searchConstants.searchTypeAheadData>0?s.classList.add(A):s.classList.add(I),r.style.display=c,n.style.display=c,t.removeAttribute(i),t.classList.add("typeahead-term-list-ul"),o=e.map((function(e){return e})).join(""),s.innerHTML=o,null==t||t.append(s);var u=document.getElementsByClassName("search-shortcuts-list")[1]||document.getElementsByClassName("search-shortcut-list-no-data")[0];(null===(a=document)||void 0===a?void 0:a.querySelectorAll(".typeahead-term-list li").length)>1&&window.searchConstants.searchTypeAheadData>0?u.classList.add("typeahead__container__shortcuts_right"):u.classList.remove("typeahead__container__shortcuts_right")}},te=function(){var e=document.getElementById(b),t=document.getElementById(x),n=document.getElementsByClassName(L)[0],r=window.searchConstants.searchRecentSearchData;if(""!==r){var a,o=document.createElement(l);window.searchConstants.searchTypeAheadData>0?o.classList.add(A):o.classList.add(I),n.style.display=c,t.style.display=c,e.removeAttribute(i),e.classList.add("typeahead-term-list-ul"),o.innerHTML=r,null==e||e.append(o);var s=document.getElementsByClassName("search-shortcuts-list")[0]||document.getElementsByClassName("search-shortcut-list-no-data")[0];(null===(a=document)||void 0===a?void 0:a.querySelectorAll(".typeahead-term-list li").length)>1&&window.searchConstants.searchTypeAheadData>0?s.classList.add("typeahead__container__shortcuts_right"):s.classList.remove("typeahead__container__shortcuts_right")}},ne=function(){var e=M(F().mark((function e(t){var n,r;return F().wrap((function(e){for(;;)switch(e.prev=e.next){case 0:if(""===window.searchConstants.searchRecentSearchData){e.next=4;break}return e.abrupt("return",te());case 4:return e.next=6,Y();case 6:if(n=e.sent,r=[],r=X(n),"recentSearch"!==t){e.next=11;break}return e.abrupt("return",Z(r));case 11:if("searchTerm"!==t){e.next=13;break}return e.abrupt("return",ee(r));case 13:case"end":return e.stop()}}),e)})));return function(t){return e.apply(this,arguments)}}();function re(e,t){var n=Object.keys(e);if(Object.getOwnPropertySymbols){var r=Object.getOwnPropertySymbols(e);t&&(r=r.filter((function(t){return Object.getOwnPropertyDescriptor(e,t).enumerable}))),n.push.apply(n,r)}return n}function ae(e){for(var t=1;t<arguments.length;t++){var n=null!=arguments[t]?arguments[t]:{};t%2?re(Object(n),!0).forEach((function(t){o(e,t,n[t])})):Object.getOwnPropertyDescriptors?Object.defineProperties(e,Object.getOwnPropertyDescriptors(n)):re(Object(n)).forEach((function(t){Object.defineProperty(e,t,Object.getOwnPropertyDescriptor(n,t))}))}return e}var oe,ie=P(),se=R(),ce=(null===(z=window)||void 0===z||null===(z=z.location)||void 0===z||null===(z=z.href)||void 0===z?void 0:z.indexOf("chemicals.thermofisher"))>-1,le=function(e,t){var n,r=[];if(e.typeaheadLabels){var a=e.popularTypeahead,o=void 0===a?[]:a,i=e.categories,s=void 0===i?[]:i,c=e.products,l=void 0===c?[]:c,u=e.casNumber,d=void 0===u?[]:u,h=e.fusionQueryId,p=e.typeaheadLabels,f=void 0===p?{}:p,v=[];(null==o?void 0:o.length)>0&&(o[0].labels=f.popularTypeahead,v=[].concat(U(v),U(o))),(null==d?void 0:d.length)>0&&(d[0].labels=f.casNumber,v=[].concat(U(v),U(d))),(null==s?void 0:s.length)>0&&(s[0].labels=f.categories,v=[].concat(U(v),U(s))),(null==l?void 0:l.length)>0&&(l[0].labels=f.products,v=[].concat(U(v),U(l))),r=v.map((function(e){return ae(ae({},e),{},{fusionQueryId:h,query:t})})),window.searchConstants.searchShortcutsTypeahedList=r}else e.result&&"string"==typeof e.result?((r=JSON.parse(e.result).response.docs.map((function(e){return ae(ae({},e),{},{query:t})}))).length>0&&(r[0].labels="Search suggestions"),window.searchConstants.searchShortcutsTypeahedList=[]):Array.isArray(e)&&e.length>0&&((r=e.map((function(e){return ae(ae({},e),{},{query:t})}))).length>0&&(r[0].labels="Search suggestions"),window.searchConstants.searchShortcutsTypeahedList=[]);return window.searchConstants.searchTypeAheadData=(null===(n=r)||void 0===n?void 0:n.length)||0,r},ue=function(e,t,n){return'data-parameters="signal_type,fusion_query_id,query,app_id,element_clicked,typeahead_suggestion" data-signal_type="request" data-fusion_query_id="'.concat(e,'" data-query="').concat(t,'" data-app_id="tf-search-searchbar-ui" data-element_clicked="typeahead" data-typeahead_suggestion="').concat(n,'"')},de=function(e,t){var n=[],r=sessionStorage.getItem("searchURL")||"/search/results?query={keyword}&focusarea=Search All";n.push('<div class="search-shortcuts-list-header">Recent searches</div>');for(var a=0;a<t;a++){var o=r.replace("{keyword}",e[a]);n.push('<div class="recent-search-term">\n        <a href="'.concat(o,'" term="').concat(e[a],'" data-uw-rm-brl="exc">\n          <span>').concat(e[a],"</span>\n        </a>\n      </div>"))}return n},he=function(e){var t;return(window.globalProviderConfig&&window.globalProviderConfig.items||[]).map((function(n){n.id===e.id&&(t=n)})),t},pe=function(){var e=M(F().mark((function e(t){var n,r,a,o,i,s,c,l,u,d,h,p,f,v,m,y;return F().wrap((function(e){for(;;)switch(e.prev=e.next){case 0:if(console.log("getTypeAheadData",t),o=window.curProvider||{},i=2,c=document.querySelector("#focusAreaSelector"),l=null==c?void 0:c.innerText,sessionStorage.setItem("focusAreaSelectorText",l),u=he(o)||{},(d=""!==window.searchConstants.searchTypeAheadURL?window.searchConstants.searchTypeAheadURL:null==u?void 0:u.typeAheadURL)&&(r=ce?"/search/service/typeaheadSuggestions?query={keyword}&countryCode={country_code}&targetsiteId={targetSiteId}":d),ce&&("kr"===(null===(h=window)||void 0===h||null===(h=h._lt)||void 0===h||null===(h=h.user)||void 0===h?void 0:h.displayIso)?a="KR_E1_LCD":"cn"===(null===(p=window)||void 0===p||null===(p=p._lt)||void 0===p||null===(p=p.user)||void 0===p?void 0:p.displayIso)&&(a="CN_E1_LCD")),sessionStorage.setItem("searchURL",null==u?void 0:u.searchURL),sessionStorage.setItem("focusAreaName",null==u?void 0:u.title),sessionStorage.setItem("searhTerm",t),"ja"!==se&&"ko"!==se&&"zh"!==se&&"zt"!==se||(i=1),!(t&&t.length>=i)){e.next=23;break}if(s=ce?null===(v=r)||void 0===v||null===(v=v.replace("{keyword}",encodeURIComponent(t)))||void 0===v||null===(v=v.replace("{country_code}",ie))||void 0===v?void 0:v.replace("{targetSiteId}",a):null===(m=r)||void 0===m||null===(m=m.replace("{keyword}",encodeURIComponent(t)))||void 0===m?void 0:m.replace("{country_code}",ie),-1!==(null===(f=s)||void 0===f?void 0:f.indexOf("/order/genome-database/keywordTypeAhead"))&&(s=null===(y=s)||void 0===y?void 0:y.replace(/\"/g,"%22")),console.log("url",s,u),!s.includes("undefined")){e.next=22;break}return e.abrupt("return",[]);case 22:n=$(encodeURIComponent(t),s);case 23:return e.abrupt("return",n||[]);case 24:case"end":return e.stop()}}),e)})));return function(t){return e.apply(this,arguments)}}(),fe=function(e){var t,n=window.searchConstants.searchShortcutsTypeahedList.map((function(e){var t=e.suggestion,n=e.query,r=t.toLowerCase().indexOf(""+n.toLowerCase()),a=r+n.length-1,o=t.slice(0,r),i=t.slice(r,a+1),s=t.slice(a+1),c="".concat(o,'<mark class="bg-transparent font-bold text-green-300">').concat(i,"</mark>").concat(s);return""==i&&(c=t),{match:c,value:e,key:"suggestion"}}));n=(null===(t=n)||void 0===t?void 0:t.length)>0?n:e;var r=Array.from(new Set(n.map((function(e){return e.match})))).map((function(e){return n.find((function(t){return t.match===e}))}));if(r.some((function(e){var t;return null==e||null===(t=e.value)||void 0===t?void 0:t.catalogNumber}))){var a=new Set;r=r.filter((function(e){var t,n=null==e||null===(t=e.value)||void 0===t?void 0:t.catalogNumber;return!n||!a.has(n)&&(a.add(n),!0)}))}return r.length>0&&(r=r.filter((function(e){return'unde<mark class="bg-transparent font-bold text-green-300">f</mark>in<mark class="bg-transparent font-bold text-green-300">e</mark>d'!==e.match&&("value"===e.key||"suggestion"===e.key||"popularTypeahead"===e.key||"casNumber"===e.key||"catalogNumber"===e.key||"categoryKey"===e.key)}))),r},ve=function(e,t){var n,r=window.searchConstants.searchShortcutsData,a=document.createElement(l);(null==t||null===(n=t.results)||void 0===n?void 0:n.length)>0?(e.classList.add(E),a.classList.add(A,"typeahead__container__shortcuts_right"),a.innerHTML=r,e.appendChild(a)):(e.classList.remove(E),window.searchConstants.searchTypeAheadData>0||a.classList.add(I),a.innerHTML=r,e.appendChild(a))},me=function(e,t){var n,r=t.value,a=r.casNumber,o=r.catalogNumber,i=r.categoryKey,s=r.sku,c=r.value,l=r.popularTypeahead,u=r.suggestion;if((a||o||i||l&&u||null!=c&&c.title&&u||u)&&(e.innerHTML=function(e){var t=R(),n=P(),r="",a=(null==e?void 0:e.value)||{},o=a.categoryKey,i=a.title,s=a.fusionQueryId,c=a.query,l=a.labels,u=a.suggestion,d=a.catalogNumber,h=a.casNumber,p=a.popularTypeahead;if(o){var f=u,v="".concat(C,"/").concat(n,"/").concat(t,"/").concat(o);ce&&(v="".concat("/apac/search/category/").concat(o));var m="".concat(O,'="CATEGORY|').concat(i,"|").concat(f,'"'),y=ue(s,c,f);r='\n      <a class="typeahead-term lw_signal_process" '.concat(m,' href="').concat(v,'" ').concat(y,' data-suggestions="').concat(null==l?void 0:l.categories,'">\n        <span class="typeahead-span" style="text-overflow: ellipsis; white-space: nowrap; overflow: hidden;">\n          ').concat(e.match,"\n        </span>\n      </a>\n    ")}else if(d&&!h){var g,w,b="".concat(i,"<br>").concat(d),x="".concat(O,'="SKU|').concat(d,'"'),S=ue(s,c,b),_="/order/catalog/product/".concat(d,"?SID=srch-srp-").concat(d),L=(null==d?void 0:d.split("~")[1])||"";ce&&(_="/apac/product/".concat(L||d)),r="suggestion"===e.key?'\n        <a href="'.concat(_,'" class="typeahead-term lw_signal_process" ').concat(x," ").concat(S,' term="').concat(d,'" data-suggestions="').concat(null==l?void 0:l.products,'">\n          <span class="typeahead-span" style="text-overflow: ellipsis; white-space: nowrap; overflow: hidden;">\n            ').concat(null==e?void 0:e.match,'\n            <br role="presentation" data-uw-rm-sr>\n            ').concat(null==e||null===(g=e.value)||void 0===g?void 0:g.catalogNumber,"\n          </span>\n        </a>\n      "):'\n        <a href="'.concat(_,'" class="typeahead-term lw_signal_process" ').concat(x," ").concat(S,' term="').concat(d,'" data-suggestions="').concat(null==l?void 0:l.products,'">\n          <span class="typeahead-span" style="text-overflow: ellipsis; white-space: nowrap; overflow: hidden;">\n            ').concat(null==e||null===(w=e.value)||void 0===w?void 0:w.title,'\n            <br role="presentation" data-uw-rm-sr>\n            ').concat(null==e?void 0:e.match,"\n          </span>\n        </a>\n      ")}else if(h){var k=h,E="".concat(O,'="CAS|').concat(k,'"'),A=ue(s,c,k),I="".concat(T,"/").concat(h);r='\n      <a href="'.concat(I,'" class="typeahead-term lw_signal_process" ').concat(E," ").concat(A,' term="').concat(h,'" data-suggestions="').concat(null==l?void 0:l.casNumber,'">\n        <span class="typeahead-span" style="text-overflow: ellipsis; white-space: nowrap; overflow: hidden;">\n          ').concat(e.match,"\n        </span>\n      </a>\n    ")}else if(p&&u){var j=u,N="".concat(O,'="POPULAR|').concat(j,'"'),D=ue(s,c,j);r='\n      <a class="typeahead-term lw_signal_process" '.concat(N," ").concat(D,' term="').concat(p,'" data-suggestions="POPULAR">\n        <span class="typeahead-span" style="text-overflow: ellipsis; white-space: nowrap; overflow: hidden;">\n          ').concat(e.match,"\n        </span>\n      </a>\n    ")}else{var B=u,M="".concat(O,'="SKU|').concat(B,'"'),q=ue(s,c,B);r='\n      <a class="typeahead-term lw_signal_process dada" '.concat(M," ").concat(q,' term="').concat(h,'" data-suggestions="').concat(null==l?void 0:l.casNumber,'">\n        <span class="typeahead-span" style="text-overflow: ellipsis; white-space: nowrap; overflow: hidden;">\n          ').concat(e.match,"\n        </span>\n      </a>\n    ")}return r}(t)),s&&(e.innerHTML=function(e){var t="".concat(O,"=SKU|").concat(e.value.sku,'"');return'\n    <a class="typeahead-term lw_signal_process" '.concat(t,' term="').concat(e.value.sku,'" data-suggestions="Search suggestions">\n      <span class="typeahead-span" style="text-overflow: ellipsis; white-space: nowrap; overflow: hidden;">\n      ').concat(e.value.sku," - ").concat(e.match,"\n      </span>\n    </a>\n  ")}(t)),c&&(e.innerHTML=function(e){var t="".concat(O,"=STANDARD|").concat(e.value.value,'"'),n=null==e?void 0:e.value,r=n.fusionQueryId,a=n.query,o=ue(r,a,a);return'\n    <a class="typeahead-term lw_signal_process" '.concat(t,' term="').concat(e.value.value,'" ').concat(o,' data-suggestions="Search suggestions">\n      <span class="typeahead-span">\n        ').concat(e.match,"\n      </span>\n    </a>\n  ")}(t)),null!==(n=t.value)&&void 0!==n&&n.labels){var d=document.createElement("div");e.classList.add("result-item-label"),d.classList.add("product-title"),d.innerHTML=t.value.labels,e.prepend(d)}else e.classList.add("typeahead-list-space")},ye=function(){return document.getElementById(w)},ge=function(){return document.getElementById(x)},we=function(){return document.getElementById("generalSearchInput")},be=function(){return document.getElementById(S)};null===(oe=R())||void 0===oe||oe.toLowerCase(),document.addEventListener(d,(function(e){if(be().contains(e.target)&&!1===be().classList.contains(k)){e.preventDefault(),e.stopPropagation(),be().classList.add(k),ye().value="",window.searchConstants.searchTypeAheadData=0,window.searchConstants.searchShortcutsTypeahedList=[],sessionStorage.setItem(h,"");var t=document.getElementById(b);t&&(t.innerHTML="")}}),!1),document.addEventListener("keypress",(function(e){if(we().contains(e.target)&&"Enter"===e.key){var t=sessionStorage.getItem(h),n=sessionStorage.getItem(m);if(!(ye().value.length>0&&""!==(null==t?void 0:t.trim())))return;var r="";sessionStorage.setItem(h,t),sessionStorage.setItem(g,"true");var a=sessionStorage.getItem(p)||null;"undefined"!==a&&null!=a||(a=window.searchConstants.searchRedirectionURL),document.dispatchEvent(new CustomEvent("searchFormSubmit",{detail:{search:{term:t}}})),a.includes(f)&&(r=a.replace(v,t)),r=a.includes(f)&&a.includes(m)?a.replace(v,t).replace(y,n):a.replace(v,t),sessionStorage.setItem("typeahead-kw",t),window.location.replace(r)}}),!1),document.addEventListener("click",(function(e){for(var t=e.target;t&&t!==document;){if(t.parentElement&&"POPULAR"===t.parentElement.getAttribute("data-suggestions")){var n=t.parentElement.getAttribute("term");document.dispatchEvent(new CustomEvent("searchSuggestions",{detail:{Search:{searchSuggestions:"popularSearch|".concat(n)}}})),window.location="".concat(j).concat(n,"&focusarea=").concat(N);break}t=t.parentElement}}));var xe=function(){var e=M(F().mark((function e(){var t,n,r,a,o,i,s,l,u,d,h;return F().wrap((function(e){for(;;)switch(e.prev=e.next){case 0:if(n=document.getElementById(w),r=document.getElementById(x),(a=document.getElementsByClassName(L)[0]).style.display=c,r.style.display=c,0!==(null==n||null===(t=n.value)||void 0===t?void 0:t.length)){e.next=12;break}return e.next=8,J();case 8:o=e.sent,l=(null===(i=o)||void 0===i?void 0:i.length)<10?null===(s=o)||void 0===s?void 0:s.length:10,(null==(u=de(o,l))?void 0:u.length)>0&&(a.innerHTML=u,a.classList.remove("hide"),h="",h=u.map((function(e){return e})).join(""),""!==window.searchConstants.searchShortcutsData&&(h+=window.searchConstants.searchShortcutsData),a.innerHTML=h,window.searchConstants.searchRecentSearchData=null===(d=h)||void 0===d?void 0:d.replace(/,/g,""));case 12:case"end":return e.stop()}}),e)})));return function(){return e.apply(this,arguments)}}();const Se=xe;var _e,Le=n(762),ke=n.n(Le),Ee=function(){var e=M(F().mark((function e(){var t,n,r,a,o,i,s,c,l,u=arguments;return F().wrap((function(e){for(;;)switch(e.prev=e.next){case 0:if(t=u.length>0&&void 0!==u[0]?u[0]:"",n=u.length>1&&void 0!==u[1]?u[1]:{},r=u.length>3?u[3]:void 0,a=P(),o=R(),i=2,c=n.typeAheadUrl,"ja"!==o&&"ko"!==o&&"zh"!==o&&"zt"!==o||(i=1),!(t&&t.length>=i)){e.next=21;break}return(s=c.replace("{keyword}",window.thermofisher.search.searchProvider.escapeHtmlQuery(t)).replace("{country_code}",a)).indexOf("/order/genome-database/keywordTypeAhead"),e.next=14,$(t,s);case 14:if(e.t0=e.sent,e.t0){e.next=17;break}e.t0=[];case 17:l=e.t0,r&&r(l),e.next=22;break;case 21:r&&r({});case 22:case"end":return e.stop()}}),e)})));return function(){return e.apply(this,arguments)}}(),Ae=function(){var e,t=arguments.length>1?arguments[1]:void 0,n=(arguments.length>0&&void 0!==arguments[0]?arguments[0]:"").trim();return n?(document.getElementById(S).classList.remove(k),e!==n&&(e=n,t&&el.keyword.val(e)),!0):(e="",window.thermofisher.search.searchTypeAhead.hideResultsBox(),!1)},Ie=a((function e(){!function(e,t){if(!(e instanceof t))throw new TypeError("Cannot call a class as a function")}(this,e),o(this,"init",(function(){document.addEventListener(d,(function(e){ge().contains(e.target)?window.location="".concat(j).concat(e.target.outerText,"&focusarea=").concat(N):(document.getElementsByClassName(L)[0].style.display=c,ge().style.display=c)}),!1),document.addEventListener("input",(function(e){var t,n=document.getElementById(b),r=null===(t=R())||void 0===t?void 0:t.toLowerCase();we().contains(e.target)&&(e.target.value.length>0?(sessionStorage.setItem(h,e.target.value),be().classList.remove(k),ge().style.display=c,["ja","ko","zh","zt"].includes(r)&&1===e.target.value.length&&sessionStorage.setItem("searchTypeAheadData")>0||!["ja","ko","zh","zt"].includes(r)&&e.target.value.length>=2&&sessionStorage.setItem("searchTypeAheadData")>0?(be().classList.remove(k),ge().style.display=c,sessionStorage.setItem(h,e.target.value),null==n||n.removeAttribute(i)):(n.setAttribute(i,"true"),n.innerHTML="",window.searchConstants.searchShortcutsTypeahedList=[])):(be().classList.add(k),n.setAttribute(i,"true"),n.innerHTML="",window.searchConstants.searchShortcutsTypeahedList=[]))}),!1),document.addEventListener(d,(function(e){if(document.getElementById("searchMagnifyMobile").contains(e.target)&&(e.preventDefault(),"svg"===e.target.tagName)){var t=sessionStorage.getItem(h),n=sessionStorage.getItem(p)||null;"undefined"!==n&&null!=n||(n=window.searchConstants.searchRedirectionURL);var r=sessionStorage.getItem(m),a="";document.dispatchEvent(new CustomEvent("searchFormSubmit",{detail:{search:{term:t}}})),n.includes(f)&&(a=n.replace(v,t)),n.includes(f)&&n.includes(m)&&(a=n.replace(v,t).replace(y,r)),window.location.replace(a)}}),!1),document.addEventListener(d,(function(e){if(document.getElementById("searchButton").contains(e.target)){e.preventDefault();var t=window.curProvider||{},n=he(t);sessionStorage.setItem("searchURL",null==n?void 0:n.searchURL),sessionStorage.setItem("focusAreaName",null==n?void 0:n.title),sessionStorage.setItem(g,"true");var r=sessionStorage.getItem(h),a=sessionStorage.getItem(p)||null;"undefined"!==a&&null!=a||(a=window.searchConstants.searchRedirectionURL);var o=sessionStorage.getItem(m);if("BUTTON"===e.target.tagName||"svg"===e.target.tagName){if(!(ye().value.length>0||r))return;var i="";document.dispatchEvent(new CustomEvent("searchFormSubmit",{detail:{search:{term:r}}})),a.includes(f)&&(i=a.replace(v,r)),i=a.includes(f)&&a.includes(m)?a.replace(v,r).replace(y,o):a.replace(v,r),sessionStorage.setItem("typeahead-kw",r),window.location.replace(i)}}}),!1),function(){var e=document.getElementById(w),t=document.getElementById(S),n=window.location.href.indexOf("query"),r=thermofisher.search.searchProvider.getUrlParameter("query"),a=sessionStorage.getItem("typeahead-kw");-1==n||r||void 0===a||null==a||(e.value=a,sessionStorage.setItem("searchKeyword",a));var o=window.location.search,l=new URLSearchParams(o),u=l.get("query")||l.get("keyword")||e.value;sessionStorage.setItem("searchShortcutsList",""),u&&(e.value=u,t.classList.remove(k)),0===e.value.length?(sessionStorage.setItem(p,""),sessionStorage.setItem(m,"")):sessionStorage.setItem(h,e.value);var d={name:w,selector:"#suggest1",data:{src:pe,keys:["suggestion","value","popularTypeahead","catalogNumber"],cache:!1,filter:fe},trigger:function(e){var t,n=e.replace(/(^ +)|( +$)|(\s{2,})/g," "),r=!1,a=2,o=null===(t=R())||void 0===t?void 0:t.toLowerCase();return"ja"!==o&&"ko"!==o&&"zh"!==o&&"zt"!==o||(a=1),r=!0,n.length>=a&&(r=!0),r},query:function(e){var t,n=e.replace(/(^ +)|( +$)|(\s{2,})/g," "),r=document.getElementById(b);return"string"==typeof n&&"1"===n.length&&0===(null===(t=window)||void 0===t?void 0:t.searchConstants.searchTypeAheadData)&&r.removeAttribute(i),sessionStorage.setItem(h,n),n},searchEngine:"strict",diacritics:!0,debounce:300,threshold:0,resultsList:{element:ve,noResults:!1,maxResults:10,tabSelect:!0,class:"typeahead-term-list"},resultItem:{element:me,highlight:"bg-transparent font-bold text-green-300"},events:{input:{focus:function(){var e=document.getElementById(b),t=document.getElementById(x);f.input.value.length&&(e.removeAttribute(i),t.style.display=c),0===f.input.value.length&&(Se(),sessionStorage.setItem(h,"")),e.querySelector(".search-shortcuts-list")||e.querySelector(".search-shortcut-list-no-data")?e.removeAttribute(i):(0===f.input.value.length&&(0===window.searchConstants.searchTypeAheadData&&""!==window.searchConstants.searchRecentSearchData?(e.setAttribute(i,!1),sessionStorage.setItem(h,""),t.style.display=s):e.setAttribute(i,!1),ne("searchTerm")),f.input.value.length>0&&e.setAttribute(i,!1),0===window.searchConstants.searchTypeAheadData&&e.setAttribute(i,!1),sessionStorage.getItem("searchTypeAheadData")>0&&e.setAttribute(i,!1))},keydown:function(){var e=document.getElementById(w),t=document.getElementById(x),n=document.getElementById(b);0===e.value.length&&(t.style.display=c),0===window.searchConstants.searchTypeAheadData&&n.setAttribute(i,!1),sessionStorage.getItem("searchTypeAheadData")>0&&n.setAttribute(i,!1)},blur:function(){var e=document.getElementById(b);f.input.value.length&&e.setAttribute(i,!1),0===f.input.value.length&&e.setAttribute(i,!1),0===window.searchConstants.searchTypeAheadData&&e.setAttribute(i,!1),sessionStorage.getItem("searchTypeAheadData")>0&&e.setAttribute(i,!1)},selection:function(e){var t=sessionStorage.getItem("searchURL");!function(e,t,n){var r,a,o=null==e||null===(r=e.detail)||void 0===r||null===(r=r.selection)||void 0===r?void 0:r.value,i=o.catalogNumber,s=o.casNumber,c=o.sku,l=o.value,u=o.categoryKey,d=o.popularTypeahead,h=o.suggestion,p=i||s;n&&n.includes("keyword")&&c&&(t.input.value=c,a=n.replace("{keyword}",c)),n&&n.includes("focusAreaName")&&p&&(t.input.value=p,a=n.replace("{keyword}",p).replace("{focusAreaName}",N)),n&&n.includes("keyword")&&l&&(t.input.value=l,a=n.replace("{keyword}",l)),n&&n.includes("keyword")&&d&&h&&(t.input.value=d,a=n.replace("{keyword}",d).replace("{focusAreaName}",N)),u&&(a="".concat(C,"/").concat(ie,"/").concat(se,"/").concat(u)),s&&(a="".concat(T,"/").concat(s)),window.location=a}(e,f,t)}}},submit:!0},f=new(ke())(d);return{config:d,autoSearchComplete:f}}().autoSearchComplete})),o(this,"processQuery",(function(){Ee(arguments.length>0&&void 0!==arguments[0]?arguments[0]:"",arguments.length>1&&void 0!==arguments[1]?arguments[1]:{},arguments.length>2?arguments[2]:void 0,arguments.length>3?arguments[3]:void 0)})),o(this,"setKeywordExternal",(function(){Ae(arguments.length>0&&void 0!==arguments[0]?arguments[0]:"")})),o(this,"setKeywordNoSearch",(function(){})),o(this,"setKeywordNoAuto",(function(){})),o(this,"suggestionVisible",(function(){var e;null==(e=document.getElementById(_))||e.classList.contains(u)})),o(this,"hideSuggestion",(function(){!function(){var e=document.getElementById(_);if(e){null==e||e.classList.remove(u);var t=new CustomEvent("searchEvent",{detail:{searchEventDetail:"hideSuggestion"}});document.dispatchEvent(t)}}()})),o(this,"setKeyword",(function(){Ae(arguments.length>0&&void 0!==arguments[0]?arguments[0]:"")})),o(this,"hideResultsBox",(function(){document.getElementById(x).style.display=c,window.thermofisher.search.searchTypeAhead.hideSuggestion()})),o(this,"setKeywordEntry",(function(){console.log("This method is deprecated")})),o(this,"showResultsBox",(function(){})),o(this,"hideRecentSearchesBox",(function(){})),o(this,"showRecentSearchesBox",(function(){})),o(this,"deleteMagellanSearch",(function(){})),o(this,"loadSearchShortcuts",(function(){return ne("searchTerm")}))}));if(n(97),null===(_e=window.thermofisher)||void 0===_e||!_e.search)throw new Error("Thermofisher Search Namespace is not defined.");window.thermofisher.search.searchTypeAhead=new Ie})()})();
+//# sourceMappingURL=searchBarTypeAhead.js.map
+</script>
+
+</body>
+</html>

@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>customer.placement.html</title>
+</head>
+<body>
+
+<script>
+/**
+ * Sample global-code placement script adds customer.global.js and optionally geo.php on the page.
+ * Customize on an account-by-account basis as necessary - several flags are passed to the closure
+ * as arguments at the bottom of the file.  The default values are PHP-smarty template variables that
+ * the global-code generator expands to generate canned placement code.
+ *
+ *   NOTE: set 'asyncForce' to true for tag-manager loaded code - document.write does not
+ *           work in asynchronously loaded scripts even if the document is still in 'ready' state
+ *   NOTE: this code should work after the 1.3 release - schedule for 03/21/2015
+ */
+(function(g, l, d, asyncForce, accountId, withGeo, checkJQuery, secureByDomain ){
+    //
+    // NOTE: string.startsWith is not defined in IE11 and earlier - ugh
+    //
+    if ( secureByDomain.indexOf( "secure." ) !== 0 ) {
+        secureByDomain = "secure.marketinghub.opentext.com";
+    }
+    
+    /**
+     * Little helper class holds data related to global code placement
+     * 
+     * @class ConfigFactory
+     */
+    var ConfigFactory = {
+    
+        /**
+         * Build the list of scripts to put onto the page
+         * 
+         * @method buildConfig
+         * @static
+         * @param {Object} g alias for window - defaults to window
+         * @param {Location} l alias for locatino - defaults to location
+         * @param {Document} d alias for document - defaults to document
+         * @param {Boolean} asyncForce true to force async load
+         * @param {Integer} accountId
+         * @param {Boolean} withGeo flag to load geo-data before loading global code - default false
+         * @param {Boolean} checkJQuery if set to "noJQuery", then load the no-jquery global code,
+         *                else if true-ish check if jQuery is on the page, and load the version
+         *                of customer.global that does not include jQuery if possible
+         * @returns {Object} new _dmhConfig object including setup property with scriptList
+         */
+        buildConfig: function(g, l, d, asyncForce, accountId, withGeo, checkJQuery ) {
+            var url="https://" + secureByDomain + "/es/" + accountId + "/c/0/u/customer.global.js", 
+                n, b, 
+                // check flags for customer.global.test.js
+                globalQA = !!(l.search.match( /[\?&]opglobalqa\=([^\?&#]+)/i ) 
+                        || d.cookie.match( /(^|;)\s*opglobalqa\=([^;]+)/)),
+				dmhTest = globalQA || l.search.match( /[\?&]dmhTest\=([^\?&#]+)/i ) 
+                        || d.cookie.match( /(^|;)\s*dmhTest\=([^;]+)/),
+                // check flags to bypass akamai cache
+                esnocache = l.search.match( /[\?&]opnocache\=([^\?&#]+)/i ) 
+                        || d.cookie.match( /(^|;)\s*opnocache\=([^;]+)/),
+                geo="https://" + secureByDomain + "/geo.php", i,
+                all = [],
+                // IE8,9,10 do not properly set document.readyState, so include document.body check
+                async = asyncForce || ((d.readyState !== 'loading') && d.body), 
+                config = {
+                    setup: {
+                        globalQA: globalQA,
+                        buildConfig: ConfigFactory.buildConfig,
+                        withGeo: !! withGeo,
+                        scriptList: []
+                    }
+                },
+                skipJQuery = false;
+     
+            if( l.search.match( /[\?&]opDMH\=off/i ) || d.cookie.match( /(^|;)\s*opDMH\=off/ ) ){ return []; }
+
+            if ( checkJQuery === "noJQuery" ) {
+                skipJQuery = true;
+            } else if( checkJQuery && g.jQuery && g.jQuery.fn && g.jQuery.fn.jquery ) {
+                var match = g.jQuery.fn.jquery.match( /^(\d+)\.(\d+)/ ), major, minor;
+
+                if ( match ) {
+                    major = +match[1];
+                    minor = +match[2];
+                    skipJQuery = ((major === 1) && (minor > 9)) || ((major === 2) && (minor > 0));
+                }
+            } 
+
+            if ( skipJQuery ) {
+                 url = url.replace( "customer.global.js", "customer.global.nojq.js" );
+            }				
+            if( dmhTest ) { 
+                url = url.replace( "customer.global.js", "customer.global.test.js" );
+                url = url.replace( "customer.global.nojq.js", "customer.global.nojqtest.js" );
+            } 
+            if ( esnocache ) {
+                url = url.replace( "/es/", "/esnocache/" );
+            }
+
+            config.loadAsync = !! async;
+            if( withGeo ) { 
+                all = [geo,url];
+                // delay global code execution until optimost.geoData is defined
+                config.autolaunch = function() {
+                       if ( optimost.geoData ) {
+                           optimost.go( {} );
+                       } else {
+                           optimost.on( 'geoDataLoaded', function(ev,data){ optimost.go({}); } );
+                       }
+                   };
+            } else {
+                all = [url]; 
+            }
+                        
+            config.setup.scriptList = all;
+            // Global code should use https even if on http page
+            config.beSecure = true;
+            return config;
+        }
+    };
+
+    (function(){
+        var i, url, config, n, b;
+        
+        g._dmhConfig = g._dmhConfig || {};  // global config flags 
+        config = ConfigFactory.buildConfig( g, l, d, 
+            asyncForce || g._dmhConfig.loadAsync, 
+            accountId, 
+            withGeo || (g._dmhConfig.setup && g._dmhConfig.setup.withGeo), 
+            checkJQuery 
+                    );
+        
+        for ( i in config ) {
+            if ( typeof( g._dmhConfig[i] ) === 'undefined' ) {
+                g._dmhConfig[i] = config[i];
+            }
+        }
+
+        // Drop/refresh opglobalqa cookie with 1 hour timeout
+        if ( g._dmhConfig.setup && g._dmhConfig.setup.globalQA ) {
+            var cookieExpireStr = new Date( new Date().getTime() + 60*60*1000 ).toUTCString();
+            document.cookie = "opglobalqa="+g._dmhConfig.setup.globalQA+";path=/;expires=" + cookieExpireStr;
+        }
+
+        if ( g._dmhConfig.setup && (typeof( g._dmhConfig.setup.scriptList ) === 'object') && (! isNaN( +accountId ) ) ) {
+            for( i=0; i < g._dmhConfig.setup.scriptList.length; ++i ) {
+               url = g._dmhConfig.setup.scriptList[i];
+               n=d.createElement( "script" );
+               n.src = url;
+               if( g._dmhConfig.loadAsync ) {
+                   b=d.getElementsByTagName( "script" )[0];
+                   b.parentNode.insertBefore( n, b );
+               } else {
+                   d.write( n.outerHTML + "\n" );
+               }
+           }
+       }
+    })();
+})(window, location, document, 
+     !! "", 
+     +"1783", false,
+     "noJQuery",
+     "secure.marketinghub.opentext.com"
+             );
+</script>
+
+</body>
+</html>

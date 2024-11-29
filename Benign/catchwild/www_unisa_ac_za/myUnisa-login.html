@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>myUnisa-login.html</title>
+</head>
+<body>
+
+<script>
+$(document).ready(function(){
+   	$.ajaxSetup({ cache: false })
+	var newCredentials = false;
+	var attempts = 0;
+	var plural = "";
+	$("#credentials").show();
+	$("#loginFailed").hide();
+	$("#loginAttempt").hide();
+	$("#password").keydown(function() {
+		newCredentials = true;
+	});
+	$("#lgn").click(function() {
+                $("#credentials").hide();
+                $("#loginBtn").hide();
+$("#loginFailed").hide();
+                $("#loginAttempt").show();
+		if(!newCredentials) {
+		//alert("just go");
+		url = '/direct/session/current.json';
+			$.getJSON(url,function(data) {
+				$.each( data, function( key, val ) {
+					if(key === "userEid") {
+						if(val) {
+							//alert(val);
+							$(location).attr("href","/portal/");
+						} else {
+							$("#credentials").show();
+							$("#loginBtn").show();
+                $("#loginAttempt").hide();
+						}
+					}
+				});
+			});
+		} else {
+		//alert("submit form");
+			if(attempts > 0) {
+				plural = "s";
+			}
+			var uname = $("#username").val();
+			var pword = $("#password").val();
+			$.post("/direct/session/new", {"_username" : uname, "_password" : pword}).done(function(data, status, jqXHR) {
+				newCredentials = false;
+				if(status === "success") {
+					$(location).attr("href","/portal/");
+				}
+			}).fail(function(jqXHR3, status3, errorThrown) {
+					$("#attempts").html(++attempts);
+					$("#plural").html(plural);
+					$("#loginFailed").show();
+					$("#credentials").show();
+					$("#loginBtn").show();
+                $("#loginAttempt").hide();
+                                });
+
+		}
+	});
+$("#password").keypress(function(event){
+    if(event.keyCode == 13){
+     $('#lgn').click();
+    }
+});
+   });
+</script>
+
+</body>
+</html>

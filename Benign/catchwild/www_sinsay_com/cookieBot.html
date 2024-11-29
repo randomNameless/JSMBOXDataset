@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>cookieBot.html</title>
+</head>
+<body>
+
+<script>
+const head = document.querySelector('head');
+
+const cookieBotSrcType = 'text/javascript';
+const cookieBotSrc = 'https://consent.cookiebot.com/uc.js'
+const cookieBotId = 'Cookiebot';
+const cookieBotAttribute = 'data-cbid';
+const cookieBotAttributeValue = '35c8a6cc-d203-484c-abb5-a74e2605a491';
+
+const addCookieBot = () => {
+    const cookieBot = document.createElement('script');
+
+    cookieBot.type = cookieBotSrcType;
+    cookieBot.async = true;
+    cookieBot.src = cookieBotSrc;
+    cookieBot.id = cookieBotId;
+    cookieBot.setAttribute(cookieBotAttribute, cookieBotAttributeValue);
+    head.appendChild(cookieBot);
+}
+
+const getCookieBotCookie = () => {
+    const match = document.cookie.match(RegExp('(?:^|;\\s*)CookieConsent=([^;]*)'));
+    return match ? match[1].toString() : '';
+}
+
+const handleStatisticsConsent = (cookieBot) => {
+    return cookieBot.includes('statistics:true') ? 'granted' : 'denied';
+}
+
+const handlePreferencesConsent = (cookieBot) => {
+    return cookieBot.includes('preferences:true') ? 'granted' : 'denied';
+}
+
+const handleMarketingConsent = (cookieBot) => {
+    return cookieBot.includes('marketing:true') ? 'granted' : 'denied';
+}
+
+const defaultAdsDataRedaction = (cookieBot) => {
+    return handleMarketingConsent(cookieBot) === 'denied';
+}
+
+const handleCookieConsent = () => {
+    const script = document.createElement('script');
+
+    const cookieBotCookie = getCookieBotCookie();
+
+    script.setAttribute('data-cookieconsent', 'ignore');
+
+    script.innerHTML = `(function () {
+        const statistics_consent = ${JSON.stringify(handleStatisticsConsent(cookieBotCookie))};
+        const preferences_consent = ${JSON.stringify(handlePreferencesConsent(cookieBotCookie))};
+        const marketing_consent = ${JSON.stringify(handleMarketingConsent(cookieBotCookie))};
+        const default_ads_data_redaction = ${defaultAdsDataRedaction(cookieBotCookie)};
+    
+        window.dataLayer = window.dataLayer || [];
+                    
+            function gtag() {
+                dataLayer.push(arguments);
+            }
+                    
+            gtag("consent", "default", {
+                ad_storage: marketing_consent,
+                ad_user_data: marketing_consent,
+                ad_personalization: marketing_consent,
+                analytics_storage: statistics_consent,
+                functionality_storage: preferences_consent,
+                personalization_storage: preferences_consent,
+                security_storage: "granted",
+                wait_for_update: 2000,
+            });
+
+            gtag("set", "ads_data_redaction", default_ads_data_redaction);
+            
+        })()`
+    head.appendChild(script);
+}
+
+addCookieBot();
+handleCookieConsent();
+
+
+
+
+</script>
+
+</body>
+</html>

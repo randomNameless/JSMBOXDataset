@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>didomi.plus.banner.min.html</title>
+</head>
+<body>
+<script>/**
+ * @prettier
+ */
+
+"use strict";
+
+(function () {
+  /*
+   * window.zCanUseCookies: (vendor: string) => null | undefined | boolean;
+   *
+   * null - didomi nie je naloadovane
+   * undefined - nemam suhlas ani nesuhlas
+   * false - nesuhlas
+   * true - suhlas
+   */
+
+  window.zCanUseCookies = function () {
+    return null;
+  };
+  window.didomiOnReady = window.didomiOnReady || [];
+  window.didomiOnReady.push(function () {
+    window.zCanUseCookies = function (vendor = "c:zoznam") {
+      return Didomi.getUserConsentStatus(Didomi.Purposes.Cookies, vendor);
+    };
+  });
+})();
+
+//id5 true-link
+var id5TruelinkdomainsWhitelist = [
+  "bleskovky.zoznam.sk",
+  "gamesite.zoznam.sk",
+  "calendar.zoznam.sk",
+  "karierainfo.zoznam.sk",
+  "maxmma.zoznam.sk",
+  "predpovede.zoznam.sk",
+  "sibyla.zoznam.sk",
+  "spuntik.zoznam.sk",
+  "telefonny.zoznam.sk",
+  "webslovnik.zoznam.sk",
+  //"www.zoznam.sk/katalog",
+  "tv.zoznam.sk",
+];
+if (id5TruelinkdomainsWhitelist.includes(window.location.hostname)) {
+  var preconnectLink = document.createElement("link");
+  preconnectLink.rel = "preconnect";
+  preconnectLink.href = "https://id5-sync.com";
+  document.head.appendChild(preconnectLink);
+  var host = window.location.hostname;
+  var scriptSrc = host.includes("zoznam.sk")
+    ? "https://www.zoznam.sk/id5-bootstrap.js"
+    : "https://www.topky.sk/id5-bootstrap.js";
+  window.document.write(
+    '<script src="' +
+      scriptSrc +
+      '" onload="window.id5Bootstrap.initTrueLinkId(1411)"></script>'
+  );
+}
+
+(function () {
+  window.document.write = function (content) {
+    console.log("document.write() called from:", document.currentScript);
+    (document.currentScript || document.body).insertAdjacentHTML(
+      "afterend",
+      content
+    );
+  };
+
+  window.document.writeln = function (content) {
+    console.log("document.writeln() called from:", document.currentScript);
+    (document.currentScript || document.body).insertAdjacentHTML(
+      "afterend",
+      content
+    );
+  };
+})();
+
+window.didomiOnReady = window.didomiOnReady || [];
+window.didomiOnReady.push(function (Didomi) {
+  const parser = new DOMParser();
+  const didomiSelector = `script[type^="didomi/"][data-vendor][data-banner]`;
+  const articleSelector = document.querySelector("#article_body")
+    ? "#article_body"
+    : document.querySelector("article")
+    ? "article"
+    : "#postDetail";
+
+  let injectBannerStyles = false;
+  const getUrlBaseDomain = (url) =&gt;
+    new URL(url).hostname.split(".").slice(-2).join(".");
+
+  const hideBlockquote = (element) =&gt; {
+    const domain = element.src ? getUrlBaseDomain(element.src) : null;
+    if (!domain) return;
+
+    const bqEl = element.parentNode.querySelector("blockquote");
+    if (!bqEl) return;
+
+    bqEl.style.display = "none";
+  };
+
+  const extractDomain = (string) =&gt; {
+    if (!string) return;
+
+    const contentDOM = parser.parseFromString(string, "text/html");
+
+    const iframe = contentDOM.querySelector("iframe");
+    if (!(iframe &amp;&amp; iframe.src)) return;
+
+    return getUrlBaseDomain(iframe.src);
+  };
+
+  document
+    .querySelectorAll(`${articleSelector} ${didomiSelector}`)
+    .forEach((scriptEl) =&gt; {
+      if (scriptEl.matches('[data-processed="true"]')) {
+        console.log(
+          scriptEl.dataset.vendor,
+          "processed =",
+          scriptEl.dataset.processed,
+          ", src =",
+          scriptEl.src
+        );
+        return;
+      }
+      injectBannerStyles = true;
+      let domain = scriptEl.src
+        ? getUrlBaseDomain(scriptEl.src)
+        : extractDomain(scriptEl.innerHTML);
+      if (scriptEl.dataset.banner) domain = scriptEl.dataset.banner;
+      if (!domain) return console.error("no domain, skipping ...");
+
+      const aEl = document.createElement("a");
+      aEl.className = "didomi-custom-banner";
+      aEl.href = "";
+      aEl.title = "";
+      aEl.innerHTML = `
+			<span class="didomi-custom-banner-text">
+				Obsah zo stránky <strong>${domain}</strong> nie je možné zobraziť bez súhlasu s ukladaním príslušných súborov cookies.
+				Pre zobrazenie zablokovaného obsahu je potrebné upraviť vaše cookies preferencie.
+			</span><br/>
+<span class="didomi-custom-banner-button">Upraviť cookies preferencie</span>
+		`;
+      aEl.dataset.cbid = scriptEl.dataset.cbid = Math.random()
+        .toString(36)
+        .substring(2);
+      aEl.onclick = (event) =&gt; {
+        event.preventDefault();
+        Didomi.notice.show(); // eslint-disable-line no-undef
+      };
+      hideBlockquote(scriptEl);
+      scriptEl.after(aEl);
+    });
+
+  if (!injectBannerStyles) return;
+
+  const style = document.createElement("style");
+  style.innerHTML = `
+		${articleSelector} ${didomiSelector} + .didomi-custom-banner {
+			display: block;
+			background-color: #2e2e2e;
+			color: #f5f5f5 !important;
+			margin: 0 0 8px 0;
+			padding: 15px;
+			cursor: pointer;
+			text-decoration: none;
+			text-align: left;
+		}
+		${articleSelector} p &gt; ${didomiSelector} + .didomi-custom-banner {
+			max-width: 550px;
+			margin: auto;
+		}
+		${articleSelector} ${didomiSelector} + .didomi-custom-banner .didomi-custom-banner-button {
+			display: inline-block;
+			background: #eb1d2b;
+			color: #fff;
+			padding: 3px 6px;
+			margin-top: 8px;
+		}
+
+		${didomiSelector}[data-processed="true"] + .didomi-custom-banner {
+			display: none !important;
+		}
+	`;
+  document.head.appendChild(style);
+});
+
+var gtmScriptZ = document.createElement("script");
+gtmScriptZ.src = "https://www.googletagmanager.com/gtag/js?id=G-TMPQXKBVY7";
+gtmScriptZ.async = true;
+gtmScriptZ.type = "didomi/javascript";
+document.head.appendChild(gtmScriptZ);
+window.dataLayer = window.dataLayer || [];
+function gtagZ() {
+  dataLayer.push(arguments);
+}
+gtagZ("js", new Date());
+gtagZ("config", "G-TMPQXKBVY7", { anonymize_ip: true });
+
+//id5
+document.addEventListener("DOMContentLoaded", function () {
+  // Check for ID5 script or qw.js script presence
+  if (
+    document.documentElement.innerHTML.includes(
+      "var id5InstanceZ = ID5.init({ partnerId: 1411 })"
+    ) ||
+    Array.from(document.scripts).some((script) =&gt; script.src.includes("qw.js"))
+  ) {
+    return; // Exit if conditions not met
+  }
+
+  // Inject ID5 API script
+  let id5Script = document.createElement("script");
+  id5Script.src = "https://cdn.id5-sync.com/api/1.0/id5-api.js";
+  id5Script.onload = function () {
+    let initScript = document.createElement("script");
+    initScript.text = `
+            var id5InstanceZ = ID5.init({ partnerId: 1411 });
+        `;
+    document.head.appendChild(initScript);
+  };
+  document.head.appendChild(id5Script);
+});
+
+
+</body>
+</html>
